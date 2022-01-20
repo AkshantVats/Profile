@@ -1,1 +1,11 @@
+title: Akshant Sharma # your name (or website title) here
+logo: "/photo.png?raw=true" # your photo (or logo) here
+description: > # your text below (remove <br> elements if you don't need line breaks)
+ Senior Software Engineer
+  <br><br>
+  <a href="mailto:akshant3@gmail.com">akshant3@gmail.com</a>
+  <br>
+  <a href="https://www.linkedin.com/in/akshantsharma07/">LinkedIn Profile</a>
+  <br>
+  <a href="https://github.com/AkshantVats/">Gihub</a> 
 theme: jekyll-theme-minimal
