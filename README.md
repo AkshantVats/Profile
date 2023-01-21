@@ -1,10 +1,8 @@
 ## Portfolio
 
-Akshant is currently a Sr. Software Engineer at Browserstack.<br />
+Akshant is currently a Sr. Software Engineer at Delivery Hero.<br />
 
-5+ years of experience in back-end development from system design to
-implementation with core competencies. In addition to this
-Creating/Monitoring cloud components based on the increasing scale of data.<br /><br />
+5+ years of experience in back-end development from system design to implementation with core competencies. In addition to this Creating/Monitoring cloud components based on the increasing scale of data.<br /><br />
 ➢ Algorithms and Data Structures<br />
 ➢ Sharding & Partitioning of NoSql database.<br />
 ➢ SOLID principles in API design.<br />
@@ -22,16 +20,26 @@ Creating/Monitoring cloud components based on the increasing scale of data.<br /
 ## Skills
 
 <p align='left'>
+  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Java_programming_language_logo.svg/242px-Java_programming_language_logo.svg.png" alt="html" width="40" height="40">
   <img src="https://upload.wikimedia.org/wikipedia/commons/0/0d/C_Sharp_wordmark.svg" alt="html" width="40" height="40">
-  <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/CSS3_logo_and_wordmark.svg/1200px-CSS3_logo_and_wordmark.svg.png' alt="css" width="40" height="40">
-  <img src='https://upload.wikimedia.org/wikipedia/commons/6/6a/JavaScript-logo.png' height='30' width='auto' alt="js">
-   <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1280px-React-icon.svg.png" alt="react" width="auto" height="40"/>
-   <img src="https://angular.io/assets/images/logos/angular/angular.svg" alt="angular" width="40" height="40"/>
+  <img src='https://en.wikipedia.org/wiki/File:Kubernetes_logo_without_workmark.svg' alt="css" width="40" height="40">
+  <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Amazon_Web_Services_Logo.svg/300px-Amazon_Web_Services_Logo.svg.png' height='30' width='auto' alt="js">
+   <img src="https://en.wikipedia.org/wiki/File:Google_Cloud_logo.svg" alt="react" width="auto" height="40"/>
 </p>
 
 ---
 
 ## Experience
+
+### **SENIOR SOFTWARE ENGINEER**
+#### DELIVERY HERO SE
+
+➢ **Role** – Build and deploy Solutions which help customers to see exact information about their orders. Engage customers as much as possible to stop contacting the customer team.<br />
+➢ **Technology** – Java, AWS, Big-Data, K8s.<br />
+➢ **Projects** – Device-Features.<br />
+➢ **Details** – ➢ Responsible for creating, scaling and managing new features for seamless delivery.<br />
+  Using OSRM maps to figure out the optimal path for rider and update in near real time.<br />
+  Integration with Ably to provide smooth experience to user.<br /><br />
 
 
 ### **SENIOR SOFTWARE ENGINEER**
