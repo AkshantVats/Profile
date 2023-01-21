@@ -22,9 +22,9 @@ Akshant is currently a Sr. Software Engineer at Delivery Hero.<br />
 <p align='left'>
   <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Java_programming_language_logo.svg/242px-Java_programming_language_logo.svg.png" alt="html" width="40" height="40">
   <img src="https://upload.wikimedia.org/wikipedia/commons/0/0d/C_Sharp_wordmark.svg" alt="html" width="40" height="40">
-  <img src='[https://en.wikipedia.org/wiki/File:Kubernetes_logo_without_workmark.svg](https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Kubernetes_logo_without_workmark.svg/1234px-Kubernetes_logo_without_workmark.svg.png)' alt="html" width="40" height="40">
+  <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Kubernetes_logo_without_workmark.svg/1234px-Kubernetes_logo_without_workmark.svg.png' alt="html" width="40" height="40">
   <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Amazon_Web_Services_Logo.svg/300px-Amazon_Web_Services_Logo.svg.png' height='30' width='auto' alt="js">
-   <img src="[https://en.wikipedia.org/wiki/File:Google_Cloud_logo.svg](https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg)" alt="react" width="auto" height="40"/>
+   <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg" alt="react" width="auto" height="40"/>
 </p>
 
 ---
