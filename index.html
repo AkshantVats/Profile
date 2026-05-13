@@ -4,1025 +4,364 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Akshant Sharma — Staff Engineer</title>
-<meta name="description" content="Staff Engineer specialising in distributed systems and AI infrastructure. Built systems handling 1.5T events/day, 7M IoT sensors, and real-time logistics at scale.">
+<meta name="description" content="Staff Engineer specialising in distributed systems and AI infrastructure. 1.5T events/day, 7M IoT sensors, real-time logistics at scale.">
 <meta property="og:title" content="Akshant Sharma — Staff Engineer">
 <meta property="og:description" content="Distributed systems and AI infrastructure. 7.5 years building the layer underneath.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#080810">
+<meta name="theme-color" content="#07070f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #080810;
-  --bg2: #0d0d18;
-  --bg3: #11111e;
-  --bg4: #161625;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
-  --text: #e8e8f0;
-  --muted: #6b6b88;
-  --muted2: #9898b8;
-  --accent: #5b6af0;
-  --accent2: #7b8fff;
-  --green: #00d68f;
-  --amber: #f0a030;
-  --red: #f05060;
-  --mono: 'DM Mono', monospace;
-  --sans: 'Syne', sans-serif;
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.7;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Noise overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1000;
-  opacity: 0.5;
-}
-
-/* Grid lines background */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(91,106,240,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91,106,240,0.03) 1px, transparent 1px);
-  background-size: 80px 80px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* ── LAYOUT ── */
-.wrap {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 0 28px;
-  position: relative;
-  z-index: 1;
-}
-
-/* ── NAV ── */
-nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(8,8,16,0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 0;
-}
-
-.nav-inner {
-  max-width: 780px;
-  margin: 0 auto;
-  padding: 0 28px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.nav-brand {
-  font-family: var(--sans);
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--text);
-  text-decoration: none;
-  letter-spacing: -0.3px;
-}
-
-.nav-links {
-  display: flex;
-  gap: 28px;
-  list-style: none;
-}
-
-.nav-links a {
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.nav-links a:hover { color: var(--text); }
-
-/* ── HERO ── */
-.hero {
-  padding: 96px 0 72px;
-  position: relative;
-}
-
-.hero-tag {
-  font-size: 10px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--accent2);
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-tag::before {
-  content: '';
-  display: inline-block;
-  width: 20px;
-  height: 1px;
-  background: var(--accent2);
-}
-
-.hero h1 {
-  font-family: var(--sans);
-  font-size: clamp(36px, 6vw, 64px);
-  font-weight: 800;
-  line-height: 1.0;
-  letter-spacing: -2px;
-  margin-bottom: 24px;
-  color: var(--text);
-}
-
-.hero h1 .dim { color: var(--muted); font-weight: 400; }
-
-.hero-desc {
-  font-size: 15px;
-  color: var(--muted2);
-  line-height: 1.7;
-  max-width: 520px;
-  margin-bottom: 40px;
-}
-
-.hero-desc strong { color: var(--text); font-weight: 400; }
-
-.hero-cta {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 10px 20px;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 0.2s;
-  cursor: pointer;
-  border: none;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: #fff;
-}
-.btn-primary:hover { background: var(--accent2); }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--muted2);
-  border: 1px solid var(--border2);
-}
-.btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
-
-/* ── STATS STRIP ── */
-.stats-strip {
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  padding: 28px 0;
-  margin-bottom: 80px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-}
-
-.stat {
-  padding: 0 24px;
-  border-right: 1px solid var(--border);
-}
-
-.stat:first-child { padding-left: 0; }
-.stat:last-child { border-right: none; }
-
-.stat-num {
-  font-family: var(--sans);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.5px;
-  line-height: 1;
-  margin-bottom: 5px;
-}
-
-.stat-label {
-  font-size: 10px;
-  letter-spacing: 0.5px;
-  color: var(--muted);
-  line-height: 1.4;
-}
-
-/* ── SECTION ── */
-section {
-  margin-bottom: 80px;
-}
-
-.section-label {
-  font-size: 9px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 32px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-
-/* ── BUILDING NOW ── */
-.project-card {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 28px 32px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.project-card:hover {
-  border-color: rgba(91,106,240,0.35);
-}
-
-.project-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), transparent);
-}
-
-.project-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--green);
-  margin-bottom: 14px;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.project-name {
-  font-family: var(--sans);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  margin-bottom: 10px;
-  color: var(--text);
-}
-
-.project-name a {
-  color: inherit;
-  text-decoration: none;
-}
-.project-name a:hover { color: var(--accent2); }
-
-.project-desc {
-  font-size: 13px;
-  color: var(--muted2);
-  line-height: 1.7;
-  margin-bottom: 20px;
-  max-width: 560px;
-}
-
-.pipeline {
-  font-family: var(--mono);
-  font-size: 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 12px 16px;
-  color: var(--muted2);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-wrap: wrap;
-  gap: 2px;
-}
-
-.pipe-step { color: var(--text); }
-.pipe-arrow { color: var(--accent); margin: 0 6px; }
-
-.project-specs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.spec {
-  font-size: 11.5px;
-  color: var(--muted);
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  line-height: 1.5;
-}
-
-.spec::before {
-  content: '→';
-  color: var(--accent);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-/* ── EXPERIENCE ── */
-.exp-list { display: flex; flex-direction: column; gap: 2px; }
-
-.exp-item {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-  transition: border-color 0.2s;
-}
-
-.exp-item:hover { border-color: var(--border2); }
-
-.exp-hdr {
-  padding: 20px 24px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: start;
-  cursor: pointer;
-}
-
-.exp-co-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 800;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.badge-wf { background: rgba(91,106,240,0.15); color: var(--accent2); border: 1px solid rgba(91,106,240,0.2); }
-.badge-ag { background: rgba(0,214,143,0.1); color: var(--green); border: 1px solid rgba(0,214,143,0.2); }
-.badge-dh { background: rgba(240,80,96,0.1); color: var(--red); border: 1px solid rgba(240,80,96,0.2); }
-.badge-wm { background: rgba(240,160,48,0.1); color: var(--amber); border: 1px solid rgba(240,160,48,0.2); }
-.badge-bs { background: rgba(255,255,255,0.05); color: var(--muted2); border: 1px solid var(--border); }
-.badge-iw { background: rgba(255,255,255,0.05); color: var(--muted2); border: 1px solid var(--border); }
-
-.exp-main { min-width: 0; }
-
-.exp-title {
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 2px;
-  letter-spacing: -0.2px;
-}
-
-.exp-co {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.3px;
-}
-
-.exp-tenure {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  text-align: right;
-}
-
-.exp-body {
-  padding: 0 24px 20px 76px;
-  display: none;
-}
-
-.exp-item.open .exp-body { display: block; }
-
-.exp-bullets {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.exp-bullets li {
-  font-size: 12.5px;
-  color: var(--muted2);
-  line-height: 1.65;
-  display: flex;
-  gap: 10px;
-}
-
-.exp-bullets li::before {
-  content: '·';
-  color: var(--accent);
-  flex-shrink: 0;
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.exp-bullets li strong { color: var(--text); font-weight: 400; }
-
-.exp-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 14px;
-}
-
-.tag {
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 3px;
-  background: var(--bg4);
-  color: var(--muted2);
-  border: 1px solid var(--border);
-}
-
-/* ── NUMBERS TABLE ── */
-.numbers-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
-}
-
-.num-card {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 22px 24px;
-  transition: border-color 0.2s;
-}
-
-.num-card:hover { border-color: var(--border2); }
-
-.num-val {
-  font-family: var(--sans);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.8px;
-  color: var(--text);
-  line-height: 1;
-  margin-bottom: 6px;
-}
-
-.num-what {
-  font-size: 11.5px;
-  color: var(--muted2);
-  margin-bottom: 3px;
-  line-height: 1.4;
-}
-
-.num-where {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-}
-
-/* ── STACK ── */
-.stack-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stack-row {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 16px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 14px 20px;
-  align-items: center;
-}
-
-.stack-cat {
-  font-size: 9px;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.stack-items {
-  font-size: 12.5px;
-  color: var(--muted2);
-  line-height: 1.5;
-}
-
-.stack-items span {
-  color: var(--text);
-}
-
-/* ── TECHNICAL BETS ── */
-.bets-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.bet-item {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 14px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 14px 20px;
-  align-items: start;
-}
-
-.bet-num {
-  font-size: 10px;
-  color: var(--accent);
-  font-family: var(--sans);
-  font-weight: 700;
-  padding-top: 2px;
-}
-
-.bet-text {
-  font-size: 13px;
-  color: var(--muted2);
-  line-height: 1.6;
-}
-
-.bet-text strong { color: var(--text); font-weight: 400; }
-
-/* ── WRITING ── */
-.writing-cta {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-}
-
-.writing-copy h3 {
-  font-family: var(--sans);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  margin-bottom: 8px;
-}
-
-.writing-copy p {
-  font-size: 12px;
-  color: var(--muted2);
-  line-height: 1.6;
-  max-width: 400px;
-}
-
-/* ── FOOTER ── */
-footer {
-  border-top: 1px solid var(--border);
-  padding: 40px 0 60px;
-}
-
-.footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.footer-name {
-  font-family: var(--sans);
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--muted2);
-}
-
-.footer-links {
-  display: flex;
-  gap: 20px;
-}
-
-.footer-links a {
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.footer-links a:hover { color: var(--text); }
-
-/* ── ANIMATIONS ── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.hero-tag { animation: fadeUp 0.5s ease both; }
-.hero h1 { animation: fadeUp 0.5s ease 0.08s both; }
-.hero-desc { animation: fadeUp 0.5s ease 0.16s both; }
-.hero-cta { animation: fadeUp 0.5s ease 0.24s both; }
-.stats-strip { animation: fadeUp 0.5s ease 0.32s both; }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 600px) {
-  .stats-strip { grid-template-columns: 1fr 1fr; gap: 1px; }
-  .stat { padding: 16px 12px; }
-  .stat:nth-child(2) { border-right: none; }
-  .numbers-grid { grid-template-columns: 1fr; }
-  .project-specs { grid-template-columns: 1fr; }
-  .writing-cta { flex-direction: column; }
-  .exp-hdr { grid-template-columns: auto 1fr; }
-  .exp-tenure { display: none; }
-  .exp-body { padding-left: 24px; }
-  .stack-row { grid-template-columns: 1fr; gap: 6px; }
-  .nav-links { gap: 16px; }
+  --bg:#07070f; --s1:#0c0c17; --s2:#101020; --s3:#14142a;
+  --b0:rgba(255,255,255,0.05); --b1:rgba(255,255,255,0.09); --b2:rgba(255,255,255,0.16);
+  --text:#ddddf0; --sub:#8888aa; --dim:#55557a;
+  --acc:#6470f2; --acc2:#8b96ff;
+  --grn:#00cc88; --amb:#e89830; --red:#e85060;
+  --mono:'IBM Plex Mono',monospace; --disp:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(100,112,242,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:200;background:rgba(7,7,15,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--b0)}
+.ni{max-width:860px;margin:0 auto;padding:0 32px;height:50px;display:flex;align-items:center;justify-content:space-between}
+.nl{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--text);text-decoration:none}
+.nm{display:flex;gap:24px;list-style:none}
+.nm a{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color .15s}
+.nm a:hover{color:var(--text)}
+
+/* WRAP */
+.w{max-width:860px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+
+/* HERO */
+.hero{padding:88px 0 60px}
+.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--acc2);margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--acc2)}
+h1{font-family:var(--disp);font-size:clamp(38px,6vw,66px);font-weight:800;line-height:1.0;letter-spacing:-2.5px;margin-bottom:22px}
+.ghost{color:var(--dim);font-weight:400}
+.sub{font-size:14px;color:var(--sub);line-height:1.75;max-width:500px;margin-bottom:36px}
+.sub b{color:var(--text);font-weight:400}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:9px 18px;border-radius:3px;text-decoration:none;transition:all .15s;border:none;cursor:pointer}
+.bs{background:var(--acc);color:#fff}.bs:hover{background:var(--acc2)}
+.bo{background:transparent;color:var(--sub);border:1px solid var(--b1)}.bo:hover{color:var(--text);border-color:var(--b2)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--b0);border-radius:6px;overflow:hidden;margin-bottom:80px}
+.stat{padding:22px 18px;border-right:1px solid var(--b0)}.stat:last-child{border-right:none}
+.sn{font-family:var(--disp);font-size:23px;font-weight:800;letter-spacing:-.8px;color:var(--text);line-height:1;margin-bottom:4px}
+.sl{font-size:10px;color:var(--dim);line-height:1.45}
+
+/* SECTION HEADER */
+section{margin-bottom:72px}
+.sh{display:flex;align-items:center;gap:14px;font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--dim);margin-bottom:28px}
+.sh::after{content:'';flex:1;height:1px;background:var(--b0)}
+
+/* PROJECT */
+.pc{background:var(--s1);border:1px solid var(--b0);border-radius:8px;padding:28px 28px 24px;position:relative;overflow:hidden;transition:border-color .2s}
+.pc:hover{border-color:rgba(100,112,242,.3)}
+.pc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--acc),transparent 60%)}
+.plive{display:inline-flex;align-items:center;gap:6px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--grn);margin-bottom:12px}
+.dp{width:5px;height:5px;border-radius:50%;background:var(--grn);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.pn{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px}
+.pn a{color:var(--text);text-decoration:none}.pn a:hover{color:var(--acc2)}
+.pd{font-size:12.5px;color:var(--sub);line-height:1.75;margin-bottom:18px;max-width:580px}
+.pipe{font-size:11.5px;background:var(--bg);border:1px solid var(--b0);border-radius:4px;padding:10px 14px;margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;color:var(--sub)}
+.ps{color:var(--text)}.pa{color:var(--acc);margin:0 4px}
+.ppts{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}
+.pt{font-size:11.5px;color:var(--sub);padding-left:14px;position:relative;line-height:1.55}
+.pt::before{content:'→';position:absolute;left:0;color:var(--acc);font-size:10px;top:2px}
+
+/* EXPERIENCE — key fix */
+.exps{display:flex;flex-direction:column;gap:3px}
+.ec{background:var(--s1);border:1px solid var(--b0);border-radius:7px;overflow:hidden;transition:border-color .2s}
+.ec:hover{border-color:var(--b1)}
+.et{display:flex;align-items:center;gap:14px;padding:18px 22px;cursor:pointer;transition:background .15s}
+.et:hover{background:var(--s2)}
+.badge{width:38px;height:38px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-size:10px;font-weight:800;letter-spacing:.5px}
+.bwf{background:rgba(100,112,242,.12);color:#8b96ff;border:1px solid rgba(100,112,242,.2)}
+.bag{background:rgba(0,204,136,.1);color:#00cc88;border:1px solid rgba(0,204,136,.18)}
+.bdh{background:rgba(232,80,96,.1);color:#e85060;border:1px solid rgba(232,80,96,.18)}
+.bwm{background:rgba(232,152,48,.1);color:#e89830;border:1px solid rgba(232,152,48,.18)}
+.bbs{background:rgba(255,255,255,.04);color:var(--sub);border:1px solid var(--b0)}
+.em{flex:1;min-width:0}
+.er{font-family:var(--disp);font-size:14px;font-weight:600;color:var(--text);letter-spacing:-.2px;margin-bottom:1px}
+.eco{font-size:11px;color:var(--dim)}
+.ep{font-size:10px;color:var(--dim);letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
+.chev{color:var(--dim);font-size:10px;flex-shrink:0;transition:transform .2s}
+.ec.open .chev{transform:rotate(180deg)}
+
+/* THE FIX: pure block layout for bullets, inline bold */
+.eb{display:none;padding:0 22px 20px;border-top:1px solid var(--b0)}
+.ec.open .eb{display:block}
+.ebl{list-style:none;padding:14px 0 4px}
+.ebl li{
+  font-size:12.5px;
+  color:var(--sub);
+  line-height:1.72;
+  padding:8px 0 8px 20px;
+  position:relative;
+  border-bottom:1px solid var(--b0);
+}
+.ebl li:last-child{border-bottom:none}
+.ebl li::before{content:'·';position:absolute;left:5px;top:7px;color:var(--acc);font-size:18px;line-height:1.3}
+/* CRITICAL: strong stays inline, never block */
+.ebl li strong{color:var(--text);font-weight:500;display:inline !important}
+
+.etags{display:flex;flex-wrap:wrap;gap:5px;padding-top:12px}
+.etag{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:2px;background:var(--s3);color:var(--sub);border:1px solid var(--b0)}
+
+/* NUMBERS */
+.ng{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.nc{background:var(--s1);border:1px solid var(--b0);border-radius:6px;padding:20px;transition:border-color .2s}
+.nc:hover{border-color:var(--b1)}
+.nv{font-family:var(--disp);font-size:24px;font-weight:800;letter-spacing:-.8px;color:var(--text);line-height:1;margin-bottom:5px}
+.nw{font-size:12px;color:var(--sub);margin-bottom:2px;line-height:1.45}
+.ns{font-size:10px;color:var(--dim);letter-spacing:.3px}
+
+/* BETS */
+.bets{display:flex;flex-direction:column;gap:2px}
+.bet{display:grid;grid-template-columns:32px 1fr;gap:12px;background:var(--s1);border:1px solid var(--b0);border-radius:5px;padding:13px 18px;align-items:start}
+.bi{font-family:var(--disp);font-size:11px;font-weight:700;color:var(--acc);padding-top:1px}
+.bt{font-size:12.5px;color:var(--sub);line-height:1.65}
+.bt strong{color:var(--text);font-weight:500;display:inline !important}
+
+/* STACK */
+.stk{display:flex;flex-direction:column;gap:2px}
+.sr{display:grid;grid-template-columns:120px 1fr;background:var(--s1);border:1px solid var(--b0);border-radius:5px;padding:12px 18px;gap:16px;align-items:center}
+.sc{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--dim)}
+.si{font-size:12.5px;color:var(--sub)}
+.si strong{color:var(--text);font-weight:400;display:inline !important}
+
+/* WRITING */
+.wb{background:var(--s1);border:1px solid var(--b0);border-radius:8px;padding:28px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.wb h3{font-family:var(--disp);font-size:17px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
+.wb p{font-size:12px;color:var(--sub);line-height:1.65;max-width:420px}
+
+/* FOOTER */
+footer{border-top:1px solid var(--b0);padding:36px 0 52px}
+.fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.fn{font-family:var(--disp);font-size:12px;font-weight:700;color:var(--dim)}
+.fl{display:flex;gap:18px}
+.fl a{font-size:10px;letter-spacing:1px;color:var(--dim);text-decoration:none;transition:color .15s}
+.fl a:hover{color:var(--text)}
+
+/* REVEAL */
+.rev{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.vis{opacity:1;transform:none}
+
+@media(max-width:640px){
+  .stats{grid-template-columns:1fr 1fr}.stat:nth-child(2){border-right:none}
+  .ng{grid-template-columns:1fr 1fr}
+  .ppts{grid-template-columns:1fr}
+  .wb{flex-direction:column}
+  .ep{display:none}
+  .sr{grid-template-columns:1fr;gap:4px}
+  .nm{gap:14px}
+  .w,.ni{padding-left:18px;padding-right:18px}
 }
 </style>
 </head>
 <body>
 
 <nav>
-  <div class="nav-inner">
-    <a href="#" class="nav-brand">Akshant Sharma</a>
-    <ul class="nav-links">
+  <div class="ni">
+    <a href="#" class="nl">Akshant Sharma</a>
+    <ul class="nm">
       <li><a href="#building">Building</a></li>
       <li><a href="#experience">Experience</a></li>
+      <li><a href="#numbers">Numbers</a></li>
       <li><a href="#stack">Stack</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
   </div>
 </nav>
 
-<div class="wrap">
+<div class="w">
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-tag">Staff Engineer · Distributed Systems + AI Infra</div>
-    <h1>Building the layer<br><span class="dim">underneath.</span></h1>
-    <p class="hero-desc">
-      7.5 years architecting the infrastructure that doesn't show up in product demos —
-      <strong>ingestion engines, event pipelines, real-time storage systems</strong>
-      designed for the load most systems were never meant to see.
-    </p>
-    <div class="hero-cta">
-      <a href="https://github.com/AkshantVats" class="btn btn-primary">GitHub</a>
-      <a href="https://linkedin.com/in/akshantsharma07" class="btn btn-ghost">LinkedIn</a>
-      <a href="mailto:akshant3@gmail.com" class="btn btn-ghost">akshant3@gmail.com</a>
-    </div>
-  </section>
+<section class="hero rev">
+  <div class="eyebrow">Staff Engineer · Distributed Systems + AI Infra</div>
+  <h1>Building the layer<br><span class="ghost">underneath.</span></h1>
+  <p class="sub">7.5 years architecting the infrastructure that doesn't show up in product demos — <b>ingestion engines, event pipelines, real-time storage systems</b> designed for load most systems were never meant to see.</p>
+  <div class="btns">
+    <a href="https://github.com/AkshantVats" class="btn bs">GitHub</a>
+    <a href="https://linkedin.com/in/akshantsharma07" class="btn bo">LinkedIn</a>
+    <a href="mailto:akshant3@gmail.com" class="btn bo">akshant3@gmail.com</a>
+  </div>
+</section>
 
-  <!-- STATS STRIP -->
-  <div class="stats-strip">
-    <div class="stat">
-      <div class="stat-num">1.5T</div>
-      <div class="stat-label">events / day<br>Agoda TSDB</div>
+<div class="stats rev">
+  <div class="stat"><div class="sn">1.5T</div><div class="sl">events / day<br>Agoda TSDB</div></div>
+  <div class="stat"><div class="sn">7M+</div><div class="sl">IoT sensors<br>Walmart</div></div>
+  <div class="stat"><div class="sn">5k/s</div><div class="sl">geo-events/sec<br>Delivery Hero</div></div>
+  <div class="stat"><div class="sn">250k+</div><div class="sl">SKU updates/supplier<br>Wayfair</div></div>
+</div>
+
+<section id="building" class="rev">
+  <div class="sh">Building now</div>
+  <div class="pc">
+    <div class="plive"><span class="dp"></span>In progress</div>
+    <div class="pn"><a href="https://github.com/AkshantVats/infra-ai-streaming">infra-ai-streaming</a></div>
+    <p class="pd">An open-source AI inference observability platform built for the event volume and metric cardinality that standard monitoring tools break under. The TSDB problem, applied to LLM infrastructure.</p>
+    <div class="pipe">
+      <span class="ps">Rust ingestion</span><span class="pa">→</span>
+      <span class="ps">Kafka</span><span class="pa">→</span>
+      <span class="ps">Go consumer</span><span class="pa">→</span>
+      <span class="ps">ClickHouse</span><span class="pa">→</span>
+      <span class="ps">Grafana</span>
     </div>
-    <div class="stat">
-      <div class="stat-num">7M+</div>
-      <div class="stat-label">IoT sensors<br>Walmart SmartBuildings</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num">5k/s</div>
-      <div class="stat-label">geo-events/sec<br>Delivery Hero routing</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num">250k+</div>
-      <div class="stat-label">SKUs / supplier<br>Wayfair pricing</div>
+    <div class="ppts">
+      <div class="pt">Axum HTTP server, channel-based backpressure, per-tenant rate limiting</div>
+      <div class="pt">Circuit breaker with Redis overflow buffer and Dead Letter Queue</div>
+      <div class="pt">Z-score anomaly detection on inference latency per model</div>
+      <div class="pt">Helm charts with HPA scaling on Kafka consumer lag metric</div>
+      <div class="pt">Write-Ahead Log for crash-safe durability guarantees</div>
+      <div class="pt">Target: 1M events/min at sub-100ms ingestion P99</div>
     </div>
   </div>
+</section>
 
-  <!-- BUILDING NOW -->
-  <section id="building">
-    <div class="section-label">Building now</div>
-    <div class="project-card">
-      <div class="project-status">
-        <span class="status-dot"></span>
-        In progress
+<section id="experience" class="rev">
+  <div class="sh">Experience</div>
+  <div class="exps">
+
+    <div class="ec open">
+      <div class="et" onclick="tog(this)">
+        <div class="badge bwf">WF</div>
+        <div class="em"><div class="er">Sr. Software Engineer III — Led PAS &amp; Pricing Teams</div><div class="eco">Wayfair · Bengaluru</div></div>
+        <div class="ep">Nov 2024 – Mar 2026</div>
+        <div class="chev">▼</div>
       </div>
-      <div class="project-name">
-        <a href="https://github.com/AkshantVats/infra-ai-streaming">infra-ai-streaming</a>
-      </div>
-      <p class="project-desc">
-        An open-source AI inference observability platform built for the event volume and
-        metric cardinality that standard monitoring tools break under. The TSDB problem,
-        applied to LLM infrastructure.
-      </p>
-      <div class="pipeline">
-        <span class="pipe-step">Rust ingestion</span>
-        <span class="pipe-arrow">→</span>
-        <span class="pipe-step">Kafka</span>
-        <span class="pipe-arrow">→</span>
-        <span class="pipe-step">Go consumer</span>
-        <span class="pipe-arrow">→</span>
-        <span class="pipe-step">ClickHouse</span>
-        <span class="pipe-arrow">→</span>
-        <span class="pipe-step">Grafana</span>
-      </div>
-      <div class="project-specs">
-        <div class="spec">Axum HTTP server with channel-based backpressure and per-tenant rate limiting</div>
-        <div class="spec">Circuit breaker with Redis overflow buffer and Dead Letter Queue</div>
-        <div class="spec">Z-score anomaly detection on inference latency per model</div>
-        <div class="spec">Helm charts with HPA scaling on Kafka consumer lag metric</div>
-        <div class="spec">Target: 1M events/min at sub-100ms ingestion P99</div>
-        <div class="spec">Write-Ahead Log for durability guarantees on ingestion</div>
+      <div class="eb">
+        <ul class="ebl">
+          <li>Led two engineering teams — <strong>PAS (Pricing Attribute Services)</strong> and <strong>Pricing, Promotions &amp; Discounts</strong> — owning end-to-end delivery across both product areas simultaneously.</li>
+          <li>Architected a high-throughput <strong>Global Pricing &amp; Promotion Engine on GCP</strong>, reducing price propagation latency from hours to sub-seconds across 250k+ SKU updates per supplier.</li>
+          <li>Engineered a bulk processing framework for ingesting and validating <strong>250k+ SKU updates per supplier in near real-time</strong> with 99.99% availability under burst traffic.</li>
+          <li>Implemented resilient distributed patterns — <strong>rate limiting and circuit breakers</strong> — to stabilise the supplier platform under peak global load.</li>
+        </ul>
+        <div class="etags">
+          <span class="etag">GCP</span><span class="etag">Kafka</span><span class="etag">BigQuery</span><span class="etag">Kubernetes</span><span class="etag">Java</span><span class="etag">Circuit Breakers</span>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- EXPERIENCE -->
-  <section id="experience">
-    <div class="section-label">Experience</div>
-    <div class="exp-list">
-
-      <!-- Wayfair -->
-      <div class="exp-item open" onclick="toggleExp(this)">
-        <div class="exp-hdr">
-          <div class="exp-co-badge badge-wf">WF</div>
-          <div class="exp-main">
-            <div class="exp-title">Sr. Software Engineer III — Led PAS & Pricing Teams</div>
-            <div class="exp-co">Wayfair · Bengaluru</div>
-          </div>
-          <div class="exp-tenure">Nov 2024 – Mar 2026</div>
-        </div>
-        <div class="exp-body">
-          <ul class="exp-bullets">
-            <li>Led two engineering teams — <strong>PAS (Pricing Attribute Services)</strong> and <strong>Pricing, Promotions & Discounts</strong> — owning end-to-end delivery across both product areas.</li>
-            <li>Architected a high-throughput <strong>Global Pricing & Promotion Engine on GCP</strong>, reducing price propagation latency from hours to sub-seconds across 250k+ SKU updates per supplier.</li>
-            <li>Engineered a bulk processing framework capable of ingesting and validating <strong>250k+ SKU updates per supplier in near real-time</strong> with 99.99% availability under burst traffic.</li>
-            <li>Implemented resilient distributed patterns — <strong>rate limiting, circuit breakers</strong> — to stabilise the supplier platform under peak global load.</li>
-          </ul>
-          <div class="exp-tags">
-            <span class="tag">GCP</span><span class="tag">Kafka</span><span class="tag">BigQuery</span>
-            <span class="tag">Kubernetes</span><span class="tag">Java</span><span class="tag">Circuit Breakers</span>
-          </div>
-        </div>
+    <div class="ec">
+      <div class="et" onclick="tog(this)">
+        <div class="badge bag">AG</div>
+        <div class="em"><div class="er">Sr. Software Engineer III</div><div class="eco">Agoda · Bangkok</div></div>
+        <div class="ep">Apr 2024 – Sep 2024</div>
+        <div class="chev">▼</div>
       </div>
-
-      <!-- Agoda -->
-      <div class="exp-item" onclick="toggleExp(this)">
-        <div class="exp-hdr">
-          <div class="exp-co-badge badge-ag">AG</div>
-          <div class="exp-main">
-            <div class="exp-title">Sr. Software Engineer III</div>
-            <div class="exp-co">Agoda · Bangkok</div>
-          </div>
-          <div class="exp-tenure">Apr 2024 – Sep 2024</div>
+      <div class="eb">
+        <ul class="ebl">
+          <li>Contributed to a proprietary hyperscale <strong>Time Series Database (TSDB)</strong> ingesting <strong>1.5 trillion events per day</strong> — a hybrid Rust (storage) + Scala (query) architecture for high-cardinality metrics that off-the-shelf solutions couldn't handle.</li>
+          <li>Built a <strong>direct-to-Ceph persistence layer</strong>, bypassing POSIX file system overhead with a custom Rust storage engine optimised for disk I/O and high write throughput with strict consistency.</li>
+          <li>Optimised the retrieval ecosystem using <strong>Kafka + Redis tiering</strong> for hot/cold data separation, keeping query latency flat as storage scaled linearly.</li>
+        </ul>
+        <div class="etags">
+          <span class="etag">Rust</span><span class="etag">Scala</span><span class="etag">Ceph</span><span class="etag">Kafka</span><span class="etag">Redis</span><span class="etag">TSDB</span>
         </div>
-        <div class="exp-body">
-          <ul class="exp-bullets">
-            <li>Contributed to a proprietary hyperscale <strong>Time Series Database (TSDB)</strong> ingesting <strong>1.5 trillion events per day</strong> — a hybrid Rust (storage) + Scala (query) architecture designed for high-cardinality metrics that off-the-shelf solutions couldn't handle.</li>
-            <li>Built a <strong>direct-to-Ceph persistence layer</strong>, bypassing POSIX file system overhead with a custom Rust storage engine to optimise disk I/O and achieve high write throughput with strict consistency.</li>
-            <li>Optimised the retrieval ecosystem using <strong>Kafka + Redis tiering</strong> for real-time event streaming and hot/cold data separation, keeping query latency flat as storage scaled linearly.</li>
-          </ul>
-          <div class="exp-tags">
-            <span class="tag">Rust</span><span class="tag">Scala</span><span class="tag">Ceph</span>
-            <span class="tag">Kafka</span><span class="tag">Redis</span><span class="tag">TSDB</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Delivery Hero -->
-      <div class="exp-item" onclick="toggleExp(this)">
-        <div class="exp-hdr">
-          <div class="exp-co-badge badge-dh">DH</div>
-          <div class="exp-main">
-            <div class="exp-title">Sr. Software Engineer</div>
-            <div class="exp-co">Delivery Hero · Berlin</div>
-          </div>
-          <div class="exp-tenure">Jun 2022 – Jul 2023</div>
-        </div>
-        <div class="exp-body">
-          <ul class="exp-bullets">
-            <li>Scaled the Global Logistics Platform to support <strong>1M+ daily orders</strong> across international markets. Architected high-availability microservices on <strong>AWS EKS</strong> managing 10k+ concurrent requests during peak with zero downtime.</li>
-            <li>Built the <strong>end-to-end rider tracking system</strong> — a geospatial engine using OSRM processing <strong>5,000+ map adjustments per second</strong> for real-time route visualisation, significantly reducing "Where is my order?" support load.</li>
-            <li>Designed an <strong>async event ingestion pipeline</strong> using AWS SQS and Kinesis, decoupling order processing from notification services to eliminate cascading failures and guarantee sub-second delivery status updates.</li>
-          </ul>
-          <div class="exp-tags">
-            <span class="tag">AWS EKS</span><span class="tag">OSRM</span><span class="tag">Kinesis</span>
-            <span class="tag">SQS</span><span class="tag">Java</span><span class="tag">Geospatial</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Walmart -->
-      <div class="exp-item" onclick="toggleExp(this)">
-        <div class="exp-hdr">
-          <div class="exp-co-badge badge-wm">WM</div>
-          <div class="exp-main">
-            <div class="exp-title">Software Engineer II</div>
-            <div class="exp-co">Walmart Labs · Bengaluru</div>
-          </div>
-          <div class="exp-tenure">Aug 2018 – May 2021</div>
-        </div>
-        <div class="exp-body">
-          <ul class="exp-bullets">
-            <li>Architected the <strong>WeIoT SmartBuildings platform</strong> — ingestion layer on Azure IoT Hub reliably managing connections for <strong>7M+ unique sensors</strong>, processing tens of millions of telemetry points per minute across global facilities.</li>
-            <li>Engineered <strong>real-time HVAC control loops</strong> using Azure Stream Analytics to automate energy adjustments across 50+ facilities, driving significant operational cost reductions at enterprise scale.</li>
-            <li>Designed a <strong>fault-tolerant edge-to-cloud OTA firmware framework</strong> enabling reliable updates and config syncs for millions of distributed devices under intermittent network conditions.</li>
-          </ul>
-          <div class="exp-tags">
-            <span class="tag">Azure IoT Hub</span><span class="tag">Stream Analytics</span>
-            <span class="tag">Edge Computing</span><span class="tag">Java</span><span class="tag">C#</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- BrowserStack -->
-      <div class="exp-item" onclick="toggleExp(this)">
-        <div class="exp-hdr">
-          <div class="exp-co-badge badge-bs">BS</div>
-          <div class="exp-main">
-            <div class="exp-title">Sr. Software Engineer</div>
-            <div class="exp-co">BrowserStack · Mumbai</div>
-          </div>
-          <div class="exp-tenure">May 2021 – Dec 2021</div>
-        </div>
-        <div class="exp-body">
-          <ul class="exp-bullets">
-            <li>Engineered <strong>low-level device instrumentation</strong> for Camera Image Injection and Biometrics by reverse-engineering mobile binaries to intercept and mock hardware sensor streams at the OS API layer.</li>
-            <li>Enabled <strong>fully automated testing of FaceID/TouchID</strong> flows on remote physical devices — a capability that required hooking into native iOS and Android APIs without modifying source code.</li>
-          </ul>
-          <div class="exp-tags">
-            <span class="tag">Java</span><span class="tag">Objective-C</span><span class="tag">Node.js</span>
-            <span class="tag">Reverse Engineering</span><span class="tag">GCP</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- BY THE NUMBERS -->
-  <section id="numbers">
-    <div class="section-label">By the numbers</div>
-    <div class="numbers-grid">
-      <div class="num-card">
-        <div class="num-val">1.5T</div>
-        <div class="num-what">events ingested per day</div>
-        <div class="num-where">Agoda TSDB · Rust + Ceph</div>
-      </div>
-      <div class="num-card">
-        <div class="num-val">7M+</div>
-        <div class="num-what">unique sensors connected</div>
-        <div class="num-where">Walmart SmartBuildings · Azure IoT Hub</div>
-      </div>
-      <div class="num-card">
-        <div class="num-val">5,000/s</div>
-        <div class="num-what">geo-events processed per second</div>
-        <div class="num-where">Delivery Hero rider tracking · OSRM + EKS</div>
-      </div>
-      <div class="num-card">
-        <div class="num-val">250k+</div>
-        <div class="num-what">SKU updates per supplier in near real-time</div>
-        <div class="num-where">Wayfair Global Pricing Engine · GCP</div>
-      </div>
-      <div class="num-card">
-        <div class="num-val">1M+</div>
-        <div class="num-what">daily orders at peak</div>
-        <div class="num-where">Delivery Hero Logistics · AWS EKS</div>
-      </div>
-      <div class="num-card">
-        <div class="num-val">10k+</div>
-        <div class="num-what">concurrent requests at peak</div>
-        <div class="num-where">Delivery Hero · zero downtime</div>
       </div>
     </div>
-  </section>
 
-  <!-- TECHNICAL BETS -->
-  <section id="bets">
-    <div class="section-label">Technical bets</div>
-    <div class="bets-list">
-      <div class="bet-item">
-        <div class="bet-num">01</div>
-        <div class="bet-text"><strong>Rust for systems programming</strong> where performance guarantees are non-negotiable — memory safety without a GC, predictable latency under load.</div>
+    <div class="ec">
+      <div class="et" onclick="tog(this)">
+        <div class="badge bdh">DH</div>
+        <div class="em"><div class="er">Sr. Software Engineer</div><div class="eco">Delivery Hero · Berlin</div></div>
+        <div class="ep">Jun 2022 – Jul 2023</div>
+        <div class="chev">▼</div>
       </div>
-      <div class="bet-item">
-        <div class="bet-num">02</div>
-        <div class="bet-text"><strong>AI infrastructure</strong> — inference pipelines, LLM observability, cost optimisation at the API layer. Distributed systems problems with new packaging.</div>
-      </div>
-      <div class="bet-item">
-        <div class="bet-num">03</div>
-        <div class="bet-text"><strong>Kafka internals at scale</strong> — partition strategy, consumer group design, backpressure mechanisms, and the compaction behaviour that bites you at high cardinality.</div>
-      </div>
-      <div class="bet-item">
-        <div class="bet-num">04</div>
-        <div class="bet-text"><strong>ClickHouse</strong> for analytical workloads over high-cardinality event streams — columnar storage with the query patterns TSDB work demands.</div>
-      </div>
-      <div class="bet-item">
-        <div class="bet-num">05</div>
-        <div class="bet-text"><strong>Kubernetes operators and eBPF-based observability</strong> — cost-aware autoscaling on custom metrics, zero-instrumentation tracing at the kernel layer.</div>
+      <div class="eb">
+        <ul class="ebl">
+          <li>Scaled the Global Logistics Platform to support <strong>1M+ daily orders</strong> across international markets, architecting high-availability microservices on AWS EKS handling 10k+ concurrent requests at peak with zero downtime.</li>
+          <li>Built the <strong>end-to-end rider tracking system</strong> — a geospatial engine using OSRM processing <strong>5,000+ map adjustments per second</strong> for real-time route visualisation, significantly reducing support volume.</li>
+          <li>Designed an <strong>async event ingestion pipeline</strong> using AWS SQS and Kinesis, decoupling order processing from notifications to eliminate cascading failures and guarantee sub-second delivery status updates.</li>
+        </ul>
+        <div class="etags">
+          <span class="etag">AWS EKS</span><span class="etag">OSRM</span><span class="etag">Kinesis</span><span class="etag">SQS</span><span class="etag">Java</span><span class="etag">Geospatial</span>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- STACK -->
-  <section id="stack">
-    <div class="section-label">Stack</div>
-    <div class="stack-grid">
-      <div class="stack-row">
-        <div class="stack-cat">Languages</div>
-        <div class="stack-items"><span>Rust</span> · <span>Go</span> · <span>Java</span> · <span>Scala</span> · Python</div>
+    <div class="ec">
+      <div class="et" onclick="tog(this)">
+        <div class="badge bwm">WM</div>
+        <div class="em"><div class="er">Software Engineer II</div><div class="eco">Walmart Labs · Bengaluru</div></div>
+        <div class="ep">Aug 2018 – May 2021</div>
+        <div class="chev">▼</div>
       </div>
-      <div class="stack-row">
-        <div class="stack-cat">Streaming</div>
-        <div class="stack-items"><span>Kafka</span> · <span>Redpanda</span> · AWS Kinesis · Azure Event Hub · SQS</div>
-      </div>
-      <div class="stack-row">
-        <div class="stack-cat">Storage</div>
-        <div class="stack-items"><span>Ceph</span> · <span>ClickHouse</span> · <span>Redis</span> · BigQuery · PostgreSQL · MongoDB · Azure Cosmos DB</div>
-      </div>
-      <div class="stack-row">
-        <div class="stack-cat">Infra</div>
-        <div class="stack-items"><span>Kubernetes</span> · <span>Terraform</span> · Helm · Docker · AWS EKS · Azure IoT Hub</div>
-      </div>
-      <div class="stack-row">
-        <div class="stack-cat">Cloud</div>
-        <div class="stack-items"><span>GCP</span> · <span>AWS</span> · <span>Azure</span></div>
-      </div>
-      <div class="stack-row">
-        <div class="stack-cat">Observability</div>
-        <div class="stack-items"><span>OpenTelemetry</span> · <span>Prometheus</span> · <span>Grafana</span> · ELK · Distributed Tracing</div>
+      <div class="eb">
+        <ul class="ebl">
+          <li>Architected the <strong>WeIoT SmartBuildings platform</strong> on Azure IoT Hub, managing connections for <strong>7M+ unique sensors</strong> and processing tens of millions of telemetry points per minute across global facilities.</li>
+          <li>Engineered <strong>real-time HVAC control loops</strong> using Azure Stream Analytics to automate energy adjustments across 50+ global facilities, driving measurable cost reductions at enterprise scale.</li>
+          <li>Designed a <strong>fault-tolerant edge-to-cloud OTA firmware framework</strong>, enabling reliable updates for millions of distributed devices even under intermittent network conditions.</li>
+        </ul>
+        <div class="etags">
+          <span class="etag">Azure IoT Hub</span><span class="etag">Stream Analytics</span><span class="etag">Edge Computing</span><span class="etag">Java</span><span class="etag">C#</span>
+        </div>
       </div>
     </div>
-  </section>
 
-  <!-- WRITING -->
-  <section id="writing">
-    <div class="section-label">Writing</div>
-    <div class="writing-cta">
-      <div class="writing-copy">
-        <h3>Technical writing on distributed systems + AI infra</h3>
-        <p>Posts on event streaming at scale, Kafka internals, LLM inference infrastructure, and the gap between distributed systems engineering and AI infrastructure. Published on LinkedIn and dev.to.</p>
-      </div>
-      <a href="https://linkedin.com/in/akshantsharma07" class="btn btn-ghost">Read on LinkedIn →</a>
+  </div>
+</section>
+
+<section id="numbers" class="rev">
+  <div class="sh">By the numbers</div>
+  <div class="ng">
+    <div class="nc"><div class="nv">1.5T</div><div class="nw">events ingested per day</div><div class="ns">Agoda TSDB · Rust + Ceph</div></div>
+    <div class="nc"><div class="nv">7M+</div><div class="nw">unique sensors connected</div><div class="ns">Walmart SmartBuildings · Azure IoT Hub</div></div>
+    <div class="nc"><div class="nv">5,000/s</div><div class="nw">geo-events per second</div><div class="ns">Delivery Hero rider tracking · OSRM</div></div>
+    <div class="nc"><div class="nv">250k+</div><div class="nw">SKU updates per supplier</div><div class="ns">Wayfair Pricing Engine · GCP</div></div>
+    <div class="nc"><div class="nv">1M+</div><div class="nw">daily orders at peak</div><div class="ns">Delivery Hero Logistics · AWS EKS</div></div>
+    <div class="nc"><div class="nv">10k+</div><div class="nw">concurrent requests at peak</div><div class="ns">Delivery Hero · zero downtime</div></div>
+  </div>
+</section>
+
+<section id="bets" class="rev">
+  <div class="sh">Technical bets</div>
+  <div class="bets">
+    <div class="bet"><div class="bi">01</div><div class="bt"><strong>Rust for systems programming</strong> where performance guarantees are non-negotiable — memory safety without a GC, predictable latency under load.</div></div>
+    <div class="bet"><div class="bi">02</div><div class="bt"><strong>AI infrastructure</strong> — inference pipelines, LLM observability, cost optimisation at the API layer. The same distributed systems problems with new packaging.</div></div>
+    <div class="bet"><div class="bi">03</div><div class="bt"><strong>Kafka internals at scale</strong> — partition strategy, consumer group design, backpressure mechanisms, and the compaction behaviour that breaks you at high cardinality.</div></div>
+    <div class="bet"><div class="bi">04</div><div class="bt"><strong>ClickHouse</strong> for analytical workloads over high-cardinality event streams — columnar storage with the query patterns TSDB work demands.</div></div>
+    <div class="bet"><div class="bi">05</div><div class="bt"><strong>Kubernetes operators and eBPF-based observability</strong> — cost-aware autoscaling on custom metrics, zero-instrumentation tracing at the kernel layer.</div></div>
+  </div>
+</section>
+
+<section id="stack" class="rev">
+  <div class="sh">Stack</div>
+  <div class="stk">
+    <div class="sr"><div class="sc">Languages</div><div class="si"><strong>Rust</strong> · <strong>Go</strong> · <strong>Java</strong> · <strong>Scala</strong> · Python</div></div>
+    <div class="sr"><div class="sc">Streaming</div><div class="si"><strong>Kafka</strong> · Redpanda · AWS Kinesis · Azure Event Hub · SQS</div></div>
+    <div class="sr"><div class="sc">Storage</div><div class="si"><strong>Ceph</strong> · <strong>ClickHouse</strong> · <strong>Redis</strong> · BigQuery · PostgreSQL · MongoDB · Cosmos DB</div></div>
+    <div class="sr"><div class="sc">Infra</div><div class="si"><strong>Kubernetes</strong> · <strong>Terraform</strong> · Helm · Docker · AWS EKS · Azure IoT Hub</div></div>
+    <div class="sr"><div class="sc">Cloud</div><div class="si"><strong>GCP</strong> · <strong>AWS</strong> · <strong>Azure</strong></div></div>
+    <div class="sr"><div class="sc">Observability</div><div class="si"><strong>OpenTelemetry</strong> · <strong>Prometheus</strong> · <strong>Grafana</strong> · ELK · Distributed Tracing</div></div>
+  </div>
+</section>
+
+<section id="contact" class="rev">
+  <div class="sh">Writing</div>
+  <div class="wb">
+    <div>
+      <h3>Technical writing on distributed systems + AI infra</h3>
+      <p>Posts on event streaming at scale, Kafka internals, LLM inference infrastructure, and the gap between distributed systems and AI infra engineering. On LinkedIn and dev.to.</p>
     </div>
-  </section>
+    <a href="https://linkedin.com/in/akshantsharma07" class="btn bo">Read on LinkedIn →</a>
+  </div>
+</section>
 
 </div>
 
-<!-- FOOTER -->
 <footer>
-  <div class="wrap">
-    <div class="footer-inner">
-      <div class="footer-name">Akshant Sharma</div>
-      <div class="footer-links">
+  <div class="w">
+    <div class="fi">
+      <div class="fn">Akshant Sharma</div>
+      <div class="fl">
         <a href="https://github.com/AkshantVats">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com">Email</a>
@@ -1032,26 +371,9 @@ footer {
 </footer>
 
 <script>
-function toggleExp(el) {
-  el.classList.toggle('open');
-}
-
-// Intersection observer for subtle fade-in on sections
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.style.opacity = '1';
-      e.target.style.transform = 'translateY(0)';
-    }
-  });
-}, { threshold: 0.08 });
-
-document.querySelectorAll('section').forEach(s => {
-  s.style.opacity = '0';
-  s.style.transform = 'translateY(12px)';
-  s.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-  observer.observe(s);
-});
+function tog(hdr){hdr.closest('.ec').classList.toggle('open')}
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target)}})},{threshold:0.06});
+document.querySelectorAll('.rev').forEach(el=>io.observe(el));
 </script>
 </body>
 </html>
