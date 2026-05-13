@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing — Akshant Sharma</title>
+<meta name="description" content="Technical writing on distributed systems, AI infrastructure, and the engineering layer underneath.">
+<meta name="theme-color" content="#07070f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070f;--s1:#0c0c17;--s2:#101020;--s3:#14142a;
+  --b0:rgba(255,255,255,0.05);--b1:rgba(255,255,255,0.09);--b2:rgba(255,255,255,0.16);
+  --text:#ddddf0;--sub:#8888aa;--dim:#55557a;
+  --acc:#6470f2;--acc2:#8b96ff;--grn:#00cc88;--amb:#e89830;--red:#e85060;
+  --mono:'IBM Plex Mono',monospace;--disp:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(100,112,242,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+
+nav{position:sticky;top:0;z-index:200;background:rgba(7,7,15,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--b0)}
+.ni{max-width:860px;margin:0 auto;padding:0 32px;height:50px;display:flex;align-items:center;justify-content:space-between}
+.nl{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--text);text-decoration:none}
+.nb{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color .15s;display:flex;align-items:center;gap:6px}
+.nb:hover{color:var(--text)}
+.nb::before{content:'←';font-size:11px}
+
+.w{max-width:860px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+
+/* HERO */
+.hero{padding:72px 0 52px}
+.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--acc2);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--acc2)}
+.hero h1{font-family:var(--disp);font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.05;letter-spacing:-2px;margin-bottom:14px}
+.hero p{font-size:13.5px;color:var(--sub);line-height:1.7;max-width:480px}
+
+/* FILTER TABS */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin:36px 0 32px}
+.ftab{
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  padding:6px 14px;border-radius:3px;cursor:pointer;
+  background:var(--s1);color:var(--sub);border:1px solid var(--b0);
+  transition:all .15s;user-select:none;
+}
+.ftab:hover{color:var(--text);border-color:var(--b1)}
+.ftab.active{background:rgba(100,112,242,.15);color:var(--acc2);border-color:rgba(100,112,242,.3)}
+
+/* POST LIST */
+.posts{display:flex;flex-direction:column;gap:3px;margin-bottom:80px}
+
+.post-card{
+  background:var(--s1);border:1px solid var(--b0);border-radius:7px;
+  padding:24px 26px;display:flex;align-items:flex-start;justify-content:space-between;
+  gap:20px;text-decoration:none;color:inherit;
+  transition:border-color .2s,background .2s;
+  position:relative;overflow:hidden;
+}
+.post-card::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--acc);transform:scaleY(0);transform-origin:bottom;
+  transition:transform .2s;
+}
+.post-card:hover{border-color:var(--b1);background:var(--s2)}
+.post-card:hover::before{transform:scaleY(1)}
+
+.post-left{flex:1;min-width:0}
+.post-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.ptag{
+  font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
+  padding:2px 8px;border-radius:2px;border:1px solid;
+}
+.ptag-ds{background:rgba(100,112,242,.08);color:var(--acc2);border-color:rgba(100,112,242,.2)}
+.ptag-ai{background:rgba(0,204,136,.08);color:var(--grn);border-color:rgba(0,204,136,.2)}
+.ptag-kb{background:rgba(232,152,48,.08);color:var(--amb);border-color:rgba(232,152,48,.2)}
+.ptag-iot{background:rgba(232,80,96,.08);color:var(--red);border-color:rgba(232,80,96,.2)}
+.ptag-rs{background:rgba(139,150,255,.08);color:#b8c0ff;border-color:rgba(139,150,255,.2)}
+
+.post-title{
+  font-family:var(--disp);font-size:16px;font-weight:700;
+  color:var(--text);letter-spacing:-.3px;line-height:1.3;margin-bottom:8px;
+  transition:color .15s;
+}
+.post-card:hover .post-title{color:var(--acc2)}
+.post-excerpt{font-size:12px;color:var(--sub);line-height:1.7;max-width:560px}
+
+.post-right{
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  flex-shrink:0;padding-top:2px;
+}
+.post-date{font-size:10px;color:var(--dim);letter-spacing:.5px;white-space:nowrap}
+.post-read{font-size:10px;color:var(--dim);white-space:nowrap}
+.post-arrow{font-size:14px;color:var(--acc);opacity:0;transition:opacity .2s,transform .2s;transform:translateX(-4px)}
+.post-card:hover .post-arrow{opacity:1;transform:translateX(0)}
+
+/* EMPTY STATE */
+.empty{
+  text-align:center;padding:60px 20px;
+  font-size:12px;color:var(--dim);line-height:1.8;
+}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.3}
+
+footer{border-top:1px solid var(--b0);padding:36px 0 52px}
+.fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.fn{font-family:var(--disp);font-size:12px;font-weight:700;color:var(--dim)}
+.fl{display:flex;gap:18px}
+.fl a{font-size:10px;letter-spacing:1px;color:var(--dim);text-decoration:none;transition:color .15s}
+.fl a:hover{color:var(--text)}
+
+@media(max-width:640px){
+  .w,.ni{padding-left:18px;padding-right:18px}
+  .post-card{flex-direction:column;gap:12px}
+  .post-right{flex-direction:row;align-items:center;padding-top:0}
+  .post-arrow{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="../index.html" class="nb">Back to site</a>
+  </div>
+</nav>
+
+<div class="w">
+
+  <section class="hero">
+    <div class="eyebrow">Writing</div>
+    <h1>Technical<br>writing.</h1>
+    <p>Posts on distributed systems, AI infrastructure, Kafka internals, and the engineering layer that sits underneath everything else.</p>
+  </section>
+
+  <div class="filters">
+    <div class="ftab active" onclick="filter(this,'all')">All posts</div>
+    <div class="ftab" onclick="filter(this,'distributed-systems')">Distributed Systems</div>
+    <div class="ftab" onclick="filter(this,'ai-infra')">AI Infra</div>
+    <div class="ftab" onclick="filter(this,'kafka')">Kafka</div>
+    <div class="ftab" onclick="filter(this,'rust')">Rust</div>
+    <div class="ftab" onclick="filter(this,'iot')">IoT</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       POSTS LIST
+       To add a new post: copy one <a class="post-card"> block,
+       update href, title, excerpt, date, read time, and tags.
+       Tag classes: ptag-ds (distributed systems), ptag-ai (AI),
+       ptag-kb (Kafka), ptag-rs (Rust), ptag-iot (IoT)
+  ════════════════════════════════════════════════════════ -->
+  <div class="posts" id="posts-list">
+
+    <a class="post-card" href="building-ai-inference-observability.html" data-tags="distributed-systems ai-infra">
+      <div class="post-left">
+        <div class="post-tags">
+          <span class="ptag ptag-ai">AI Infra</span>
+          <span class="ptag ptag-ds">Distributed Systems</span>
+        </div>
+        <div class="post-title">Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</div>
+        <div class="post-excerpt">Why existing observability tools fail for LLM inference at scale, and how to build one that doesn't. Rust ingestion engine, Kafka, ClickHouse, and the design decisions that make it production-ready.</div>
+      </div>
+      <div class="post-right">
+        <div class="post-date">May 2026</div>
+        <div class="post-read">12 min read</div>
+        <div class="post-arrow">→</div>
+      </div>
+    </a>
+
+    <!-- ADD NEW POSTS ABOVE THIS LINE -->
+
+  </div>
+
+</div>
+
+<footer>
+  <div class="w">
+    <div class="fi">
+      <div class="fn">Akshant Sharma</div>
+      <div class="fl">
+        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07">LinkedIn</a>
+        <a href="mailto:akshant3@gmail.com">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+function filter(tab, tag) {
+  document.querySelectorAll('.ftab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  document.querySelectorAll('.post-card').forEach(card => {
+    if (tag === 'all') {
+      card.style.display = '';
+    } else {
+      const tags = (card.dataset.tags || '').split(' ');
+      card.style.display = tags.includes(tag) ? '' : 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ─────────────────────────────────────────────
+  ADMIN: Change these 4 lines for every new post
+──────────────────────────────────────────────── -->
+<title>POST TITLE HERE — Akshant Sharma</title>
+<meta name="description" content="POST DESCRIPTION HERE (1-2 sentences for SEO)">
+<meta property="og:title" content="POST TITLE HERE">
+<meta property="og:description" content="POST DESCRIPTION HERE">
+<!-- ─────────────────────────────────────────── -->
+<meta property="og:type" content="article">
+<meta name="theme-color" content="#07070f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070f;--s1:#0c0c17;--s2:#101020;--s3:#14142a;
+  --b0:rgba(255,255,255,0.05);--b1:rgba(255,255,255,0.09);--b2:rgba(255,255,255,0.16);
+  --text:#ddddf0;--sub:#8888aa;--dim:#55557a;
+  --acc:#6470f2;--acc2:#8b96ff;--grn:#00cc88;--amb:#e89830;--red:#e85060;
+  --mono:'IBM Plex Mono',monospace;--disp:'Syne',sans-serif;--prose:'Lora',serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(100,112,242,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+
+nav{position:sticky;top:0;z-index:200;background:rgba(7,7,15,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--b0)}
+.ni{max-width:860px;margin:0 auto;padding:0 32px;height:50px;display:flex;align-items:center;justify-content:space-between}
+.nl{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--text);text-decoration:none}
+.nb{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color .15s;display:flex;align-items:center;gap:6px}
+.nb:hover{color:var(--text)}
+.nb::before{content:'←';font-size:11px}
+
+.w{max-width:720px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+
+/* POST HEADER */
+.post-hdr{padding:64px 0 48px}
+.post-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.ptag{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:2px;border:1px solid}
+.ptag-ds{background:rgba(100,112,242,.08);color:var(--acc2);border-color:rgba(100,112,242,.2)}
+.ptag-ai{background:rgba(0,204,136,.08);color:var(--grn);border-color:rgba(0,204,136,.2)}
+.ptag-kb{background:rgba(232,152,48,.08);color:var(--amb);border-color:rgba(232,152,48,.2)}
+.ptag-iot{background:rgba(232,80,96,.08);color:var(--red);border-color:rgba(232,80,96,.2)}
+.ptag-rs{background:rgba(139,150,255,.08);color:#b8c0ff;border-color:rgba(139,150,255,.2)}
+
+.post-hdr h1{
+  font-family:var(--disp);font-size:clamp(26px,4vw,42px);font-weight:800;
+  line-height:1.1;letter-spacing:-1.5px;margin-bottom:18px;
+}
+.post-meta{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+.post-meta span{display:flex;align-items:center;gap:5px}
+.sep{color:var(--b1)}
+
+/* DIVIDER */
+hr.post-div{border:none;border-top:1px solid var(--b0);margin:0 0 48px}
+
+/* PROSE */
+.prose{
+  font-family:var(--prose);
+  font-size:17px;
+  line-height:1.85;
+  color:#c8c8e0;
+  margin-bottom:80px;
+}
+
+.prose p{margin-bottom:1.6em}
+
+.prose h2{
+  font-family:var(--disp);font-size:22px;font-weight:700;
+  letter-spacing:-.5px;color:var(--text);
+  margin:2.4em 0 .8em;padding-top:.4em;
+  border-top:1px solid var(--b0);
+}
+.prose h3{
+  font-family:var(--disp);font-size:17px;font-weight:600;
+  letter-spacing:-.3px;color:var(--text);margin:2em 0 .6em;
+}
+
+.prose strong{color:var(--text);font-weight:600}
+.prose em{font-style:italic;color:#b8b8d8}
+
+.prose a{color:var(--acc2);text-decoration:none;border-bottom:1px solid rgba(139,150,255,.3);transition:border-color .15s}
+.prose a:hover{border-bottom-color:var(--acc2)}
+
+/* Code inline */
+.prose code{
+  font-family:var(--mono);font-size:13px;
+  background:var(--s2);border:1px solid var(--b1);
+  border-radius:3px;padding:1px 6px;color:#b8c0ff;
+}
+
+/* Code block */
+.prose pre{
+  background:var(--s1);border:1px solid var(--b0);border-radius:6px;
+  padding:20px 22px;margin:1.8em 0;overflow-x:auto;
+  position:relative;
+}
+.prose pre code{
+  background:none;border:none;padding:0;
+  font-family:var(--mono);font-size:12.5px;color:#c0c8e8;line-height:1.7;
+}
+.prose pre .lang-label{
+  position:absolute;top:10px;right:14px;
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--dim);
+}
+
+/* Blockquote */
+.prose blockquote{
+  border-left:2px solid var(--acc);
+  margin:1.8em 0;padding:12px 20px;
+  background:rgba(100,112,242,.05);border-radius:0 4px 4px 0;
+  font-style:italic;color:var(--sub);
+}
+.prose blockquote p{margin-bottom:0}
+
+/* List */
+.prose ul,.prose ol{padding-left:0;margin:1.2em 0 1.6em;list-style:none}
+.prose ul li,.prose ol li{
+  padding:4px 0 4px 20px;position:relative;
+  font-size:16px;color:#c0c0dc;line-height:1.75;
+}
+.prose ul li::before{content:'·';position:absolute;left:5px;color:var(--acc);font-size:18px;line-height:1.35}
+.prose ol{counter-reset:ol}
+.prose ol li{counter-increment:ol}
+.prose ol li::before{content:counter(ol)'.';position:absolute;left:0;color:var(--acc);font-size:11px;font-family:var(--mono);top:7px}
+
+/* Callout / note box */
+.prose .note{
+  background:rgba(100,112,242,.06);border:1px solid rgba(100,112,242,.2);
+  border-radius:5px;padding:14px 18px;margin:1.8em 0;
+  font-family:var(--mono);font-size:12.5px;color:var(--sub);line-height:1.7;
+}
+.prose .note strong{color:var(--acc2)}
+
+/* Image */
+.prose img{width:100%;border-radius:6px;border:1px solid var(--b0);margin:1.6em 0}
+.prose figure{margin:1.6em 0}
+.prose figcaption{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;margin-top:8px;letter-spacing:.5px}
+
+/* Table */
+.prose table{width:100%;border-collapse:collapse;margin:1.8em 0;font-family:var(--mono);font-size:12.5px}
+.prose th{background:var(--s2);color:var(--text);font-weight:500;padding:10px 14px;border:1px solid var(--b0);text-align:left}
+.prose td{padding:9px 14px;border:1px solid var(--b0);color:var(--sub)}
+.prose tr:nth-child(even) td{background:var(--s1)}
+
+/* PREV / NEXT */
+.post-nav{
+  display:grid;grid-template-columns:1fr 1fr;gap:3px;
+  margin-bottom:80px;
+}
+.pnav-card{
+  background:var(--s1);border:1px solid var(--b0);border-radius:6px;
+  padding:16px 18px;text-decoration:none;color:inherit;
+  transition:border-color .2s;
+}
+.pnav-card:hover{border-color:var(--b1)}
+.pnav-dir{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.pnav-title{font-family:var(--disp);font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+.pnav-card.next{text-align:right}
+
+footer{border-top:1px solid var(--b0);padding:36px 0 52px}
+.fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.fn{font-family:var(--disp);font-size:12px;font-weight:700;color:var(--dim)}
+.fl{display:flex;gap:18px}
+.fl a{font-size:10px;letter-spacing:1px;color:var(--dim);text-decoration:none;transition:color .15s}
+.fl a:hover{color:var(--text)}
+
+@media(max-width:640px){
+  .w,.ni{padding-left:18px;padding-right:18px}
+  .post-nav{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="index.html" class="nb">All posts</a>
+  </div>
+</nav>
+
+<div class="w">
+
+  <!-- ═══════════════════════════════════════════
+    POST HEADER — edit title, tags, date, read time
+  ════════════════════════════════════════════ -->
+  <header class="post-hdr">
+    <div class="post-tags">
+      <!-- Add relevant tags — options:
+           ptag-ds (Distributed Systems)
+           ptag-ai (AI Infra)
+           ptag-kb (Kafka)
+           ptag-rs (Rust)
+           ptag-iot (IoT) -->
+      <span class="ptag ptag-ai">AI Infra</span>
+      <span class="ptag ptag-ds">Distributed Systems</span>
+    </div>
+    <h1>POST TITLE HERE</h1>
+    <div class="post-meta">
+      <span>May 2026</span>       <!-- ← change date -->
+      <span class="sep">·</span>
+      <span>12 min read</span>   <!-- ← change read time -->
+    </div>
+  </header>
+
+  <hr class="post-div">
+
+  <!-- ═══════════════════════════════════════════
+    PROSE CONTENT — write your post below
+    Available elements:
+      <p>                    — paragraph
+      <h2>                   — section heading
+      <h3>                   — sub-heading
+      <strong>               — bold
+      <em>                   — italic
+      <code>                 — inline code
+      <pre><code>...</code></pre>  — code block
+      <blockquote><p>...</p></blockquote>  — quote
+      <ul><li>               — bullet list
+      <ol><li>               — numbered list
+      <div class="note">     — callout box
+      <table>                — data table
+      <figure><img><figcaption> — image with caption
+  ════════════════════════════════════════════ -->
+  <article class="prose">
+
+    <p>Opening paragraph — hook the reader with the problem or the most surprising thing you learned. Keep it to 2-3 sentences.</p>
+
+    <h2>Section heading</h2>
+
+    <p>Body paragraph. Use <strong>bold for key terms</strong> and <code>inline code</code> for technical names, function signatures, or config values.</p>
+
+    <div class="note">
+      <strong>Note:</strong> Use this box for important callouts, gotchas, or definitions that deserve emphasis outside the main flow.
+    </div>
+
+    <pre><code>// Code block example
+fn ingest(event: IngestEvent) -> Result&lt;(), IngestionError&gt; {
+    // your code here
+}</code><span class="lang-label">Rust</span></pre>
+
+    <h2>Another section</h2>
+
+    <p>Continue writing. Each <code>&lt;h2&gt;</code> gets a top border automatically to visually separate sections.</p>
+
+    <ul>
+      <li>Bullet point one</li>
+      <li>Bullet point two</li>
+      <li>Bullet point three</li>
+    </ul>
+
+    <blockquote>
+      <p>Use blockquotes for key insights you want to stand out — or to quote a paper, spec, or person.</p>
+    </blockquote>
+
+    <h2>Conclusion</h2>
+
+    <p>Wrap up with what the reader should take away. One paragraph is enough. Link to the repo or next post if relevant.</p>
+
+  </article>
+
+  <!-- ═══════════════════════════════════════════
+    PREV / NEXT — update when you have more posts.
+    Remove this section if it's the only post.
+  ════════════════════════════════════════════ -->
+  <nav class="post-nav">
+    <a class="pnav-card prev" href="#">
+      <div class="pnav-dir">← Previous</div>
+      <div class="pnav-title">Previous post title here</div>
+    </a>
+    <a class="pnav-card next" href="#">
+      <div class="pnav-dir">Next →</div>
+      <div class="pnav-title">Next post title here</div>
+    </a>
+  </nav>
+
+</div>
+
+<footer>
+  <div class="w">
+    <div class="fi">
+      <div class="fn">Akshant Sharma</div>
+      <div class="fl">
+        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07">LinkedIn</a>
+        <a href="mailto:akshant3@gmail.com">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

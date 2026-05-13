@@ -137,6 +137,26 @@ section{margin-bottom:72px}
 .si{font-size:12.5px;color:var(--sub)}
 .si strong{color:var(--text);font-weight:400;display:inline !important}
 
+/* BLOG PREVIEW CARD */
+.blog-preview-card{background:var(--s1);border:1px solid var(--b0);border-radius:7px;padding:22px 24px;text-decoration:none;color:inherit;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;transition:border-color .2s;position:relative;overflow:hidden}
+.blog-preview-card:hover{border-color:rgba(100,112,242,0.3)}
+.blog-preview-card:hover .bpc-arr{opacity:1}
+.bpc-accent{position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--acc)}
+.bpc-left{flex:1;min-width:0;padding-left:6px}
+.bpc-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.btag{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:2px;border:1px solid}
+.btag-ai{background:rgba(0,204,136,.08);color:var(--grn);border-color:rgba(0,204,136,.2)}
+.btag-ds{background:rgba(100,112,242,.08);color:var(--acc2);border-color:rgba(100,112,242,.2)}
+.btag-rs{background:rgba(139,150,255,.08);color:#b8c0ff;border-color:rgba(139,150,255,.2)}
+.btag-kb{background:rgba(232,152,48,.08);color:var(--amb);border-color:rgba(232,152,48,.2)}
+.btag-iot{background:rgba(232,80,96,.08);color:var(--red);border-color:rgba(232,80,96,.2)}
+.bpc-title{font-family:var(--disp);font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.3px;line-height:1.3;margin-bottom:8px;transition:color .15s}
+.blog-preview-card:hover .bpc-title{color:var(--acc2)}
+.bpc-excerpt{font-size:12px;color:var(--sub);line-height:1.7}
+.bpc-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;padding-top:2px}
+.bpc-date,.bpc-read{font-size:10px;color:var(--dim);white-space:nowrap}
+.bpc-arr{font-size:14px;color:var(--acc);opacity:0;transition:opacity .2s}
+
 /* WRITING */
 .wb{background:var(--s1);border:1px solid var(--b0);border-radius:8px;padding:28px;display:flex;align-items:center;justify-content:space-between;gap:24px}
 .wb h3{font-family:var(--disp);font-size:17px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
@@ -176,6 +196,7 @@ footer{border-top:1px solid var(--b0);padding:36px 0 52px}
       <li><a href="#experience">Experience</a></li>
       <li><a href="#numbers">Numbers</a></li>
       <li><a href="#stack">Stack</a></li>
+      <li><a href="#writing">Writing</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
   </div>
@@ -306,6 +327,24 @@ footer{border-top:1px solid var(--b0);padding:36px 0 52px}
       </div>
     </div>
 
+    <div class="ec">
+      <div class="et" onclick="tog(this)">
+        <div class="badge bbs">BS</div>
+        <div class="em"><div class="er">Sr. Software Engineer</div><div class="eco">BrowserStack · Mumbai</div></div>
+        <div class="ep">May 2021 – Dec 2021</div>
+        <div class="chev">▼</div>
+      </div>
+      <div class="eb">
+        <ul class="ebl">
+          <li>Engineered <strong>low-level device instrumentation</strong> for Camera Image Injection and Biometrics by reverse-engineering mobile binaries to intercept and mock hardware sensor streams at the OS API layer.</li>
+          <li>Enabled <strong>fully automated testing of FaceID/TouchID</strong> on remote physical devices by hooking into native iOS and Android APIs without modifying application source code.</li>
+        </ul>
+        <div class="etags">
+          <span class="etag">Java</span><span class="etag">Objective-C</span><span class="etag">Node.js</span><span class="etag">Reverse Engineering</span><span class="etag">GCP</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -344,14 +383,38 @@ footer{border-top:1px solid var(--b0);padding:36px 0 52px}
   </div>
 </section>
 
-<section id="contact" class="rev">
+<section id="writing" class="rev">
   <div class="sh">Writing</div>
+  <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:16px">
+    <a href="blog/building-ai-inference-observability.html" class="blog-preview-card">
+      <div class="bpc-accent"></div>
+      <div class="bpc-left">
+        <div class="bpc-tags">
+          <span class="btag btag-ai">AI Infra</span>
+          <span class="btag btag-ds">Distributed Systems</span>
+          <span class="btag btag-rs">Rust</span>
+        </div>
+        <div class="bpc-title">Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</div>
+        <div class="bpc-excerpt">Why existing observability tools fail for LLM inference at scale, and how to build one that doesn't. Rust ingestion engine, Kafka, ClickHouse, and the design decisions that matter.</div>
+      </div>
+      <div class="bpc-right">
+        <div class="bpc-date">May 2026</div>
+        <div class="bpc-read">12 min read</div>
+        <div class="bpc-arr">→</div>
+      </div>
+    </a>
+  </div>
+  <a href="blog/index.html" class="btn bo">All posts →</a>
+</section>
+
+<section id="contact" class="rev">
+  <div class="sh">Contact</div>
   <div class="wb">
     <div>
-      <h3>Technical writing on distributed systems + AI infra</h3>
-      <p>Posts on event streaming at scale, Kafka internals, LLM inference infrastructure, and the gap between distributed systems and AI infra engineering. On LinkedIn and dev.to.</p>
+      <h3>Open to Staff Engineer roles</h3>
+      <p>Distributed Systems, AI Infrastructure, or Platform Engineering at scale. Particularly interested in teams working on observability, event streaming, or high-throughput data systems.</p>
     </div>
-    <a href="https://linkedin.com/in/akshantsharma07" class="btn bo">Read on LinkedIn →</a>
+    <a href="mailto:akshant3@gmail.com" class="btn bs">Get in touch →</a>
   </div>
 </section>
 

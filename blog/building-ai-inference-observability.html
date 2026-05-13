@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a Production-Grade AI Inference Observability Pipeline — Akshant Sharma</title>
+<meta name="description" content="Why existing observability tools fail for LLM inference at scale, and how to build one that doesn't. Architecture, tradeoffs, and benchmark results.">
+<meta property="og:title" content="Building a Production-Grade AI Inference Observability Pipeline">
+<meta property="og:description" content="Why existing observability tools fail for LLM inference at scale, and how to build one that doesn't.">
+<meta property="og:type" content="article">
+<meta name="theme-color" content="#07070f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070f;--s1:#0c0c17;--s2:#101020;--s3:#14142a;
+  --b0:rgba(255,255,255,0.05);--b1:rgba(255,255,255,0.09);--b2:rgba(255,255,255,0.16);
+  --text:#ddddf0;--sub:#8888aa;--dim:#55557a;
+  --acc:#6470f2;--acc2:#8b96ff;--grn:#00cc88;--amb:#e89830;--red:#e85060;
+  --mono:'IBM Plex Mono',monospace;--disp:'Syne',sans-serif;--prose:'Lora',serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13.5px;line-height:1.75;-webkit-font-smoothing:antialiased}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(100,112,242,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0}
+nav{position:sticky;top:0;z-index:200;background:rgba(7,7,15,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--b0)}
+.ni{max-width:860px;margin:0 auto;padding:0 32px;height:50px;display:flex;align-items:center;justify-content:space-between}
+.nl{font-family:var(--disp);font-weight:700;font-size:13px;color:var(--text);text-decoration:none}
+.nb{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color .15s;display:flex;align-items:center;gap:6px}
+.nb:hover{color:var(--text)}
+.nb::before{content:'←';font-size:11px}
+.w{max-width:720px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+.post-hdr{padding:64px 0 48px}
+.post-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.ptag{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 8px;border-radius:2px;border:1px solid}
+.ptag-ds{background:rgba(100,112,242,.08);color:var(--acc2);border-color:rgba(100,112,242,.2)}
+.ptag-ai{background:rgba(0,204,136,.08);color:var(--grn);border-color:rgba(0,204,136,.2)}
+.ptag-kb{background:rgba(232,152,48,.08);color:var(--amb);border-color:rgba(232,152,48,.2)}
+.ptag-rs{background:rgba(139,150,255,.08);color:#b8c0ff;border-color:rgba(139,150,255,.2)}
+.post-hdr h1{font-family:var(--disp);font-size:clamp(26px,4vw,42px);font-weight:800;line-height:1.1;letter-spacing:-1.5px;margin-bottom:18px}
+.post-meta{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+.sep{color:var(--b1)}
+hr.post-div{border:none;border-top:1px solid var(--b0);margin:0 0 48px}
+.prose{font-family:var(--prose);font-size:17px;line-height:1.85;color:#c8c8e0;margin-bottom:80px}
+.prose p{margin-bottom:1.6em}
+.prose h2{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--text);margin:2.4em 0 .8em;padding-top:.4em;border-top:1px solid var(--b0)}
+.prose h3{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-.3px;color:var(--text);margin:2em 0 .6em}
+.prose strong{color:var(--text);font-weight:600}
+.prose em{font-style:italic;color:#b8b8d8}
+.prose a{color:var(--acc2);text-decoration:none;border-bottom:1px solid rgba(139,150,255,.3);transition:border-color .15s}
+.prose a:hover{border-bottom-color:var(--acc2)}
+.prose code{font-family:var(--mono);font-size:13px;background:var(--s2);border:1px solid var(--b1);border-radius:3px;padding:1px 6px;color:#b8c0ff}
+.prose pre{background:var(--s1);border:1px solid var(--b0);border-radius:6px;padding:20px 22px;margin:1.8em 0;overflow-x:auto;position:relative}
+.prose pre code{background:none;border:none;padding:0;font-family:var(--mono);font-size:12.5px;color:#c0c8e8;line-height:1.7}
+.prose pre .lang{position:absolute;top:10px;right:14px;font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.prose blockquote{border-left:2px solid var(--acc);margin:1.8em 0;padding:12px 20px;background:rgba(100,112,242,.05);border-radius:0 4px 4px 0;font-style:italic;color:var(--sub)}
+.prose blockquote p{margin-bottom:0}
+.prose ul{padding-left:0;margin:1.2em 0 1.6em;list-style:none}
+.prose ul li{padding:4px 0 4px 20px;position:relative;font-size:16px;color:#c0c0dc;line-height:1.75}
+.prose ul li::before{content:'·';position:absolute;left:5px;color:var(--acc);font-size:18px;line-height:1.35}
+.prose .note{background:rgba(100,112,242,.06);border:1px solid rgba(100,112,242,.2);border-radius:5px;padding:14px 18px;margin:1.8em 0;font-family:var(--mono);font-size:12.5px;color:var(--sub);line-height:1.7}
+.prose .note strong{color:var(--acc2)}
+.prose table{width:100%;border-collapse:collapse;margin:1.8em 0;font-family:var(--mono);font-size:12.5px}
+.prose th{background:var(--s2);color:var(--text);font-weight:500;padding:10px 14px;border:1px solid var(--b0);text-align:left}
+.prose td{padding:9px 14px;border:1px solid var(--b0);color:var(--sub)}
+.prose tr:nth-child(even) td{background:var(--s1)}
+footer{border-top:1px solid var(--b0);padding:36px 0 52px}
+.fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.fn{font-family:var(--disp);font-size:12px;font-weight:700;color:var(--dim)}
+.fl{display:flex;gap:18px}
+.fl a{font-size:10px;letter-spacing:1px;color:var(--dim);text-decoration:none;transition:color .15s}
+.fl a:hover{color:var(--text)}
+@media(max-width:640px){.w,.ni{padding-left:18px;padding-right:18px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="index.html" class="nb">All posts</a>
+  </div>
+</nav>
+
+<div class="w">
+
+  <header class="post-hdr">
+    <div class="post-tags">
+      <span class="ptag ptag-ai">AI Infra</span>
+      <span class="ptag ptag-ds">Distributed Systems</span>
+      <span class="ptag ptag-rs">Rust</span>
+    </div>
+    <h1>Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</h1>
+    <div class="post-meta">
+      <span>May 2026</span>
+      <span class="sep">·</span>
+      <span>12 min read</span>
+    </div>
+  </header>
+
+  <hr class="post-div">
+
+  <article class="prose">
+
+    <p>I spent five months at Agoda working on a time-series database that ingested 1.5 trillion events per day. When I started thinking about what AI infrastructure actually needs from an observability layer, I kept running into the same problem — the existing tools were built for application metrics, not for the specific shape of LLM inference data. So I built one.</p>
+
+    <p>This post covers the architecture, the three design decisions that matter most, and the benchmark results from the first version. The code is at <a href="https://github.com/AkshantVats/infra-ai-streaming">github.com/AkshantVats/infra-ai-streaming</a>.</p>
+
+    <h2>Why existing observability tools fail for LLM inference</h2>
+
+    <p>The problem isn't volume — it's <strong>cardinality combined with high-frequency multi-dimensional data</strong>. A single LLM inference event has at minimum: <code>model_id</code>, <code>tenant_id</code>, <code>latency_ms</code> (broken into prefill and decode phases), <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>cost_usd</code>, and request metadata. At scale, the cross-product of model versions and tenants creates a label cardinality that Prometheus simply wasn't designed for.</p>
+
+    <p>I hit this wall at Agoda. Prometheus starts degrading well before you reach the cardinality that AI infrastructure routinely produces. ClickHouse handles it cleanly because it stores data as column families — querying "give me P99 latency for model <code>gpt-4o</code> across all tenants last hour" is a single columnar scan, not a label lookup across millions of time series.</p>
+
+    <div class="note">
+      <strong>The core insight:</strong> LLM inference observability is a TSDB problem with a different access pattern. You need analytical queries (aggregations across model/tenant dimensions), not just alerting dashboards. That means ClickHouse, not Prometheus, as the storage layer.
+    </div>
+
+    <h2>Architecture overview</h2>
+
+    <p>The pipeline is deliberately simple at the component level. Complexity lives in the reliability guarantees, not the topology:</p>
+
+    <pre><code>HTTP /ingest → Rust ingestion engine → Kafka topic
+                                           ↓
+                                    Go consumer
+                                       ↙    ↘
+                                ClickHouse   Redis (circuit breaker buffer)
+                                    ↓
+                                 Grafana</code><span class="lang">Architecture</span></pre>
+
+    <p>The Rust ingestion engine is an <strong>Axum HTTP server</strong> that accepts batched JSON events, validates the schema, appends to a Write-Ahead Log, and produces to Kafka. The Go consumer handles the downstream write path — batching 1000 events or 500ms, whichever comes first, before flushing to ClickHouse.</p>
+
+    <h2>The three decisions that matter</h2>
+
+    <h3>1. Write-Ahead Log before Kafka, not after</h3>
+
+    <p>Most ingestion pipelines trust Kafka as the durability layer. The problem is the window between HTTP receipt and successful Kafka produce — if the ingestion engine crashes mid-batch, those events are gone. The WAL closes that window. Every batch is written to a local append-only log before the Kafka produce call. On restart, un-acked WAL segments replay automatically.</p>
+
+    <p>The cost is an extra fsync per batch. At our target throughput (1M events/min), the overhead is under 3ms P99 on NVMe. Worth it for financial and compliance workloads where event loss is unacceptable.</p>
+
+    <h3>2. Circuit breaker with Redis overflow, not backpressure alone</h3>
+
+    <p>When ClickHouse is slow or down, you have two options: apply backpressure upstream (drop or block ingest) or buffer the overflow somewhere. Backpressure propagates failure to the caller — the LLM gateway starts seeing 429s or timeouts, which is worse than slightly stale observability data.</p>
+
+    <p>The circuit breaker trips when ClickHouse write latency exceeds 2 seconds for 5 consecutive attempts. The overflow buffer goes to a Redis sorted set keyed by timestamp. When ClickHouse recovers, the consumer replays from Redis before resuming normal Kafka consumption.</p>
+
+    <h3>3. Per-tenant rate limiting in Rust, shared state in Redis</h3>
+
+    <p>A single high-volume tenant can starve the pipeline for others. Token bucket rate limiting per <code>tenant_id</code> solves this, but the state needs to be shared across multiple ingestion engine instances. A single Redis <code>INCR</code> with expiry is sufficient — the race condition window is small enough that brief over-admission is acceptable, and the atomic Lua script alternative adds ~0.5ms per request at high concurrency.</p>
+
+    <h2>Benchmark results</h2>
+
+    <p>Tested on a single MacBook Pro M3 (local Docker Compose stack with Redpanda). Production deployment would be different, but these numbers establish a performance floor:</p>
+
+    <table>
+      <thead>
+        <tr><th>Load</th><th>Ingestion P50</th><th>Ingestion P99</th><th>Kafka lag</th><th>ClickHouse write rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1k events/sec</td><td>4ms</td><td>11ms</td><td>0</td><td>3.6k/sec</td></tr>
+        <tr><td>10k events/sec</td><td>6ms</td><td>28ms</td><td>~200</td><td>9.1k/sec</td></tr>
+        <tr><td>50k events/sec</td><td>12ms</td><td>74ms</td><td>~4k</td><td>11.2k/sec</td></tr>
+      </tbody>
+    </table>
+
+    <p>The ClickHouse write rate plateaus around 11k/sec on local hardware — this is the bottleneck. In production with a proper ClickHouse cluster and the Go consumer scaled horizontally, the ingestion side handles significantly more. The Kafka consumer lag at 50k/sec recovers within 30 seconds of load dropping.</p>
+
+    <h2>What I'd do differently</h2>
+
+    <p>The anomaly detection layer (z-score on sliding window per model) is too simple for production. It generates too many false positives during model rollouts when the latency distribution legitimately shifts. A proper implementation would use CUSUM or exponentially weighted moving average with separate baselines per deployment version.</p>
+
+    <p>The WAL segment management is also manual right now — segments don't compact or expire automatically. For a long-running deployment, this needs a background compaction job similar to what LevelDB does.</p>
+
+    <p>The code is at <a href="https://github.com/AkshantVats/infra-ai-streaming">github.com/AkshantVats/infra-ai-streaming</a>. PRs and issues welcome.</p>
+
+  </article>
+
+</div>
+
+<footer>
+  <div class="w">
+    <div class="fi">
+      <div class="fn">Akshant Sharma</div>
+      <div class="fl">
+        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07">LinkedIn</a>
+        <a href="mailto:akshant3@gmail.com">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
