@@ -1,94 +1,75 @@
-## Portfolio
+# Akshant Sharma
 
-Akshant is currently a Sr. Software Engineer at Delivery Hero.<br />
+Staff Engineer. I build high-throughput distributed systems and the infrastructure layer that sits underneath product features — ingestion engines, storage primitives, real-time event pipelines.
 
-5+ years of experience in back-end development from system design to implementation with core competencies. In addition to this Creating/Monitoring cloud components based on the increasing scale of data.<br /><br />
-➢ Algorithms and Data Structures<br />
-➢ Sharding & Partitioning of NoSql database.<br />
-➢ SOLID principles in API design.<br />
-➢ Large scale distributed Web Apps.<br />
-➢ Transient Fault Handling for Services.<br />
-➢ Distributed caching using Stateful Sets.<br />
-➢ Scalable Microservices with Java/C#.<br />
-➢ RESTful APIs and JSON.<br />
-➢ Robust CI/CD pipelines w/ Azure Dev Ops<br />
-➢ Async request handling, Web security.<br />
-<br /><br />
+Currently building [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming) — an AI inference observability platform in Rust.
 
 ---
 
-## Skills
+## What I'm Building
 
-<p align='left'>
-  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Java_programming_language_logo.svg/242px-Java_programming_language_logo.svg.png" alt="html" width="40" height="40">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/0/0d/C_Sharp_wordmark.svg" alt="html" width="40" height="40">
-  <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Kubernetes_logo_without_workmark.svg/1234px-Kubernetes_logo_without_workmark.svg.png' alt="html" width="40" height="40">
-  <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Amazon_Web_Services_Logo.svg/300px-Amazon_Web_Services_Logo.svg.png' height='30' width='auto' alt="js">
-   <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg" alt="react" width="auto" height="40"/>
-</p>
+**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** `in progress`
 
----
+An open-source AI inference observability pipeline built for the event volume and metric cardinality that standard monitoring tools break under.
 
-## Experience
+```
+Rust ingestion engine → Kafka → Go consumer → ClickHouse → Grafana
+```
 
-### **SENIOR SOFTWARE ENGINEER**
-#### DELIVERY HERO SE
-
-➢ **Role** – Build and deploy Solutions which help customers to see exact information about their orders. Engage customers as much as possible to stop contacting the customer team.<br />
-➢ **Technology** – Java, AWS, Big-Data, K8s.<br />
-➢ **Projects** – Device-Features.<br />
-➢ **Details** – ➢ Responsible for creating, scaling and managing new features for seamless delivery.<br />
-  Using OSRM maps to figure out the optimal path for rider and update in near real time.<br />
-  Integration with Ably to provide smooth experience to user.<br /><br />
-
-
-### **SENIOR SOFTWARE ENGINEER**
-#### BROWSERSTACK
-
-➢ **Role** – Reverse engineer apks and mock various device functionality to test devices.<br />
-➢ **Technology** – Nodejs(API's), Ruby on Rails(Monitoring systems), java(Android), Objective-c(IOS), C#(Xamarin), Google Cloud, Big-Data, K8s.<br />
-➢ **Projects** – Device-Features.<br />
-➢ **Details** – Responsible for creating, scaling and managing new features for various products of BrowserStack which provides infrastructure to manual and automation testing of apps on mobile devices on cloud.<br />
-We achieve this by reverse engineering the provided application code and injecting our mocking code into the application and rebuild the application.<br />
-Help build the Camera Image Injection. For more info visit [here](https://www.browserstack.com/docs/app-automate/appium/advanced-features/camera-image-injection).<br />
-Help build the Biometric Authentication. For more info visit [here](https://www.browserstack.com/docs/app-automate/appium/advanced-features/biometric-authentication).<br /><br />
-
-
-### **SOFTWARE ENGINEER**
-#### Walmart
-
-➢ **Role** – Design and implement intelligent system to improve food quality, lower energy consumption and keep costs low for our customers.<br />
-➢ **Technology** – C#, Java, Python, Power BI, Azure IoT Hub, Azure IoT Edge, Event Hub, Azure Stream Analytics, No-SQL, SQL.<br />
-➢ **Projects** – Walmart-IoT(EMS).<br />
-➢ **Details** – Worked as a software engineer on an IoT platform to track telemetry data and monitor HVAC sensors. Hands-on development of Microservices, WebAPIs, Azure  Functions, Batch Jobs and Cloud components. For more info please checkout a [blog](https://corporate.walmart.com/newsroom/2021/01/14/how-walmart-leverages-iot-to-keep-your-ice-cream-frozen) and [linkedin post](https://www.linkedin.com/posts/walmartglobaltechindia_thisisthatplace-futureofretail-iot-activity-6589896026155520000-lwOh) for the same.<br /><br />
-
-
-### **IOT LEAD**
-#### Integration Wizards Solutions
-
-➢ **Role** – Build and monitor end to end IoT System.<br />
-➢ **Technology** – C#, Java, Python, Power BI, Azure IoT Hub, Azure IoT Edge, Event Hub, Azure Stream Analytics, No-SQL, SQL and Android.<br />
-➢ **Projects** – Dover-IoT.<br />
-➢ **Details** – Intelligently track telemetry data and monitor oil wells and compressors. <br /><br />
-
+- Axum HTTP server with channel-based backpressure and per-tenant rate limiting
+- Circuit breaker with Redis overflow buffer and Dead Letter Queue
+- Z-score anomaly detection on inference latency per model
+- Helm charts with HPA scaling on Kafka consumer lag
+- Target: 1M events/min, sub-100ms ingestion P99
 
 ---
 
-## Education
+## Technical Bets
 
-### **Chandigarh University**
-#### Bachelor Of Computer Science (2013- 2016)
-GPA 7.2
-<br /><br />
+Things I'm doubling down on:
 
-
-### **Chandigarh College Of Engineering & Technology, Sector-26 Chandigarh**
-#### Diploma in Electrical Engineering (2009- 2012)
-GPA 5.8
+- **Rust** for systems programming where performance guarantees are non-negotiable
+- **AI infrastructure** — inference pipelines, LLM observability, cost optimization at the API layer
+- **Kafka internals at scale** — partition strategy, consumer group design, backpressure mechanisms
+- **ClickHouse** for analytical workloads over high-cardinality event streams
+- **Kubernetes** — operators, eBPF-based observability, cost-aware autoscaling
 
 ---
 
-### INTERESTS
-Apart from being a software engineer, I do play video games(PS5). I am trying to get into creating content related to cryptocurrency and edu-tech space.
+## By the Numbers
 
-I enjoy being outdoors, so i go for run everyday. I love travelling and exploring different cultures.
+| Scale | System | Stack |
+|---|---|---|
+| 1.5T events / day | Time-series database @ Agoda | Rust · Scala · Ceph |
+| 7M+ unique sensors | SmartBuildings IoT platform @ Walmart | Azure IoT Hub · Stream Analytics |
+| 5,000 geo-events / sec | End-to-end rider tracking @ Delivery Hero | OSRM · AWS EKS · Kinesis |
+| 250k+ SKU updates / supplier | Global Pricing Engine @ Wayfair | GCP · Kafka · BigQuery |
+| 1M+ daily orders | Logistics platform @ Delivery Hero | AWS EKS · SQS · Kinesis |
+
+---
+
+## Stack
+
+```
+Languages    Rust · Go · Java · Scala · Python
+Streaming    Kafka · Redpanda · AWS Kinesis · Azure Event Hub
+Storage      Ceph · ClickHouse · Redis · BigQuery · PostgreSQL · MongoDB
+Infra        Kubernetes · Terraform · Helm · Docker
+Cloud        GCP · AWS · Azure
+Observability  OpenTelemetry · Prometheus · Grafana · ELK
+```
+
+---
+
+## Writing
+
+Technical posts on distributed systems, AI infrastructure, and the gap between the two.
+
+→ [LinkedIn](https://linkedin.com/in/akshantsharma07)
+
+---
+
+## Elsewhere
+
+- LinkedIn — [akshantsharma07](https://linkedin.com/in/akshantsharma07)
+- Email — akshant3@gmail.com
