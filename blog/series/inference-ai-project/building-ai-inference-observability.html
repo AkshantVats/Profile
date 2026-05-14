@@ -82,13 +82,15 @@ hr.post-div{border:none;border-top:1px solid var(--line);margin:0 0 40px}
 footer{border-top:1px solid var(--line);padding:28px 0 44px}
 .fi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
 .fn{font-family:var(--serif);font-size:.9375rem;font-weight:600;color:var(--muted)}
-.fl{display:flex;gap:18px}
+.fl{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 .fl a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500}
 .fl a:hover{color:var(--green)}
 .fl a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
 .fl a.ff-in:hover{color:#fff;background:#004182}
 .fl a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
 .fl a.ff-em:hover{color:#fff;background:#c5221f}
+.fl a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.fl a.ff-gh:hover{color:#fff;background:#1a1e22}
 html[data-theme="dark"] .ptag-ds{border-color:rgba(165,180,252,.35);color:#c7d2fe;background:rgba(99,102,241,.12)}
 html[data-theme="dark"] .ptag-ai{border-color:rgba(52,211,153,.35);color:#6ee7b7;background:rgba(16,185,129,.1)}
 html[data-theme="dark"] .ptag-kb{border-color:rgba(251,191,36,.35);color:#fcd34d;background:rgba(245,158,11,.1)}
@@ -107,9 +109,9 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <nav>
   <div class="ni">
-    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
     <div class="nav-tail">
-      <a href="index.html" class="nb">All posts</a>
+      <a href="../../index.html" class="nb">All posts</a>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -218,7 +220,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
     <div class="fi">
       <div class="fn">Akshant Sharma</div>
       <div class="fl">
-        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://github.com/AkshantVats" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07" class="ff-in">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>

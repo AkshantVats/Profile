@@ -1,0 +1,76 @@
+{
+  "series": [
+    {
+      "slug": "agoda",
+      "title": "Agoda — hyperscale TSDB",
+      "slugLine": "Agoda Series",
+      "navSubtitle": "Agoda TSDB — series roadmap",
+      "posts": [
+        {
+          "href": "blog/series/agoda/building-tsdb-at-agoda.html",
+          "kicker": "Post 1/5 · overview",
+          "title": "1.5T events/day — what I worked on at Agoda",
+          "desc": "WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth."
+        },
+        {
+          "href": "#",
+          "kicker": "Post 2/5 · Day 3",
+          "title": "Cross-tier queries at scale: merging Redis and S3 when quantiles don't add up",
+          "desc": "Scala query engine: hot/cold tiers, quantile merge, histograms, Grafana-facing query types."
+        },
+        {
+          "href": "#",
+          "kicker": "Post 3/5 · Day 11",
+          "title": "Adding a new cardinality dimension to a 100M+ series TSDB without exploding the index",
+          "desc": "Kubernetes tag, RoaringBitmap, Rust ingestion, cross-product risk, safe vs dangerous tags."
+        },
+        {
+          "href": "#",
+          "kicker": "Post 4/5 · Day 20",
+          "title": "Parquet compression on S3: Snappy to Zstd at trillion-event scale",
+          "desc": "Cold storage tradeoffs, ratio vs read speed, cost at 1.5T/day, Redis → S3 pipeline fit."
+        },
+        {
+          "href": "#",
+          "kicker": "Post 5/5 · Day 23",
+          "title": "What I learned at hyperscale TSDB — and what it means for AI infrastructure",
+          "desc": "Reflection, mature-system lessons, mapping to AI inference observability, what I'm building now."
+        }
+      ]
+    },
+    {
+      "slug": "inference-ai-project",
+      "title": "Inference AI project",
+      "slugLine": "Inference AI project",
+      "navSubtitle": "Production observability pipeline",
+      "posts": [
+        {
+          "href": "blog/series/inference-ai-project/building-ai-inference-observability.html",
+          "kicker": "Deep dive",
+          "title": "Building a Production-Grade AI Inference Observability Pipeline",
+          "desc": "Architecture, tradeoffs, benchmarks — Rust, Kafka, ClickHouse, Grafana."
+        }
+      ]
+    },
+    {
+      "slug": "ai-learning",
+      "title": "AI Learning — LLM inference (30 days)",
+      "slugLine": "AI Learning",
+      "navSubtitle": "30 days · distributed systems lens · no ML background",
+      "posts": [
+        {
+          "href": "blog/series/ai-learning/day-0-series-roadmap.html",
+          "kicker": "Day 0 of 30",
+          "title": "Why I'm writing this series",
+          "desc": "Preface: distributed-systems lens, public notes, scope of the thirty posts — link forward to Day 1."
+        },
+        {
+          "href": "blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html",
+          "kicker": "Day 1 of 30",
+          "title": "The KV Cache Is a Memory Bandwidth Problem",
+          "desc": "Prefill vs decode, why decode is memory-bound, TSDB analogy, TTFT vs TPOT — preview of continuous batching (Day 2)."
+        }
+      ]
+    }
+  ]
+}

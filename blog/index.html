@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>(function(){var p=location.pathname;if(/\/blog$/i.test(p))location.replace(p+"/"+location.search+location.hash);})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Writing — Akshant Sharma</title>
 <meta name="description" content="Technical writing on distributed systems, AI infrastructure, and the engineering layer underneath.">
@@ -200,10 +201,29 @@ html[data-theme="dark"] .ftab.active {
 }
 .post-arrow { color: var(--green); font-size: 1.125rem; }
 
+.series-stack { margin-bottom: 2.5rem; }
+.series-stack:last-of-type { margin-bottom: 0; }
+.series-head {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.series-dek {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
 footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
 .fi { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 .fn { font-family: var(--font-serif); font-size: 0.9375rem; font-weight: 600; color: var(--muted); }
-.fl { display: flex; gap: 20px; }
+.fl { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
 .fl a { font-size: 0.8125rem; color: var(--muted); text-decoration: none; font-weight: 500; }
 .fl a:hover { color: var(--green); }
 .fl a.ff-in {
@@ -222,6 +242,14 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
   font-weight: 600;
 }
 .fl a.ff-em:hover { color: #fff; background: #c5221f; }
+.fl a.ff-gh {
+  background: #24292f;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.fl a.ff-gh:hover { color: #fff; background: #1a1e22; }
 
 @media (max-width: 640px) {
   .w, .ni { padding-left: 16px; padding-right: 16px; }
@@ -264,24 +292,11 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
 
   <div class="posts" id="posts-list">
 
-    <a class="post-card" href="building-ai-inference-observability.html" data-tags="distributed-systems ai-infra rust">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ai">AI Infra</span>
-          <span class="ptag ptag-ds">Distributed systems</span>
-          <span class="ptag ptag-rs">Rust</span>
-        </div>
-        <div class="post-title">Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</div>
-        <div class="post-excerpt">Why existing observability tools fail for LLM inference at scale, and how to build one that does not. Rust ingestion engine, Kafka, ClickHouse, and the design decisions that make it production-ready.</div>
-      </div>
-      <div class="post-right">
-        <div>May 2026</div>
-        <div>12 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
+    <section class="series-stack" aria-labelledby="series-agoda">
+      <h2 class="series-head" id="series-agoda">Agoda — hyperscale TSDB</h2>
+      <p class="series-dek">WhiteFalcon, cross-tier queries, cardinality, cold storage.</p>
 
-    <a class="post-card" href="building-tsdb-at-agoda.html" data-tags="distributed-systems rust tsdb">
+    <a class="post-card" href="series/agoda/building-tsdb-at-agoda.html" data-tags="distributed-systems rust tsdb">
       <div class="post-left">
         <div class="post-tags">
           <span class="ptag ptag-ds">Distributed systems</span>
@@ -297,6 +312,66 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
         <span class="post-arrow" aria-hidden="true">→</span>
       </div>
     </a>
+    </section>
+
+    <section class="series-stack" aria-labelledby="series-inference-ai-project">
+      <h2 class="series-head" id="series-inference-ai-project">Inference AI project</h2>
+      <p class="series-dek">infra-ai-streaming — LLM-scale observability, Rust, Kafka, ClickHouse.</p>
+
+    <a class="post-card" href="series/inference-ai-project/building-ai-inference-observability.html" data-tags="distributed-systems ai-infra rust">
+      <div class="post-left">
+        <div class="post-tags">
+          <span class="ptag ptag-ai">AI Infra</span>
+          <span class="ptag ptag-ds">Distributed systems</span>
+          <span class="ptag ptag-rs">Rust</span>
+        </div>
+        <div class="post-title">Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</div>
+        <div class="post-excerpt">Why existing observability tools fail for LLM inference at scale, and how to build one that does not. Rust ingestion engine, Kafka, ClickHouse, and the design decisions that make it production-ready.</div>
+      </div>
+      <div class="post-right">
+        <div>May 2026</div>
+        <div>12 min read</div>
+        <span class="post-arrow" aria-hidden="true">→</span>
+      </div>
+    </a>
+    </section>
+
+    <section class="series-stack" aria-labelledby="series-ai-learning">
+      <h2 class="series-head" id="series-ai-learning">AI Learning — LLM inference (30 days)</h2>
+      <p class="series-dek">Learning inference from a distributed systems lens — no ML background, deep infra background.</p>
+
+    <a class="post-card" href="series/ai-learning/day-0-series-roadmap.html" data-tags="distributed-systems ai-infra">
+      <div class="post-left">
+        <div class="post-tags">
+          <span class="ptag ptag-ai">AI Learning</span>
+          <span class="ptag ptag-ds">Distributed systems</span>
+        </div>
+        <div class="post-title">Day 0 — Why I'm writing this series</div>
+        <div class="post-excerpt">Preface and roadmap: the systems lens, what thirty days will cover, and where to start before the technical posts.</div>
+      </div>
+      <div class="post-right">
+        <div>May 2026</div>
+        <div>5 min read</div>
+        <span class="post-arrow" aria-hidden="true">→</span>
+      </div>
+    </a>
+
+    <a class="post-card" href="series/ai-learning/day-1-kv-cache-memory-bandwidth.html" data-tags="distributed-systems ai-infra">
+      <div class="post-left">
+        <div class="post-tags">
+          <span class="ptag ptag-ai">AI Learning</span>
+          <span class="ptag ptag-ds">Distributed systems</span>
+        </div>
+        <div class="post-title">Day 1 — The KV cache is a memory bandwidth problem</div>
+        <div class="post-excerpt">Prefill vs decode, TTFT vs TPOT, why decode is VRAM-bandwidth-bound, TSDB analogy, and why observability needs split latency fields from day one.</div>
+      </div>
+      <div class="post-right">
+        <div>Jun 2026</div>
+        <div>18 min read</div>
+        <span class="post-arrow" aria-hidden="true">→</span>
+      </div>
+    </a>
+    </section>
 
   </div>
 
@@ -307,7 +382,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     <div class="fi">
       <div class="fn">Akshant Sharma</div>
       <div class="fl">
-        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://github.com/AkshantVats" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07" class="ff-in">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>

@@ -374,6 +374,43 @@ section { margin-bottom: 3.25rem; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.writing-series-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.side-series-block {
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.side-series-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.side-series-kicker {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.side-series-title {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+.side-series-block .side-post-list {
+  margin-top: 2px;
+}
+.side-series-block .side-post:first-of-type {
+  border-top: none;
+  padding-top: 0.25rem;
+}
 .side-all {
   display: inline-block;
   margin-top: 0.75rem;
@@ -625,7 +662,7 @@ html[data-theme="dark"] .bbs { background: rgba(255, 255, 255, 0.06); color: var
 footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16px; }
 .fi { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
 .fn { font-family: var(--font-serif); font-size: 0.9375rem; font-weight: 600; color: var(--muted); }
-.fl { display: flex; gap: 20px; }
+.fl { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
 .fl a { font-size: 0.8125rem; color: var(--muted); text-decoration: none; font-weight: 500; }
 .fl a:hover { color: var(--green); }
 .fl a.ff-in {
@@ -644,6 +681,14 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
   font-weight: 600;
 }
 .fl a.ff-em:hover { color: #fff; background: #c5221f; }
+.fl a.ff-gh {
+  background: #24292f;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.fl a.ff-gh:hover { color: #fff; background: #1a1e22; }
 
 .rev { opacity: 0; transform: translateY(10px); transition: opacity 0.45s ease, transform 0.45s ease; }
 .vis { opacity: 1; transform: none; }
@@ -886,21 +931,33 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
 
       <div class="side-block side-writing" id="writing">
         <div class="side-label">Writing</div>
-        <!-- Latest 2 posts: fetched from each URL in BLOG_PAGES below; sorted by article:published_time in each HTML file. -->
-        <p class="side-writing-dek">Latest articles.</p>
-        <div class="side-post-list" id="latest-posts">
-          <a href="blog/building-ai-inference-observability.html" class="side-post">
-            <div class="side-post-meta">May 2026 · 12 min read</div>
-            <div class="side-post-title">Building a Production-Grade AI Inference Observability Pipeline</div>
-            <div class="side-post-excerpt">Architecture, tradeoffs, and benchmarks for LLM-scale observability.</div>
-          </a>
-          <a href="blog/building-tsdb-at-agoda.html" class="side-post">
-            <div class="side-post-meta">May 2026 · 10 min read</div>
-            <div class="side-post-title">1.5 trillion events/day TSDB at Agoda</div>
-            <div class="side-post-excerpt">Cross-tier queries, cardinality in the index, Parquet on S3.</div>
-          </a>
+        <!-- Writing: filled from blog/series-index.json + scraped dates in each post HTML; fallback is #writing-series-root children. -->
+        <p class="side-writing-dek">Latest activity across series — two series with the most recent updates, up to two posts each (metadata from each HTML file).</p>
+        <div id="writing-series-root" class="writing-series-root">
+          <div class="side-series-block">
+            <div class="side-series-kicker">Series · inference-ai-project</div>
+            <div class="side-series-title">Inference AI project</div>
+            <div class="side-post-list">
+              <a href="blog/series/inference-ai-project/building-ai-inference-observability.html" class="side-post">
+                <div class="side-post-meta">May 2026 · 12 min read</div>
+                <div class="side-post-title">Building a Production-Grade AI Inference Observability Pipeline</div>
+                <div class="side-post-excerpt">Architecture, tradeoffs, and benchmarks for LLM-scale observability.</div>
+              </a>
+            </div>
+          </div>
+          <div class="side-series-block">
+            <div class="side-series-kicker">Series · agoda</div>
+            <div class="side-series-title">Agoda — hyperscale TSDB</div>
+            <div class="side-post-list">
+              <a href="blog/series/agoda/building-tsdb-at-agoda.html" class="side-post">
+                <div class="side-post-meta">May 2026 · 10 min read</div>
+                <div class="side-post-title">1.5 trillion events/day TSDB at Agoda</div>
+                <div class="side-post-excerpt">Cross-tier queries, cardinality in the index, Parquet on S3.</div>
+              </a>
+            </div>
+          </div>
         </div>
-        <a href="blog/index.html" class="side-all">All posts →</a>
+        <a href="blog/" class="side-all">All posts →</a>
       </div>
       </div>
   </aside>
@@ -924,7 +981,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
     <div class="fi">
       <div class="fn">Akshant Sharma</div>
       <div class="fl">
-        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://github.com/AkshantVats" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07" class="ff-in">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>
@@ -970,11 +1027,10 @@ const io = new IntersectionObserver(
 );
 document.querySelectorAll(".rev").forEach((el) => io.observe(el));
 (function () {
-  var BLOG_PAGES = [
-    "blog/building-ai-inference-observability.html",
-    "blog/building-tsdb-at-agoda.html"
-  ];
-  var root = document.getElementById("latest-posts");
+  var MANIFEST = "blog/series-index.json";
+  var MAX_SERIES = 2;
+  var MAX_POSTS_PER_SERIES = 2;
+  var root = document.getElementById("writing-series-root");
   if (!root) return;
 
   function metaAttr(doc, sel, name) {
@@ -984,6 +1040,18 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
 
   function parsePublished(doc) {
     return metaAttr(doc, 'meta[property="article:published_time"]', "content");
+  }
+
+  function parseModified(doc) {
+    return metaAttr(doc, 'meta[property="article:modified_time"]', "content");
+  }
+
+  /** Recency for ordering: max(published, modified) when both ISO; else whichever exists. */
+  function sortKeyForDoc(doc) {
+    var pub = parsePublished(doc);
+    var mod = parseModified(doc);
+    if (pub && mod) return pub > mod ? pub : mod;
+    return mod || pub || "";
   }
 
   function pickMetaLine(doc) {
@@ -1022,58 +1090,144 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
     return tit ? tit.textContent.replace(/\s*[—–-]\s*Akshant.*$/i, "").trim() : "";
   }
 
-  Promise.all(
-    BLOG_PAGES.map(function (href) {
-      return fetch(href, { credentials: "same-origin" })
-        .then(function (r) {
-          return r.ok ? r.text() : Promise.reject();
-        })
-        .then(function (html) {
-          var p = new DOMParser().parseFromString(html, "text/html");
-          return {
-            href: href,
-            date: parsePublished(p),
-            metaLine: pickMetaLine(p),
-            title: titleFrom(p),
-            excerpt: excerptFrom(p)
-          };
-        })
-        .catch(function () {
-          return null;
-        });
+  function parsePostHtml(html, href) {
+    var p = new DOMParser().parseFromString(html, "text/html");
+    var sk = sortKeyForDoc(p);
+    if (!sk) return null;
+    return {
+      href: href,
+      sortKey: sk,
+      metaLine: pickMetaLine(p),
+      title: titleFrom(p),
+      excerpt: excerptFrom(p)
+    };
+  }
+
+  function fetchPost(href) {
+    return fetch(href, { credentials: "same-origin" })
+      .then(function (r) {
+        return r.ok ? r.text() : Promise.reject();
+      })
+      .then(function (html) {
+        return parsePostHtml(html, href);
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function postHref(ref) {
+    if (ref == null) return "";
+    if (typeof ref === "string") return ref;
+    return ref.href || "";
+  }
+
+  fetch(MANIFEST, { credentials: "same-origin" })
+    .then(function (r) {
+      return r.ok ? r.json() : Promise.reject();
     })
-  )
-    .then(function (rows) {
-      var posts = rows.filter(Boolean).filter(function (x) {
-        return x.date;
+    .then(function (data) {
+      var seriesList = (data && data.series ? data.series : []).filter(function (s) {
+        return s && s.posts && s.posts.length;
       });
-      posts.sort(function (a, b) {
-        return String(b.date).localeCompare(String(a.date));
+      if (!seriesList.length) return Promise.reject();
+
+      var allHrefs = [];
+      seriesList.forEach(function (s) {
+        s.posts.forEach(function (ref) {
+          var h = postHref(ref);
+          if (h && h !== "#" && h.indexOf("#") !== 0 && allHrefs.indexOf(h) < 0) allHrefs.push(h);
+        });
       });
-      posts = posts.slice(0, 2);
-      if (!posts.length) return;
-      root.textContent = "";
-      posts.forEach(function (p) {
-        var a = document.createElement("a");
-        a.className = "side-post";
-        a.href = p.href;
-        var m = document.createElement("div");
-        m.className = "side-post-meta";
-        m.textContent = p.metaLine || p.date;
-        var t = document.createElement("div");
-        t.className = "side-post-title";
-        t.textContent = p.title || p.href;
-        var e = document.createElement("div");
-        e.className = "side-post-excerpt";
-        e.textContent = p.excerpt || "";
-        a.appendChild(m);
-        a.appendChild(t);
-        a.appendChild(e);
-        root.appendChild(a);
+
+      return Promise.all(allHrefs.map(fetchPost)).then(function (rows) {
+        var byHref = {};
+        rows.forEach(function (row) {
+          if (row) byHref[row.href] = row;
+        });
+
+        var enriched = seriesList.map(function (s) {
+          var posts = s.posts
+            .map(function (ref) {
+              var h = postHref(ref);
+              if (!h || h === "#" || h.indexOf("#") === 0) return null;
+              var row = byHref[h];
+              if (row) return row;
+              var obj = typeof ref === "object" ? ref : null;
+              if (obj && obj.title && obj.sortKey) {
+                return {
+                  href: h,
+                  sortKey: obj.sortKey,
+                  metaLine: obj.kicker || "",
+                  title: obj.title,
+                  excerpt: obj.desc || ""
+                };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .sort(function (a, b) {
+              return String(b.sortKey).localeCompare(String(a.sortKey));
+            })
+            .slice(0, MAX_POSTS_PER_SERIES);
+
+          var activity = posts.reduce(function (acc, p) {
+            return !acc || p.sortKey > acc ? p.sortKey : acc;
+          }, "");
+
+          return {
+            slug: s.slug || "",
+            seriesTitle: s.title || s.slug || "Series",
+            posts: posts,
+            activity: activity
+          };
+        });
+
+        enriched.sort(function (a, b) {
+          return String(b.activity).localeCompare(String(a.activity));
+        });
+        enriched = enriched.slice(0, MAX_SERIES);
+
+        root.textContent = "";
+        enriched.forEach(function (block) {
+          if (!block.posts.length) return;
+          var wrap = document.createElement("div");
+          wrap.className = "side-series-block";
+          var kick = document.createElement("div");
+          kick.className = "side-series-kicker";
+          kick.textContent = "Series · " + (block.slug || "writing");
+          var st = document.createElement("div");
+          st.className = "side-series-title";
+          st.textContent = block.seriesTitle;
+          var list = document.createElement("div");
+          list.className = "side-post-list";
+          block.posts.forEach(function (p) {
+            var a = document.createElement("a");
+            a.className = "side-post";
+            a.href = p.href;
+            var m = document.createElement("div");
+            m.className = "side-post-meta";
+            m.textContent = p.metaLine || p.sortKey;
+            var t = document.createElement("div");
+            t.className = "side-post-title";
+            t.textContent = p.title || p.href;
+            var e = document.createElement("div");
+            e.className = "side-post-excerpt";
+            e.textContent = p.excerpt || "";
+            a.appendChild(m);
+            a.appendChild(t);
+            a.appendChild(e);
+            list.appendChild(a);
+          });
+          wrap.appendChild(kick);
+          wrap.appendChild(st);
+          wrap.appendChild(list);
+          root.appendChild(wrap);
+        });
       });
     })
     .catch(function () {
-      /* keep static fallback inside #latest-posts */
+      /* keep static fallback inside #writing-series-root */
     });
 })();
 </script>

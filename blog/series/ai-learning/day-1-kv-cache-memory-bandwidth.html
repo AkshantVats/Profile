@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>1.5 trillion events/day TSDB — what I worked on at Agoda — Akshant Sharma</title>
-<meta name="description" content="Three contributions to WhiteFalcon, Agoda's in-house TSDB: cross-tier query engine extensions in Scala, a new Kubernetes cardinality dimension, and Parquet compression optimization on S3.">
-<meta property="og:title" content="1.5 trillion events/day TSDB — what I worked on at Agoda">
-<meta property="og:description" content="Cross-tier queries spanning Redis and S3, new k8s tag dimension in the RoaringBitmap index, Zstd compression for Parquet on S3.">
+<title>Day 1 — KV Cache &amp; Memory Bandwidth (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Prefill vs decode, why the KV cache shifts the bottleneck to VRAM bandwidth, and how that maps to distributed systems you already know. Day 1 of 30.">
+<meta property="og:title" content="Day 1 of Learning LLM Inference — The KV Cache Is a Memory Bandwidth Problem">
+<meta property="og:description" content="Prefill vs decode, memory-bandwidth-bound decode, TTFT vs TPOT, and why observability needs separate fields from day one.">
 <meta property="og:type" content="article">
-<meta property="article:published_time" content="2026-05-12">
+<meta property="article:published_time" content="2026-06-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -125,6 +125,9 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .series-post.current .series-post-title{font-weight:600}
 .series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
 .series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
 .post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
 .author-card{display:flex;gap:20px;align-items:flex-start}
 .author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
@@ -137,6 +140,12 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .author-card-links a.ff-in:hover{color:#fff;background:#004182}
 .author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
 .author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
 html[data-theme="dark"] .tag{background:var(--surface)}
 html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
 html[data-theme="dark"] .prose{color:var(--text)}
@@ -144,15 +153,16 @@ html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
 html[data-theme="dark"] .prose pre code{color:#d8d8d4}
 html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
 html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
 </style>
 </head>
 <body>
 
 <nav>
   <div class="ni">
-    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
     <div class="nav-tail">
-      <a href="index.html" class="nb">All posts</a>
+      <a href="../../index.html" class="nb">All posts</a>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -163,209 +173,200 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Agoda Series · 1 of 5</span>
-    <span class="tag">Distributed Systems</span>
-    <span class="tag">Rust</span>
-    <span class="tag">Scala</span>
-    <span class="tag">TSDB</span>
-    <span class="tag">Kafka</span>
+    <span class="tag accent">AI Learning · Day 1 of 30</span>
+    <span class="tag">LLM inference</span>
+    <span class="tag">Distributed systems</span>
+    <span class="tag">KV cache</span>
   </div>
-  <h1 class="post-title">1.5 trillion events/day TSDB — what I worked on at Agoda</h1>
-  <p class="post-subtitle">WhiteFalcon, Agoda's in-house time series database: cross-tier query engine extensions in Scala, a new Kubernetes cardinality dimension in the RoaringBitmap index, and Parquet compression optimization on S3.</p>
+  <h1 class="post-title">Day 1 of Learning LLM Inference as a Distributed Systems Engineer — The KV Cache Is a Memory Bandwidth Problem</h1>
+  <p class="post-subtitle">Seven years on high-throughput systems; zero ML background. I am building an AI inference observability pipeline and documenting how LLMs actually run — from queues, buffers, and bandwidth, not tensors.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">May 2026</span>
+    <span class="meta-item">Jun 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">10 min read</span>
+    <span class="meta-item">18 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Post 1 of 5 — Agoda Series</span>
+    <span class="meta-item">AI Learning · Day 1 of 30</span>
   </div>
 </header>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>1.5 trillion events per day. I spent five months as a senior engineer contributing to the system that processes all of it. This post covers exactly what I worked on — three specific areas — and what I learned. I want to be clear about what the Agoda team built before I arrived, what I contributed, and where the line is.</p>
+<p>I have spent seven years building high-throughput distributed systems across Agoda, Delivery Hero, and Walmart. I understand what breaks systems at scale and why. I have never trained a model. I have never written a loss function. I have zero ML background. (<a href="day-0-series-roadmap.html">Day 0</a> explains how this series is organized.)</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events / day</span></div>
-  <div class="stat-cell"><span class="stat-num">Rust+Scala</span><span class="stat-label">storage + query</span></div>
-  <div class="stat-cell"><span class="stat-num">Redis+S3</span><span class="stat-label">hot + cold tier</span></div>
-  <div class="stat-cell"><span class="stat-num">RoaringBitmap</span><span class="stat-label">series index</span></div>
-</div>
+<p>I am now building an AI inference observability pipeline — and I realized I cannot build good observability for a system I do not understand from the inside. So I am documenting my learning publicly, one concept at a time, from the perspective of someone who thinks in queues, buffers, memory hierarchies, and throughput — not tensors and gradients.</p>
 
-<h2 id="system">The system: WhiteFalcon</h2>
+<p>This is Day 1. Today I learned how LLMs actually generate text — and why the mental model I walked in with was wrong in an interesting way.</p>
 
-<div class="attr-box team">
-  <div class="attr-label">Built by the Agoda team — published in their engineering blog</div>
-  WhiteFalcon is Agoda's in-house TSDB, inspired by Apache Druid. Rust consumers read events from Kafka. The query engine is in Scala. Grafana sits on top for visualization. Audit data from Kafka ends up in WhiteFalcon and Hadoop for longer-term storage. The full Kafka pipeline architecture is documented in the Agoda engineering blog — linked at the bottom.
-</div>
+<h2 id="expected-vs-actual">What I expected vs what is actually happening</h2>
 
-<p>The storage architecture from my time on the team: Rust consumers read from Kafka into Redis as the hot tier, bucketed in time windows. When a window closes, a background job flushes the data to S3 as Parquet files partitioned by datetime. Ceph sits as the storage layer between the pods and S3. Compaction jobs merge hourly files into 3-hour, then daily files. The system keeps per-hour granularity for the last 3–7 days — because that is where almost all the query load is — and coarser granularity for older data.</p>
+<p>My assumption going in: LLM inference is like a batch compute job. You send a prompt, the model runs expensive computation over it, and you get an answer back. High GPU utilization throughout, latency proportional to work size.</p>
 
-<p>The indexing layer uses a RoaringBitmap-backed inverted index. For each tag value, the system stores the set of series IDs where that value has been seen. A query becomes a set operation — union across values within a tag, intersect across tags, subtract exclusions. RoaringBitmap handles sparse integer distributions efficiently. The Agoda team published a detailed breakdown of this design.</p>
+<p><strong>That is not what happens.</strong></p>
 
-<h2 id="queries">What I worked on: cross-tier query engine</h2>
+<p>There are two completely distinct phases. They have different computational characteristics, different bottlenecks, and different implications for serving infrastructure. Understanding this split is the first thing any infra engineer needs to internalize.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">My contribution</div>
-  Extended the Scala query engine to support queries spanning both the Redis hot tier and S3 cold tier in a single request, with correct merge logic at the tier boundary. Added 2-3 new query types accessible via Grafana.
-</div>
+<h2 id="phase-prefill">Phase 1: Prefill</h2>
 
-<p>Before this work, queries hit one tier only. If a Grafana user requested a time range that crossed the hot/cold boundary — say, the last 30 hours when the hot tier holds 3 hours — the system could not serve it natively. You'd have to query twice and stitch manually.</p>
+<p>When you send a prompt, the model processes your entire input in one parallel pass. Every token in your prompt gets processed simultaneously. The attention mechanism computes relationships between all input tokens at once.</p>
 
-<p>The query engine change is conceptually straightforward: determine what portion of the time range lives in Redis vs S3, fetch from both, merge. In practice, the merge is where it gets interesting.</p>
+<p>This is <strong>compute-bound</strong>. GPU utilization is high. It scales well with hardware. A longer prompt means more work, but the parallelism is high. This is the phase that matched my initial mental model.</p>
 
-<h3>The quantile merge problem</h3>
+<p>Prefill produces two things: the first generated output token, and the <strong>KV cache</strong>.</p>
 
-<p>For simple metrics — sums, counts, averages — merging across tiers is arithmetic. Redis returns the sum for the last 3 hours. S3 returns the sum for the 27 hours before that. Add them. Done.</p>
+<h2 id="phase-decode">Phase 2: Decode</h2>
 
-<p>Quantile metrics are different. P95 from Redis covering the last 3 hours and P95 from S3 covering the prior 27 hours do not add up to the 30-hour P95. Quantiles are not additive.</p>
+<p>After prefill, the model generates output tokens <strong>one at a time</strong>. Each token depends on every token before it — all your prompt tokens and every output token generated so far. This is autoregressive decoding.</p>
 
-<div class="diagram-box"><pre>WRONG:
-  P95(Redis, last 3h) + P95(S3, hours 3-30) = 30h P95
-  This is mathematically incorrect.
+<div class="diagram-box"><pre>Prefill output: "The" (first token)
 
-CORRECT:
-  1. Fetch histogram bucket counts from Redis (raw distribution, last 3h)
-  2. Fetch histogram bucket counts from S3 (raw distribution, hours 3-30)
-  3. Merge bucket counts: add each corresponding bucket
-  4. Compute P95 from the merged histogram
-  This gives a mathematically correct result.</pre></div>
+Decode step 1:  Context = [prompt] + ["The"]
+                → generates "CAP"
 
-<p>WhiteFalcon stores aggregations as histograms — bucket counts rather than pre-computed percentiles. This makes the cross-tier merge correct: merge the underlying distributions, then compute quantiles once on the merged result.</p>
+Decode step 2:  Context = [prompt] + ["The", "CAP"]
+                → generates "theorem"
 
-<p>The additional query types I added gave Grafana engineers more flexibility — things like wildcard tag matching that spans both tiers, and combined range queries that the Scala query API did not previously expose.</p>
+Decode step 3:  Context = [prompt] + ["The", "CAP", "theorem"]
+                → generates "refers"
 
-<h2 id="cardinality">What I worked on: new cardinality dimension</h2>
+...one token at a time until the model stops.</pre></div>
 
-<div class="attr-box mine">
-  <div class="attr-label">My contribution</div>
-  Added a Kubernetes infrastructure tag to the indexing layer — pod and service level labels that teams needed to filter metrics by as Agoda's infrastructure moved to k8s. Required changes to both the Rust ingestion path and the RoaringBitmap index.
-</div>
+<p>Each decode step is a single forward pass through the model. You cannot start step N+1 until step N is complete. The output of step N is the input to step N+1.</p>
 
-<p>As infrastructure moved to Kubernetes, engineers needed to query metrics filtered by k8s-level identifiers — "show me latency for this service" or "show me error rate for this pod." That required WhiteFalcon to track those dimensions as first-class tag types.</p>
+<p>This is inherently <strong>serial</strong>. For a 500-token response, that is 500 sequential forward passes. Each one reads model weights from VRAM. Each one is a round trip to GPU memory.</p>
 
-<p>Adding a new tag dimension touches both ends of the system:</p>
+<h2 id="kv-cache">The KV cache — where it gets interesting</h2>
 
-<ul>
-  <li>Rust ingestion consumers: parse and extract the new tag from the incoming Kafka event payload</li>
-  <li>Series creation: include the new tag in the metric + tag combination that generates the series ID</li>
-  <li>RoaringBitmap index: maintain a per-value series set for the new tag key</li>
-  <li>Scala query layer: expose the new tag in the query API so Grafana dashboards can filter on it</li>
-</ul>
+<p>In transformer attention, for each token the model computes a Query, a Key, and a Value. Computing attention for a new token requires the Keys and Values of every previous token in the context. Without optimization, every decode step would recompute Keys and Values for the entire context from scratch — work that grows quadratically with context length.</p>
 
-<p>The risk that has to be modeled before touching the index is the cardinality cross-product. A new tag with 500 unique values added to a metric that already has 10,000 series creates 5,000,000 series for that metric alone. The tag I added was a service-level label — moderate cardinality, predictable growth — specifically to avoid this explosion.</p>
+<p>The KV cache stores those Keys and Values from previous steps. When you generate token N+1, you only compute fresh Keys and Values for the new token. Everything else is read from cache in VRAM.</p>
 
-<div class="pullquote"><p>The main concern with any new cardinality dimension is not the implementation. It is modeling the cross-product before you start.</p></div>
+<div class="diagram-box"><pre>                    PREFILL
+             (parallel, compute-bound)
 
-<h2 id="compression">What I worked on: Parquet compression on S3</h2>
+  Prompt: [T1][T2][T3][T4][T5]
+                    |
+          All tokens processed in
+          one parallel forward pass
+                    |
+          KV Cache written to VRAM
+          First output token generated
 
-<div class="attr-box mine">
-  <div class="attr-label">My contribution</div>
-  Evaluated compression algorithms for the Parquet files written to S3. Moved from Snappy (the default) to Zstd, the current industry standard for Parquet on cold storage tiers.
-</div>
 
-<p>Parquet files support pluggable compression at the column level. The system was using Snappy — the default for most Parquet implementations and a reasonable starting point. Snappy optimizes for decompression speed over compression ratio, which makes sense for hot workloads where you read data frequently under latency pressure.</p>
+                    DECODE
+           (sequential, memory-bound)
 
-<p>For a cold storage tier, this tradeoff is backwards. Data on S3 is written once when a time window closes and read infrequently — only when a query spans historical data. The fast decompression advantage barely matters. The compression ratio determines your storage cost directly.</p>
+  ┌─────────────────────────────────┐
+  │  Read full KV Cache from VRAM   │
+  │             ↓                   │
+  │  Compute attention for new tok  │
+  │             ↓                   │
+  │  Generate next token            │
+  │             ↓                   │
+  │  Append new K,V to cache        │
+  └──────────── ↓ ──────────────────┘
+               loop until done</pre></div>
+
+<p>The cache eliminates redundant recomputation. But it introduces a different cost: every decode step reads the entire accumulated KV cache from VRAM. As context grows, so does the cache. As the cache grows, so does the memory read per decode step.</p>
+
+<p>This is where the bottleneck shifts. Decode is not primarily compute-bound. It is <strong>memory-bandwidth-bound</strong>. The GPU cores are not always the constraint — the speed at which data moves from VRAM to the compute units is.</p>
+
+<h2 id="analogy">The analogy that made this concrete</h2>
+
+<p>I have dealt with this exact pattern before.</p>
+
+<p>At Agoda, our TSDB had a hot/cold tiering problem. Recent metrics — the last few hours — got queried constantly. The bottleneck for those hot-path queries was not CPU. It was how fast we could read the relevant series data into the query path. We put recent data in Redis because the access pattern was memory-bandwidth-bound in exactly the right way.</p>
+
+<div class="diagram-box"><pre>TSDB hot-path read:
+  Query engine → reads hot series from Redis
+  Bottleneck: memory bandwidth, not CPU compute
+
+LLM decode path:
+  Attention layer → reads KV Cache from VRAM
+  Bottleneck: memory bandwidth, not GPU compute
+
+Same problem. Different hardware. Different names.</pre></div>
+
+<p>This is why high-end inference hardware like the H100 advertises memory bandwidth (3.35 TB/s) prominently alongside compute (989 TFLOPS). For decode-heavy workloads, the bandwidth number is often the one that matters more.</p>
+
+<p>The KV cache starts as a compute optimization — it avoids recomputing Keys and Values. But during decode it becomes a memory access problem. That is an important distinction. If you treat decode as a compute problem you will reach for the wrong solutions.</p>
+
+<h2 id="kv-practice">What this means for the KV cache in practice</h2>
+
+<p>The KV cache lives in VRAM. Its size grows with context length, number of transformer layers, model size, and the precision of stored values. For large models serving long contexts, the cache can become very large — in some configurations rivaling or exceeding the model weights themselves.</p>
+
+<p>The exact size varies significantly by architecture, attention head configuration, KV precision, and whether the model uses grouped-query attention. The rough point is this: the KV cache is not a small bookkeeping structure. It is a primary consumer of VRAM, and it grows with every token of context you allow.</p>
+
+<p>This creates a resource management problem that has nothing to do with ML. It is the same problem as Redis memory pressure under concurrent queries. Serve multiple concurrent requests and those caches stack. Run out of VRAM and you either evict cache (hurting decode performance) or reject requests (hurting availability).</p>
+
+<p>Multi-tenant resource isolation in an LLM serving system is fundamentally a <strong>memory management</strong> problem.</p>
+
+<h2 id="latency-split">Prefill vs decode: two different latency problems</h2>
 
 <table>
-  <thead><tr><th>Algorithm</th><th>Compression ratio</th><th>Speed</th><th>Best for</th></tr></thead>
+  <thead><tr><th></th><th>Prefill</th><th>Decode</th></tr></thead>
   <tbody>
-    <tr><td>Snappy</td><td>~1.12x</td><td>Fastest</td><td>Hot tier, low-latency reads</td></tr>
-    <tr><td>Zstd level 3</td><td>15-20% better than Snappy</td><td>Near-Snappy reads, &lt;1% overhead</td><td>Analytics, cold storage</td></tr>
-    <tr><td>Zstd level 6-9</td><td>Significantly better</td><td>Slower writes, fast reads</td><td>Archival, rare access</td></tr>
-    <tr><td>Gzip</td><td>Good ratio</td><td>Slow write and read</td><td>Legacy, max compatibility</td></tr>
+    <tr><td>Metric</td><td>Time to First Token (TTFT)</td><td>Time per Output Token (TPOT)</td></tr>
+    <tr><td>Bottleneck</td><td>GPU compute</td><td>VRAM memory bandwidth</td></tr>
+    <tr><td>GPU utilization</td><td>High</td><td>Often lower</td></tr>
+    <tr><td>Scales with</td><td>Prompt token count</td><td>Context length + output length</td></tr>
+    <tr><td>Parallelism</td><td>High — all input tokens at once</td><td>None — strictly sequential per request</td></tr>
   </tbody>
 </table>
 
-<p>Zstd at level 3 gives 15–20% better compression than Snappy with under 1% read latency impact — that is the sweet spot for analytics workloads. For archival partitions that are rarely accessed, higher Zstd levels give even better ratios since write frequency is low and read speed is not the primary concern. This is the same compression migration that Facebook, Twitter, and most production data platforms have made for Parquet on S3 over the last few years. Zstd was developed at Facebook and is now used in the Linux kernel, Kafka internals, and across the Hadoop ecosystem.</p>
+<p>If you measure only end-to-end latency — time from request to complete response — you are mixing two completely different problems into one number. A slow TTFT means something different than a slow TPOT. One is a compute problem. The other is a memory bandwidth problem. Aggregating them into a single <code>inference_latency_ms</code> field makes the data nearly useless for diagnosing actual serving issues.</p>
 
-<p>The query engine needed no changes — Parquet readers handle decompression transparently on the read path regardless of codec.</p>
+<p>For my observability pipeline this means <strong>separate fields from day one</strong>: <code>prefill_latency_ms</code> and <code>decode_latency_ms</code>. Not optional. Core schema.</p>
 
-<h2 id="lessons">What this taught me</h2>
+<h2 id="gpu-batch">The open question: GPU utilization during decode</h2>
 
-<p>The most useful thing about working in a mature system at this scale is that every design decision has a history. The RoaringBitmap choice, the two-tier storage model, the Rust/Scala split — all of these have scars from things that didn't work before them. Understanding why the system is the way it is turns out to be most of the actual engineering work.</p>
+<p>Decode is serial per request — but that does not mean the GPU has to sit underutilized. While one request is generating token N, other requests can be generating their own tokens in the same GPU pass. Batching decode steps across concurrent requests is how serving systems recover GPU utilization.</p>
 
-<p>The cross-tier query problem connects directly to what I'm working on now. AI inference observability has the same structure: a hot tier for recent data (dashboards, alerts, real-time cost tracking) and a cold tier for historical analysis. The quantile merge problem is the same problem. The cardinality concerns are the same — model_id, tenant_id, prompt_type cross-products behave exactly like server, cluster, status cross-products. The storage optimization playbook transfers directly.</p>
+<p>This is the next thing I am trying to understand — how vLLM's continuous batching works, what it actually does to throughput and latency, and what it means for observability. <strong>That is Day 2.</strong></p>
 
-<div class="footnote-row">
-  <div class="footnote-title">Sources</div>
-  <div class="footnote-links">
-    <a href="https://medium.com/agoda-engineering/how-to-index-hundreds-of-millions-of-series-in-a-time-series-database-38e61c90c826" target="_blank" rel="noopener">
-      <span class="footnote-arrow">→</span>
-      <span>How to index hundreds of millions of series in a TSDB — Agoda Engineering (RoaringBitmap indexing design, Dec 2022)</span>
-    </a>
-    <a href="https://medium.com/agoda-engineering/how-agoda-manages-1-8-trillion-events-per-day-on-kafka-1d6c3f4a7ad1" target="_blank" rel="noopener">
-      <span class="footnote-arrow">→</span>
-      <span>How Agoda manages 1.8 trillion events/day on Kafka — Agoda Engineering (Kafka forwarder architecture)</span>
-    </a>
-    <a href="https://github.com/AkshantVats" target="_blank" rel="noopener">
-      <span class="footnote-arrow">→</span>
-      <span>infra-ai-streaming — AI inference observability pipeline I'm building now</span>
-    </a>
-  </div>
-</div>
+<h2 id="takeaway">What I am taking away</h2>
+
+<p>The mental shift from "LLM inference is expensive compute" to "decode is expensive memory access" changes how I think about the entire problem space.</p>
+
+<p>The surprising thing about LLM inference is that it does not feel like distributed compute. It feels like operating a large shared memory system under adversarial workloads — where the resource you are actually managing is VRAM, not FLOPS, and where context length is a cost lever, not a feature.</p>
+
+<p>I have managed memory pressure, hot-path read bottlenecks, and noisy neighbor problems before. The hardware is different. The vocabulary is different. The underlying problems are the same ones I have been solving for seven years.</p>
+
+<blockquote><p><em>Day 1 of 30. I am documenting my journey learning LLM infrastructure from a distributed systems engineer's perspective — no ML background, deep systems background. If you are an infra engineer trying to understand what is actually happening inside these systems, follow along.</em></p></blockquote>
 
 </article>
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div class="series-nav">
-      <div class="series-label">Agoda Series · 1 of 5</div>
-      <div class="series-title">Agoda TSDB — series roadmap</div>
-      <div class="series-posts">
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">01 →</span> Post 1/5 · overview</div>
-          <div class="series-post-title">1.5T events/day — what I worked on at Agoda</div>
-          <p class="series-post-desc">WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth.</p>
-        </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">02</span> Post 2/5 · Day 3</div>
-          <div class="series-post-title">Cross-tier queries at scale: merging Redis and S3 data when quantiles don't add up</div>
-          <p class="series-post-desc">Scala query engine deep dive: queries spanning hot/cold tiers, fetch-merge from Redis and S3, quantile merge problem, why histograms matter, extra query types for Grafana.</p>
-        </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">03</span> Post 3/5 · Day 11</div>
-          <div class="series-post-title">Adding a new cardinality dimension to a 100M+ series TSDB without exploding the index</div>
-          <p class="series-post-desc">Kubernetes tag dimension, RoaringBitmap index changes, Rust ingestion path, cross-product cardinality risk, index growth, which tags are safe vs dangerous.</p>
-        </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">04</span> Post 4/5 · Day 20</div>
-          <div class="series-post-title">Parquet compression on S3: from Snappy to Zstd and why it matters at trillion-event scale</div>
-          <p class="series-post-desc">Why Snappy was default, what was evaluated, Zstd for cold storage, ratio vs read speed, storage cost at 1.5T events/day, fit in the Redis → S3 flush pipeline.</p>
-        </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">05</span> Post 5/5 · Day 23</div>
-          <div class="series-post-title">What I learned contributing to a mature TSDB at hyperscale — and what it means for AI infrastructure</div>
-          <p class="series-post-desc">Reflection: lessons from a long-running system, what cross-tier / cardinality / compression taught vs greenfield, mapping to AI inference observability, what I'm building now.</p>
-        </div>
-      </div>
-    </div>
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#system">The system</a></li>
-      <li><a href="#queries">Cross-tier query engine</a></li>
-      <li><a href="#cardinality">New cardinality dimension</a></li>
-      <li><a href="#compression">Parquet compression</a></li>
-      <li><a href="#lessons">What this taught me</a></li>
+      <li><a href="#expected-vs-actual">Expected vs actual</a></li>
+      <li><a href="#phase-prefill">Phase 1: Prefill</a></li>
+      <li><a href="#phase-decode">Phase 2: Decode</a></li>
+      <li><a href="#kv-cache">The KV cache</a></li>
+      <li><a href="#analogy">TSDB analogy</a></li>
+      <li><a href="#kv-practice">In practice</a></li>
+      <li><a href="#latency-split">TTFT vs TPOT</a></li>
+      <li><a href="#gpu-batch">GPU utilization</a></li>
+      <li><a href="#takeaway">Takeaway</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/building-tsdb-at-agoda.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=5+months+on+a+1.5T+events%2Fday+TSDB+at+Agoda%3A+cross-tier+Scala+queries%2C+new+k8s+cardinality+dimension%2C+Zstd+Parquet+on+S3&url=https://akshantvats.github.io/Profile/blog/building-tsdb-at-agoda.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+1%3A+KV+cache+as+a+memory+bandwidth+problem+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
@@ -381,9 +382,9 @@ CORRECT:
       <div class="author-card-name">Akshant Sharma</div>
       <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
       <div class="author-card-links">
-        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
-        <a href="https://akshantvats.github.io/Profile/blog">All posts</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>
     </div>
@@ -392,18 +393,7 @@ CORRECT:
 
 <script>
 (function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
-const toc=document.querySelectorAll('.toc-list a');
-const sections=[...toc].map(a=>document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
-const obs=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      toc.forEach(a=>a.classList.remove('active'));
-      const a=[...toc].find(a=>a.getAttribute('href')==='#'+e.target.id);
-      if(a)a.classList.add('active');
-    }
-  });
-},{rootMargin:'-20% 0px -70% 0px'});
-sections.forEach(s=>obs.observe(s));
 </script>
+<script src="../../series-nav-dynamic.js"></script>
 </body>
 </html>

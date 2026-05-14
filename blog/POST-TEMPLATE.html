@@ -10,19 +10,19 @@
   2. Edit <title>, <meta name="description">, og: tags, and on-page title / tags / date / read time.
   3. Replace the <article class="prose"> body with your content. Use <h2 id="slug"> for sections
      that appear in a table of contents (see sidebar layout below).
-  4. Paths: from blog/*.html use href="../index.html" (home) and href="index.html" (blog listing).
-  5. Theme: the moon button toggles dark mode; preference is stored as localStorage key "theme"
-     ("dark" | "light") and is shared with index.html and other blog pages on the same site origin.
-  6. Set <meta property="article:published_time" content="YYYY-MM-DD"> in the post head (used by the profile homepage to pick the latest two posts when you add the file URL to BLOG_PAGES in index.html).
+  4. Paths: from blog/series/&lt;slug&gt;/post.html — blog listing is ../../index.html; site home is ../../../index.html. From repo root index, link the listing as blog/ (keep the trailing slash) so URLs stay under /blog/… for relative post paths.
+  5. Theme: moon toggle uses localStorage key "theme" ("dark" | "light"), shared with other pages on the same origin.
+  6. Set article:published_time (required for ordering). Optionally article:modified_time when you revise a post — the profile uses the later of the two for "latest activity."
+  7. Register the post path in blog/series-index.json under the right series; the profile reads that file then scrapes metadata from each post HTML.
 
-  SIDEBAR + TOC (optional, matches building-tsdb-at-agoda.html):
+  SIDEBAR + TOC (optional, matches blog/series/agoda/building-tsdb-at-agoda.html):
   - On <nav><div class="ni"> add class ni-wide so the bar spans the wider grid.
   - Wrap the main column: outer <div class="post-layout"> contains <article class="prose"> then
     <aside class="post-sidebar"> with <ul class="toc-list"> linking to #ids on each <h2>.
   - Remove the wrapping <div class="w"> around article only; keep a .w or full-width header as you prefer.
   - The script at the bottom already runs a TOC IntersectionObserver when .toc-list a exists.
 
-  Brand link pills (footer): class ff-in on LinkedIn, ff-em on Email (GitHub stays plain text link).
+  Brand link pills (footer): ff-gh on GitHub, ff-in on LinkedIn, ff-posts on “All posts” (blog index), ff-em on Email.
   ═══════════════════════════════════════════════════════════════════════════
 -->
 <meta charset="UTF-8">
@@ -140,6 +140,8 @@ footer{border-top:1px solid var(--line);padding:28px 0 44px}
 .fl a.ff-in:hover{color:#fff;background:#004182}
 .fl a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
 .fl a.ff-em:hover{color:#fff;background:#c5221f}
+.fl a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.fl a.ff-gh:hover{color:#fff;background:#1a1e22}
 html[data-theme="dark"] .ptag-ds{border-color:rgba(165,180,252,.35);color:#c7d2fe;background:rgba(99,102,241,.12)}
 html[data-theme="dark"] .ptag-ai{border-color:rgba(52,211,153,.35);color:#6ee7b7;background:rgba(16,185,129,.1)}
 html[data-theme="dark"] .ptag-kb{border-color:rgba(251,191,36,.35);color:#fcd34d;background:rgba(245,158,11,.1)}
@@ -159,9 +161,9 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <nav>
   <div class="ni">
-    <a href="../index.html" class="nl">Akshant Sharma</a>
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
     <div class="nav-tail">
-      <a href="index.html" class="nb">All posts</a>
+      <a href="../../index.html" class="nb">All posts</a>
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
@@ -243,7 +245,7 @@ fn ingest(event: IngestEvent) -> Result&lt;(), IngestionError&gt; {
     <div class="fi">
       <div class="fn">Akshant Sharma</div>
       <div class="fl">
-        <a href="https://github.com/AkshantVats">GitHub</a>
+        <a href="https://github.com/AkshantVats" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07" class="ff-in">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>
