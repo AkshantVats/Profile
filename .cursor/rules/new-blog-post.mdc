@@ -1,0 +1,16 @@
+---
+description: Follow checklist when adding or editing blog posts
+globs: blog/**/*.html,blog/series-index.json
+alwaysApply: false
+---
+
+# New blog posts
+
+When the user provides new blog content or asks to add/publish a post:
+
+1. **Read** `blog/NEW-POST-CHECKLIST.md` and follow it **end-to-end** before finishing.
+2. **Template**: copy the latest post in the same series (not `POST-TEMPLATE.html` alone unless starting a new series).
+3. **HTML**: set required head meta, especially `article:published_time` (`YYYY-MM-DD`). Do **not** add `addedAt` anywhere.
+4. **Manifest**: add/update `blog/series-index.json` (`href`, `kicker`, `title`, `desc`); use `href: "#"` only for drafts.
+5. **Do not hardcode** post cards on `index.html` or `blog/index.html` — they load dynamically from JSON + HTML.
+6. **Commit/push** only if the user explicitly asks.
