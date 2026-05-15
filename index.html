@@ -931,8 +931,8 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
 
       <div class="side-block side-writing" id="writing">
         <div class="side-label">Writing</div>
-        <!-- Writing: filled from blog/series-index.json + scraped dates in each post HTML; metadata from each post HTML. -->
-        <p class="side-writing-dek">Latest activity across series — two series with the most recent updates, up to two posts each (metadata from each HTML file).</p>
+        <!-- Writing: filled from blog/series-index.json + post HTML metadata. -->
+        <p class="side-writing-dek">Newest series and posts from the blog.</p>
         <div id="writing-series-root" class="writing-series-root" aria-live="polite"></div>
         <a href="blog/" class="side-all">All posts →</a>
       </div>
@@ -1010,6 +1010,29 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
   var root = document.getElementById("writing-series-root");
   if (!root) return;
 
+  function todayIso() {
+    var d = new Date();
+    return (
+      d.getFullYear() +
+      "-" +
+      String(d.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(d.getDate()).padStart(2, "0")
+    );
+  }
+
+  /** Base path for site-root-relative fetches (GitHub Pages /Profile/ vs /Profile/index.html). */
+  function siteBase() {
+    var path = location.pathname || "/";
+    if (/\/index\.html$/i.test(path)) return path.replace(/\/index\.html$/i, "/");
+    return path.endsWith("/") ? path : path + "/";
+  }
+
+  function fetchUrl(href) {
+    if (!href || /^https?:\/\//i.test(href)) return href;
+    return new URL(href.replace(/^\//, ""), location.origin + siteBase()).href;
+  }
+
   function metaAttr(doc, sel, name) {
     var n = doc.querySelector(sel);
     return n && n.getAttribute(name) ? n.getAttribute(name).trim() : "";
@@ -1029,6 +1052,10 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
     var mod = parseModified(doc);
     if (pub && mod) return pub > mod ? pub : mod;
     return mod || pub || "";
+  }
+
+  function isLiveSortKey(sk, today) {
+    return sk && sk <= today;
   }
 
   function pickMetaLine(doc) {
@@ -1081,7 +1108,7 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
   }
 
   function fetchPost(href) {
-    return fetch(href, { credentials: "same-origin" })
+    return fetch(fetchUrl(href), { credentials: "same-origin" })
       .then(function (r) {
         return r.ok ? r.text() : Promise.reject();
       })
@@ -1099,7 +1126,64 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
     return ref.href || "";
   }
 
-  fetch(MANIFEST, { credentials: "same-origin" })
+  function addedAtFromRef(ref) {
+    var obj = typeof ref === "object" ? ref : null;
+    if (!obj || !obj.addedAt) return "";
+    return String(obj.addedAt).slice(0, 10);
+  }
+
+  function mergeSortKey(ref, row) {
+    var sk = row ? row.sortKey : "";
+    var added = addedAtFromRef(ref);
+    if (added && (!sk || added > sk)) sk = added;
+    return sk;
+  }
+
+  function postFromManifest(ref) {
+    var h = postHref(ref);
+    if (!h || h === "#" || h.indexOf("#") === 0) return null;
+    var obj = typeof ref === "object" ? ref : null;
+    if (!obj) return null;
+    var sk = addedAtFromRef(ref);
+    if (!sk && obj.sortKey) sk = String(obj.sortKey).slice(0, 10);
+    if (!sk || !obj.title) return null;
+    return {
+      href: h,
+      sortKey: sk,
+      metaLine: obj.kicker || "",
+      title: obj.title,
+      excerpt: obj.desc || ""
+    };
+  }
+
+  function pickTopSeries(blocks, today) {
+    var live = blocks
+      .filter(function (b) {
+        return b.posts.length && b.activityLive;
+      })
+      .sort(function (a, b) {
+        return String(b.activityLive).localeCompare(String(a.activityLive));
+      });
+    var picked = live.slice(0, MAX_SERIES);
+    if (picked.length >= MAX_SERIES) return picked;
+    var seen = {};
+    picked.forEach(function (b) {
+      seen[b.slug] = true;
+    });
+    blocks
+      .filter(function (b) {
+        return b.posts.length && !seen[b.slug];
+      })
+      .sort(function (a, b) {
+        return String(b.activity).localeCompare(String(a.activity));
+      })
+      .forEach(function (b) {
+        if (picked.length < MAX_SERIES) picked.push(b);
+      });
+    return picked;
+  }
+
+  fetch(fetchUrl(MANIFEST), { credentials: "same-origin" })
     .then(function (r) {
       return r.ok ? r.json() : Promise.reject();
     })
@@ -1109,6 +1193,7 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
       });
       if (!seriesList.length) return Promise.reject();
 
+      var today = todayIso();
       var allHrefs = [];
       seriesList.forEach(function (s) {
         s.posts.forEach(function (ref) {
@@ -1129,18 +1214,17 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
               var h = postHref(ref);
               if (!h || h === "#" || h.indexOf("#") === 0) return null;
               var row = byHref[h];
-              if (row) return row;
-              var obj = typeof ref === "object" ? ref : null;
-              if (obj && obj.title && obj.sortKey) {
-                return {
-                  href: h,
-                  sortKey: obj.sortKey,
-                  metaLine: obj.kicker || "",
-                  title: obj.title,
-                  excerpt: obj.desc || ""
+              if (row) {
+                row = {
+                  href: row.href,
+                  sortKey: mergeSortKey(ref, row),
+                  metaLine: row.metaLine,
+                  title: row.title,
+                  excerpt: row.excerpt
                 };
+                return row;
               }
-              return null;
+              return postFromManifest(ref);
             })
             .filter(Boolean)
             .sort(function (a, b) {
@@ -1151,19 +1235,21 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
           var activity = posts.reduce(function (acc, p) {
             return !acc || p.sortKey > acc ? p.sortKey : acc;
           }, "");
+          var activityLive = posts.reduce(function (acc, p) {
+            if (!isLiveSortKey(p.sortKey, today)) return acc;
+            return !acc || p.sortKey > acc ? p.sortKey : acc;
+          }, "");
 
           return {
             slug: s.slug || "",
             seriesTitle: s.title || s.slug || "Series",
             posts: posts,
-            activity: activity
+            activity: activity,
+            activityLive: activityLive
           };
         });
 
-        enriched.sort(function (a, b) {
-          return String(b.activity).localeCompare(String(a.activity));
-        });
-        enriched = enriched.slice(0, MAX_SERIES);
+        enriched = pickTopSeries(enriched, today);
 
         root.textContent = "";
         enriched.forEach(function (block) {
