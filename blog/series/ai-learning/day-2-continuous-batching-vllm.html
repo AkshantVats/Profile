@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 2 — Continuous Batching in vLLM (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Static vs continuous batching, GPU bubbles, token-level scheduling in vLLM, and why observability needs slot-oriented fields. Day 2 of 30.">
+<meta property="og:title" content="Day 2 of Learning LLM Inference — Continuous Batching in vLLM: The Scheduler Design That Keeps GPUs Busy">
+<meta property="og:description" content="GPU bubbles from static batching, token-step scheduling, OS parallels, production failure modes, and the link to PagedAttention.">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-06-03">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.diagram-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.75;overflow-x:auto}
+.diagram-box pre{background:none;border:none;padding:0;margin:0;font-size:inherit;white-space:pre;color:inherit}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning · Day 2 of 30</span>
+    <span class="tag">LLM inference</span>
+    <span class="tag">vLLM</span>
+    <span class="tag">Continuous batching</span>
+    <span class="tag">Distributed systems</span>
+  </div>
+  <h1 class="post-title">Day 2 of Learning LLM Inference — Continuous Batching in vLLM: The Scheduler Design That Keeps GPUs Busy</h1>
+  <p class="post-subtitle">Day 2 of 30 — AI Learning Series. From GPU bubbles and static batching to token-step scheduling, OS parallels, and what continuous batching means for observability.</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Jun 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">22 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning · Day 2 of 30</span>
+  </div>
+</header>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>One request generates 20 tokens.</p>
+
+<p>Another generates 2,000.</p>
+
+<p>If both are placed into the same static GPU batch, the short request finishes quickly — and then sits idle in VRAM while the long request continues decoding for seconds.</p>
+
+<p>That idle time is called a GPU bubble.</p>
+
+<p>And once you notice it, you realize early LLM serving systems were wasting enormous amounts of GPU capacity simply because the scheduler operated at the wrong granularity.</p>
+
+<p>Continuous batching fixes this by changing one thing:</p>
+
+<p>The scheduler stops thinking in requests.<br>
+It starts thinking in tokens.</p>
+
+<p>The more I read about vLLM, the more I realized I was not reading about machine learning infrastructure. I was reading about a scheduling problem I had seen before — in Kafka consumers, OS schedulers, RPC multiplexers, and stream processing systems.</p>
+
+<p>LLM inference serving is a systems engineering problem wearing an ML costume.</p>
+
+<p>And continuous batching is where that becomes impossible to ignore.</p>
+
+<h2 id="decode-variance">The Real Problem: Decode Phase Variance</h2>
+
+<p>Before batching exists at all, imagine a naive inference server.</p>
+
+<p>A request arrives.<br>
+The model runs prefill.<br>
+Then decode.<br>
+Then returns the response.<br>
+Then starts the next request.</p>
+
+<p>Sequential execution.</p>
+
+<p>The GPU sits partially idle between requests, throughput collapses under load, and latency grows linearly with concurrency.</p>
+
+<p>So every serving system batches requests.</p>
+
+<p>The first instinct — and the approach most early serving systems used — is <strong>static batching</strong>.</p>
+
+<p>Collect N requests.<br>
+Run them together.<br>
+Wait for all requests in the batch to finish.<br>
+Then start the next batch.</p>
+
+<p>This works well for image classification because every input produces one output.</p>
+
+<p>It breaks badly for autoregressive text generation because output lengths vary enormously.</p>
+
+<p>One request may generate:</p>
+
+<ul>
+  <li>10 tokens</li>
+  <li>50 tokens</li>
+  <li>500 tokens</li>
+  <li>2,000 tokens</li>
+</ul>
+
+<p>And the batch cannot complete until the longest sequence finishes.</p>
+
+<h2 id="static-bubbles">Static Batching Creates GPU Bubbles</h2>
+
+<pre class="mermaid">gantt
+    title Static Batching GPU Bubble Problem
+    dateFormat X
+    axisFormat %L
+
+    section Request A
+    Decode A :0, 20
+
+    section Request B
+    Decode B :0, 100
+
+    section Request C
+    Decode C :0, 15
+
+    section Idle GPU Slots
+    Bubble :20, 80</pre>
+
+<p>Requests A and C finish quickly.</p>
+
+<p>But their GPU slots remain occupied while Request B continues decoding.</p>
+
+<p>Those idle periods are GPU bubbles:</p>
+
+<ul>
+  <li>VRAM allocated</li>
+  <li>scheduler slot occupied</li>
+  <li>almost no useful compute happening</li>
+</ul>
+
+<p>At scale, these bubbles become catastrophic for utilization.</p>
+
+<p>A GPU with 32 active decode slots might effectively use only half of them for most of the batch duration.</p>
+
+<p>The hardware cost stays constant.<br>
+The throughput collapses.</p>
+
+<h2 id="mental-model">The Mental Model Shift</h2>
+
+<p>The key mental model shift:</p>
+
+<div class="diagram-box"><pre>Static batching treats:
+    REQUEST = scheduling unit
+
+Continuous batching treats:
+    TOKEN STEP = scheduling unit</pre></div>
+
+<p>That single change is the entire breakthrough.</p>
+
+<h2 id="wrong-granularity">Static Batching Is the Wrong Scheduling Granularity</h2>
+
+<p>The issue is not the GPU.</p>
+
+<p>The issue is the scheduler.</p>
+
+<p>Static batching schedules entire requests as atomic units:</p>
+
+<ul>
+  <li>admit request</li>
+  <li>run until completion</li>
+  <li>free slot</li>
+</ul>
+
+<p>This is equivalent to cooperative multitasking in old operating systems where one process runs until it voluntarily yields.</p>
+
+<p>Continuous batching changes the scheduling granularity entirely.</p>
+
+<p>Instead of scheduling complete requests, it schedules:</p>
+
+<blockquote><p>one decode iteration at a time</p></blockquote>
+
+<p>That means:</p>
+
+<ul>
+  <li>every active sequence generates one token</li>
+  <li>scheduler runs again</li>
+  <li>completed sequences are removed</li>
+  <li>new sequences are admitted immediately</li>
+</ul>
+
+<p>The GPU never waits for the slowest request.</p>
+
+<h2 id="continuous-batching">Continuous Batching</h2>
+
+<p>In continuous batching, the batch is no longer a fixed group of requests.</p>
+
+<p>It becomes a dynamic pool of active decode slots.</p>
+
+<p>When a sequence finishes:</p>
+
+<ul>
+  <li>its KV cache is freed</li>
+  <li>its slot becomes available immediately</li>
+  <li>a waiting request is admitted into the next decode iteration</li>
+</ul>
+
+<p>The batch evolves continuously while inference is running.</p>
+
+<h2 id="slot-replacement">Slot Replacement Mid-Flight</h2>
+
+<pre class="mermaid">flowchart LR
+
+    subgraph Step1
+    A1[Req A]
+    B1[Req B]
+    C1[Req C]
+    D1[Req D]
+    end
+
+    subgraph Step2
+    A2[Req A]
+    B2[Req B]
+    E2[Req E enters]
+    D2[Req D]
+    end
+
+    subgraph Step3
+    F3[Req F enters]
+    B3[Req B]
+    E3[Req E]
+    D3[Req D]
+    end
+
+    C1 --> E2
+    A2 --> F3</pre>
+
+<p>This is the core idea behind vLLM scheduling.</p>
+
+<p>The batch never fully completes.</p>
+
+<p>It continuously mutates.</p>
+
+<p>Short requests stop blocking long ones.<br>
+Long requests stop wasting GPU slots.<br>
+The scheduler keeps the GPU saturated.</p>
+
+<h2 id="decode-scheduling">Decode Scheduling Happens Every Iteration</h2>
+
+<pre class="mermaid">sequenceDiagram
+    participant Scheduler
+    participant GPU
+    participant ReqA
+    participant ReqB
+    participant ReqC
+
+    Scheduler->>GPU: Decode step
+    GPU->>ReqA: token
+    GPU->>ReqB: token
+    GPU->>ReqC: EOS
+
+    Scheduler->>ReqC: remove slot
+    Scheduler->>GPU: admit ReqD
+
+    Scheduler->>GPU: Next decode step</pre>
+
+<p>This is token-level scheduling.</p>
+
+<p>Every decode step becomes a scheduling boundary.</p>
+
+<p>That is the entire utilization gain.</p>
+
+<p>Continuous batching turns GPU utilization from:</p>
+
+<blockquote><p>“wait for the slowest request”</p></blockquote>
+
+<p>into:</p>
+
+<blockquote><p>“keep every slot occupied every decode iteration.”</p></blockquote>
+
+<h2 id="static-vs-continuous">Static vs Continuous Scheduler</h2>
+
+<p>The scheduling difference becomes obvious in pseudo-code.</p>
+
+<h3>Static batching</h3>
+
+<pre><code>while True:
+    batch = collect_fixed_batch()
+
+    run_prefill(batch)
+
+    while batch_not_finished:
+        decode_step(batch)
+
+    return_results(batch)</code></pre>
+
+<p>The batch is fixed for its entire lifetime.</p>
+
+<p>Short sequences finish early and become idle.</p>
+
+<h3>Continuous batching</h3>
+
+<pre><code>while True:
+
+    fill_available_slots()
+
+    decode_step(active_sequences)
+
+    completed = identify_completed_sequences()
+
+    free_slots(completed)
+
+    admit_waiting_requests()</code></pre>
+
+<p>The scheduler runs between every decode step.</p>
+
+<p>Slots are continuously recycled.</p>
+
+<h2 id="utilization">Why Utilization Improves So Much</h2>
+
+<p>Suppose:</p>
+
+<ul>
+  <li>32 GPU slots</li>
+  <li>half the requests are short</li>
+  <li>half are very long</li>
+</ul>
+
+<p>With static batching:</p>
+
+<ul>
+  <li>short requests finish early</li>
+  <li>their slots remain idle</li>
+  <li>GPU utilization collapses</li>
+</ul>
+
+<p>With continuous batching:</p>
+
+<ul>
+  <li>completed slots are immediately refilled</li>
+  <li>active slot count stays near maximum</li>
+  <li>GPU remains saturated</li>
+</ul>
+
+<p>Approximate utilization:</p>
+
+<div class="diagram-box"><pre>Static batching:
+  ~40–60% effective utilization
+
+Continuous batching:
+  ~90–95% effective utilization</pre></div>
+
+<p>Same GPU.<br>
+Same model.<br>
+Same hardware cost.</p>
+
+<p>Massively different throughput.</p>
+
+<p>The vLLM paper reported roughly 2–4x throughput improvements from scheduling and memory management alone.</p>
+
+<p>That is the power of choosing the correct scheduling granularity.</p>
+
+<h2 id="systems-parallel">The Systems Engineering Parallel</h2>
+
+<p>I had seen this failure mode before in Kafka ingestion systems:<br>
+slow items inside fixed batches create idle workers and throughput collapse.</p>
+
+<p>Continuous batching applies the same solution:</p>
+
+<blockquote><p>keep workers busy, not batches fixed.</p></blockquote>
+
+<p>The parallels to operating systems are even stronger.</p>
+
+<table>
+  <thead><tr><th>Operating System</th><th>LLM Inference</th></tr></thead>
+  <tbody>
+    <tr><td>CPU core</td><td>GPU slot</td></tr>
+    <tr><td>Process</td><td>Sequence</td></tr>
+    <tr><td>Time quantum</td><td>Decode iteration</td></tr>
+    <tr><td>Scheduler</td><td>Batch scheduler</td></tr>
+    <tr><td>Heap fragmentation</td><td>KV cache fragmentation</td></tr>
+    <tr><td>Virtual memory paging</td><td>PagedAttention</td></tr>
+  </tbody>
+</table>
+
+<p>The GPU is behaving like a massively parallel compute scheduler.</p>
+
+<p>vLLM behaves like an operating system for token generation.</p>
+
+<h2 id="production-problems">Production Problems Continuous Batching Creates</h2>
+
+<p>Continuous batching improves throughput dramatically.</p>
+
+<p>It also creates entirely new operational failure modes.</p>
+
+<h3 id="starvation">Scheduler starvation</h3>
+
+<p>Short requests free slots faster.</p>
+
+<p>A naive scheduler may continuously prefer short requests while long prompts wait indefinitely.</p>
+
+<p>Fairness policies become necessary.</p>
+
+<h3 id="kv-thrashing">KV cache thrashing</h3>
+
+<p>Aggressive slot turnover creates constant KV cache allocation and deallocation.</p>
+
+<p>Poor memory management can create VRAM churn and fragmentation.</p>
+
+<h3 id="tail-latency">Tail latency instability</h3>
+
+<p>Continuous batching improves average latency.</p>
+
+<p>But under burst traffic:</p>
+
+<ul>
+  <li>queue depth fluctuates</li>
+  <li>admission timing changes constantly</li>
+  <li>P99 TTFT becomes unstable</li>
+</ul>
+
+<p>High throughput systems often pay for utilization gains with worse tail latency predictability.</p>
+
+<h3 id="noisy-neighbor">Noisy neighbor effects</h3>
+
+<p>One tenant generating huge prompts can:</p>
+
+<ul>
+  <li>consume KV cache aggressively</li>
+  <li>occupy decode slots longer</li>
+  <li>reduce throughput for every other tenant sharing the GPU</li>
+</ul>
+
+<p>This becomes a multi-tenant resource isolation problem.</p>
+
+<h3 id="backpressure">Backpressure complexity</h3>
+
+<p>Queue depth and active decode slots are no longer tightly coupled.</p>
+
+<p>A GPU may appear saturated even while queue growth accelerates.</p>
+
+<p>Admission control becomes significantly harder than fixed-size batching systems.</p>
+
+<h2 id="kv-management">Continuous Batching Requires Sophisticated KV Cache Management</h2>
+
+<p>Continuous batching only works if KV cache allocation is extremely efficient.</p>
+
+<p>In static batching:</p>
+
+<ul>
+  <li>allocate KV cache once</li>
+  <li>free it when the batch completes</li>
+</ul>
+
+<p>Simple.</p>
+
+<p>In continuous batching:</p>
+
+<ul>
+  <li>sequences arrive continuously</li>
+  <li>sequences complete continuously</li>
+  <li>KV cache must be allocated and freed constantly</li>
+</ul>
+
+<p>This creates fragmentation pressure.</p>
+
+<p>Without careful memory management, VRAM becomes unusable despite large amounts of free memory.</p>
+
+<h2 id="paged-attention">Why PagedAttention Exists</h2>
+
+<p>This is exactly why vLLM introduced PagedAttention.</p>
+
+<p>Instead of allocating one contiguous VRAM block per sequence, KV cache is divided into fixed-size pages.</p>
+
+<p>Logical sequence memory remains contiguous.</p>
+
+<p>Physical VRAM allocation does not need to be.</p>
+
+<div class="diagram-box"><pre>Without paging:
+  [Seq A][Seq B][free][Seq C][free]
+  → fragmented VRAM
+
+With paging:
+  [Page][Page][Page][Page]
+  sequences map virtually to pages
+  → near-optimal VRAM utilization</pre></div>
+
+<p>This is virtual memory for GPUs.</p>
+
+<p>PagedAttention and continuous batching are deeply connected:</p>
+
+<ul>
+  <li>continuous batching creates dynamic allocation pressure</li>
+  <li>PagedAttention makes that pressure manageable</li>
+</ul>
+
+<p>Without PagedAttention, continuous batching fragments VRAM badly at scale.</p>
+
+<h2 id="observability">What This Means for AI Observability</h2>
+
+<p>This became directly relevant to the observability pipeline I am building.</p>
+
+<p>Continuous batching changes the shape of inference traffic entirely.</p>
+
+<p>Events become:</p>
+
+<ul>
+  <li>bursty</li>
+  <li>interleaved</li>
+  <li>slot-oriented instead of request-oriented</li>
+</ul>
+
+<p>A single request's lifecycle is now scattered across many decode iterations while other requests overlap between them.</p>
+
+<p>That changes what must be observable.</p>
+
+<p>The schema now needs:</p>
+
+<ul>
+  <li><code>request_id</code></li>
+  <li><code>slot_id</code></li>
+  <li><code>queue_wait_ms</code></li>
+  <li><code>prefill_latency_ms</code></li>
+  <li><code>decode_latency_ms</code></li>
+  <li><code>kv_cache_utilization_pct</code></li>
+  <li><code>prompt_tokens</code></li>
+  <li><code>completion_tokens</code></li>
+</ul>
+
+<p>Without these fields:</p>
+
+<ul>
+  <li>you cannot reconstruct scheduler behavior</li>
+  <li>cannot diagnose GPU starvation</li>
+  <li>cannot separate prefill bottlenecks from decode bottlenecks</li>
+  <li>cannot identify KV cache pressure</li>
+</ul>
+
+<p>Continuous batching fundamentally changes what “good observability” means for inference systems.</p>
+
+<h2 id="bigger-insight">The Bigger Insight</h2>
+
+<p>The deeper insight here is not about transformers.</p>
+
+<p>It is that GPU inference serving eventually converges toward the same problems operating systems solved decades ago:</p>
+
+<ul>
+  <li>scheduling</li>
+  <li>memory management</li>
+  <li>fragmentation</li>
+  <li>fairness</li>
+  <li>resource isolation</li>
+  <li>throughput vs latency tradeoffs</li>
+</ul>
+
+<p>Continuous batching matters because it changes the scheduling granularity from requests to token steps.</p>
+
+<p>That single design decision is responsible for a huge fraction of the throughput gains that made modern LLM serving economically viable.</p>
+
+<h2 id="what-next">What Comes Next</h2>
+
+<p>Day 3: PagedAttention.</p>
+
+<p>Why non-contiguous VRAM allocation is not a clever optimization but a necessary engineering response to fragmentation created by continuous batching.</p>
+
+<p>The pattern is becoming clearer every day:</p>
+
+<p>LLM infrastructure is systems engineering all the way down.</p>
+
+<div class="series-footer">
+  <p><em>Day 2 of 30 — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Following the path from GPU scheduling → KV cache management → distributed inference architecture → observability pipelines.</em></p>
+  <p><em>Up next: Day 3 — PagedAttention. Why non-contiguous VRAM allocation is not a clever optimization but a necessary engineering response to fragmentation created by continuous batching.</em></p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#decode-variance">Decode phase variance</a></li>
+      <li><a href="#static-bubbles">GPU bubbles</a></li>
+      <li><a href="#mental-model">Mental model shift</a></li>
+      <li><a href="#wrong-granularity">Wrong granularity</a></li>
+      <li><a href="#continuous-batching">Continuous batching</a></li>
+      <li><a href="#slot-replacement">Slot replacement</a></li>
+      <li><a href="#decode-scheduling">Every iteration</a></li>
+      <li><a href="#static-vs-continuous">Static vs continuous</a></li>
+      <li><a href="#utilization">Utilization</a></li>
+      <li><a href="#systems-parallel">OS parallel</a></li>
+      <li><a href="#production-problems">Production problems</a></li>
+      <li><a href="#kv-management">KV cache management</a></li>
+      <li><a href="#paged-attention">PagedAttention</a></li>
+      <li><a href="#observability">Observability</a></li>
+      <li><a href="#bigger-insight">Bigger insight</a></li>
+      <li><a href="#what-next">What comes next</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+2%3A+Continuous+batching+in+vLLM+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>

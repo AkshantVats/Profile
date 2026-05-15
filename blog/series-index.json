@@ -69,6 +69,12 @@
           "kicker": "Day 1 of 30",
           "title": "The KV Cache Is a Memory Bandwidth Problem",
           "desc": "Prefill vs decode, why decode is memory-bound, TSDB analogy, TTFT vs TPOT — preview of continuous batching (Day 2)."
+        },
+        {
+          "href": "blog/series/ai-learning/day-2-continuous-batching-vllm.html",
+          "kicker": "Day 2 of 30",
+          "title": "Continuous Batching in vLLM: The Scheduler Design That Keeps GPUs Busy",
+          "desc": "Static vs continuous batching, GPU bubbles, token-step scheduling, OS parallels, and observability fields for slot-oriented inference."
         }
       ]
     }
