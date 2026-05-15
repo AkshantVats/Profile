@@ -16,7 +16,7 @@
           "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
           "kicker": "Post 2/5 · Day 3",
           "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
-          "desc": "Scala query engine: hot/cold tiers, quantile merge, histograms, Grafana-facing query types."
+          "desc": "Why P95 from Redis and S3 cannot be averaged, histogram merging for correct cross-tier quantiles, and WhiteFalcon's hot/cold architecture at 1.8T events/day."
         },
         {
           "href": "#",
