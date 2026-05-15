@@ -357,6 +357,28 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     return mod || pub || "";
   }
 
+  function sortKeyMs(key) {
+    var ms = Date.parse(String(key || ""));
+    return isNaN(ms) ? 0 : ms;
+  }
+
+  function compareSortKeysDesc(a, b) {
+    return sortKeyMs(b) - sortKeyMs(a);
+  }
+
+  function addedAtFromRef(ref) {
+    var obj = typeof ref === "object" ? ref : null;
+    if (!obj || !obj.addedAt) return "";
+    return String(obj.addedAt).slice(0, 10);
+  }
+
+  function mergeSortKey(ref, row) {
+    var sk = row ? row.sortKey : "";
+    var added = addedAtFromRef(ref);
+    if (added && (!sk || added > sk)) sk = added;
+    return sk;
+  }
+
   function pickMetaLine(doc) {
     var el = doc.querySelector(".post-meta");
     if (!el) return "";
@@ -543,13 +565,26 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
       seriesList.forEach(function (s) {
         s.posts.forEach(function (ref) {
           var h = postHref(ref);
-          if (h && h !== "#" && h.indexOf("#") !== 0) jobs.push({ series: s, manifestHref: h });
+          if (h && h !== "#" && h.indexOf("#") !== 0) jobs.push({ series: s, ref: ref, manifestHref: h });
         });
       });
 
       return Promise.all(
         jobs.map(function (j) {
           return fetchPost(j.manifestHref).then(function (row) {
+            if (row) {
+              row = {
+                href: row.href,
+                sortKey: mergeSortKey(j.ref, row),
+                metaLine: row.metaLine,
+                dateLabel: row.dateLabel,
+                readLabel: row.readLabel,
+                title: row.title,
+                excerpt: row.excerpt,
+                tagSlugs: row.tagSlugs,
+                tagLabels: row.tagLabels
+              };
+            }
             return { series: j.series, post: row };
           });
         })
@@ -565,16 +600,16 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
         var blocks = Object.keys(bySeries).map(function (slug) {
           var block = bySeries[slug];
           block.posts.sort(function (a, b) {
-            return String(b.sortKey).localeCompare(String(a.sortKey));
+            return compareSortKeysDesc(a.sortKey, b.sortKey);
           });
           var activity = block.posts.reduce(function (acc, p) {
-            return !acc || p.sortKey > acc ? p.sortKey : acc;
+            return !acc || sortKeyMs(p.sortKey) > sortKeyMs(acc) ? p.sortKey : acc;
           }, "");
           return { series: block.series, posts: block.posts, activity: activity };
         });
 
         blocks.sort(function (a, b) {
-          return String(b.activity).localeCompare(String(a.activity));
+          return compareSortKeysDesc(a.activity, b.activity);
         });
 
         root.textContent = "";
