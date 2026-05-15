@@ -290,106 +290,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     <div class="ftab" onclick="filter(this,'iot')">IoT</div>
   </div>
 
-  <div class="posts" id="posts-list">
-
-    <section class="series-stack" aria-labelledby="series-agoda">
-      <h2 class="series-head" id="series-agoda">Agoda — hyperscale TSDB</h2>
-      <p class="series-dek">WhiteFalcon, cross-tier queries, cardinality, cold storage.</p>
-
-    <a class="post-card" href="series/agoda/building-tsdb-at-agoda.html" data-tags="distributed-systems rust tsdb">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ds">Distributed systems</span>
-          <span class="ptag ptag-rs">Rust</span>
-          <span class="ptag ptag-tsdb">TSDB</span>
-        </div>
-        <div class="post-title">1.5 trillion events/day TSDB — what I worked on at Agoda</div>
-        <div class="post-excerpt">Three contributions to WhiteFalcon: cross-tier query work in Scala, a new Kubernetes cardinality dimension, and Parquet compression on S3.</div>
-      </div>
-      <div class="post-right">
-        <div>May 2026</div>
-        <div>10 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
-
-    <a class="post-card" href="series/agoda/when-percentiles-lie-cross-tier-queries.html" data-tags="distributed-systems tsdb">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ds">Distributed systems</span>
-          <span class="ptag ptag-tsdb">TSDB</span>
-        </div>
-        <div class="post-title">When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB</div>
-        <div class="post-excerpt">Why P95 from Redis and S3 cannot be averaged, histogram merging for correct cross-tier quantiles, and WhiteFalcon's hot/cold architecture at 1.8T events/day.</div>
-      </div>
-      <div class="post-right">
-        <div>May 2026</div>
-        <div>12 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
-    </section>
-
-    <section class="series-stack" aria-labelledby="series-inference-ai-project">
-      <h2 class="series-head" id="series-inference-ai-project">Inference AI project</h2>
-      <p class="series-dek">infra-ai-streaming — LLM-scale observability, Rust, Kafka, ClickHouse.</p>
-
-    <a class="post-card" href="series/inference-ai-project/building-ai-inference-observability.html" data-tags="distributed-systems ai-infra rust">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ai">AI Infra</span>
-          <span class="ptag ptag-ds">Distributed systems</span>
-          <span class="ptag ptag-rs">Rust</span>
-        </div>
-        <div class="post-title">Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</div>
-        <div class="post-excerpt">Why existing observability tools fail for LLM inference at scale, and how to build one that does not. Rust ingestion engine, Kafka, ClickHouse, and the design decisions that make it production-ready.</div>
-      </div>
-      <div class="post-right">
-        <div>May 2026</div>
-        <div>12 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
-    </section>
-
-    <section class="series-stack" aria-labelledby="series-ai-learning">
-      <h2 class="series-head" id="series-ai-learning">AI Learning — LLM inference (30 days)</h2>
-      <p class="series-dek">Learning inference from a distributed systems lens — no ML background, deep infra background.</p>
-
-    <a class="post-card" href="series/ai-learning/day-0-series-roadmap.html" data-tags="distributed-systems ai-infra">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ai">AI Learning</span>
-          <span class="ptag ptag-ds">Distributed systems</span>
-        </div>
-        <div class="post-title">Day 0 — Why I'm writing this series</div>
-        <div class="post-excerpt">Preface and roadmap: the systems lens, what thirty days will cover, and where to start before the technical posts.</div>
-      </div>
-      <div class="post-right">
-        <div>May 2026</div>
-        <div>5 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
-
-    <a class="post-card" href="series/ai-learning/day-1-kv-cache-memory-bandwidth.html" data-tags="distributed-systems ai-infra">
-      <div class="post-left">
-        <div class="post-tags">
-          <span class="ptag ptag-ai">AI Learning</span>
-          <span class="ptag ptag-ds">Distributed systems</span>
-        </div>
-        <div class="post-title">Day 1 — The KV cache is a memory bandwidth problem</div>
-        <div class="post-excerpt">Prefill vs decode, TTFT vs TPOT, why decode is VRAM-bandwidth-bound, TSDB analogy, and why observability needs split latency fields from day one.</div>
-      </div>
-      <div class="post-right">
-        <div>Jun 2026</div>
-        <div>18 min read</div>
-        <span class="post-arrow" aria-hidden="true">→</span>
-      </div>
-    </a>
-    </section>
-
-  </div>
+  <div class="posts" id="posts-list" aria-live="polite"></div>
 
 </div>
 
@@ -430,6 +331,281 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     apply(root.getAttribute("data-theme") !== "dark");
   });
 })();
+
+(function () {
+  var MANIFEST = "series-index.json";
+  var root = document.getElementById("posts-list");
+  if (!root) return;
+
+  function metaAttr(doc, sel, name) {
+    var n = doc.querySelector(sel);
+    return n && n.getAttribute(name) ? n.getAttribute(name).trim() : "";
+  }
+
+  function parsePublished(doc) {
+    return metaAttr(doc, 'meta[property="article:published_time"]', "content");
+  }
+
+  function parseModified(doc) {
+    return metaAttr(doc, 'meta[property="article:modified_time"]', "content");
+  }
+
+  function sortKeyForDoc(doc) {
+    var pub = parsePublished(doc);
+    var mod = parseModified(doc);
+    if (pub && mod) return pub > mod ? pub : mod;
+    return mod || pub || "";
+  }
+
+  function pickMetaLine(doc) {
+    var el = doc.querySelector(".post-meta");
+    if (!el) return "";
+    var dateRe = /^[A-Za-z]{3,9}\s+\d{4}$/;
+    var readRe = /\d+\s*min\s*read/i;
+    var d = "",
+      r = "";
+    el.querySelectorAll(".meta-item").forEach(function (n) {
+      var t = (n.textContent || "").trim();
+      if (dateRe.test(t)) d = t;
+      if (readRe.test(t)) r = t;
+    });
+    if (d && r) return d + " · " + r;
+    var bits = [];
+    el.querySelectorAll(":scope > span").forEach(function (n) {
+      if (n.classList.contains("sep")) return;
+      var t = (n.textContent || "").trim();
+      if (t) bits.push(t);
+    });
+    return bits.filter(Boolean).join(" · ");
+  }
+
+  function excerptFrom(doc) {
+    var d = metaAttr(doc, 'meta[name="description"]', "content");
+    if (!d) return "";
+    if (d.length > 220) return d.slice(0, 217) + "…";
+    return d;
+  }
+
+  function titleFrom(doc) {
+    var t = metaAttr(doc, 'meta[property="og:title"]', "content");
+    if (t) return t;
+    var tit = doc.querySelector("title");
+    return tit ? tit.textContent.replace(/\s*[—–-]\s*Akshant.*$/i, "").trim() : "";
+  }
+
+  var TAG_SLUG = {
+    "distributed systems": "distributed-systems",
+    "ai infra": "ai-infra",
+    "ai learning": "ai-infra",
+    "llm inference": "ai-infra",
+    kafka: "kafka",
+    rust: "rust",
+    tsdb: "tsdb",
+    iot: "iot"
+  };
+
+  function tagSlug(label) {
+    var t = (label || "").trim().toLowerCase();
+    if (TAG_SLUG[t]) return TAG_SLUG[t];
+    return t.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+
+  function ptagClass(slug) {
+    if (slug === "distributed-systems") return "ptag-ds";
+    if (slug === "ai-infra") return "ptag-ai";
+    if (slug === "rust") return "ptag-rs";
+    if (slug === "tsdb") return "ptag-tsdb";
+    if (slug === "kafka") return "ptag-kb";
+    if (slug === "iot") return "ptag-iot";
+    return "";
+  }
+
+  function tagsFrom(doc) {
+    var slugs = [];
+    var labels = [];
+    doc.querySelectorAll(".post-tags .tag:not(.accent), .post-tags .ptag").forEach(function (n) {
+      var label = (n.textContent || "").trim();
+      if (!label) return;
+      var slug = tagSlug(label);
+      if (!slug || slugs.indexOf(slug) >= 0) return;
+      slugs.push(slug);
+      labels.push(label);
+    });
+    return { slugs: slugs, labels: labels };
+  }
+
+  function parsePostHtml(html, href) {
+    var p = new DOMParser().parseFromString(html, "text/html");
+    var sk = sortKeyForDoc(p);
+    if (!sk) return null;
+    var metaLine = pickMetaLine(p);
+    var parts = metaLine.split("·").map(function (s) {
+      return s.trim();
+    });
+    var tagInfo = tagsFrom(p);
+    return {
+      href: href,
+      sortKey: sk,
+      metaLine: metaLine,
+      dateLabel: parts[0] || "",
+      readLabel: parts[1] || "",
+      title: titleFrom(p),
+      excerpt: excerptFrom(p),
+      tagSlugs: tagInfo.slugs,
+      tagLabels: tagInfo.labels
+    };
+  }
+
+  function postHref(ref) {
+    if (ref == null) return "";
+    if (typeof ref === "string") return ref;
+    return ref.href || "";
+  }
+
+  function cardHref(manifestHref) {
+    if (!manifestHref) return "";
+    if (manifestHref.indexOf("blog/") === 0) return manifestHref.slice(5);
+    return manifestHref;
+  }
+
+  function fetchPost(manifestHref) {
+    var href = cardHref(manifestHref);
+    if (!href || href === "#") return Promise.resolve(null);
+    return fetch(href, { credentials: "same-origin" })
+      .then(function (r) {
+        return r.ok ? r.text() : Promise.reject();
+      })
+      .then(function (html) {
+        return parsePostHtml(html, href);
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function renderCard(post) {
+    var a = document.createElement("a");
+    a.className = "post-card";
+    a.href = post.href;
+    a.setAttribute("data-tags", post.tagSlugs.join(" "));
+
+    var left = document.createElement("div");
+    left.className = "post-left";
+    var tagsWrap = document.createElement("div");
+    tagsWrap.className = "post-tags";
+    post.tagSlugs.forEach(function (slug, i) {
+      var span = document.createElement("span");
+      var cls = ptagClass(slug);
+      span.className = "ptag" + (cls ? " " + cls : "");
+      span.textContent = post.tagLabels[i] || slug.replace(/-/g, " ");
+      tagsWrap.appendChild(span);
+    });
+    var title = document.createElement("div");
+    title.className = "post-title";
+    title.textContent = post.title || post.href;
+    var excerpt = document.createElement("div");
+    excerpt.className = "post-excerpt";
+    excerpt.textContent = post.excerpt || "";
+    left.appendChild(tagsWrap);
+    left.appendChild(title);
+    left.appendChild(excerpt);
+
+    var right = document.createElement("div");
+    right.className = "post-right";
+    var d = document.createElement("div");
+    d.textContent = post.dateLabel || "";
+    var r = document.createElement("div");
+    r.textContent = post.readLabel || "";
+    var arrow = document.createElement("span");
+    arrow.className = "post-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "→";
+    right.appendChild(d);
+    right.appendChild(r);
+    right.appendChild(arrow);
+
+    a.appendChild(left);
+    a.appendChild(right);
+    return a;
+  }
+
+  fetch(MANIFEST, { credentials: "same-origin" })
+    .then(function (r) {
+      return r.ok ? r.json() : Promise.reject();
+    })
+    .then(function (data) {
+      var seriesList = (data && data.series ? data.series : []).filter(function (s) {
+        return s && s.posts && s.posts.length;
+      });
+      if (!seriesList.length) return Promise.reject();
+
+      var jobs = [];
+      seriesList.forEach(function (s) {
+        s.posts.forEach(function (ref) {
+          var h = postHref(ref);
+          if (h && h !== "#" && h.indexOf("#") !== 0) jobs.push({ series: s, manifestHref: h });
+        });
+      });
+
+      return Promise.all(
+        jobs.map(function (j) {
+          return fetchPost(j.manifestHref).then(function (row) {
+            return { series: j.series, post: row };
+          });
+        })
+      ).then(function (rows) {
+        var bySeries = {};
+        rows.forEach(function (row) {
+          if (!row.post) return;
+          var slug = row.series.slug || "";
+          if (!bySeries[slug]) bySeries[slug] = { series: row.series, posts: [] };
+          bySeries[slug].posts.push(row.post);
+        });
+
+        var blocks = Object.keys(bySeries).map(function (slug) {
+          var block = bySeries[slug];
+          block.posts.sort(function (a, b) {
+            return String(b.sortKey).localeCompare(String(a.sortKey));
+          });
+          var activity = block.posts.reduce(function (acc, p) {
+            return !acc || p.sortKey > acc ? p.sortKey : acc;
+          }, "");
+          return { series: block.series, posts: block.posts, activity: activity };
+        });
+
+        blocks.sort(function (a, b) {
+          return String(b.activity).localeCompare(String(a.activity));
+        });
+
+        root.textContent = "";
+        blocks.forEach(function (block) {
+          if (!block.posts.length) return;
+          var s = block.series;
+          var sec = document.createElement("section");
+          sec.className = "series-stack";
+          var sid = "series-" + (s.slug || "writing");
+          sec.setAttribute("aria-labelledby", sid);
+          var h2 = document.createElement("h2");
+          h2.className = "series-head";
+          h2.id = sid;
+          h2.textContent = s.title || s.slug || "Series";
+          var dek = document.createElement("p");
+          dek.className = "series-dek";
+          dek.textContent = s.dek || s.navSubtitle || "";
+          sec.appendChild(h2);
+          if (dek.textContent) sec.appendChild(dek);
+          block.posts.forEach(function (p) {
+            sec.appendChild(renderCard(p));
+          });
+          root.appendChild(sec);
+        });
+      });
+    })
+    .catch(function () {
+      root.innerHTML = '<p class="series-dek">Could not load posts.</p>';
+    });
+})();
+
 function filter(tab, tag) {
   document.querySelectorAll(".ftab").forEach((t) => t.classList.remove("active"));
   tab.classList.add("active");

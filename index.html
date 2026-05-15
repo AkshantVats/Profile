@@ -931,32 +931,9 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
 
       <div class="side-block side-writing" id="writing">
         <div class="side-label">Writing</div>
-        <!-- Writing: filled from blog/series-index.json + scraped dates in each post HTML; fallback is #writing-series-root children. -->
+        <!-- Writing: filled from blog/series-index.json + scraped dates in each post HTML; metadata from each post HTML. -->
         <p class="side-writing-dek">Latest activity across series — two series with the most recent updates, up to two posts each (metadata from each HTML file).</p>
-        <div id="writing-series-root" class="writing-series-root">
-          <div class="side-series-block">
-            <div class="side-series-kicker">Series · inference-ai-project</div>
-            <div class="side-series-title">Inference AI project</div>
-            <div class="side-post-list">
-              <a href="blog/series/inference-ai-project/building-ai-inference-observability.html" class="side-post">
-                <div class="side-post-meta">May 2026 · 12 min read</div>
-                <div class="side-post-title">Building a Production-Grade AI Inference Observability Pipeline</div>
-                <div class="side-post-excerpt">Architecture, tradeoffs, and benchmarks for LLM-scale observability.</div>
-              </a>
-            </div>
-          </div>
-          <div class="side-series-block">
-            <div class="side-series-kicker">Series · agoda</div>
-            <div class="side-series-title">Agoda — hyperscale TSDB</div>
-            <div class="side-post-list">
-              <a href="blog/series/agoda/building-tsdb-at-agoda.html" class="side-post">
-                <div class="side-post-meta">May 2026 · 10 min read</div>
-                <div class="side-post-title">1.5 trillion events/day TSDB at Agoda</div>
-                <div class="side-post-excerpt">Cross-tier queries, cardinality in the index, Parquet on S3.</div>
-              </a>
-            </div>
-          </div>
-        </div>
+        <div id="writing-series-root" class="writing-series-root" aria-live="polite"></div>
         <a href="blog/" class="side-all">All posts →</a>
       </div>
       </div>
@@ -1227,7 +1204,7 @@ document.querySelectorAll(".rev").forEach((el) => io.observe(el));
       });
     })
     .catch(function () {
-      /* keep static fallback inside #writing-series-root */
+      /* leave #writing-series-root empty on failure */
     });
 })();
 </script>
