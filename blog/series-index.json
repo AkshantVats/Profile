@@ -13,9 +13,9 @@
           "desc": "WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth."
         },
         {
-          "href": "#",
+          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
           "kicker": "Post 2/5 · Day 3",
-          "title": "Cross-tier queries at scale: merging Redis and S3 when quantiles don't add up",
+          "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
           "desc": "Scala query engine: hot/cold tiers, quantile merge, histograms, Grafana-facing query types."
         },
         {
