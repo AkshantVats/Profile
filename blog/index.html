@@ -366,17 +366,19 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     return sortKeyMs(b) - sortKeyMs(a);
   }
 
-  function addedAtFromRef(ref) {
-    var obj = typeof ref === "object" ? ref : null;
-    if (!obj || !obj.addedAt) return "";
-    return String(obj.addedAt).slice(0, 10);
+  function todayIso() {
+    var d = new Date();
+    return (
+      d.getFullYear() +
+      "-" +
+      String(d.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(d.getDate()).padStart(2, "0")
+    );
   }
 
-  function mergeSortKey(ref, row) {
-    var sk = row ? row.sortKey : "";
-    var added = addedAtFromRef(ref);
-    if (added && (!sk || added > sk)) sk = added;
-    return sk;
+  function isLiveSortKey(sk, today) {
+    return sk && sk <= today;
   }
 
   function pickMetaLine(doc) {
@@ -561,6 +563,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
       });
       if (!seriesList.length) return Promise.reject();
 
+      var today = todayIso();
       var jobs = [];
       seriesList.forEach(function (s) {
         s.posts.forEach(function (ref) {
@@ -575,7 +578,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
             if (row) {
               row = {
                 href: row.href,
-                sortKey: mergeSortKey(j.ref, row),
+                sortKey: row.sortKey,
                 metaLine: row.metaLine,
                 dateLabel: row.dateLabel,
                 readLabel: row.readLabel,
@@ -605,11 +608,18 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
           var activity = block.posts.reduce(function (acc, p) {
             return !acc || sortKeyMs(p.sortKey) > sortKeyMs(acc) ? p.sortKey : acc;
           }, "");
-          return { series: block.series, posts: block.posts, activity: activity };
+          var activityLive = block.posts.reduce(function (acc, p) {
+            if (!isLiveSortKey(p.sortKey, today)) return acc;
+            return !acc || sortKeyMs(p.sortKey) > sortKeyMs(acc) ? p.sortKey : acc;
+          }, "");
+          return { series: block.series, posts: block.posts, activity: activity, activityLive: activityLive };
         });
 
         blocks.sort(function (a, b) {
-          return compareSortKeysDesc(a.activity, b.activity);
+          var aLive = !!a.activityLive;
+          var bLive = !!b.activityLive;
+          if (aLive !== bLive) return aLive ? -1 : 1;
+          return compareSortKeysDesc(a.activityLive || a.activity, b.activityLive || b.activity);
         });
 
         root.textContent = "";
