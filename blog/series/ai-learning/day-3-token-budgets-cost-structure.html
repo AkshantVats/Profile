@@ -190,7 +190,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <p class="post-subtitle">3 of N — AI Learning Series. Prompt vs completion pricing as capacity planning — and why <code>cost_usd</code> in the ingest schema has to reconcile with provider bills, not a single latency chart.</p>
   <div class="post-meta">
     <div class="meta-author">
-      <div class="author-avatar">AS</motion.div>
+      <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
@@ -308,7 +308,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <tr><td><code>max_tokens</code> / budget</td><td><strong>Executor memory cap + shuffle partitions</strong> — wrong cap → OOM or runaway bill</td></tr>
     </tbody>
   </table>
-</motion.div>
+</div>
 
 <p>At Agoda-scale batch jobs, finance never accepted "we processed <em>N</em> rows" without splitting <strong>bytes read vs bytes written</strong> and <strong>shuffle spill</strong>. Prompt tokens are the wide read: you pay proportional to input size once per request. Completion tokens are the serial tail: each new token adds another decode step and more KV cache traffic (<a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a>). You cannot average two percentiles across tiers; you should not average two token buckets into <code>total_tokens</code> and call it a budget. This series stays on <strong>serving</strong>, not training (<a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-0-series-roadmap.html">Day 0</a>).</p>
 
@@ -390,7 +390,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 </div>
 
 <div class="footnote-row" id="footnotes">
-  <div class="footnote-title">Footnotes &amp; sources</motion.div>
+  <div class="footnote-title">Footnotes &amp; sources</div>
   <div class="footnote-links">
     <a href="https://openai.com/api/pricing/" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
@@ -463,11 +463,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     </div>
   </div>
 </aside>
-</motion.div>
+</div>
 
 <footer class="post-footer">
   <div class="author-card">
-    <div class="author-card-avatar">AS</motion.div>
+    <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
       <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
