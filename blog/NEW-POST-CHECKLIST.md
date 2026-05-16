@@ -35,6 +35,7 @@ Use this whenever you publish a post in an existing series.
   - `og:image` + `og:image:width` (1200) + `og:image:height` (630) — **absolute HTTPS** URL, e.g. `https://akshantvats.github.io/Profile/blog/assets/og/<slug>.png`
   - `twitter:card` = `summary_large_image` and `twitter:image` (same URL as `og:image`)
   - Reuse patterns from the latest post in the same series; defaults: `default-experience.png`, `default-ai-learning.png`, `default-lensai.png`
+  - **Badge on cover art:** open-ended only — `Day X of N`, `Experience X of N`, or `LensAI · Product`. Never `of 30`, `1 of 5`, `Post 2/5`, or fixed totals on the infographic.
 - [ ] **On-page cover** — after `</header>`, before `.post-layout` / prose:
   ```html
   <figure class="post-cover">

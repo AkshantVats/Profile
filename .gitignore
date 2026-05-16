@@ -2,5 +2,6 @@
 Thumbs.db
 .cursor/
 .venv-og/
+.venv-covers/
 scripts/__pycache__/
 scripts/output/
