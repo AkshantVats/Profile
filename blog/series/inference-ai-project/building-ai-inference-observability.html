@@ -102,6 +102,23 @@ html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
 html[data-theme="dark"] .prose pre code{color:#d8d8d4}
 html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
 html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin:32px 0 8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
 @media(max-width:640px){.w,.ni{padding-left:16px;padding-right:16px}}
 </style>
 </head>
@@ -124,12 +141,14 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
   <header class="post-hdr">
     <div class="post-tags">
-      <span class="ptag ptag-ai">AI Infra</span>
+      <span class="ptag ptag-ai">LensAI · Product</span>
       <span class="ptag ptag-ds">Distributed Systems</span>
       <span class="ptag ptag-rs">Rust</span>
     </div>
     <h1>Building a Production-Grade AI Inference Observability Pipeline: Architecture, Tradeoffs, and Benchmarks</h1>
     <div class="post-meta">
+      <span>LensAI · Product</span>
+      <span class="sep">·</span>
       <span>May 2026</span>
       <span class="sep">·</span>
       <span>12 min read</span>
@@ -213,6 +232,8 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
   </article>
 
+  <div id="series-nav-mount" data-series-slug="lensai"></div>
+
 </div>
 
 <footer>
@@ -231,5 +252,6 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 <script>
 (function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
 </script>
+<script src="../../series-nav-dynamic.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 /**
  * Series sidebar from blog/series-index.json (single source of truth).
- * In each post HTML: <div id="series-nav-mount" data-series-slug="agoda"></div>
+ * In each post HTML: <div id="series-nav-mount" data-series-slug="experience"></div> (slug: ai-learning | experience | lensai)
  * Path to this script from blog/series/<slug>/page.html: ../../series-nav-dynamic.js
  */
 (function () {

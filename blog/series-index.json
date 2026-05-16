@@ -1,88 +1,16 @@
 {
   "series": [
     {
-      "slug": "agoda",
-      "title": "Agoda — hyperscale TSDB",
-      "slugLine": "Agoda Series",
-      "navSubtitle": "Agoda TSDB — series roadmap",
-      "posts": [
-        {
-          "href": "blog/series/agoda/building-tsdb-at-agoda.html",
-          "kicker": "Post 1/5 · overview",
-          "title": "1.5T events/day — what I worked on at Agoda",
-          "desc": "WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth."
-        },
-        {
-          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
-          "kicker": "Post 2/5 · Day 3",
-          "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
-          "desc": "Why P95 from Redis and S3 cannot be averaged, histogram merging for correct cross-tier quantiles, and WhiteFalcon's hot/cold architecture at 1.8T events/day."
-        },
-        {
-          "href": "#",
-          "kicker": "Post 3/5 · Day 11",
-          "title": "Adding a new cardinality dimension to a 100M+ series TSDB without exploding the index",
-          "desc": "Kubernetes tag, RoaringBitmap, Rust ingestion, cross-product risk, safe vs dangerous tags."
-        },
-        {
-          "href": "#",
-          "kicker": "Post 4/5 · Day 20",
-          "title": "Parquet compression on S3: Snappy to Zstd at trillion-event scale",
-          "desc": "Cold storage tradeoffs, ratio vs read speed, cost at 1.5T/day, Redis → S3 pipeline fit."
-        },
-        {
-          "href": "#",
-          "kicker": "Post 5/5 · Day 23",
-          "title": "What I learned at hyperscale TSDB — and what it means for AI infrastructure",
-          "desc": "Reflection, mature-system lessons, mapping to AI inference observability, what I'm building now."
-        }
-      ]
-    },
-    {
-      "slug": "experience",
-      "title": "Experience — production war stories",
-      "slugLine": "Experience Series",
-      "navSubtitle": "Employer deep-dives · open-ended",
-      "posts": [
-        {
-          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
-          "kicker": "Experience 3 of N · Day 3",
-          "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
-          "desc": "Silent wrong aggregates at Agoda — cross-tier quantiles, Redis hot tier and Parquet cold tier."
-        },
-        {
-          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
-          "kicker": "Experience 4 of N · Day 4",
-          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
-          "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
-        }
-      ]
-    },
-    {
-      "slug": "inference-ai-project",
-      "title": "Inference AI project",
-      "slugLine": "Inference AI project",
-      "navSubtitle": "Production observability pipeline",
-      "posts": [
-        {
-          "href": "blog/series/inference-ai-project/building-ai-inference-observability.html",
-          "kicker": "Deep dive",
-          "title": "Building a Production-Grade AI Inference Observability Pipeline",
-          "desc": "Architecture, tradeoffs, benchmarks — Rust, Kafka, ClickHouse, Grafana."
-        }
-      ]
-    },
-    {
       "slug": "ai-learning",
-      "title": "AI Learning — LLM inference (30-day roadmap)",
+      "title": "AI Learning",
       "slugLine": "AI Learning",
-      "navSubtitle": "Day-by-day · distributed systems lens · no ML background",
+      "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
           "href": "blog/series/ai-learning/day-0-series-roadmap.html",
-          "kicker": "Day 0 of 30",
+          "kicker": "Day 0 of N",
           "title": "Why I'm writing this series",
-          "desc": "Preface: distributed-systems lens, public notes, scope of the thirty posts — link forward to Day 1."
+          "desc": "Preface: distributed-systems lens, public notes, scope of the series — link forward to Day 1."
         },
         {
           "href": "blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html",
@@ -101,6 +29,46 @@
           "kicker": "Day 3 of N",
           "title": "Token Budgets and Real Cost Structure",
           "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
+        }
+      ]
+    },
+    {
+      "slug": "experience",
+      "title": "Experience",
+      "slugLine": "Experience Series",
+      "navSubtitle": "production war stories",
+      "posts": [
+        {
+          "href": "blog/series/agoda/building-tsdb-at-agoda.html",
+          "kicker": "Experience 1 of N",
+          "title": "1.5T events/day — what I worked on at Agoda",
+          "desc": "WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth."
+        },
+        {
+          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
+          "kicker": "Experience 2 of N · Day 3",
+          "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
+          "desc": "Silent wrong aggregates at Agoda — cross-tier quantiles, Redis hot tier and Parquet cold tier."
+        },
+        {
+          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
+          "kicker": "Experience 3 of N · Day 4",
+          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
+          "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
+        }
+      ]
+    },
+    {
+      "slug": "lensai",
+      "title": "LensAI (Product)",
+      "slugLine": "LensAI",
+      "navSubtitle": "project/product blogs",
+      "posts": [
+        {
+          "href": "blog/series/inference-ai-project/building-ai-inference-observability.html",
+          "kicker": "LensAI · Product",
+          "title": "Building a Production-Grade AI Inference Observability Pipeline",
+          "desc": "Architecture, tradeoffs, benchmarks — Rust, Kafka, ClickHouse, Grafana."
         }
       ]
     }

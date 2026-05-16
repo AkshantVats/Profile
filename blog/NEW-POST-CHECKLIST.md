@@ -6,7 +6,7 @@ Use this whenever you publish a post in an existing series.
 
 ## Before you start
 
-- [ ] Pick **series** (`agoda`, `experience`, `ai-learning`, `inference-ai-project`, …).
+- [ ] Pick **series** (`ai-learning`, `experience`, `lensai` — three series only on index/profile).
 - [ ] Open the **previous post in that series** as your HTML template (layout, nav, TOC, Mermaid, footer).
 - [ ] Note **post number / kicker** (e.g. `Day 2 of N`, `Post 3/5`, `Experience 4 of N`).
 
