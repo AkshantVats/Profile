@@ -19,12 +19,6 @@
           "desc": "Why P95 from Redis and S3 cannot be averaged, histogram merging for correct cross-tier quantiles, and WhiteFalcon's hot/cold architecture at 1.8T events/day."
         },
         {
-          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
-          "kicker": "Experience 4 of N · Day 4",
-          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
-          "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
-        },
-        {
           "href": "#",
           "kicker": "Post 3/5 · Day 11",
           "title": "Adding a new cardinality dimension to a 100M+ series TSDB without exploding the index",
@@ -45,6 +39,26 @@
       ]
     },
     {
+      "slug": "experience",
+      "title": "Experience — production war stories",
+      "slugLine": "Experience Series",
+      "navSubtitle": "Employer deep-dives · open-ended",
+      "posts": [
+        {
+          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
+          "kicker": "Experience 3 of N · Day 3",
+          "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
+          "desc": "Silent wrong aggregates at Agoda — cross-tier quantiles, Redis hot tier and Parquet cold tier."
+        },
+        {
+          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
+          "kicker": "Experience 4 of N · Day 4",
+          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
+          "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
+        }
+      ]
+    },
+    {
       "slug": "inference-ai-project",
       "title": "Inference AI project",
       "slugLine": "Inference AI project",
@@ -60,9 +74,9 @@
     },
     {
       "slug": "ai-learning",
-      "title": "AI Learning — LLM inference (30 days)",
+      "title": "AI Learning — LLM inference (30-day roadmap)",
       "slugLine": "AI Learning",
-      "navSubtitle": "30 days · distributed systems lens · no ML background",
+      "navSubtitle": "Day-by-day · distributed systems lens · no ML background",
       "posts": [
         {
           "href": "blog/series/ai-learning/day-0-series-roadmap.html",
@@ -72,19 +86,19 @@
         },
         {
           "href": "blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html",
-          "kicker": "Day 1 of 30",
+          "kicker": "Day 1 of N",
           "title": "The KV Cache Is a Memory Bandwidth Problem",
           "desc": "Prefill vs decode, why decode is memory-bound, TSDB analogy, TTFT vs TPOT — preview of continuous batching (Day 2)."
         },
         {
           "href": "blog/series/ai-learning/day-2-continuous-batching-vllm.html",
-          "kicker": "Day 2 of 30",
+          "kicker": "Day 2 of N",
           "title": "Continuous Batching in vLLM: The Scheduler Design That Keeps GPUs Busy",
           "desc": "Static vs continuous batching, GPU bubbles, token-step scheduling, OS parallels, and observability fields for slot-oriented inference."
         },
         {
           "href": "blog/series/ai-learning/day-3-token-budgets-cost-structure.html",
-          "kicker": "Day 3 of 30",
+          "kicker": "Day 3 of N",
           "title": "Token Budgets and Real Cost Structure",
           "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
         }

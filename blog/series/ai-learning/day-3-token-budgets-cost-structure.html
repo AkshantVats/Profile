@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Day 3 — Token Budgets &amp; Cost Structure (Learning LLM Inference) — Akshant Sharma</title>
-<meta name="description" content="Prompt vs completion pricing as capacity planning, asymmetric rate cards, and why cost_usd in the ingest schema must reconcile with provider bills. Day 3 of 30.">
+<meta name="description" content="Prompt vs completion pricing as capacity planning, asymmetric rate cards, and why cost_usd in the ingest schema must reconcile with provider bills. Day 3 of N.">
 <meta property="og:title" content="Day 3 of Learning LLM Inference — Token Budgets and Real Cost Structure">
 <meta property="og:description" content="Two token buckets, asymmetric pricing, data-systems parallels, ingest validation, and producer-computed cost_usd on every inference event.">
 <meta property="og:type" content="article">
@@ -180,7 +180,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning · Day 3 of 30</span>
+    <span class="tag accent">AI Learning · Day 3 of N</span>
     <span class="tag">LLM inference</span>
     <span class="tag">Token pricing</span>
     <span class="tag">Distributed systems</span>
@@ -198,7 +198,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">11 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning · Day 3 of 30</span>
+    <span class="meta-item">AI Learning · Day 3 of N</span>
   </div>
 </header>
 
@@ -385,7 +385,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 <p>Today's Experience sibling — <a href="https://akshantvats.github.io/Profile/blog/series/agoda/seven-million-iot-sensors-failure-modes.html"><strong>Seven Million IoT Sensors — Failure Modes Textbooks Skip</strong></a> — is the same instinct at Walmart scale: validate before central aggregation, because poisoned <code>cost_usd</code> in Kafka is the same class of bug as a spoofed <code>device_id</code> in a fleet rollup.</p>
 
 <div class="series-footer">
-  <p><em>Day 3 of 30 — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Day 3 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
   <p><em>Up next (series Day 4 / build Day 5): ClickHouse batch writer — <code>sum(cost_usd)</code> by tenant and hour, plus the consumer graduating from stdout to inserts.</em></p>
 </div>
 

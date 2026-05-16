@@ -6,9 +6,9 @@ Use this whenever you publish a post in an existing series.
 
 ## Before you start
 
-- [ ] Pick **series** (`agoda`, `ai-learning`, `inference-ai-project`, …).
+- [ ] Pick **series** (`agoda`, `experience`, `ai-learning`, `inference-ai-project`, …).
 - [ ] Open the **previous post in that series** as your HTML template (layout, nav, TOC, Mermaid, footer).
-- [ ] Note **post number / kicker** (e.g. `Day 2 of 30`, `Post 3/5`).
+- [ ] Note **post number / kicker** (e.g. `Day 2 of N`, `Post 3/5`, `Experience 4 of N`).
 
 ---
 

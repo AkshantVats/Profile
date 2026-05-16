@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Day 1 — KV Cache &amp; Memory Bandwidth (Learning LLM Inference) — Akshant Sharma</title>
-<meta name="description" content="Prefill vs decode, why the KV cache shifts the bottleneck to VRAM bandwidth, and how that maps to distributed systems you already know. Day 1 of 30.">
+<meta name="description" content="Prefill vs decode, why the KV cache shifts the bottleneck to VRAM bandwidth, and how that maps to distributed systems you already know. Day 1 of N.">
 <meta property="og:title" content="Day 1 of Learning LLM Inference — The KV Cache Is a Memory Bandwidth Problem">
 <meta property="og:description" content="Prefill vs decode, memory-bandwidth-bound decode, TTFT vs TPOT, and why observability needs separate fields from day one.">
 <meta property="og:type" content="article">
@@ -173,13 +173,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning · Day 1 of 30</span>
+    <span class="tag accent">AI Learning · Day 1 of N</span>
     <span class="tag">LLM inference</span>
     <span class="tag">Distributed systems</span>
     <span class="tag">KV cache</span>
   </div>
   <h1 class="post-title">Day 1 of Learning LLM Inference as a Distributed Systems Engineer — The KV Cache Is a Memory Bandwidth Problem</h1>
-  <p class="post-subtitle">Seven years on high-throughput systems; zero ML background. I am building an AI inference observability pipeline and documenting how LLMs actually run — from queues, buffers, and bandwidth, not tensors.</p>
+  <p class="post-subtitle">1 of N — AI Learning Series. Seven years on high-throughput systems; zero ML background. I am building an AI inference observability pipeline and documenting how LLMs actually run — from queues, buffers, and bandwidth, not tensors.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
@@ -190,7 +190,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">18 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning · Day 1 of 30</span>
+    <span class="meta-item">AI Learning · Day 1 of N</span>
   </div>
 </header>
 
@@ -337,7 +337,7 @@ Same problem. Different hardware. Different names.</pre></div>
 
 <p>I have managed memory pressure, hot-path read bottlenecks, and noisy neighbor problems before. The hardware is different. The vocabulary is different. The underlying problems are the same ones I have been solving for seven years.</p>
 
-<blockquote><p><em>Day 1 of 30. I am documenting my journey learning LLM infrastructure from a distributed systems engineer's perspective — no ML background, deep systems background. If you are an infra engineer trying to understand what is actually happening inside these systems, follow along.</em></p></blockquote>
+<blockquote><p><em>Day 1 of N. I am documenting my journey learning LLM infrastructure from a distributed systems engineer's perspective — no ML background, deep systems background. If you are an infra engineer trying to understand what is actually happening inside these systems, follow along.</em></p></blockquote>
 
 </article>
 
