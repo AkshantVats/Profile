@@ -2,6 +2,8 @@
 
 Staff Engineer. I build high-throughput distributed systems and the infrastructure layer that sits underneath product features — ingestion engines, storage primitives, real-time event pipelines.
 
+**Blog tooling:** `python scripts/html_to_linkedin_article.py <post.html>` — LinkedIn article export ([scripts/README.md](scripts/README.md)).
+
 Currently building [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming) — an AI inference observability platform in Rust.
 
 ---
