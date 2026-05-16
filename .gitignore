@@ -1,3 +1,6 @@
 .DS_Store
 Thumbs.db
 .cursor/
+.venv-og/
+scripts/__pycache__/
+scripts/output/
