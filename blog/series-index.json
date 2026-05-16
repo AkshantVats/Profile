@@ -46,13 +46,13 @@
         },
         {
           "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
-          "kicker": "Experience 2 of N · Day 3",
+          "kicker": "Experience 2 of N",
           "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
           "desc": "Silent wrong aggregates at Agoda — cross-tier quantiles, Redis hot tier and Parquet cold tier."
         },
         {
           "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
-          "kicker": "Experience 3 of N · Day 4",
+          "kicker": "Experience 3 of N",
           "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
           "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
         }

@@ -8,7 +8,10 @@ Use this whenever you publish a post in an existing series.
 
 - [ ] Pick **series** (`ai-learning`, `experience`, `lensai` — three series only on index/profile).
 - [ ] Open the **previous post in that series** as your HTML template (layout, nav, TOC, Mermaid, footer).
-- [ ] Note **post number / kicker** (e.g. `Day 2 of N`, `Post 3/5`, `Experience 4 of N`).
+- [ ] Note **post number / kicker** by series:
+  - **AI Learning** — `Day X of N` (sequential learning index; matches filenames like `day-2-…`).
+  - **Experience** — `Experience X of N` only in `series-index.json` sidebar kickers (series position). Do **not** append calendar `Day Y` from the 150-day plan — plan days 1–2 may be code/AI-only while published experience posts skip ahead (e.g. plan day 0 → post 1, day 3 → post 2). Calendar days belong in prose links to AI Learning companions, not sidebar kickers.
+  - **LensAI** — product kickers (e.g. `LensAI · Product`).
 
 ---
 
@@ -44,7 +47,7 @@ Use this whenever you publish a post in an existing series.
 
 - [ ] Add an entry under the correct **`series.posts`** array.
 - [ ] **`href`**: real path when published, e.g. `blog/series/ai-learning/your-file.html` (not `#`).
-- [ ] **`kicker`**, **`title`**, **`desc`**: used for **series sidebar** and fallback text; keep in sync with the post theme.
+- [ ] **`kicker`**, **`title`**, **`desc`**: used for **series sidebar** and fallback text; keep in sync with the post theme and the series kicker rules above (Experience = `Experience X of N` only).
 - [ ] Put the new post in the order you want in the **sidebar roadmap** (newest near top is fine).
 - [ ] **Do not add `addedAt`** — dates come from HTML only.
 - [ ] For **drafts**: keep `"href": "#"` until the HTML file exists and is ready to ship.
