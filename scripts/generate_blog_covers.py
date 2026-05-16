@@ -2,8 +2,15 @@
 """Generate 1200×630 blog cover PNGs (covers/ + og/).
 
 Modes:
+  --from-content    Install fresh per-post art from scripts/cover_generated/ (see generate_covers_from_content.py).
   --rich (default)  Copy user infographic art (with badge fixes) or pre-generated rich PNGs.
   --plain           Deprecated: dark grid + plain text (avoid for published posts).
+
+Preferred workflow for new covers:
+  scripts/generate_covers_from_content.py --print-prompts
+  → GenerateImage per slug from HTML-derived prompts
+  → save as scripts/cover_generated/<slug>.png
+  → python scripts/generate_blog_covers.py --from-content
 
 Cover badges: series label only (no Day X, Experience N, Post X of N on the image).
 Episode numbers belong in HTML kickers/meta, not on cover art.
@@ -415,8 +422,19 @@ def run_plain() -> None:
         render_plain(*spec)
 
 
+def run_from_content(slugs: list[str] | None = None) -> None:
+    from generate_covers_from_content import run_from_dir, GENERATED_DIR
+
+    run_from_dir(GENERATED_DIR, slugs)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--from-content",
+        action="store_true",
+        help="Letterbox scripts/cover_generated/<slug>.png into covers/ and og/",
+    )
     parser.add_argument(
         "--plain",
         action="store_true",
@@ -437,7 +455,9 @@ def main() -> None:
         os.environ.get("PROFILE_COVER_ASSETS", DEFAULT_ASSETS)
     )
 
-    if args.plain:
+    if args.from_content:
+        run_from_content(args.slugs)
+    elif args.plain:
         run_plain()
     else:
         run_rich(assets_dir, args.slugs)
