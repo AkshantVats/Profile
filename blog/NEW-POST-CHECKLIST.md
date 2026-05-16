@@ -27,11 +27,21 @@ Use this whenever you publish a post in an existing series.
 
 - [ ] `<title>` and **`og:title`** — canonical title for homepage / all-posts cards.
 - [ ] **`meta name="description"`** and **`og:description`** — excerpt for cards.
-- [ ] **Link preview image** (LinkedIn / X): commit a **1200×630** PNG under `blog/assets/og/` (per-post name or series default), then in `<head>`:
+- [ ] **Cover image** (LinkedIn / X + on-page hero): add a **1200×630** PNG (infographic style) in **both**:
+  - `blog/assets/og/<slug>.png` — used by `og:image` / `twitter:image`
+  - `blog/assets/covers/<slug>.png` — same file (or copy) for the visible hero
+  - In `<head>`:
   - `og:url` — canonical `https://akshantvats.github.io/Profile/blog/series/.../your-file.html`
-  - `og:image` + `og:image:width` (1200) + `og:image:height` (630) — **absolute HTTPS** URL to the PNG on GitHub Pages
+  - `og:image` + `og:image:width` (1200) + `og:image:height` (630) — **absolute HTTPS** URL, e.g. `https://akshantvats.github.io/Profile/blog/assets/og/<slug>.png`
   - `twitter:card` = `summary_large_image` and `twitter:image` (same URL as `og:image`)
   - Reuse patterns from the latest post in the same series; defaults: `default-experience.png`, `default-ai-learning.png`, `default-lensai.png`
+- [ ] **On-page cover** — after `</header>`, before `.post-layout` / prose:
+  ```html
+  <figure class="post-cover">
+    <img src="../../assets/covers/<slug>.png" alt="…" width="1200" height="630" loading="eager">
+  </figure>
+  ```
+  Copy `.post-cover` CSS from a sibling post (`margin`, `border-radius`, `border: 1px solid var(--line)`, `img { width:100% }`).
 - [ ] **`article:published_time`** — ISO date `YYYY-MM-DD` (this is the **sort date**; do not rely on JSON).
 - [ ] Optional: **`article:modified_time`** only if you revise the post later (sort uses the **later** of published vs modified).
 

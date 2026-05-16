@@ -67,6 +67,8 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .author-name{font-size:.875rem;font-weight:600;color:var(--text)}
 .meta-divider{width:1px;height:18px;background:var(--line)}
 .meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover{margin:0 auto 2rem;max-width:var(--layout-max);padding:0 clamp(1rem,3vw,2rem);border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.post-cover img{width:100%;height:auto;display:block}
 .post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
 @media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
 .prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
@@ -199,6 +201,10 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <span class="meta-item">AI Learning · Day 1 of N</span>
   </div>
 </header>
+
+<figure class="post-cover">
+  <img src="../../assets/covers/day-1-kv-cache.png" alt="Infographic: The KV Cache Is a Memory Bandwidth Problem — prefill vs decode in LLM inference, Day 1 of 30" width="1200" height="630" loading="eager">
+</figure>
 
 <div class="post-layout">
 <article class="prose">
