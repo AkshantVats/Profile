@@ -73,3 +73,9 @@ Technical posts on distributed systems, AI infrastructure, and the gap between t
 
 - LinkedIn — [akshantsharma07](https://linkedin.com/in/akshantsharma07)
 - Email — akshant3@gmail.com
+
+---
+
+## Open source
+
+This repository is [MIT licensed](LICENSE). To add or update blog posts, see [CONTRIBUTING.md](CONTRIBUTING.md) and [blog/NEW-POST-CHECKLIST.md](blog/NEW-POST-CHECKLIST.md).
