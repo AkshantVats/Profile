@@ -1,0 +1,6 @@
+flowchart LR
+  IN[Ingest API] --> RP[Redpanda topic]
+  RP --> C[Go consumer\nvalidate tenant_id]
+  C -->|ok| R[Redis hot path]
+  C -->|bad identity| Q[Quarantine branch\nG-02]
+  C -.->|same discipline| W[Writer TBD]

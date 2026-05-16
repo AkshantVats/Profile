@@ -1,0 +1,8 @@
+flowchart TD
+  IN[Incoming telemetry] --> Q1{Known device?}
+  Q1 -->|no| Q[Quarantine / DLQ]
+  Q1 -->|yes| Q2{Within rate budget?}
+  Q2 -->|no| T[Throttle + alert]
+  Q2 -->|yes| Q3{Schema valid?}
+  Q3 -->|no| Q
+  Q3 -->|yes| OK[Accept to hot / cold paths]

@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
-Convert Profile blog post HTML to LinkedIn article paste text (with image placeholders).
+Convert Profile blog post HTML to LinkedIn article paste text (with diagram PNGs).
 
 LinkedIn paste tips:
   - Paste section by section; LinkedIn's editor can drop formatting on huge pastes.
-  - Upload images via LinkedIn's image button at each [IMAGE N: caption] marker.
-  - Apply heading styles with the toolbar, or keep ## lines and format manually.
-  - External image URLs are listed at the top for download/upload; local paths are copied
-    to scripts/output/ when possible.
+  - Upload images at each [Upload diagram-N.png here] marker (PNGs under scripts/linkedin-export/).
+  - Headings are plain lines (original casing from HTML) — apply LinkedIn heading style in the editor.
+  - External image URLs are listed at the top when present; local paths are copied to scripts/output/.
 
 Usage:
   python scripts/html_to_linkedin_article.py path/to/post.html
-  python scripts/html_to_linkedin_article.py path/to/post.html --output article.md
+  python scripts/html_to_linkedin_article.py path/to/post.html -o scripts/linkedin-export/slug.txt
 """
 
 from __future__ import annotations
@@ -19,15 +18,24 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
+import urllib.error
+import urllib.request
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+SCRIPT_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = SCRIPT_DIR / "output"
+LINKEDIN_EXPORT_DIR = SCRIPT_DIR / "linkedin-export"
 
 SKIP_CLASS_PREFIXES = ("series-footer", "footnote-row")
+MERMAID_PRE_RE = re.compile(
+    r'<pre\s+class="mermaid"[^>]*>(.*?)</pre>',
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 def extract_tag_content(html: str, pattern: str) -> Optional[str]:
@@ -93,10 +101,129 @@ def resolve_image_src(src: str, html_path: Path) -> Tuple[str, Optional[Path]]:
     return src, None
 
 
+def extract_mermaid_sources(html_fragment: str) -> List[str]:
+    sources: List[str] = []
+    for m in MERMAID_PRE_RE.finditer(html_fragment):
+        raw = strip_tags(m.group(1))
+        raw = unescape(raw)
+        raw = raw.replace("\r\n", "\n").strip()
+        if raw:
+            sources.append(raw)
+    return sources
+
+
+def render_mermaid_kroki(source: str) -> bytes:
+    req = urllib.request.Request(
+        "https://kroki.io/mermaid/png",
+        data=source.encode("utf-8"),
+        headers={
+            "Content-Type": "text/plain",
+            "User-Agent": "Profile-html-to-linkedin/1.0",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        return resp.read()
+
+
+def render_mermaid_mmdc(source: str, png_path: Path, mmd_path: Path) -> bool:
+    mmd_path.write_text(source, encoding="utf-8")
+    try:
+        subprocess.run(
+            [
+                "npx",
+                "-y",
+                "@mermaid-js/mermaid-cli",
+                "-i",
+                str(mmd_path),
+                "-o",
+                str(png_path),
+            ],
+            check=True,
+            capture_output=True,
+            timeout=180,
+        )
+        return png_path.is_file() and png_path.stat().st_size > 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def render_mermaid_docker(source: str, png_path: Path, mmd_path: Path) -> bool:
+    mmd_path.write_text(source, encoding="utf-8")
+    out_dir = png_path.parent.resolve()
+    try:
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{out_dir}:/data",
+                "minlag/mermaid-cli",
+                "-i",
+                f"/data/{mmd_path.name}",
+                "-o",
+                f"/data/{png_path.name}",
+            ],
+            check=True,
+            capture_output=True,
+            timeout=180,
+        )
+        return png_path.is_file() and png_path.stat().st_size > 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def export_mermaid_diagrams(
+    sources: List[str], export_dir: Path
+) -> Tuple[List[Path], str]:
+    """
+    Render Mermaid sources to diagram-1.png, diagram-2.png, ...
+    Returns (png paths, method name used for first successful render).
+    """
+    export_dir.mkdir(parents=True, exist_ok=True)
+    png_paths: List[Path] = []
+    method = ""
+
+    for i, source in enumerate(sources, start=1):
+        png_path = export_dir / f"diagram-{i}.png"
+        mmd_path = export_dir / f"diagram-{i}.mmd"
+        mmd_path.write_text(source, encoding="utf-8")
+
+        rendered = False
+        try:
+            png_path.write_bytes(render_mermaid_kroki(source))
+            if png_path.stat().st_size > 0:
+                rendered = True
+                if not method:
+                    method = "kroki.io"
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            print(f"kroki diagram-{i}: {exc}", file=sys.stderr)
+
+        if not rendered and render_mermaid_mmdc(source, png_path, mmd_path):
+            rendered = True
+            if not method:
+                method = "npx @mermaid-js/mermaid-cli"
+
+        if not rendered and render_mermaid_docker(source, png_path, mmd_path):
+            rendered = True
+            if not method:
+                method = "docker minlag/mermaid-cli"
+
+        if not rendered:
+            print(f"Warning: could not render diagram-{i}.png", file=sys.stderr)
+        else:
+            png_paths.append(png_path)
+
+    return png_paths, method
+
+
 class LinkedInHTMLConverter(HTMLParser):
-    def __init__(self, html_path: Path):
+    def __init__(self, html_path: Path, diagram_pngs: Optional[List[Path]] = None):
         super().__init__(convert_charrefs=True)
         self.html_path = html_path
+        self.diagram_pngs = diagram_pngs or []
+        self._diagram_png_index = 0
         self.lines: List[str] = []
         self._buf: List[str] = []
         self._stack: List[dict] = []
@@ -135,6 +262,14 @@ class LinkedInHTMLConverter(HTMLParser):
         if not self.lines or self.lines[-1] != "":
             self.lines.append("")
 
+    def _heading(self, text: str) -> None:
+        text = text.strip()
+        if not text:
+            return
+        self._blank()
+        self._line(text)
+        self._blank()
+
     def _push(self, **frame) -> None:
         self._stack.append(frame)
 
@@ -143,6 +278,13 @@ class LinkedInHTMLConverter(HTMLParser):
 
     def _skipping(self) -> bool:
         return self._skip_depth > 0
+
+    def _next_diagram_png(self) -> Optional[Path]:
+        if self._diagram_png_index >= len(self.diagram_pngs):
+            return None
+        path = self.diagram_pngs[self._diagram_png_index]
+        self._diagram_png_index += 1
+        return path
 
     def handle_starttag(self, tag: str, attrs_list: List[Tuple[str, Optional[str]]]) -> None:
         attrs = {k: (v or "") for k, v in attrs_list}
@@ -182,13 +324,8 @@ class LinkedInHTMLConverter(HTMLParser):
             self._blank()
             return
 
-        if tag == "h2":
+        if tag in ("h2", "h3"):
             self._clear_buf()
-            self._blank()
-            return
-        if tag == "h3":
-            self._clear_buf()
-            self._blank()
             return
         if tag == "p":
             return
@@ -295,14 +432,9 @@ class LinkedInHTMLConverter(HTMLParser):
         attrs = top.get("attrs", {})
         classes = top.get("classes", set())
 
-        if tag == "h2":
-            self._line(f"## {self._text().upper()}")
+        if tag in ("h2", "h3"):
+            self._heading(self._text())
             self._clear_buf()
-            self._blank()
-        elif tag == "h3":
-            self._line(f"### {self._text()}")
-            self._clear_buf()
-            self._blank()
         elif tag == "p":
             t = self._text()
             if t:
@@ -329,15 +461,18 @@ class LinkedInHTMLConverter(HTMLParser):
             self._blank()
             if "mermaid" in self._pre_class:
                 self._diagram_counter += 1
-                self._line(
-                    f"*[Diagram {self._diagram_counter}: Mermaid — screenshot from live post or redraw]*"
-                )
-                for ln in body.splitlines():
-                    self._line(f"  {ln}")
+                png = self._next_diagram_png()
+                name = f"diagram-{self._diagram_counter}.png"
+                if png:
+                    self._line(f"[Upload {name} here]")
+                    self._line(f"  → {png.resolve()}")
+                else:
+                    self._line(f"[Upload {name} here — render failed; see .mmd in export dir]")
+                self._blank()
             else:
                 for ln in body.splitlines():
                     self._line(f"    {ln}")
-            self._blank()
+                self._blank()
             self._pre_lines = []
         elif tag == "table" and self._in_table:
             self._in_table = False
@@ -375,9 +510,9 @@ class LinkedInHTMLConverter(HTMLParser):
                 label = self._text()
                 self._clear_buf()
                 if self._stat_num:
-                    self._line(f"**{self._stat_num}** — {label}")
+                    self._line(f"{self._stat_num} — {label}")
                 else:
-                    self._line(f"**{label}**")
+                    self._line(label)
         elif tag == "sup":
             self._buf.append(")")
 
@@ -399,7 +534,6 @@ class LinkedInHTMLConverter(HTMLParser):
         self.feed(fragment)
         text = "\n".join(self.lines)
         text = re.sub(r"\*\*\*\*+", "**", text)
-        text = re.sub(r"^## \s*$\n", "", text, flags=re.MULTILINE)
         text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()
 
@@ -418,8 +552,7 @@ def format_footnotes(footnotes_html: str) -> str:
         bullets.append(f"• {text} ({href})")
     if not bullets:
         return ""
-    return "\n".join(["", "---", "", "## END NOTES", ""] + bullets)
-
+    return "\n".join(["", "---", "", "END NOTES", ""] + bullets)
 
 
 def copy_local_images(images: List[dict]) -> None:
@@ -445,7 +578,19 @@ def preprocess_prose_html(html: str) -> str:
     return html
 
 
-def build_document(html_path: Path, include_footnotes: bool = True) -> str:
+def default_output_path(html_path: Path) -> Path:
+    return LINKEDIN_EXPORT_DIR / f"{html_path.stem}.txt"
+
+
+def default_export_dir(html_path: Path) -> Path:
+    return LINKEDIN_EXPORT_DIR / html_path.stem
+
+
+def build_document(
+    html_path: Path,
+    include_footnotes: bool = True,
+    export_dir: Optional[Path] = None,
+) -> Tuple[str, List[Path], str]:
     html = html_path.read_text(encoding="utf-8")
     title, subtitle = extract_metadata(html)
     prose_html = preprocess_prose_html(extract_prose_html(html))
@@ -459,19 +604,34 @@ def build_document(html_path: Path, include_footnotes: bool = True) -> str:
 
     body_html, footnotes_html = split_prose_and_footnotes(prose_html)
 
-    conv = LinkedInHTMLConverter(html_path)
+    diagram_dir = export_dir or default_export_dir(html_path)
+    mermaid_sources = extract_mermaid_sources(body_html)
+    diagram_pngs, render_method = export_mermaid_diagrams(mermaid_sources, diagram_dir)
+
+    conv = LinkedInHTMLConverter(html_path, diagram_pngs=diagram_pngs)
     body = conv.convert(body_html)
 
     parts: List[str] = []
-    if conv.images:
-        copy_local_images(conv.images)
+    if diagram_pngs:
         parts.extend(
             [
-                "=== IMAGES TO UPLOAD ===",
-                "Upload via LinkedIn's image button at each [IMAGE N] marker below.",
+                "=== DIAGRAMS TO UPLOAD ===",
+                f"Rendered via: {render_method or 'none'}",
+                f"Folder: {diagram_dir.resolve()}",
                 "",
             ]
         )
+        for p in diagram_pngs:
+            parts.append(f"  • {p.name} → {p.resolve()}")
+        parts.extend(["", "=== ARTICLE ===", ""])
+
+    if conv.images:
+        copy_local_images(conv.images)
+        if not diagram_pngs:
+            parts.extend(["=== IMAGES TO UPLOAD ===", ""])
+        else:
+            parts.insert(-2, "")
+            parts.insert(-2, "=== INLINE IMAGES ===")
         for img in conv.images:
             line = f"  {img['n']}. {img['caption']}"
             if img.get("copied_to"):
@@ -479,7 +639,8 @@ def build_document(html_path: Path, include_footnotes: bool = True) -> str:
             else:
                 line += f"\n     → {img['url']}"
             parts.append(line)
-        parts.extend(["", "=== ARTICLE ===", ""])
+        if diagram_pngs:
+            parts.append("")
 
     parts.append(title)
     if subtitle:
@@ -491,18 +652,9 @@ def build_document(html_path: Path, include_footnotes: bool = True) -> str:
         if fn:
             parts.append(fn)
 
-    if conv._diagram_counter:
-        parts.extend(
-            [
-                "",
-                "---",
-                "*Tip: Mermaid diagrams export as text — screenshot the live post for LinkedIn visuals.*",
-            ]
-        )
-
     doc = "\n".join(parts)
     doc = re.sub(r"\n{3,}", "\n\n", doc)
-    return doc.strip() + "\n"
+    return doc.strip() + "\n", diagram_pngs, render_method
 
 
 def main() -> None:
@@ -510,7 +662,17 @@ def main() -> None:
         description="Convert a Profile blog HTML post to LinkedIn article text."
     )
     ap.add_argument("html_file", type=Path, help="Path to blog post .html")
-    ap.add_argument("-o", "--output", type=Path, help="Write to file instead of stdout")
+    ap.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        help="Write article text (default: scripts/linkedin-export/<slug>.txt)",
+    )
+    ap.add_argument(
+        "--export-dir",
+        type=Path,
+        help="Directory for diagram PNGs and .mmd (default: scripts/linkedin-export/<slug>/)",
+    )
     ap.add_argument("--no-footnotes", action="store_true", help="Skip end notes")
     args = ap.parse_args()
 
@@ -518,14 +680,22 @@ def main() -> None:
     if not html_path.is_file():
         sys.exit(f"File not found: {html_path}")
 
-    doc = build_document(html_path, include_footnotes=not args.no_footnotes)
+    out_path = args.output.resolve() if args.output else default_output_path(html_path)
+    export_dir = args.export_dir.resolve() if args.export_dir else default_export_dir(html_path)
 
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(doc, encoding="utf-8")
-        print(f"Wrote {args.output}", file=sys.stderr)
+    doc, pngs, method = build_document(
+        html_path,
+        include_footnotes=not args.no_footnotes,
+        export_dir=export_dir,
+    )
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(doc, encoding="utf-8")
+    print(f"Wrote {out_path}", file=sys.stderr)
+    if pngs:
+        print(f"Mermaid: {method} → {len(pngs)} PNG(s) in {export_dir}", file=sys.stderr)
     else:
-        print(doc)
+        print("No Mermaid diagrams in post.", file=sys.stderr)
 
 
 if __name__ == "__main__":

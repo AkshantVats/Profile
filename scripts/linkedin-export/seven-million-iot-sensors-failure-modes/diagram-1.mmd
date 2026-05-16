@@ -1,0 +1,6 @@
+flowchart LR
+  DEV[Facility sensors\n7M+ device identities] --> HUB[Azure IoT Hub\nregistry + routing]
+  HUB --> EDGE[Stream Analytics\nedge rules / dedupe]
+  EDGE --> HOT[Real-time control\nHVAC loops]
+  EDGE --> COLD[Analytics / aggregates]
+  HUB -.->|bad device_id| X[Poison path\nblocked or quarantined]
