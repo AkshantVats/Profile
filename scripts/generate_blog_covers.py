@@ -26,7 +26,10 @@ DEFAULT_ASSETS = Path(
     "/Users/akshant/.cursor/projects/Users-akshant-Desktop-github-Profile/assets"
 )
 
+# LinkedIn / Open Graph standard (1.91:1). All exports are exactly W×H — never square.
 W, H = 1200, 630
+COVER_ASPECT = W / H  # 1.904761…
+LETTERBOX_BG = (8, 14, 28)  # dark bars for square/tall sources
 
 # slug → (source filename under assets dir, new badge text)
 USER_ART: dict[str, tuple[str, str]] = {
@@ -128,15 +131,15 @@ def _font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont | ImageFont.Im
     return ImageFont.load_default()
 
 
-def resize_cover(img: Image.Image) -> Image.Image:
-    """Center-crop scale to exactly W×H."""
+def resize_cover(img: Image.Image, bg: tuple[int, int, int] = LETTERBOX_BG) -> Image.Image:
+    """Fit inside W×H with minimal letterboxing (dark bars), never center-crop to square."""
     img = img.convert("RGB")
-    scale = max(W / img.width, H / img.height)
-    nw, nh = int(img.width * scale), int(img.height * scale)
-    img = img.resize((nw, nh), Image.Resampling.LANCZOS)
-    left = (nw - W) // 2
-    top = (nh - H) // 2
-    return img.crop((left, top, left + W, top + H))
+    scale = min(W / img.width, H / img.height)
+    nw, nh = max(1, int(img.width * scale)), max(1, int(img.height * scale))
+    fitted = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (W, H), bg)
+    canvas.paste(fitted, ((W - nw) // 2, (H - nh) // 2))
+    return canvas
 
 
 def _patch_badge_day1(img: Image.Image, badge: str) -> Image.Image:

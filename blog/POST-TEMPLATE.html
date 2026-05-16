@@ -100,6 +100,9 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .post-meta{display:flex;align-items:center;gap:12px;font-size:.8125rem;color:var(--muted);flex-wrap:wrap}
 .sep{color:var(--line2)}
 hr.post-div{border:none;border-top:1px solid var(--line);margin:0 0 40px}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
 .prose{font-family:var(--serif);font-size:1.1875rem;line-height:1.82;color:#242424;margin-bottom:48px;font-weight:400;max-width:var(--read)}
 .post-layout .prose{max-width:none}
 .prose p{margin-bottom:1.45em}
@@ -193,6 +196,16 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <span>12 min read</span>
     </div>
   </header>
+
+</div>
+
+<div class="post-cover-wrap">
+  <figure class="post-cover">
+    <img src="../../assets/covers/your-slug.png" alt="Cover: POST TITLE HERE" width="1200" height="630" loading="eager">
+  </figure>
+</div>
+
+<div class="w">
 
   <hr class="post-div">
 

@@ -26,6 +26,7 @@
   --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
   --green-soft:rgba(26,137,23,.08);
   --hover-surface:rgba(0,0,0,.035);
+  --layout-max:1080px;
   --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
 }
 html[data-theme="dark"]{
@@ -60,7 +61,8 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .ptag-rs{border-color:#ddd6fe;color:#6d28d9;background:#f5f3ff}
 .post-hdr h1{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.5rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:14px}
 .post-meta{display:flex;align-items:center;gap:12px;font-size:.8125rem;color:var(--muted);flex-wrap:wrap}
-.post-cover{margin:0 0 2rem;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
 .post-cover img{width:100%;height:auto;display:block}
 .sep{color:var(--line2)}
 hr.post-div{border:none;border-top:1px solid var(--line);margin:0 0 40px}
@@ -163,9 +165,15 @@ a.series-post-title:hover{color:var(--green)}
     </div>
   </header>
 
+</div>
+
+<div class="post-cover-wrap">
   <figure class="post-cover">
     <img src="../../assets/covers/building-ai-inference-observability.png" alt="Cover: Building a production-grade AI inference observability pipeline — LensAI · Product" width="1200" height="630" loading="eager">
   </figure>
+</div>
+
+<div class="w">
 
   <hr class="post-div">
 

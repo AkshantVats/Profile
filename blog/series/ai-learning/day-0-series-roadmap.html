@@ -67,7 +67,8 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .author-name{font-size:.875rem;font-weight:600;color:var(--text)}
 .meta-divider{width:1px;height:18px;background:var(--line)}
 .meta-item{font-size:.8125rem;color:var(--muted)}
-.post-cover{margin:0 auto 2rem;max-width:var(--read);padding:0 clamp(1rem,3vw,2rem);border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
 .post-cover img{width:100%;height:auto;display:block}
 .post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
 @media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
@@ -201,9 +202,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </div>
 </header>
 
+<div class="post-cover-wrap">
 <figure class="post-cover">
   <img src="../../assets/covers/day-0-series-roadmap.png" alt="Cover: Why I'm writing this series — Day 0 of N" width="1200" height="630" loading="eager">
 </figure>
+</div>
 
 <div class="post-layout">
 <article class="prose">

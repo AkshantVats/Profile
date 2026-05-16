@@ -42,7 +42,8 @@ Use this whenever you publish a post in an existing series.
     <img src="../../assets/covers/<slug>.png" alt="…" width="1200" height="630" loading="eager">
   </figure>
   ```
-  Copy `.post-cover` CSS from a sibling post (`margin`, `border-radius`, `border: 1px solid var(--line)`, `img { width:100% }`).
+  Wrap in `<div class="post-cover-wrap">` (full layout width, not `--read`). CSS from a sibling post:
+  `.post-cover-wrap { max-width: var(--layout-max); … }` · `.post-cover img { width:100%; height:auto }` · assets **1200×630** (1.91:1).
 - [ ] **`article:published_time`** — ISO date `YYYY-MM-DD` (this is the **sort date**; do not rely on JSON).
 - [ ] Optional: **`article:modified_time`** only if you revise the post later (sort uses the **later** of published vs modified).
 
