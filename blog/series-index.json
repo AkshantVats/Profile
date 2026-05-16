@@ -19,6 +19,12 @@
           "desc": "Why P95 from Redis and S3 cannot be averaged, histogram merging for correct cross-tier quantiles, and WhiteFalcon's hot/cold architecture at 1.8T events/day."
         },
         {
+          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
+          "kicker": "Experience 4 of N · Day 4",
+          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
+          "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
+        },
+        {
           "href": "#",
           "kicker": "Post 3/5 · Day 11",
           "title": "Adding a new cardinality dimension to a 100M+ series TSDB without exploding the index",
