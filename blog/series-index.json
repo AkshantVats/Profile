@@ -81,6 +81,12 @@
           "kicker": "Day 2 of 30",
           "title": "Continuous Batching in vLLM: The Scheduler Design That Keeps GPUs Busy",
           "desc": "Static vs continuous batching, GPU bubbles, token-step scheduling, OS parallels, and observability fields for slot-oriented inference."
+        },
+        {
+          "href": "blog/series/ai-learning/day-3-token-budgets-cost-structure.html",
+          "kicker": "Day 3 of 30",
+          "title": "Token Budgets and Real Cost Structure",
+          "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
         }
       ]
     }
