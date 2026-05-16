@@ -35,7 +35,7 @@ Use this whenever you publish a post in an existing series.
   - `og:image` + `og:image:width` (1200) + `og:image:height` (630) — **absolute HTTPS** URL, e.g. `https://akshantvats.github.io/Profile/blog/assets/og/<slug>.png`
   - `twitter:card` = `summary_large_image` and `twitter:image` (same URL as `og:image`)
   - Reuse patterns from the latest post in the same series; defaults: `default-experience.png`, `default-ai-learning.png`, `default-lensai.png`
-  - **Badge on cover art:** open-ended only — `Day X of N`, `Experience X of N`, or `LensAI · Product`. Never `of 30`, `1 of 5`, `Post 2/5`, or fixed totals on the infographic.
+  - **Badge on cover art:** series label only — `AI LEARNING SERIES`, `EXPERIENCE SERIES`, or `LENSAI · PRODUCT` (plus the post title as the main headline on the infographic). Do **not** put episode numbers on the PNG (`Day X of N`, `Experience X of N`, `Post 2 of 5`, `3 of N`, etc.). Episode kickers stay in HTML tags/meta and sidebar only.
 - [ ] **On-page cover** — after `</header>`, before `.post-layout` / prose:
   ```html
   <figure class="post-cover">
