@@ -29,6 +29,12 @@
           "kicker": "Day 3 of N",
           "title": "Token Budgets and Real Cost Structure",
           "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
+        },
+        {
+          "href": "blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html",
+          "kicker": "Day 5 of N",
+          "title": "Tensor Parallelism Meets Kafka Partitions",
+          "desc": "TP/PP scale-out, Triton as routing table, partition keys, G-03 ClickHouse batch writer with breaker, Redis overflow, and DLQ×3."
         }
       ]
     },
@@ -55,6 +61,12 @@
           "kicker": "Experience 3 of N",
           "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
           "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
+        },
+        {
+          "href": "blog/series/experience/five-thousand-geo-events-per-second.html",
+          "kicker": "Experience 4 of N",
+          "title": "Five Thousand Geo-Events Per Second — Shape of the Stream",
+          "desc": "Delivery Hero rider-tracking at 5k+ geo-events/s: Order SQS lifecycles, OSRM map-matching, partition skew at dinner rush, and LensAI G-03 observability parallels."
         }
       ]
     },

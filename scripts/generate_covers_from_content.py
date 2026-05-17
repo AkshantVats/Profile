@@ -36,11 +36,15 @@ POST_HTML: dict[str, Path | None] = {
     "day-2-continuous-batching-vllm": ROOT
     / "blog/series/ai-learning/day-2-continuous-batching-vllm.html",
     "day-3-token-budgets-cost-structure": None,  # draft: series-index only
+    "day-5-tensor-parallelism-kafka-partitions": ROOT
+    / "blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html",
     "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
     / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
     "seven-million-iot-sensors-failure-modes": ROOT
     / "blog/series/experience/seven-million-iot-sensors-failure-modes.html",
+    "five-thousand-geo-events-per-second": ROOT
+    / "blog/series/experience/five-thousand-geo-events-per-second.html",
     "building-ai-inference-observability": ROOT
     / "blog/series/inference-ai-project/building-ai-inference-observability.html",
 }
@@ -51,9 +55,11 @@ TITLE_OVERRIDE: dict[str, str] = {
     "day-1-kv-cache-memory-bandwidth": "The KV Cache Is a\nMemory Bandwidth Problem",
     "day-2-continuous-batching-vllm": "Continuous Batching in vLLM:\nThe Scheduler That Keeps GPUs Busy",
     "day-3-token-budgets-cost-structure": "Token Budgets and\nReal Cost Structure",
+    "day-5-tensor-parallelism-kafka-partitions": "Tensor Parallelism Meets\nKafka Partitions",
     "building-tsdb-at-agoda": "1.5 Trillion Events/Day\nTSDB at Agoda",
     "when-percentiles-lie-cross-tier-queries": "When Percentiles Lie:\nCross-Tier Queries in a 1.8T/day TSDB",
     "seven-million-iot-sensors-failure-modes": "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
+    "five-thousand-geo-events-per-second": "Five Thousand Geo-Events\nPer Second — Shape of the Stream",
     "building-ai-inference-observability": "Building a Production-Grade\nAI Inference Observability Pipeline",
 }
 
@@ -75,6 +81,10 @@ TOPIC_HINTS: dict[str, str] = {
         "prompt tokens vs completion tokens buckets, asymmetric pricing rate card, "
         "cost_usd validation at ingest gate, variable completion cost dominating bill"
     ),
+    "day-5-tensor-parallelism-kafka-partitions": (
+        "tensor parallel GPU shards with all-reduce, Kafka partitions to consumer batch writer, "
+        "circuit breaker Redis overflow DLQ path to ClickHouse, Triton routing table analogy"
+    ),
     "building-tsdb-at-agoda": (
         "Kafka → Rust ingestion → Redis hot tier → S3 Parquet cold tier, "
         "RoaringBitmap inverted index, 1.5T events/day counter, WhiteFalcon query path"
@@ -87,6 +97,10 @@ TOPIC_HINTS: dict[str, str] = {
         "Azure IoT Hub → Stream Analytics edge quarantine → fleet rollup vs silent wrong sensor, "
         "7M device identities, poison telemetry DLQ, refrigeration drift while dashboard stays green"
     ),
+    "five-thousand-geo-events-per-second": (
+        "Order SQS PLACED→RIDER PICKED UP → Route Consumers → OSRM cluster → Route JSON, "
+        "5k geo-events/s stream, hot rider partition skew, GBQ + Revisit audit path, dinner-rush lag"
+    ),
     "building-ai-inference-observability": (
         "HTTP ingest → Rust Axum + WAL → Kafka → Go consumer → ClickHouse + Redis overflow buffer, "
         "prefill/decode latency fields, tenant rate limits, circuit breaker, Grafana tail"
@@ -98,9 +112,11 @@ ACCENT: dict[str, str] = {
     "day-1-kv-cache-memory-bandwidth": "neon green #5bd37a",
     "day-2-continuous-batching-vllm": "neon green #5bd37a",
     "day-3-token-budgets-cost-structure": "neon green #5bd37a",
+    "day-5-tensor-parallelism-kafka-partitions": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
+    "five-thousand-geo-events-per-second": "amber #f59e0b",
     "building-ai-inference-observability": "violet #a78bfa",
 }
 

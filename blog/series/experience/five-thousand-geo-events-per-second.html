@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five Thousand Geo-Events Per Second — Shape of the Stream — Akshant Sharma</title>
+<meta name="description" content="Delivery Hero rider-tracking at 5,000+ geo-events per second: order SQS lifecycles, OSRM map-matching under dinner rush, partition skew, and the observability labels that keep P99 honest.">
+<meta property="og:title" content="Five Thousand Geo-Events Per Second — Shape of the Stream">
+<meta property="og:description" content="Delivery Hero logistics: OSRM clusters, Order SQS state machines, Route JSON contracts, silent wrong distance on duplicate GPS — and the same OTel dimensions on LensAI ingest today.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/five-thousand-geo-events-per-second.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/five-thousand-geo-events-per-second.png">
+<meta property="article:published_time" content="2026-05-17">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.footnote-note{font-size:.8125rem;font-family:var(--ui);color:var(--muted);line-height:1.65;margin-top:1rem}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">Experience Series · 4 of N</span>
+    <span class="tag">Delivery Hero</span>
+    <span class="tag">OSRM</span>
+    <span class="tag">SQS</span>
+    <span class="tag">Geo streaming</span>
+    <span class="tag">Map matching</span>
+  </div>
+  <h1 class="post-title">Five Thousand Geo-Events Per Second — Shape of the Stream</h1>
+  <p class="post-subtitle">4 of N — Experience Series · Delivery Hero · OSRM · throughput as a schema decision</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">13 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Experience Series · 4 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/five-thousand-geo-events-per-second.png" alt="Cover: Five Thousand Geo-Events Per Second — Experience Series" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>The support ticket said the rider was on the wrong street. The map showed him three blocks away. Both were rendered from the same pipeline — and both were defensible given what each system had seen in the last thirty seconds.</p>
+
+<p>Nothing was on fire. No error budget breach. Just geometry that did not match someone's memory of where a courier should be during dinner rush. That is the class of incident textbooks barely name: the stream is healthy, the contract is ambiguous, and the label set you need to debug it was optional six months ago.</p>
+
+<p>I worked on Delivery Hero's logistics platform from 2021 through 2023 — rider tracking, map-matching, and the routing plane that turns GPS noise into something a customer can trust. What follows is my scope on that stack, not the entire Delivery Hero Group. Public numbers exist to calibrate scale; they are not a claim that I personally operated every order worldwide.</p>
+
+<p><strong>Daily thread:</strong> Today's AI Learning companion is <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">Day 5 — Tensor Parallelism and Kafka Partitions</a> — same partition-skew instinct, different payload.</p>
+
+<h2 id="architecture">The System I Was Debugging at 8pm on a Friday</h2>
+
+<p>Friday-night pages rarely start in OSRM. They start in the gap between <strong>fulfillment state</strong> and <strong>geometry work</strong>.</p>
+
+<p>Customers and riders talk to an <strong>Order Service</strong> backed by an Order Data Service. When an order moves — placed, picked up, rider enqueued, rider picked up — the service publishes lifecycle messages to <strong>Order SQS</strong>: <code>PLACED</code>, <code>PICKED UP</code>, <code>RIDER ENQUE</code>, <code>RIDER PICKED UP</code>. Riders publish here too. That bus decouples "what happened to the order" from "what should we compute on the map."</p>
+
+<p>Downstream, <strong>Route Consumers</strong> drain those events and fan work into a <strong>Route Service</strong> cluster, which calls an <strong>OSRM cluster</strong> backed by a road-graph store. OSRM is stateless CPU; durable trip state lives elsewhere. The output contract is <strong>Route JSON</strong> — the polyline, distance, and metadata support and apps render. A <strong>Revisit Order System</strong> reads immutable route snapshots when someone disputes "where was the rider?" Order Service also ships rows to <strong>GBQ</strong> for analytics. An Order Mapping Service sits in the wider ecosystem; I touched it, but the hot path I owned was stream shape + map-matching under load.</p>
+
+<pre class="mermaid">flowchart TB
+  CUST[Customer] --&gt; OS[Order Service]
+  RID[Rider] --&gt; OS
+  RID --&gt; SQS[Order SQS\nPLACED · PICKED UP\nRIDER ENQUE · RIDER PICKED UP]
+  OS &lt;--&gt; ODS[Order Data Service]
+  OS --&gt; GBQ[GBQ analytics]
+  OS --&gt; SQS
+  SQS --&gt; RC[Route Consumers]
+  OS --&gt; RS[Route Service cluster]
+  RC --&gt; RS
+  RS --&gt; OSRM[OSRM cluster\nroad graph store]
+  OSRM --&gt; RJ[Route JSON]
+  RJ --&gt; UI[Customer / support UI]
+  RJ --&gt; REV[Revisit Order System\naudit / replay]</pre>
+
+<p>The design choice that saved us on-call sanity: routing work is <strong>async</strong> and keyed off explicit lifecycle transitions, not every GPS tick. Geometry still runs hot — but the bus tells you <em>why</em> a match was requested.</p>
+
+<h2 id="scale">Five Thousand Adjustments Per Second — What Counts as an Event</h2>
+
+<p>Resume scope for the pipeline I built: <strong>5,000+ geo-events per second</strong> at peak, on a logistics platform handling <strong>1M+ daily orders</strong> in my slice. That is not "five thousand orders per second." It is the fan-out of rider GPS, map-match requests, route revisions, and downstream notifications — often multiple logical events per fix when raw and matched coordinates both flow.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">5k+/s</span><span class="stat-label">Geo-events at peak (my scope)</span></div>
+  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders (platform slice)</span></div>
+  <div class="stat-cell"><span class="stat-num">~10M/day</span><span class="stat-label">DH global orders (public)</span></div>
+</div>
+
+<div class="attr-box team">
+  <div class="attr-label">Company context (published)</div>
+  Delivery Hero Group processes on the order of <strong>~10 million orders per day</strong> globally, with <strong>3 million registered riders</strong> cited in AWS platform case studies.<sup><a href="#fn-dh">1</a></sup> A <strong>10.4 million orders in one day</strong> record landed in December 2024.<sup><a href="#fn-dh">2</a></sup>
+</div>
+
+<div class="attr-box mine">
+  <div class="attr-label">My context</div>
+  I owned throughput and correctness on the <strong>rider-tracking / map-matching</strong> path — not middle-mile VRP, not the full global order book. Sustained 5k events/s is plausible for a large multi-market slice: active riders × GPS frequency × (raw + matched) fan-out. Single-node OSRM match benchmarks are tens of ops per second; production uses clustered <code>osrm-routed</code>, batching, and queues — compare laptop numbers to the diagram, not to my peak.<sup><a href="#fn-osrm">3</a></sup>
+</div>
+
+<p>Sanity check without over-claiming: 5,000 events/s for a day is ~432M events — large, but not absurd if you count every adjustment on a busy regional fleet. The honest sentence is always two numbers: what I operated, and what the company publishes.</p>
+
+<h2 id="stream-shape">Partition Keys, Hot Riders, Dinner Rush</h2>
+
+<p>Throughput is a schema decision before it is a cluster size decision.</p>
+
+<p>We keyed the geo stream by <strong>rider_id</strong> (and market) so a single courier's fixes stayed ordered. That is correct for map-matching — you cannot reorder GPS retroactively without inventing physics. It also creates <strong>hot partitions</strong>: one rider circling a dense block during rain, or a staging lot with hundreds of couriers, can pin a shard while neighbors look idle.</p>
+
+<p>Dinner rush does not raise the average. It raises the <strong>skew</strong>. P99 on the fleet mean is a vanity metric when one partition is sixty seconds behind and the support UI is showing stale geometry for exactly the riders customers are watching.</p>
+
+<div class="pullquote"><p>Partition for correctness first. Then instrument per-shard lag like your refunds depend on it — because they do.</p></div>
+
+<pre class="mermaid">flowchart LR
+  GPS[GPS fixes\nrider app] --&gt; STR[Geo stream\npartitioned by rider]
+  STR --&gt; RC[Route Consumers]
+  RC --&gt; OSRM[OSRM cluster]
+  OSRM --&gt; STATE[Route / trip state]
+  STATE --&gt; RJ[Route JSON]
+  STR -.->|hot rider_id shard| LAG[Consumer lag\nstale map UI]</pre>
+
+<h2 id="sqs-lifecycle">SQS States — When Routing Work Actually Fires</h2>
+
+<p>Not every GPS point deserves a route recompute. Lifecycle messages bound the work:</p>
+
+<ul>
+  <li><code>PLACED</code> — order exists; baseline route expectations.</li>
+  <li><code>PICKED UP</code> — merchant handoff; geometry assumptions change.</li>
+  <li><code>RIDER ENQUE</code> — courier assigned; matching intensifies.</li>
+  <li><code>RIDER PICKED UP</code> — rider en route; customer-facing ETAs tighten.</li>
+</ul>
+
+<p>Consumers translate those states into Route Service calls. Miss an enqueue event and you optimize the wrong trip. Double-process one and you may emit two Route JSON revisions with different distances — support picks whichever renders last.</p>
+
+<p>At-least-once delivery is not a footnote here. It is why <strong>idempotent route writes</strong> and immutable snapshots in the Revisit Order System matter as much as OSRM latency.</p>
+
+<h2 id="osrm">OSRM Cluster — Match Latency, Radius, Backpressure</h2>
+
+<p>OSRM's <code>/match</code> API snaps noisy GPS to the road graph. Production is a <strong>cluster</strong> with a shared graph build — not a laptop container. Match radius, gap handling, and batch size trade accuracy for CPU. Under load, the failure mode is not always timeout; it is <strong>confident wrong</strong> — a plausible polyline on the wrong parallel road.</p>
+
+<p>We backpressured at Route Service when OSRM p95 drifted: shed non-critical recomputes, coalesce fixes per rider, and never let unbounded queues hide lag from dashboards. Educational benchmarks on a single <code>osrm-routed</code> worker (~15–63 match ops/s in public threads) explain why async queues exist; they are not your dinner-rush capacity plan.<sup><a href="#fn-osrm">3</a></sup></p>
+
+<h2 id="labels">Labels Before Benchmarks</h2>
+
+<p>A P99 without <code>region</code>, <code>map_dataset_rev</code>, and <code>client_version</code> is a story about someone else's outage.</p>
+
+<p>Map data updates silently change match outcomes. A/B app builds send different GPS sampling rates. Comparing this Friday to last Friday without labels is how you "optimize" a regression. We treated observability dimensions like schema fields — required on the span, not optional query hints.</p>
+
+<p>That discipline is the bridge to what I build on LensAI today: OTel spans on the ingestion path tag the same dimensions I'd use to debug a map-matching pipeline under peak dinner rush — tenant, model, batch boundaries, failure class — before I trust a percentile.</p>
+
+<h2 id="failure-modes">Silent Wrong — Dupes, Skew, Clock Skew</h2>
+
+<p>The failures that hurt are quiet:</p>
+
+<ul>
+  <li><strong>Duplicate GPS</strong> — at-least-once replay inflates distance; ETAs lie without a single 500.</li>
+  <li><strong>Partition hot spots</strong> — one shard lags; the mean looks fine while specific riders are wrong.</li>
+  <li><strong>Missing <code>map_dataset_rev</code></strong> — you cannot tell if the graph changed or the code did.</li>
+  <li><strong>Clock skew</strong> — fixes arrive out of order; matchers guess; support sees time travel.</li>
+</ul>
+
+<p>Same family as <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Seven Million IoT Sensors</a> and <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>: green dashboards, wrong decisions.</p>
+
+<pre class="mermaid">flowchart TD
+  GPS[Duplicate GPS replay] --&gt; DIST[Inflated distance\nwrong ETA]
+  HOT[Partition hot spot] --&gt; LAG[Consumer lag\nstale Route JSON]
+  LBL[Missing map_dataset_rev] --&gt; P99[Useless P99\nwrong regression target]
+  OTEL[OTel: region · map_rev · rider_id] -.->|same dimensions| LENS[LensAI ingest spans\ntenant · model · batch]</pre>
+
+<h2 id="lensai">G-03 — ClickHouse Writer on the Same Muscle</h2>
+
+<p>On the laptop stack in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a>, goal <strong>G-03</strong> is the Go consumer's ClickHouse batch writer: flush at <strong>1000 events or 500ms</strong>, three insert retries, then per-event DLQ. A circuit breaker opens after <strong>five</strong> consecutive insert failures, waits <strong>30s</strong>, half-opens on retry, and drains Redis overflow when closed. Metrics I actually scrape: <code>kafka_records_processed_total</code>, <code>clickhouse_write_errors_total</code>, <code>clickhouse_batch_size</code>, <code>clickhouse_flush_duration_seconds</code>, <code>circuit_breaker_state{state}</code>, <code>redis_overflow_depth</code>, <code>dlq_events_total</code>.<sup><a href="#fn-obs">4</a></sup></p>
+
+<p>Route Consumers and a CH writer differ in domain. They agree on backpressure: never commit offset ahead of durable handoff, never hide lag behind an unbounded buffer, and never debug a global P99 when one partition is on fire.</p>
+
+<h2 id="tradeoffs">What We Didn't Do</h2>
+
+<table>
+  <thead><tr><th>Chose</th><th>Skipped</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Lifecycle-gated routing via Order SQS</td><td>Recompute route on every GPS tick</td><td>CPU and support churn at 5k events/s</td></tr>
+    <tr><td>Immutable Route JSON + Revisit</td><td>Mutable "latest only" store</td><td>Disputes need audit, not overwrite</td></tr>
+    <tr><td>Per-shard lag + map rev labels</td><td>Global fleet P99 as sole SLO</td><td>Skew hides dinner-rush pain</td></tr>
+  </tbody>
+</table>
+
+<h2 id="stayed">The Thing That Stayed With Me</h2>
+
+<p>Incidents fade. What stays is respect for the contract between <strong>event</strong>, <strong>geometry</strong>, and <strong>what the UI is allowed to show</strong>. Five thousand events per second do not need heroics. They need honest scope, partition-aware observability, and Route JSON you can replay when someone's ice cream — or dinner — is late.</p>
+
+<div class="series-footer">
+  <p><em>Experience Series · 4 of N</em> — Delivery Hero geo stream shape and routing plane.</p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5</a> — tensor parallelism and Kafka partitions.</em></p>
+</div>
+
+<div class="footnote-row" id="fn-dh">
+  <div class="footnote-title">Footnotes &amp; related</div>
+  <div class="footnote-links">
+    <a href="https://aws.amazon.com/solutions/case-studies/delivery-hero-sfn-case-study/" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong id="fn-dh-aws">1.</strong> AWS case study — Delivery Hero EventBridge Scheduler; ~10M orders/day and 3M registered riders (platform context).</span>
+    </a>
+    <a href="https://www.deliveryhero.com/investor-relations/" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong id="fn-dh-ar">2.</strong> Delivery Hero Annual Report 2024 — CEO letter citing 10.4M orders in a single day (Dec 2024 record).</span>
+    </a>
+    <a href="https://github.com/Project-OSRM/osrm-backend/issues/4677" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong id="fn-osrm">3.</strong> OSRM match throughput discussions — single-worker benchmarks vs clustered production.</span>
+    </a>
+    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong id="fn-obs">4.</strong> infra-ai-streaming OBSERVABILITY.md — G-03 consumer metrics, batch writer, circuit breaker (feat/consumer-clickhouse-batch-writer).</span>
+    </a>
+    <a href="https://tech.deliveryhero.com/" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span>Delivery Hero Tech — platform engineering blog.</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">
+      <span class="footnote-arrow">→</span>
+      <span>Seven Million IoT Sensors — Experience 3 of N; silent wrong telemetry.</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+      <span class="footnote-arrow">→</span>
+      <span>When Percentiles Lie — Experience 2 of N; cross-tier quantiles at Agoda.</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">
+      <span class="footnote-arrow">→</span>
+      <span>Companion (AI): Day 5 — Tensor Parallelism and Kafka Partitions.</span>
+    </a>
+  </div>
+  <p class="footnote-note">Public DH figures calibrate global scale; resume numbers describe the rider-tracking / map-matching pipeline I built.</p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="experience"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#architecture">System at 8pm Friday</a></li>
+      <li><a href="#scale">Five thousand per second</a></li>
+      <li><a href="#stream-shape">Partition keys &amp; rush</a></li>
+      <li><a href="#sqs-lifecycle">SQS lifecycle</a></li>
+      <li><a href="#osrm">OSRM cluster</a></li>
+      <li><a href="#labels">Labels before benchmarks</a></li>
+      <li><a href="#failure-modes">Silent wrong</a></li>
+      <li><a href="#lensai">G-03 ClickHouse writer</a></li>
+      <li><a href="#tradeoffs">What we didn't do</a></li>
+      <li><a href="#stayed">What stayed with me</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Five+Thousand+Geo-Events+Per+Second+%E2%80%94+Shape+of+the+Stream&url=https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
