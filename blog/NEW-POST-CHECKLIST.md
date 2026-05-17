@@ -55,7 +55,7 @@ Use this whenever you publish a post in an existing series.
 
 ### If the post has diagrams
 
-- [ ] Reuse **Mermaid** script + init from a post that already has it (e.g. Agoda post 2 or AI Learning Day 2).
+- [ ] Reuse **Mermaid** script + init from a post that already has it (e.g. Experience post 2 or AI Learning Day 2).
 - [ ] Wrap diagrams in `<pre class="mermaid">` (or your series’ pattern).
 
 ---

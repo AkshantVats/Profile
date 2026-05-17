@@ -39,19 +39,19 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
-          "href": "blog/series/agoda/building-tsdb-at-agoda.html",
+          "href": "blog/series/experience/building-tsdb-at-agoda.html",
           "kicker": "Experience 1 of N",
           "title": "1.5T events/day — what I worked on at Agoda",
           "desc": "WhiteFalcon context, team vs contribution boundaries, and the three areas this series unpacks in depth."
         },
         {
-          "href": "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
+          "href": "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
           "kicker": "Experience 2 of N",
           "title": "When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB",
           "desc": "Silent wrong aggregates at Agoda — cross-tier quantiles, Redis hot tier and Parquet cold tier."
         },
         {
-          "href": "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
+          "href": "blog/series/experience/seven-million-iot-sensors-failure-modes.html",
           "kicker": "Experience 3 of N",
           "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
           "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."

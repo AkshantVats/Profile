@@ -36,11 +36,11 @@ POST_HTML: dict[str, Path | None] = {
     "day-2-continuous-batching-vllm": ROOT
     / "blog/series/ai-learning/day-2-continuous-batching-vllm.html",
     "day-3-token-budgets-cost-structure": None,  # draft: series-index only
-    "building-tsdb-at-agoda": ROOT / "blog/series/agoda/building-tsdb-at-agoda.html",
+    "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
-    / "blog/series/agoda/when-percentiles-lie-cross-tier-queries.html",
+    / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
     "seven-million-iot-sensors-failure-modes": ROOT
-    / "blog/series/agoda/seven-million-iot-sensors-failure-modes.html",
+    / "blog/series/experience/seven-million-iot-sensors-failure-modes.html",
     "building-ai-inference-observability": ROOT
     / "blog/series/inference-ai-project/building-ai-inference-observability.html",
 }

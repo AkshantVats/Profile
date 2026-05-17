@@ -5,7 +5,7 @@
 Convert a blog post HTML file to LinkedIn-friendly article text: plain headings (original casing), stat callouts as simple lines, Mermaid diagrams as PNGs, and image upload markers.
 
 ```bash
-python scripts/html_to_linkedin_article.py blog/series/agoda/seven-million-iot-sensors-failure-modes.html
+python scripts/html_to_linkedin_article.py blog/series/experience/seven-million-iot-sensors-failure-modes.html
 ```
 
 Defaults:

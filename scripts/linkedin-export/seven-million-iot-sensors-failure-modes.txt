@@ -44,7 +44,7 @@ Textbooks give you clean diagrams: devices publish, cloud ingests, dashboards up
 
 Production gives you duplicate `device_id` values after a sloppy reprovision — two physical units, one logical row, one hot partition of lies. It gives you firmware version drift where a schema field means something different on build 1.04 than on 1.03, but the parser still accepts both. It gives you certificate rotation that half-completed, so a device authenticates intermittently and biases your "offline" metric. It gives you spoofing that is not nation-state drama: a misconfigured gateway forwarding another site's payload with the wrong identity header.
 
-CAP still matters. But the failure that wakes you at 2 a.m. is often **silent wrong**, not **partition unavailable** — the same class of bug as When Percentiles Lie (https://akshantvats.github.io/Profile/blog/series/agoda/when-percentiles-lie-cross-tier-queries.html), except IoT can spoil product before anyone opens a ticket.
+CAP still matters. But the failure that wakes you at 2 a.m. is often **silent wrong**, not **partition unavailable** — the same class of bug as When Percentiles Lie (https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html), except IoT can spoil product before anyone opens a ticket.
 
 > We once chased a "healthy" refrigeration zone for two days because a reprovisioned board reused an old `device_id`. The new unit reported plausible temperatures. The old ghost kept reporting too. The fleet average looked fine. The case was not.
 
@@ -124,8 +124,8 @@ Infrastructure trust is cumulative — and very easy to lose. That is why quaran
 END NOTES
 
 • 1. How Walmart Leverages IoT to Keep Your Ice Cream Frozen — corporate scale and mission (Jan 14, 2021). VP Global Tech Sanjay Radhakrishnan: seven million unique IoT data points; ~1.5 billion messages/day on temperature, operating functions, and energy use. (https://corporate.walmart.com/news/2021/01/14/how-walmart-leverages-iot-to-keep-your-ice-cream-frozen)
-• When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB — Experience 2 of N; silent wrong aggregates at Agoda. (https://akshantvats.github.io/Profile/blog/series/agoda/when-percentiles-lie-cross-tier-queries.html)
-• Building WhiteFalcon at Agoda — series opener; TSDB architecture context. (https://akshantvats.github.io/Profile/blog/series/agoda/building-tsdb-at-agoda.html)
+• When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB — Experience 2 of N; silent wrong aggregates at Agoda. (https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html)
+• Building WhiteFalcon at Agoda — series opener; TSDB architecture context. (https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html)
 • infra-ai-streaming — compose services (Redis, Redpanda), Go consumer, quarantine branch G-02. (https://github.com/akshantvats/infra-ai-streaming)
 • Companion (AI): Day 3 — Token Budgets and Real Cost Structure. (https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html)
 • AI Learning series index (Day 0 roadmap) (https://akshantvats.github.io/Profile/blog/series/ai-learning/day-0-series-roadmap.html)

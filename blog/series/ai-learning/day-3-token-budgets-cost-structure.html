@@ -397,7 +397,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>PagedAttention and continuous batching explain <strong>why GPUs stay busy</strong>; token buckets explain <strong>why finance stays calm</strong> when every event carries prompt, completion, and producer-computed <code>cost_usd</code>. Next I need <code>sum(cost_usd) GROUP BY tenant_id, toStartOfHour(timestamp_unix_ms)</code> on every row — not a blended latency percentile.</p>
 
-<p>Today's Experience sibling — <a href="https://akshantvats.github.io/Profile/blog/series/agoda/seven-million-iot-sensors-failure-modes.html"><strong>Seven Million IoT Sensors — Failure Modes Textbooks Skip</strong></a> — is the same instinct at Walmart scale: validate before central aggregation, because poisoned <code>cost_usd</code> in Kafka is the same class of bug as a spoofed <code>device_id</code> in a fleet rollup.</p>
+<p>Today's Experience sibling — <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html"><strong>Seven Million IoT Sensors — Failure Modes Textbooks Skip</strong></a> — is the same instinct at Walmart scale: validate before central aggregation, because poisoned <code>cost_usd</code> in Kafka is the same class of bug as a spoofed <code>device_id</code> in a fleet rollup.</p>
 
 <div class="series-footer">
   <p><em>Day 3 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
@@ -431,7 +431,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <span class="footnote-arrow">→</span>
       <span><strong>6.</strong> infra-ai-streaming — README ingest example; ingest.rs @ <code>32fdb37</code></span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/agoda/seven-million-iot-sensors-failure-modes.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">
       <span class="footnote-arrow">→</span>
       <span><strong>7.</strong> Seven Million IoT Sensors — Experience 4 of N</span>
     </a>
