@@ -328,7 +328,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   IN[Ingest API] --&gt; RP[Redpanda topic]
   RP --&gt; C[Go consumer\nvalidate tenant_id]
   C --&gt;|ok| R[Redis hot path]
-  C --&gt;|bad identity| Q[Quarantine branch\nG-02]
+  C --&gt;|bad identity| Q[Quarantine branch]
   C -.->|same discipline| W[Writer TBD]</pre>
 
 <pre><code>{
@@ -370,7 +370,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
     </a>
     <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span>infra-ai-streaming — compose services (Redis, Redpanda), Go consumer, quarantine branch G-02.</span>
+      <span>infra-ai-streaming — compose services (Redis, Redpanda), Go consumer, quarantine path for bad identity.</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">
       <span class="footnote-arrow">→</span>

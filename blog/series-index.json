@@ -34,7 +34,7 @@
           "href": "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
           "kicker": "Day 4 of N",
           "title": "Tensor Parallelism Meets Kafka Partitions",
-          "desc": "TP/PP scale-out, Triton as routing table, partition keys, G-03 ClickHouse batch writer with breaker, Redis overflow, and DLQ×3."
+          "desc": "TP/PP scale-out, Triton as routing table, partition keys, ClickHouse batch writer with breaker, Redis overflow, and triple-retry DLQ."
         }
       ]
     },
@@ -66,7 +66,7 @@
           "href": "blog/series/experience/five-thousand-geo-events-per-second.html",
           "kicker": "Experience 4 of N",
           "title": "Five Thousand Geo-Events Per Second — Shape of the Stream",
-          "desc": "Delivery Hero rider-tracking at 5k+ geo-events/s: Order SQS lifecycles, OSRM map-matching, partition skew at dinner rush, and LensAI G-03 observability parallels."
+          "desc": "Delivery Hero rider-tracking at 5k+ geo-events/s: Order SQS lifecycles, OSRM map-matching, partition skew at dinner rush, and the same partition-key discipline on today's Kafka ingest."
         }
       ]
     },

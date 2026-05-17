@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Day 4 — Tensor Parallelism &amp; Kafka Partitions (Learning LLM Inference) — Akshant Sharma</title>
-<meta name="description" content="Tensor vs pipeline parallelism, Triton routing tables, Kafka partition keys, and the G-03 ClickHouse batch writer with circuit breaker, Redis overflow, and DLQ. Day 4 of N.">
+<meta name="description" content="Tensor vs pipeline parallelism, Triton routing tables, Kafka partition keys, and the ClickHouse batch writer with circuit breaker, Redis overflow, and triple-retry DLQ. Day 4 of N.">
 <meta property="og:title" content="Day 4 of Learning LLM Inference — Tensor Parallelism Meets Kafka Partitions">
 <meta property="og:description" content="Model serving scale-out as a sharding problem — TP/PP, partition assignment, cross-partition batching vs continuous batching, and observability that proves routing under load.">
 <meta property="og:type" content="article">
@@ -205,7 +205,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">Jun 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">8 min read</span>
     <div class="meta-divider"></div>
     <span class="meta-item">AI Learning · Day 4 of N</span>
   </div>
@@ -219,13 +219,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-layout">
 <article class="prose">
-<p>I kept reading "tensor parallelism" as a GPU trick and "Kafka partitions" as a messaging trick. They are the same assignment problem with different hardware.</p>
+<p>I kept reading "tensor parallelism" as a GPU trick and "Kafka partitions" as a messaging trick. They are the same assignment problem with different hardware — and the same way to lie to yourself with a healthy global chart while one shard is on fire.</p>
 
-<p>Scale a 70B model across four GPUs and you are choosing which layer shards live on which device, then synchronizing partial results. Scale inference observability across four consumer instances and you are choosing which <code>tenant_id</code> (soon <code>tenant_id:model_id</code>) events land on which partition, then batching inserts without breaking per-key ordering. Triton's model repository is just a partition assignment table with GPUs instead of brokers.</p>
+<p>Scale a 70B model across four GPUs and you are choosing which layer shards live on which device, then synchronizing partial results on every forward step. Scale inference observability across four consumer instances and you are choosing which <code>tenant_id</code> (soon <code>tenant_id:model_id</code>) events land on which partition, then batching inserts without breaking per-key ordering. NVIDIA Triton's model repository is a partition assignment table with GPUs instead of brokers.</p>
 
-<p><strong>Daily thread:</strong> BENCHMARKS.md numbers are meaningless without labels — today's metrics mirror how I'd prove DH routing didn't drop events under load.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> named the memory-bandwidth bottleneck; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> fixed scheduler granularity inside one replica; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> froze dollars on every row at ingest. This week I shipped the ClickHouse batch writer on the pipeline I am building in public — the consumer graduates from stdout to a sink that can answer <code>sum(cost_usd)</code> by tenant and hour. The sharding story finally has somewhere honest to land.</p>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> named the memory-bandwidth bottleneck; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> fixed scheduler granularity; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> froze dollars on every row. Today the Go consumer on branch <code>feat/consumer-clickhouse-batch-writer</code> (G-03) graduates from stdout to ClickHouse — and the sharding story finally has a sink that can answer <code>sum(cost_usd)</code> by tenant and hour.</p>
+<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Experience 4 — Five Thousand Geo-Events Per Second</a> is the map-matching side: Kinesis keyed by <code>rider_id</code> and market, the same "who shares fate?" question with GPS instead of tokens.</p>
 
 <h2 id="tp-pp">Tensor parallelism vs pipeline parallelism</h2>
 
@@ -247,9 +247,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   G3 --> AR
   AR --> OUT[Next layer or response]</pre>
 
-<p><em>Alt text: Request router fans out to four GPU shards, synchronizes via all-reduce, then continues the forward pass.</em></p>
-
-<p>Staff-engineer takeaway: TP optimizes <strong>width</strong>; PP optimizes <strong>depth</strong>. Pick wrong and you pay for NCCL chatter or pipeline bubbles instead of FLOPs. Multi-GPU serving is a <strong>placement</strong> problem first and a kernel problem second.</p>
+<p>Staff-engineer takeaway: TP optimizes <strong>width</strong>; PP optimizes <strong>depth</strong>. Pick wrong and you pay for NCCL chatter or pipeline bubbles instead of FLOPs. I have watched teams buy a fourth GPU, shard badly, and end up slower — same energy as adding Kafka partitions without fixing a hot key. Multi-GPU serving is a <strong>placement</strong> problem first and a kernel problem second.</p>
 
 <h2 id="triton-hook">Triton model repository as routing table</h2>
 
@@ -272,11 +270,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <h2 id="kafka">Partitions, keys, and ordering</h2>
 
-<p>Topic <code>ai_inference_events</code> carries the Rust producer's batch envelope <code>{"events":[...]}</code>. Today the producer keys by <code>tenant_id</code> only; DESIGN.md targets <code>hash(tenant_id:model_id)</code> so one noisy model cannot hot-spot a partition shared with quiet tenants — the same reason you would not put every DH city on one Kinesis shard.</p>
+<p>Topic <code>ai_inference_events</code> carries the Rust producer's batch envelope <code>{"events":[...]}</code>. Today the producer keys by <code>tenant_id</code> only; the design doc targets <code>hash(tenant_id:model_id)</code> so one noisy model cannot hot-spot a partition shared with quiet tenants — the same reason I would not put every Delivery Hero city on one Kinesis shard (<a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Experience 4</a>).</p>
 
 <p>Kafka guarantees <strong>order within a partition</strong>, not across partitions. That is a feature: you scale consumers horizontally until either CPU or ClickHouse insert rate caps you. The cost is cross-partition analytics — you cannot assume global ordering when debugging a spike; you filter by <code>tenant_id</code> and time range instead.</p>
 
-<p>ClickHouse wants the same discipline. <code>deploy/clickhouse/init.sql</code> on G-03 defines:</p>
+<p>ClickHouse wants the same discipline. The table DDL I checked in for this writer uses:</p>
 
 <pre><code>ORDER BY (tenant_id, model_id, timestamp)</code></pre>
 
@@ -299,7 +297,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </table>
 </div>
 
-<p>At Agoda we spent years teaching people that <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">percentiles do not merge across tiers</a>. Cross-partition percentiles lie the same way. For finance rollups, stick to <code>sum(cost_usd)</code> and counts — commutative metrics that survive sharding. Latency percentiles need careful merge or per-partition dashboards (<a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">Experience 1</a>).</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">Cross-tier percentiles</a> do not merge; cross-partition percentiles lie the same way. For finance rollups, stick to <code>sum(cost_usd)</code> and counts. Latency needs per-partition dashboards or careful merge (<a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">Experience 1</a>).</p>
 
 <h2 id="batching-serving">Cross-partition batching vs in-GPU batching</h2>
 
@@ -315,9 +313,9 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="pullquote"><p>Partitioning decides <em>who</em> shares fate. Batching decides <em>how often</em> you pay the network tax.</p></div>
 
-<h2 id="clickhouse-rollups">G-03: batch writer, breaker, overflow, DLQ×3</h2>
+<h2 id="clickhouse-rollups">Batch writer, breaker, overflow, triple-retry DLQ</h2>
 
-<p>Ticket G-03 lands in <code>consumer/internal/clickhouse/writer.go</code> on <code>feat/consumer-clickhouse-batch-writer</code>. The writer buffers decoded events and flushes on whichever comes first: <strong>1000 events</strong> or <strong>500ms</strong>. That dual trigger is the same latency–throughput trade as Triton dynamic batching — wait for volume, but not forever.</p>
+<p>The work lives in <code>consumer/internal/clickhouse/writer.go</code> on branch <code>feat/consumer-clickhouse-batch-writer</code> in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a>. The writer buffers decoded events and flushes on whichever comes first: <strong>1000 events</strong> or <strong>500ms</strong>. That dual trigger is the same latency–throughput trade as Triton dynamic batching — wait for volume, but not forever.</p>
 
 <pre class="mermaid">flowchart TB
   K[Kafka ai_inference_events] --> C[Go consumer]
@@ -327,8 +325,6 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   CB -->|open| R[(Redis overflow LIST)]
   CB -->|3 insert retries failed| DLQ[Kafka ai_inference_dlq]
   R -->|drain when closed| CH</pre>
-
-<p><em>Alt text: Consumer batches events, circuit breaker routes to ClickHouse, Redis overflow, or DLQ after retries.</em></p>
 
 <p><strong>Circuit breaker</strong> (from <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md">OBSERVABILITY.md</a>): five consecutive insert failures → <strong>open</strong> (skip CH, push to Redis). After 30s → <strong>half-open</strong> (probe). One success → <strong>closed</strong>. Overflow drain runs every 5s (up to 5000 events) while closed.</p>
 
@@ -395,7 +391,7 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
 
 <h2 id="observability">Observability for the pipeline itself</h2>
 
-<p>Inference metrics are useless if the consumer is lying. G-03 exports on <code>:9091/metrics</code> (see OBSERVABILITY.md):</p>
+<p>Inference metrics are useless if the consumer is lying. The consumer exports on <code>:9091/metrics</code> (documented in the repo's OBSERVABILITY.md):</p>
 
 <ul>
   <li><code>kafka_records_processed_total</code> — records fully handed off</li>
@@ -409,17 +405,15 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
 
 <h2 id="experience-link">Same assignment problem at Delivery Hero scale</h2>
 
-<p>Today's Experience sibling — <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html"><strong>Five Thousand Geo-Events Per Second — Shape of the Stream</strong></a> — is the map-matching side of this story: GPS fixes partitioned by order or region, route consumers that must not reorder a single delivery's events, OSRM clusters that look like instance groups. DH SQS shards and <code>tenant_id:model_id</code> Kafka keys are the same design question — <em>who shares fate when load spikes?</em> Get it wrong and one hot city or one hot model paints misleading lag while the cluster looks healthy.</p>
-
-<p>The IoT post (<a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Experience 3</a>) is the failure-mode mirror: poison payloads belong in quarantine or DLQ, not in the rollup table.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html"><strong>Experience 4 — Five Thousand Geo-Events Per Second</strong></a> is the map-matching side: Kinesis keyed by <code>rider_id</code> and market, lifecycle-gated OSRM, hot shards during dinner rush. Same design question — <em>who shares fate when load spikes?</em> The IoT post (<a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Experience 3</a>) is the failure-mode mirror: poison belongs in DLQ, not the rollup table.</p>
 
 <h2 id="takeaway">What I am taking away</h2>
 
-<p>Multi-GPU inference and multi-partition ingestion both reduce to <strong>placement + commutative aggregates + backpressure</strong>. TP/PP name the GPU placement; Kafka keys and Triton instance groups name the ops placement; ClickHouse <code>ORDER BY</code> names the query placement. G-03 ties it together — batched inserts, breaker-gated Redis overflow, triple-retry DLQ — so <code>cost_usd</code> from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> finally lands where finance can sum it.</p>
+<p>Multi-GPU inference and multi-partition ingestion both reduce to <strong>placement + commutative aggregates + backpressure</strong>. TP/PP name the GPU placement; Kafka keys and Triton instance groups name the ops placement; ClickHouse <code>ORDER BY</code> names the query placement. The batch writer ties it together — batched inserts, breaker-gated Redis overflow, triple-retry DLQ — so <code>cost_usd</code> from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> finally lands where finance can sum it.</p>
 
 <div class="series-footer">
   <p><em>Day 4 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Up next (series Day 5 / build Day 6): Grafana dashboard — ingestion throughput by tenant, P99 latency by <code>model_id</code>, token cost/hour, and consumer lag — the panels that make today's metrics legible.</em></p>
+  <p><em>Up next: Grafana panels — ingestion throughput by tenant, latency by <code>model_id</code>, <code>sum(cost_usd)</code> per hour, and consumer lag — so the metrics from this writer are legible under load.</em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
@@ -427,7 +421,7 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
   <div class="footnote-links">
     <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>1.</strong> infra-ai-streaming OBSERVABILITY.md — batch, breaker, Redis, DLQ metrics (G-03 branch)</span>
+      <span><strong>1.</strong> infra-ai-streaming OBSERVABILITY.md — batch, breaker, Redis, DLQ metrics (batch-writer branch)</span>
     </a>
     <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/deploy/clickhouse/init.sql" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
@@ -458,7 +452,7 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
       <span><strong>8.</strong> Seven Million IoT Sensors — poison streams &amp; DLQ instinct</span>
     </a>
   </div>
-  <p class="footnote-note">G-03 ships on <code>feat/consumer-clickhouse-batch-writer</code>; verify merge to <code>main</code> before citing as production path. Producer partition key is <code>tenant_id</code> today; <code>hash(tenant_id:model_id)</code> remains an open item in DESIGN.md.</p>
+  <p class="footnote-note">The ClickHouse batch writer ships on <code>feat/consumer-clickhouse-batch-writer</code>; verify merge to <code>main</code> before citing as production path. Producer partition key is <code>tenant_id</code> today; <code>hash(tenant_id:model_id)</code> remains an open item in DESIGN.md.</p>
 </div>
 
 </article>
@@ -475,7 +469,7 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
       <li><a href="#kafka">Kafka partitions</a></li>
       <li><a href="#ds-analogy">Data-systems analogy</a></li>
       <li><a href="#batching-serving">Batching layers</a></li>
-      <li><a href="#clickhouse-rollups">G-03 writer</a></li>
+      <li><a href="#clickhouse-rollups">Batch writer</a></li>
       <li><a href="#observability">Pipeline metrics</a></li>
       <li><a href="#experience-link">Experience link</a></li>
       <li><a href="#takeaway">Takeaway</a></li>

@@ -391,7 +391,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p><code>event_id</code> is assigned at ingest when omitted; <code>normalize_events</code> defaults <code>status</code> to <code>"success"</code>.</p>
 
-<p>The Go consumer on branch G-02 (<code>fb309fc</code>) already prints structured stdout for the same shape — including <code>cost_usd: 0.00423</code> on the README sample — but that path is not on <code>main</code> yet; <a href="https://github.com/akshantvats/infra-ai-streaming/blob/main/docs/PROJECT-STATUS.md">PROJECT-STATUS</a> is the honest merge gate. Local stack: Redis and Redpanda via <code>deploy/docker-compose.yml</code>; <code>cargo run -p ingestion</code> accepts the curl in the README.</p>
+<p>The Go consumer on the stdout-validation branch (<code>fb309fc</code>) already prints structured logs for the same shape — including <code>cost_usd: 0.00423</code> on the README sample — but that path is not on <code>main</code> yet; <a href="https://github.com/akshantvats/infra-ai-streaming/blob/main/docs/PROJECT-STATUS.md">PROJECT-STATUS</a> is the honest merge gate. Local stack: Redis and Redpanda via <code>deploy/docker-compose.yml</code>; <code>cargo run -p ingestion</code> accepts the curl in the README.</p>
 
 <h2 id="takeaway">What I am taking away</h2>
 
@@ -401,7 +401,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="series-footer">
   <p><em>Day 3 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Up next (series Day 4 / build Day 5): ClickHouse batch writer — <code>sum(cost_usd)</code> by tenant and hour, plus the consumer graduating from stdout to inserts.</em></p>
+  <p><em>Up next: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> — ClickHouse batch writer, partition keys, and <code>sum(cost_usd)</code> by tenant and hour.</em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
@@ -437,7 +437,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     </a>
     <a href="https://github.com/akshantvats/infra-ai-streaming/commit/fb309fc" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>8.</strong> Go consumer G-02 @ <code>fb309fc</code> — stdout sample with <code>cost_usd: 0.00423</code> (branch; verify merge on <code>main</code>)</span>
+      <span><strong>8.</strong> Go consumer @ <code>fb309fc</code> — stdout sample with <code>cost_usd: 0.00423</code> (branch; verify merge on <code>main</code>)</span>
     </a>
   </div>
   <p class="footnote-note">Go consumer on commit <code>fb309fc</code> prints structured stdout including <code>cost_usd: 0.00423</code> for the README sample event; confirm merge to <code>main</code> before citing as production path.</p>
