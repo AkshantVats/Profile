@@ -225,7 +225,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>What follows is my scope on that stack. I am not claiming I ran every order in the Delivery Hero Group. Public numbers below are company context; the 5k/s and 1M+ figures are what I operated and what my resume states.</p>
 
-<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5 — Tensor Parallelism and Kafka Partitions</a> picks up the same partition-key story on a Kafka topic instead of a geo stream.</p>
+<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4 — Tensor Parallelism and Kafka Partitions</a> picks up the same partition-key story on a Kafka topic instead of a geo stream.</p>
 
 <h2 id="architecture">The System I Was Debugging at 8pm on a Friday</h2>
 
@@ -335,7 +335,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <h2 id="kafka-bridge">Same Question on Today's Kafka Topic</h2>
 
-<p>On <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5</a> I key inference events by <code>tenant_id</code> and <code>model_id</code> so one customer's stream stays ordered. At Delivery Hero I keyed geo by <code>rider_id</code> and market for the same reason. Different payload — same design question: <em>who shares fate when load spikes?</em></p>
+<p>On <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4</a> I key inference events by <code>tenant_id</code> and <code>model_id</code> so one customer's stream stays ordered. At Delivery Hero I keyed geo by <code>rider_id</code> and market for the same reason. Different payload — same design question: <em>who shares fate when load spikes?</em></p>
 
 <p>Get the key wrong and one hot city or one hot model looks healthy on a cluster chart while a single partition falls behind. I still watch per-shard lag before I trust a global percentile — whether the buffer is Kinesis, SQS, or Kafka.</p>
 
@@ -356,7 +356,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <div class="series-footer">
   <p><em>Experience Series · 4 of N</em> — Delivery Hero geo stream shape and routing plane.</p>
-  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5</a> — tensor parallelism and Kafka partitions.</em></p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4</a> — tensor parallelism and Kafka partitions.</em></p>
 </div>
 
 <div class="footnote-row" id="fn-dh">
@@ -386,7 +386,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <span class="footnote-arrow">→</span>
       <span>When Percentiles Lie — Experience 2 of N; cross-tier quantiles at Agoda.</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">
       <span class="footnote-arrow">→</span>
       <span>Companion (AI): Day 5 — Tensor Parallelism and Kafka Partitions.</span>
     </a>
