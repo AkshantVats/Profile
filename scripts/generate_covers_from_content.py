@@ -36,8 +36,8 @@ POST_HTML: dict[str, Path | None] = {
     "day-2-continuous-batching-vllm": ROOT
     / "blog/series/ai-learning/day-2-continuous-batching-vllm.html",
     "day-3-token-budgets-cost-structure": None,  # draft: series-index only
-    "day-5-tensor-parallelism-kafka-partitions": ROOT
-    / "blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html",
+    "day-4-tensor-parallelism-kafka-partitions": ROOT
+    / "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
     "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
     / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
@@ -55,7 +55,7 @@ TITLE_OVERRIDE: dict[str, str] = {
     "day-1-kv-cache-memory-bandwidth": "The KV Cache Is a\nMemory Bandwidth Problem",
     "day-2-continuous-batching-vllm": "Continuous Batching in vLLM:\nThe Scheduler That Keeps GPUs Busy",
     "day-3-token-budgets-cost-structure": "Token Budgets and\nReal Cost Structure",
-    "day-5-tensor-parallelism-kafka-partitions": "Tensor Parallelism Meets\nKafka Partitions",
+    "day-4-tensor-parallelism-kafka-partitions": "Tensor Parallelism Meets\nKafka Partitions",
     "building-tsdb-at-agoda": "1.5 Trillion Events/Day\nTSDB at Agoda",
     "when-percentiles-lie-cross-tier-queries": "When Percentiles Lie:\nCross-Tier Queries in a 1.8T/day TSDB",
     "seven-million-iot-sensors-failure-modes": "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
@@ -81,7 +81,7 @@ TOPIC_HINTS: dict[str, str] = {
         "prompt tokens vs completion tokens buckets, asymmetric pricing rate card, "
         "cost_usd validation at ingest gate, variable completion cost dominating bill"
     ),
-    "day-5-tensor-parallelism-kafka-partitions": (
+    "day-4-tensor-parallelism-kafka-partitions": (
         "tensor parallel GPU shards with all-reduce, Kafka partitions to consumer batch writer, "
         "circuit breaker Redis overflow DLQ path to ClickHouse, Triton routing table analogy"
     ),
@@ -112,7 +112,7 @@ ACCENT: dict[str, str] = {
     "day-1-kv-cache-memory-bandwidth": "neon green #5bd37a",
     "day-2-continuous-batching-vllm": "neon green #5bd37a",
     "day-3-token-budgets-cost-structure": "neon green #5bd37a",
-    "day-5-tensor-parallelism-kafka-partitions": "neon green #5bd37a",
+    "day-4-tensor-parallelism-kafka-partitions": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",

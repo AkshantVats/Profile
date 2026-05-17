@@ -46,7 +46,7 @@ SERIES_LABEL: dict[str, str] = {
     "day-1-kv-cache-memory-bandwidth": "AI LEARNING SERIES",
     "day-2-continuous-batching-vllm": "AI LEARNING SERIES",
     "day-3-token-budgets-cost-structure": "AI LEARNING SERIES",
-    "day-5-tensor-parallelism-kafka-partitions": "AI LEARNING SERIES",
+    "day-4-tensor-parallelism-kafka-partitions": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",
@@ -99,7 +99,7 @@ PLAIN_SPECS = [
         (91, 211, 122),
     ),
     (
-        "day-5-tensor-parallelism-kafka-partitions",
+        "day-4-tensor-parallelism-kafka-partitions",
         "AI LEARNING SERIES",
         "Tensor Parallelism Meets\nKafka Partitions",
         (91, 211, 122),
