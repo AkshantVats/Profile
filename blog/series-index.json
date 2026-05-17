@@ -31,8 +31,8 @@
           "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
         },
         {
-          "href": "blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html",
-          "kicker": "Day 5 of N",
+          "href": "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
+          "kicker": "Day 4 of N",
           "title": "Tensor Parallelism Meets Kafka Partitions",
           "desc": "TP/PP scale-out, Triton as routing table, partition keys, G-03 ClickHouse batch writer with breaker, Redis overflow, and DLQ×3."
         }
