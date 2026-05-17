@@ -161,7 +161,7 @@ html[data-theme="dark"] .ftab.active {
 .post-card:hover .post-title { color: var(--green); }
 .post-left { flex: 1; min-width: 0; }
 .post-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.ptag {
+.post-tags .ptag {
   font-size: 0.6875rem;
   font-weight: 500;
   text-transform: uppercase;
@@ -170,14 +170,8 @@ html[data-theme="dark"] .ftab.active {
   border-radius: 99px;
   border: 1px solid var(--line);
   color: var(--muted);
-  background: var(--bg);
+  background: var(--surface);
 }
-.ptag-ds { border-color: #c7d2fe; color: #4338ca; background: #eef2ff; }
-.ptag-ai { border-color: #bbf7d0; color: #15803d; background: #f0fdf4; }
-.ptag-kb { border-color: #fde68a; color: #b45309; background: #fffbeb; }
-.ptag-iot { border-color: #fecaca; color: #b91c1c; background: #fef2f2; }
-.ptag-rs { border-color: #ddd6fe; color: #6d28d9; background: #f5f3ff; }
-.ptag-tsdb { border-color: #bae6fd; color: #0369a1; background: #f0f9ff; }
 
 .post-title {
   font-family: var(--font-serif);
@@ -434,16 +428,6 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     return t.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   }
 
-  function ptagClass(slug) {
-    if (slug === "distributed-systems") return "ptag-ds";
-    if (slug === "ai-infra") return "ptag-ai";
-    if (slug === "rust") return "ptag-rs";
-    if (slug === "tsdb") return "ptag-tsdb";
-    if (slug === "kafka") return "ptag-kb";
-    if (slug === "iot") return "ptag-iot";
-    return "";
-  }
-
   function tagsFrom(doc) {
     var slugs = [];
     var labels = [];
@@ -519,8 +503,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; }
     tagsWrap.className = "post-tags";
     post.tagSlugs.forEach(function (slug, i) {
       var span = document.createElement("span");
-      var cls = ptagClass(slug);
-      span.className = "ptag" + (cls ? " " + cls : "");
+      span.className = "ptag";
       span.textContent = post.tagLabels[i] || slug.replace(/-/g, " ");
       tagsWrap.appendChild(span);
     });
