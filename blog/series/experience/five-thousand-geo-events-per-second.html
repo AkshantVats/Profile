@@ -6,7 +6,7 @@
 <title>Five Thousand Geo-Events Per Second — Shape of the Stream — Akshant Sharma</title>
 <meta name="description" content="Delivery Hero rider-tracking at 5,000+ geo-events per second: order SQS lifecycles, OSRM map-matching under dinner rush, partition skew, and the observability labels that keep P99 honest.">
 <meta property="og:title" content="Five Thousand Geo-Events Per Second — Shape of the Stream">
-<meta property="og:description" content="Delivery Hero logistics: OSRM clusters, Order SQS state machines, Route JSON contracts, silent wrong distance on duplicate GPS — and the same OTel dimensions on LensAI ingest today.">
+<meta property="og:description" content="I led Delivery Hero end-to-end rider tracking at 5k+ geo-events/s: Order SQS lifecycles, OSRM map-matching, multi-market rollout, and partition keys that still mirror today's Kafka ingest.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
 <meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/five-thousand-geo-events-per-second.png">
@@ -202,7 +202,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
     <div class="meta-divider"></div>
     <span class="meta-item">May 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
+    <span class="meta-item">11 min read</span>
     <div class="meta-divider"></div>
     <span class="meta-item">Experience Series · 4 of N</span>
   </div>
@@ -217,21 +217,23 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 <div class="post-layout">
 <article class="prose">
 
-<p>The support ticket said the rider was on the wrong street. The map showed him three blocks away. Both were rendered from the same pipeline — and both were defensible given what each system had seen in the last thirty seconds.</p>
+<p>The support ticket said the rider was on the wrong street. The map showed him three blocks away. Both came from the same pipeline.</p>
 
-<p>Nothing was on fire. No error budget breach. Just geometry that did not match someone's memory of where a courier should be during dinner rush. That is the class of incident textbooks barely name: the stream is healthy, the contract is ambiguous, and the label set you need to debug it was optional six months ago.</p>
+<p>Nothing was on fire. No 500s. Just geometry that did not match what support expected during dinner rush — the same kind of quiet wrong I wrote about at Walmart and Agoda: dashboards green, decision wrong.</p>
 
-<p>I worked on Delivery Hero's logistics platform from 2021 through 2023 — rider tracking, map-matching, and the routing plane that turns GPS noise into something a customer can trust. What follows is my scope on that stack, not the entire Delivery Hero Group. Public numbers exist to calibrate scale; they are not a claim that I personally operated every order worldwide.</p>
+<p>From 2022 through 2023 at Delivery Hero in Berlin, <strong>I led the end-to-end rider tracking system</strong> — the geospatial pipeline that turns GPS noise into a map customers and support can trust. I built it and rolled it out on the Global Logistics Platform across <strong>international markets</strong>: separate brands and regions under one platform, each with its own traffic shape but shared services. That is multi-company, multi-tenant in practice — not one monolith order book.</p>
 
-<p><strong>Daily thread:</strong> Today's AI Learning companion is <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">Day 5 — Tensor Parallelism and Kafka Partitions</a> — same partition-skew instinct, different payload.</p>
+<p>What follows is my scope on that stack. I am not claiming I ran every order in the Delivery Hero Group. Public numbers below are company context; the 5k/s and 1M+ figures are what I operated and what my resume states.</p>
+
+<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5 — Tensor Parallelism and Kafka Partitions</a> picks up the same partition-key story on a Kafka topic instead of a geo stream.</p>
 
 <h2 id="architecture">The System I Was Debugging at 8pm on a Friday</h2>
 
-<p>Friday-night pages rarely start in OSRM. They start in the gap between <strong>fulfillment state</strong> and <strong>geometry work</strong>.</p>
+<p>Friday pages rarely start in OSRM. They start between <strong>order state</strong> and <strong>map work</strong>.</p>
 
-<p>Customers and riders talk to an <strong>Order Service</strong> backed by an Order Data Service. When an order moves — placed, picked up, rider enqueued, rider picked up — the service publishes lifecycle messages to <strong>Order SQS</strong>: <code>PLACED</code>, <code>PICKED UP</code>, <code>RIDER ENQUE</code>, <code>RIDER PICKED UP</code>. Riders publish here too. That bus decouples "what happened to the order" from "what should we compute on the map."</p>
+<p>Customers and riders hit <strong>Order Service</strong>, backed by Order Data Service. When an order moves — placed, picked up, rider assigned, rider en route — the service publishes to <strong>Order SQS</strong>: <code>PLACED</code>, <code>PICKED UP</code>, <code>RIDER ENQUE</code>, <code>RIDER PICKED UP</code>. Riders publish here too. That queue separates "what happened to the order" from "what we compute on the map."</p>
 
-<p>Downstream, <strong>Route Consumers</strong> drain those events and fan work into a <strong>Route Service</strong> cluster, which calls an <strong>OSRM cluster</strong> backed by a road-graph store. OSRM is stateless CPU; durable trip state lives elsewhere. The output contract is <strong>Route JSON</strong> — the polyline, distance, and metadata support and apps render. A <strong>Revisit Order System</strong> reads immutable route snapshots when someone disputes "where was the rider?" Order Service also ships rows to <strong>GBQ</strong> for analytics. An Order Mapping Service sits in the wider ecosystem; I touched it, but the hot path I owned was stream shape + map-matching under load.</p>
+<p><strong>Route Consumers</strong> read those messages and call <strong>Route Service</strong>, which talks to an <strong>OSRM cluster</strong> on top of a road-graph store. OSRM does the CPU-heavy matching; trip state lives elsewhere. The handoff to apps and support is <strong>Route JSON</strong> — polyline, distance, metadata. When someone asks "where was the rider?", the <strong>Revisit Order System</strong> replays immutable snapshots. Order Service also feeds <strong>GBQ</strong> for analytics. I owned the hot path: stream shape, map-matching, and keeping Route JSON honest under load.</p>
 
 <pre class="mermaid">flowchart TB
   CUST[Customer] --&gt; OS[Order Service]
@@ -248,11 +250,13 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   RJ --&gt; UI[Customer / support UI]
   RJ --&gt; REV[Revisit Order System\naudit / replay]</pre>
 
-<p>The design choice that saved us on-call sanity: routing work is <strong>async</strong> and keyed off explicit lifecycle transitions, not every GPS tick. Geometry still runs hot — but the bus tells you <em>why</em> a match was requested.</p>
+<p>Routing work stays <strong>async</strong> and tied to lifecycle events, not every GPS tick. Geometry still runs hot at peak — but the queue tells you <em>why</em> we asked for a match.</p>
 
-<h2 id="scale">Five Thousand Adjustments Per Second — What Counts as an Event</h2>
+<h2 id="scale">Five Thousand Per Second — What Counts as an Event</h2>
 
-<p>Resume scope for the pipeline I built: <strong>5,000+ geo-events per second</strong> at peak, on a logistics platform handling <strong>1M+ daily orders</strong> in my slice. That is not "five thousand orders per second." It is the fan-out of rider GPS, map-match requests, route revisions, and downstream notifications — often multiple logical events per fix when raw and matched coordinates both flow.</p>
+<p>On the pipeline I led: <strong>5,000+ geo-events per second</strong> at peak — GPS fixes, map-match calls, route updates, and notifications, often more than one event per fix when raw and matched coordinates both flow. That is not 5,000 orders per second.</p>
+
+<p>The logistics platform in my scope handled <strong>1M+ daily orders</strong> across those markets. Delivery Hero Group globally is a different, larger number — about <strong>10 million orders per day</strong> in published figures,<sup><a href="#fn-dh-aws">1</a></sup> with a <strong>10.4 million</strong> single-day record in December 2024.<sup><a href="#fn-dh-ar">2</a></sup> Both belong in the story; they measure different things.</p>
 
 <div class="stat-callout">
   <div class="stat-cell"><span class="stat-num">5k+/s</span><span class="stat-label">Geo-events at peak (my scope)</span></div>
@@ -262,25 +266,23 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <div class="attr-box team">
   <div class="attr-label">Company context (published)</div>
-  Delivery Hero Group processes on the order of <strong>~10 million orders per day</strong> globally, with <strong>3 million registered riders</strong> cited in AWS platform case studies.<sup><a href="#fn-dh">1</a></sup> A <strong>10.4 million orders in one day</strong> record landed in December 2024.<sup><a href="#fn-dh">2</a></sup>
+  Delivery Hero Group processes on the order of <strong>~10 million orders per day</strong> globally, with <strong>3 million registered riders</strong> cited in AWS platform case studies.<sup><a href="#fn-dh-aws">1</a></sup> A <strong>10.4 million orders in one day</strong> record landed in December 2024.<sup><a href="#fn-dh-ar">2</a></sup>
 </div>
 
 <div class="attr-box mine">
   <div class="attr-label">My context</div>
-  I owned throughput and correctness on the <strong>rider-tracking / map-matching</strong> path — not middle-mile VRP, not the full global order book. Sustained 5k events/s is plausible for a large multi-market slice: active riders × GPS frequency × (raw + matched) fan-out. Single-node OSRM match benchmarks are tens of ops per second; production uses clustered <code>osrm-routed</code>, batching, and queues — compare laptop numbers to the diagram, not to my peak.<sup><a href="#fn-osrm">3</a></sup>
+  I led throughput and correctness on <strong>end-to-end rider tracking</strong> — OSRM on AWS EKS, Kinesis geo ingest, SQS order events — not middle-mile routing for the whole group. Five thousand events per second is riders × GPS rate × fan-out in the markets I deployed to. Production uses a clustered <code>osrm-routed</code> fleet, not a laptop benchmark.<sup><a href="#fn-osrm">3</a></sup>
 </div>
 
-<p>Sanity check without over-claiming: 5,000 events/s for a day is ~432M events — large, but not absurd if you count every adjustment on a busy regional fleet. The honest sentence is always two numbers: what I operated, and what the company publishes.</p>
+<p>Keep two numbers straight: <strong>5k+/s</strong> is my geo pipeline at peak; <strong>1M+/day</strong> is orders on the platform slice I shipped to; <strong>~10M/day</strong> is global DH in public filings. They do not contradict each other.</p>
 
-<h2 id="stream-shape">Partition Keys, Hot Riders, Dinner Rush</h2>
+<h2 id="stream-shape">Partition Keys and Dinner Rush</h2>
 
-<p>Throughput is a schema decision before it is a cluster size decision.</p>
+<p>We keyed the geo stream by <strong>rider_id</strong> and market so one courier's fixes stayed ordered. Map-matching needs that order. It also creates <strong>hot shards</strong>: one rider circling a block in the rain, or a staging lot full of couriers, and one partition falls behind while the fleet average still looks fine.</p>
 
-<p>We keyed the geo stream by <strong>rider_id</strong> (and market) so a single courier's fixes stayed ordered. That is correct for map-matching — you cannot reorder GPS retroactively without inventing physics. It also creates <strong>hot partitions</strong>: one rider circling a dense block during rain, or a staging lot with hundreds of couriers, can pin a shard while neighbors look idle.</p>
+<p>Dinner rush does not move the mean much. It moves the <strong>tail</strong>. When support is staring at one late order, a global P99 is the wrong chart.</p>
 
-<p>Dinner rush does not raise the average. It raises the <strong>skew</strong>. P99 on the fleet mean is a vanity metric when one partition is sixty seconds behind and the support UI is showing stale geometry for exactly the riders customers are watching.</p>
-
-<div class="pullquote"><p>Partition for correctness first. Then instrument per-shard lag like your refunds depend on it — because they do.</p></div>
+<div class="pullquote"><p>Key for correctness first. Then watch lag per shard — that is where refunds come from.</p></div>
 
 <pre class="mermaid">flowchart LR
   GPS[GPS fixes\nrider app] --&gt; STR[Geo stream\npartitioned by rider]
@@ -290,59 +292,52 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   STATE --&gt; RJ[Route JSON]
   STR -.->|hot rider_id shard| LAG[Consumer lag\nstale map UI]</pre>
 
-<h2 id="sqs-lifecycle">SQS States — When Routing Work Actually Fires</h2>
+<h2 id="sqs-lifecycle">Order SQS — When We Recompute a Route</h2>
 
-<p>Not every GPS point deserves a route recompute. Lifecycle messages bound the work:</p>
-
-<ul>
-  <li><code>PLACED</code> — order exists; baseline route expectations.</li>
-  <li><code>PICKED UP</code> — merchant handoff; geometry assumptions change.</li>
-  <li><code>RIDER ENQUE</code> — courier assigned; matching intensifies.</li>
-  <li><code>RIDER PICKED UP</code> — rider en route; customer-facing ETAs tighten.</li>
-</ul>
-
-<p>Consumers translate those states into Route Service calls. Miss an enqueue event and you optimize the wrong trip. Double-process one and you may emit two Route JSON revisions with different distances — support picks whichever renders last.</p>
-
-<p>At-least-once delivery is not a footnote here. It is why <strong>idempotent route writes</strong> and immutable snapshots in the Revisit Order System matter as much as OSRM latency.</p>
-
-<h2 id="osrm">OSRM Cluster — Match Latency, Radius, Backpressure</h2>
-
-<p>OSRM's <code>/match</code> API snaps noisy GPS to the road graph. Production is a <strong>cluster</strong> with a shared graph build — not a laptop container. Match radius, gap handling, and batch size trade accuracy for CPU. Under load, the failure mode is not always timeout; it is <strong>confident wrong</strong> — a plausible polyline on the wrong parallel road.</p>
-
-<p>We backpressured at Route Service when OSRM p95 drifted: shed non-critical recomputes, coalesce fixes per rider, and never let unbounded queues hide lag from dashboards. Educational benchmarks on a single <code>osrm-routed</code> worker (~15–63 match ops/s in public threads) explain why async queues exist; they are not your dinner-rush capacity plan.<sup><a href="#fn-osrm">3</a></sup></p>
-
-<h2 id="labels">Labels Before Benchmarks</h2>
-
-<p>A P99 without <code>region</code>, <code>map_dataset_rev</code>, and <code>client_version</code> is a story about someone else's outage.</p>
-
-<p>Map data updates silently change match outcomes. A/B app builds send different GPS sampling rates. Comparing this Friday to last Friday without labels is how you "optimize" a regression. We treated observability dimensions like schema fields — required on the span, not optional query hints.</p>
-
-<p>That discipline is the bridge to what I build on LensAI today: OTel spans on the ingestion path tag the same dimensions I'd use to debug a map-matching pipeline under peak dinner rush — tenant, model, batch boundaries, failure class — before I trust a percentile.</p>
-
-<h2 id="failure-modes">Silent Wrong — Dupes, Skew, Clock Skew</h2>
-
-<p>The failures that hurt are quiet:</p>
+<p>Not every GPS point should trigger map work. The queue carries order life:</p>
 
 <ul>
-  <li><strong>Duplicate GPS</strong> — at-least-once replay inflates distance; ETAs lie without a single 500.</li>
-  <li><strong>Partition hot spots</strong> — one shard lags; the mean looks fine while specific riders are wrong.</li>
-  <li><strong>Missing <code>map_dataset_rev</code></strong> — you cannot tell if the graph changed or the code did.</li>
-  <li><strong>Clock skew</strong> — fixes arrive out of order; matchers guess; support sees time travel.</li>
+  <li><code>PLACED</code> — baseline expectations.</li>
+  <li><code>PICKED UP</code> — merchant handoff; geometry changes.</li>
+  <li><code>RIDER ENQUE</code> — courier assigned; matching picks up.</li>
+  <li><code>RIDER PICKED UP</code> — en route; customer ETAs tighten.</li>
 </ul>
 
-<p>Same family as <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Seven Million IoT Sensors</a> and <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>: green dashboards, wrong decisions.</p>
+<p>Route Consumers turn those into Route Service calls. Miss <code>RIDER ENQUE</code> and you match the wrong trip. Process the same message twice and support may see two Route JSON distances — they believe whichever rendered last.</p>
+
+<p>SQS is at-least-once. That is why we needed <strong>idempotent writes</strong> and immutable snapshots in Revisit — same reason duplicate GPS is dangerous without dedupe.</p>
+
+<h2 id="osrm">OSRM Under Load</h2>
+
+<p>OSRM <code>/match</code> snaps GPS to the road graph. In production it is a <strong>cluster</strong> on a shared graph build, not a dev container. Under dinner rush the scary failure is not always a timeout. Sometimes you get a <strong>confident wrong</strong> match — a clean polyline on the wrong parallel road.</p>
+
+<p>When OSRM p95 drifted, Route Service shed non-critical recomputes, coalesced fixes per rider, and refused to let queues grow without showing lag. Public single-node benchmarks are tens of matches per second; they explain why we queue — they are not the capacity plan.<sup><a href="#fn-osrm">3</a></sup></p>
+
+<h2 id="labels">Labels Before You Trust a Percentile</h2>
+
+<p>A fleet P99 without <code>region</code>, <code>map_dataset_rev</code>, and <code>client_version</code> describes someone else's night. Map releases change matches. App versions change GPS sampling. We put those fields on the span every time — not as optional Grafana filters.</p>
+
+<h2 id="failure-modes">When Nothing Pages</h2>
+
+<ul>
+  <li><strong>Duplicate GPS</strong> — replay inflates distance; ETAs lie, no 500.</li>
+  <li><strong>Hot shard</strong> — one partition lags; the mean still looks fine.</li>
+  <li><strong>Missing <code>map_dataset_rev</code></strong> — you cannot tell graph drift from a code change.</li>
+  <li><strong>Clock skew</strong> — fixes arrive out of order; support sees time travel.</li>
+</ul>
+
+<p>Same family as <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Seven Million IoT Sensors</a> and <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>.</p>
 
 <pre class="mermaid">flowchart TD
-  GPS[Duplicate GPS replay] --&gt; DIST[Inflated distance\nwrong ETA]
-  HOT[Partition hot spot] --&gt; LAG[Consumer lag\nstale Route JSON]
-  LBL[Missing map_dataset_rev] --&gt; P99[Useless P99\nwrong regression target]
-  OTEL[OTel: region · map_rev · rider_id] -.->|same dimensions| LENS[LensAI ingest spans\ntenant · model · batch]</pre>
+  DUP[Duplicate GPS] --&gt; ETA[Wrong ETA\nno error spike]
+  HOT[Hot rider shard] --&gt; LAG[Stale Route JSON]
+  LBL[No map_dataset_rev] --&gt; P99[Misleading P99]</pre>
 
-<h2 id="lensai">G-03 — ClickHouse Writer on the Same Muscle</h2>
+<h2 id="kafka-bridge">Same Question on Today's Kafka Topic</h2>
 
-<p>On the laptop stack in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a>, goal <strong>G-03</strong> is the Go consumer's ClickHouse batch writer: flush at <strong>1000 events or 500ms</strong>, three insert retries, then per-event DLQ. A circuit breaker opens after <strong>five</strong> consecutive insert failures, waits <strong>30s</strong>, half-opens on retry, and drains Redis overflow when closed. Metrics I actually scrape: <code>kafka_records_processed_total</code>, <code>clickhouse_write_errors_total</code>, <code>clickhouse_batch_size</code>, <code>clickhouse_flush_duration_seconds</code>, <code>circuit_breaker_state{state}</code>, <code>redis_overflow_depth</code>, <code>dlq_events_total</code>.<sup><a href="#fn-obs">4</a></sup></p>
+<p>On <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-tensor-parallelism-kafka-partitions.html">AI Learning Day 5</a> I key inference events by <code>tenant_id</code> and <code>model_id</code> so one customer's stream stays ordered. At Delivery Hero I keyed geo by <code>rider_id</code> and market for the same reason. Different payload — same design question: <em>who shares fate when load spikes?</em></p>
 
-<p>Route Consumers and a CH writer differ in domain. They agree on backpressure: never commit offset ahead of durable handoff, never hide lag behind an unbounded buffer, and never debug a global P99 when one partition is on fire.</p>
+<p>Get the key wrong and one hot city or one hot model looks healthy on a cluster chart while a single partition falls behind. I still watch per-shard lag before I trust a global percentile — whether the buffer is Kinesis, SQS, or Kafka.</p>
 
 <h2 id="tradeoffs">What We Didn't Do</h2>
 
@@ -355,9 +350,9 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   </tbody>
 </table>
 
-<h2 id="stayed">The Thing That Stayed With Me</h2>
+<h2 id="stayed">What Stayed With Me</h2>
 
-<p>Incidents fade. What stays is respect for the contract between <strong>event</strong>, <strong>geometry</strong>, and <strong>what the UI is allowed to show</strong>. Five thousand events per second do not need heroics. They need honest scope, partition-aware observability, and Route JSON you can replay when someone's ice cream — or dinner — is late.</p>
+<p>Incidents fade. What stays is the contract between <strong>order event</strong>, <strong>matched geometry</strong>, and <strong>what support is allowed to show</strong>. Leading rider tracking across markets taught me that five thousand events per second are not solved by bigger boxes. They are solved by honest scope, the right partition key, and Route JSON you can replay when dinner is late.</p>
 
 <div class="series-footer">
   <p><em>Experience Series · 4 of N</em> — Delivery Hero geo stream shape and routing plane.</p>
@@ -379,10 +374,6 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <span class="footnote-arrow">→</span>
       <span><strong id="fn-osrm">3.</strong> OSRM match throughput discussions — single-worker benchmarks vs clustered production.</span>
     </a>
-    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md" target="_blank" rel="noopener">
-      <span class="footnote-arrow">→</span>
-      <span><strong id="fn-obs">4.</strong> infra-ai-streaming OBSERVABILITY.md — G-03 consumer metrics, batch writer, circuit breaker (feat/consumer-clickhouse-batch-writer).</span>
-    </a>
     <a href="https://tech.deliveryhero.com/" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
       <span>Delivery Hero Tech — platform engineering blog.</span>
@@ -400,7 +391,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <span>Companion (AI): Day 5 — Tensor Parallelism and Kafka Partitions.</span>
     </a>
   </div>
-  <p class="footnote-note">Public DH figures calibrate global scale; resume numbers describe the rider-tracking / map-matching pipeline I built.</p>
+  <p class="footnote-note">Public DH figures calibrate global scale. Resume numbers (5k geo-events/s, 1M+ daily orders) describe the end-to-end rider-tracking pipeline I led.</p>
 </div>
 
 </article>
@@ -419,7 +410,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <li><a href="#osrm">OSRM cluster</a></li>
       <li><a href="#labels">Labels before benchmarks</a></li>
       <li><a href="#failure-modes">Silent wrong</a></li>
-      <li><a href="#lensai">G-03 ClickHouse writer</a></li>
+      <li><a href="#kafka-bridge">Kafka partition bridge</a></li>
       <li><a href="#tradeoffs">What we didn't do</a></li>
       <li><a href="#stayed">What stayed with me</a></li>
     </ul>
