@@ -202,7 +202,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
     <div class="meta-divider"></div>
     <span class="meta-item">May 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">11 min read</span>
+    <span class="meta-item">9 min read</span>
     <div class="meta-divider"></div>
     <span class="meta-item">Experience Series · 4 of N</span>
   </div>
@@ -219,13 +219,15 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>The support ticket said the rider was on the wrong street. The map showed him three blocks away. Both came from the same pipeline — same order ID, same minute, different truths.</p>
 
-<p>Nothing was on fire — no 500s, no red error budget. Just geometry that did not match support's map during dinner rush, while OSRM had confidently snapped noise to the wrong parallel road. Same failure mode as Walmart's green refrigeration rollup and Agoda's merged percentile: dashboards green, decision wrong.</p>
+<p>Nothing was on fire. No 500s, no red error budget. Just geometry that did not match what support expected during dinner rush in a market where rain turns every intersection into a GPS lottery. That is the failure mode I keep writing about: dashboards green, decision wrong. At Walmart it was a refrigeration rollup; at Agoda it was a merged percentile. At Delivery Hero it was a polyline that looked authoritative because OSRM had confidently snapped noise to the wrong parallel road.</p>
 
-<p>From 2022 through 2023 at Delivery Hero in Berlin, <strong>I led the end-to-end rider tracking system</strong> on the Global Logistics Platform — the path from rider GPS through map-matching to the Route JSON customers and support actually see. I built it and rolled it out across <strong>international markets</strong>: separate brands and regions under one platform, each with its own dinner curve but shared services. That is multi-company, multi-tenant in practice — not one monolith order book.</p>
+<p>From 2022 through 2023 at Delivery Hero in Berlin, <strong>I led the end-to-end rider tracking system</strong> on the Global Logistics Platform — rider GPS through map-matching to the Route JSON customers and support actually see, rolled out across <strong>international markets</strong> on one shared platform. What follows is my scope on that stack, not every order in the Delivery Hero Group.</p>
 
-<p>What follows is my scope on that stack. I am not claiming every order in the Delivery Hero Group. Public numbers below are company context; the <strong>5k+/s</strong> and <strong>1M+ daily orders</strong> figures are the pipeline I operated and what my resume states.</p>
-
-<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4 — Tensor Parallelism and Kafka Partitions</a> is the same partition-key argument on a Kafka topic I am building in public — different payload, identical question about who shares fate when load spikes.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">5k+/s</span><span class="stat-label">Geo-events at peak (my scope)</span></div>
+  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders (platform slice)</span></div>
+  <div class="stat-cell"><span class="stat-num">~10M/day</span><span class="stat-label">DH global (footnote)</span></div>
+</div>
 
 <h2 id="architecture">The System I Was Debugging at 8pm on a Friday</h2>
 
@@ -240,7 +242,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   <li><code>RIDER PICKED UP</code> — en route; customer ETAs tighten and support starts watching the map.</li>
 </ul>
 
-<p>That queue is the contract between "what happened to the order" and "what we are allowed to compute on the map." <strong>Route Consumers</strong> read it and call <strong>Route Service</strong>, which fronts an <strong>OSRM cluster</strong> on a versioned road-graph build. OSRM does the CPU-heavy <code>/match</code> work; durable trip semantics live elsewhere. The handoff to apps and support is <strong>Route JSON</strong> — polyline, distance, timestamps, graph revision. When someone asks "where was the rider at 19:42?", the <strong>Revisit Order System</strong> replays immutable snapshots; we did not let support debug production by overwriting "latest." Order Service also fed <strong>GBQ</strong> for analytics. I owned the hot path: Kinesis geo ingest shape, lifecycle-gated routing, map-matching under peak, and keeping Route JSON honest when shards skewed.</p>
+<p>That queue is the contract between order state and map work. <strong>Route Consumers</strong> read it and call <strong>Route Service</strong>, which fronts an <strong>OSRM cluster</strong> on a versioned road-graph build. The handoff is <strong>Route JSON</strong> — polyline, distance, timestamps, graph revision — with immutable snapshots in <strong>Revisit</strong> when support asks "where was the rider at 19:42?" I owned Kinesis ingest shape, lifecycle-gated routing, and keeping Route JSON honest when shards skewed.</p>
 
 <pre class="mermaid">flowchart TB
   CUST[Customer app] --&gt; OS[Order Service]
@@ -263,31 +265,15 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>On the pipeline I led, peak was <strong>5,000+ geo-events per second</strong>. That is not 5,000 orders per second. An "event" is any unit the hot path must reason about: a raw GPS fix, a map-match request, a route recompute after <code>RIDER ENQUE</code>, a notification fan-out. One physical fix often became two logical events when we stored both raw and matched coordinates for dispute replay.</p>
 
-<p>The logistics platform in my scope handled <strong>1M+ daily orders</strong> across those markets. Delivery Hero Group globally is a different, larger number — on the order of <strong>~10 million orders per day</strong> in published platform material,<sup><a href="#fn-dh-aws">1</a></sup> with a <strong>10.4 million orders in one day</strong> record in the 2024 annual report.<sup><a href="#fn-dh-ar">2</a></sup> Both belong in the story; they measure different layers.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5k+/s</span><span class="stat-label">Geo-events at peak (my scope)</span></div>
-  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders (platform slice)</span></div>
-  <div class="stat-cell"><span class="stat-num">~10M/day</span><span class="stat-label">DH global orders (public)</span></div>
-</div>
-
-<div class="attr-box team">
-  <div class="attr-label">Company context (published)</div>
-  Delivery Hero Group cites on the order of <strong>~10 million orders per day</strong> globally and <strong>3 million registered riders</strong> in AWS platform case studies.<sup><a href="#fn-dh-aws">1</a></sup> The CEO letter in the 2024 annual report highlights <strong>10.4 million orders in a single day</strong> (December 2024).<sup><a href="#fn-dh-ar">2</a></sup>
-</div>
-
-<div class="attr-box mine">
-  <div class="attr-label">My context</div>
-  I led throughput and correctness on <strong>end-to-end rider tracking</strong> — OSRM on AWS EKS, Kinesis geo ingest, SQS order events — not middle-mile routing for the whole group. Five thousand events per second is riders × GPS sampling rate × fan-out in the markets I deployed to. Capacity planning used a clustered <code>osrm-routed</code> fleet and queue depth, not a laptop benchmark.<sup><a href="#fn-osrm">3</a></sup>
-</div>
-
-<p>Keep three numbers straight: <strong>5k+/s</strong> is my geo pipeline at peak; <strong>1M+/day</strong> is orders on the platform slice I shipped to; <strong>~10M/day</strong> is global DH in public filings. They do not contradict each other — conflating them is how candidates sound like they ran the entire group from one service team.</p>
+<p>An "event" fans out; an "order" is a lifecycle on Order SQS. Conflating the two is how candidates sound like they ran the entire group from one service team.</p>
 
 <h2 id="stream-shape">Partition Keys and Dinner Rush</h2>
 
-<p>We keyed the Kinesis geo stream by <strong>rider_id</strong> and market so one courier's fixes stayed ordered through match and merge. Map-matching without order is fiction. The cost is <strong>hot shards</strong>: one rider circling a block in the rain, a staging lot with forty couriers on one partition key, a festival zone where GPS bounce is pathological — one shard falls behind while the fleet average still looks fine on a global chart.</p>
+<p>We keyed the Kinesis geo stream by <strong>rider_id</strong> and market so one courier's fixes stayed ordered through match and merge. Map-matching without order is fiction. The cost is <strong>hot shards</strong>: one Friday a courier circled a restaurant parking lot for eight minutes — GPS fixes hammering the same shard while fleet lag charts stayed green. Support saw a rider three blocks away; the shard was drowning in repeats, not the whole platform.</p>
 
-<p>Dinner rush does not move the mean much. It moves the <strong>tail</strong> and the <strong>variance between markets</strong>. When support is staring at one late order, a fleet P99 is the wrong instrument — same lesson as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>, except the tier boundary here is a Kinesis shard, not Redis vs S3.</p>
+<div class="pullquote"><p>Dinner rush does not move the mean much. It moves the tail.</p></div>
+
+<p>When support is staring at one late order, a fleet P99 is the wrong instrument — same lesson as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>, except the tier boundary here is a Kinesis shard, not Redis vs S3.</p>
 
 <div class="pullquote"><p>Key for correctness first. Then watch lag per shard — that is where refunds and "wrong street" tickets come from.</p></div>
 
@@ -357,12 +343,6 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   MAP[Graph rev drift] --&gt; WRONG[Confident wrong polyline]
   LBL[Unlabeled P99] --&gt; BLAME[Wrong team paged]</pre>
 
-<h2 id="kafka-bridge">Same Question on Today's Kafka Topic</h2>
-
-<p>On <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4</a> I am keying inference events by <code>tenant_id</code> (moving toward <code>tenant_id:model_id</code>) so one customer's stream stays ordered through the consumer batch writer. At Delivery Hero I keyed geo by <code>rider_id</code> and market for the same reason. Different payload — same design question: <em>who shares fate when load spikes?</em></p>
-
-<p>Get the key wrong and one hot city or one hot model looks healthy on a cluster chart while a single partition falls behind. I still watch per-shard lag before I trust a global percentile — whether the buffer is Kinesis, SQS, or Kafka.</p>
-
 <h2 id="tradeoffs">What We Didn't Do</h2>
 
 <p>We tried recomputing the full route on every GPS fix "so the map always felt live." It melted OSRM queue depth and made support churn worse — more polylines, not more truth. We tried a mutable "latest route" store without Revisit; disputes became arguments about what the UI used to show.</p>
@@ -383,7 +363,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <div class="series-footer">
   <p><em>Experience Series · 4 of N</em> — Delivery Hero geo stream shape and routing plane.</p>
-  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4</a> — tensor parallelism and Kafka partitions.</em></p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">AI Learning Day 4</a> — same partition-key question on a Kafka topic I am building now (<code>tenant_id</code> instead of <code>rider_id</code>).</em></p>
 </div>
 
 <div class="footnote-row" id="fn-dh">
@@ -437,7 +417,6 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <li><a href="#osrm">OSRM cluster</a></li>
       <li><a href="#labels">Labels before benchmarks</a></li>
       <li><a href="#failure-modes">Silent wrong</a></li>
-      <li><a href="#kafka-bridge">Kafka partition bridge</a></li>
       <li><a href="#tradeoffs">What we didn't do</a></li>
       <li><a href="#stayed">What stayed with me</a></li>
     </ul>

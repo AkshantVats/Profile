@@ -223,193 +223,77 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>Scale a 70B model across four GPUs and you are choosing which layer shards live on which device, then synchronizing partial results on every forward step. Scale inference observability across four consumer instances and you are choosing which <code>tenant_id</code> (soon <code>tenant_id:model_id</code>) events land on which partition, then batching inserts without breaking per-key ordering. NVIDIA Triton's model repository is a partition assignment table with GPUs instead of brokers.</p>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> named the memory-bandwidth bottleneck; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> fixed scheduler granularity inside one replica; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> froze dollars on every row at ingest. This week I shipped the ClickHouse batch writer on the pipeline I am building in public — the consumer graduates from stdout to a sink that can answer <code>sum(cost_usd)</code> by tenant and hour. The sharding story finally has somewhere honest to land.</p>
+<p>Staff engineers often inherit systems already distributed across workers. The hard problem is usually not adding nodes; it is deciding where state lives and what remains correct after you split work. Placement first — then kernels, then dashboards.</p>
 
-<p><strong>Daily thread:</strong> <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Experience 4 — Five Thousand Geo-Events Per Second</a> is the map-matching side: Kinesis keyed by <code>rider_id</code> and market, the same "who shares fate?" question with GPS instead of tokens.</p>
+<p>Previously: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> → cost at ingest; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> → batching inside one replica. This week I shipped the ClickHouse batch writer on the pipeline I am building in public — the consumer graduates from stdout to a sink that can answer <code>sum(cost_usd)</code> by tenant and hour.</p>
 
-<h2 id="tp-pp">Tensor parallelism vs pipeline parallelism</h2>
+<h2 id="tp-pp">When one machine is not enough</h2>
 
-<p>When one GPU cannot hold the weights, you split the model. The two patterns I actually encounter in serving docs:</p>
-
-<ul>
-  <li><strong>Tensor parallelism (TP)</strong> — split individual layers across devices; each forward step needs an <strong>all-reduce</strong> so every shard sees the full activation for the next op. Great when a single layer is too wide; expensive on network between GPUs.</li>
-  <li><strong>Pipeline parallelism (PP)</strong> — assign contiguous layer <em>stages</em> to devices; micro-batches pipeline through the stages like an assembly line. Great when depth dominates; introduces bubble time unless you keep the pipe full.</li>
-</ul>
-
-<pre class="mermaid">flowchart LR
-  R[Request router] --> G0[GPU 0 shard]
-  R --> G1[GPU 1 shard]
-  R --> G2[GPU 2 shard]
-  R --> G3[GPU 3 shard]
-  G0 --> AR[All-reduce / sync]
-  G1 --> AR
-  G2 --> AR
-  G3 --> AR
-  AR --> OUT[Next layer or response]</pre>
-
-<p>Staff-engineer takeaway: TP optimizes <strong>width</strong>; PP optimizes <strong>depth</strong>. Pick wrong and you pay for NCCL chatter or pipeline bubbles instead of FLOPs. I have watched teams buy a fourth GPU, shard badly, and end up slower — same energy as adding Kafka partitions without fixing a hot key. Multi-GPU serving is a <strong>placement</strong> problem first and a kernel problem second.</p>
+<p>When one GPU cannot hold the weights, you split the model. <strong>Tensor parallelism (TP)</strong> shards individual layers and all-reduces activations every step — good when a layer is too wide. <strong>Pipeline parallelism (PP)</strong> assigns layer stages to devices and pipelines micro-batches through — good when depth dominates, costly when the pipe runs dry. TP optimizes width; PP optimizes depth. I have watched teams buy a fourth GPU, shard badly, and end up slower — the same failure mode as adding Kafka partitions without fixing a hot key.</p>
 
 <h2 id="triton-hook">Triton model repository as routing table</h2>
 
-<p>NVIDIA Triton does not "run a model." It maintains a <strong>model repository</strong> — versioned directories with <code>config.pbtxt</code> that declare instance groups, GPU IDs, dynamic batching windows, and which physical replicas exist. A client sends <code>model_name</code> + version; Triton maps that to a concrete instance group. Sound familiar?</p>
-
-<p>It is Kafka's partition assignment table with different nouns:</p>
+<p>NVIDIA Triton maintains a <strong>model repository</strong> — versioned directories with <code>config.pbtxt</code> that declare instance groups, GPU IDs, dynamic batching windows, and which physical replicas exist. A client sends <code>model_name</code> + version; Triton maps that to a concrete instance group. That is the mental model I want to stick with: Kafka's partition assignment table with different nouns.</p>
 
 <table>
   <thead><tr><th>Triton</th><th>Kafka / observability</th></tr></thead>
   <tbody>
-    <tr><td><code>model_name</code></td><td>topic or stream name (<code>ai_inference_events</code>)</td></tr>
+    <tr><td><code>model_name</code></td><td>topic (<code>ai_inference_events</code>)</td></tr>
     <tr><td><code>instance_group</code> count</td><td>partition count</td></tr>
     <tr><td>GPU id per instance</td><td>broker + partition id</td></tr>
     <tr><td>dynamic batching window</td><td>consumer micro-batch (1000 events / 500ms)</td></tr>
-    <tr><td>model version policy</td><td>schema / compat version on ingest</td></tr>
   </tbody>
 </table>
 
-<p>When ops says "scale model foo," they mean add instances or widen the instance group — the same conversation as "add partitions and consumers for tenant traffic."</p>
+<p>When ops says "scale model foo," they mean add instances or widen the instance group — the same conversation as "add partitions and consumers for tenant traffic." The debugging move is the same too: find the shard or GPU group whose queue depth diverges while the fleet chart still looks fine.</p>
 
 <h2 id="kafka">Partitions, keys, and ordering</h2>
 
-<p>Topic <code>ai_inference_events</code> carries the Rust producer's batch envelope <code>{"events":[...]}</code>. Today the producer keys by <code>tenant_id</code> only; the design doc targets <code>hash(tenant_id:model_id)</code> so one noisy model cannot hot-spot a partition shared with quiet tenants — the same reason I would not put every Delivery Hero city on one Kinesis shard (<a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Experience 4</a>).</p>
+<p>Topic <code>ai_inference_events</code> carries the Rust producer's batch envelope <code>{"events":[...]}</code>. Today the producer keys by <code>tenant_id</code> only; the design doc targets <code>hash(tenant_id:model_id)</code> so one noisy model cannot hot-spot a partition shared with quiet tenants.</p>
 
-<p>Kafka guarantees <strong>order within a partition</strong>, not across partitions. That is a feature: you scale consumers horizontally until either CPU or ClickHouse insert rate caps you. The cost is cross-partition analytics — you cannot assume global ordering when debugging a spike; you filter by <code>tenant_id</code> and time range instead.</p>
+<p>Kafka guarantees <strong>order within a partition</strong>, not across partitions. That is a feature: you scale consumers horizontally until CPU or ClickHouse insert rate caps you. The cost is cross-partition analytics — you filter by <code>tenant_id</code> and time range instead of assuming global ordering.</p>
 
-<p>ClickHouse wants the same discipline. The table DDL I checked in for this writer uses:</p>
+<p>ClickHouse wants the same discipline: <code>ORDER BY (tenant_id, model_id, timestamp)</code> and monthly <code>PARTITION BY toYYYYMM(timestamp)</code> so hourly <code>sum(cost_usd)</code> does not scan the universe. For finance rollups, stick to commutative metrics — <code>sum</code>, <code>count</code> — that survive sharding. Cross-partition percentiles lie the same way merged tier percentiles do; latency needs per-partition dashboards or careful merge, not a fleet average you trust at 8pm.</p>
 
-<pre><code>ORDER BY (tenant_id, model_id, timestamp)</code></pre>
 
-<p>Monthly <code>PARTITION BY toYYYYMM(timestamp)</code> keeps merges bounded. Rows for one tenant/model cluster on disk the way Kafka keeps them ordered in the log — so hourly <code>sum(cost_usd)</code> does not scan the universe.</p>
+<h2 id="batching-serving">Two batching layers</h2>
 
-<h2 id="ds-analogy">The data-systems analogy</h2>
-
-<div class="attr-box mine">
-  <div class="attr-label">Data-systems lens</div>
-  <table>
-    <thead><tr><th>LLM serving / observability</th><th>Data-systems parallel</th></tr></thead>
-    <tbody>
-      <tr><td>Tensor parallel shard</td><td><strong>HDFS block replica</strong> — same logical row split across workers; merge before next stage</td></tr>
-      <tr><td>Pipeline parallel stage</td><td><strong>Spark stage boundary</strong> — shuffle between stages, micro-batch keeps pipe full</td></tr>
-      <tr><td>Triton instance group</td><td><strong>Kafka partition + consumer group member</strong> — assign work, preserve local order</td></tr>
-      <tr><td>Dynamic batching window</td><td><strong>FileStream commit interval</strong> — latency vs throughput knob</td></tr>
-      <tr><td>Cross-partition rollup</td><td><strong>Global aggregate after map-side combine</strong> — correct only with commutative ops (<code>sum</code>, <code>count</code>)</td></tr>
-      <tr><td>Redis overflow buffer</td><td><strong>WAL / dead-letter staging</strong> — durability when sink is unhealthy</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<p><a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">Cross-tier percentiles</a> do not merge; cross-partition percentiles lie the same way. For finance rollups, stick to <code>sum(cost_usd)</code> and counts. Latency needs per-partition dashboards or careful merge (<a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">Experience 1</a>).</p>
-
-<h2 id="batching-serving">Cross-partition batching vs in-GPU batching</h2>
-
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> batching happens <strong>inside</strong> one replica: fill GPU slots per token step. Consumer batching happens <strong>across</strong> unrelated keys that share a process — you are amortizing ClickHouse round-trips, not matmuls.</p>
-
-<p>Do not confuse them when tuning:</p>
-
-<ul>
-  <li>Shrink vLLM batch → lower per-GPU latency, possibly lower throughput.</li>
-  <li>Shrink CH flush window (500ms) → fresher dashboards, more insert QPS.</li>
-  <li>Enlarge CH batch (1000 events) → higher throughput, coarser lag visibility.</li>
-</ul>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> batching happens <strong>inside</strong> one replica: fill GPU slots per token step. Consumer batching happens <strong>across</strong> unrelated keys in one process — you amortize ClickHouse round-trips, not matmuls. Shrink the vLLM batch for latency; shrink the flush window (500ms) for fresher dashboards; enlarge the batch (1000 events) for throughput. Tune the layer you are actually in.</p>
 
 <div class="pullquote"><p>Partitioning decides <em>who</em> shares fate. Batching decides <em>how often</em> you pay the network tax.</p></div>
 
-<h2 id="clickhouse-rollups">Batch writer, breaker, overflow, triple-retry DLQ</h2>
+<h2 id="clickhouse-rollups">Batch writer under load</h2>
 
-<p>The work lives in <code>consumer/internal/clickhouse/writer.go</code> on branch <code>feat/consumer-clickhouse-batch-writer</code> in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a>. The writer buffers decoded events and flushes on whichever comes first: <strong>1000 events</strong> or <strong>500ms</strong>. That dual trigger is the same latency–throughput trade as Triton dynamic batching — wait for volume, but not forever.</p>
+<p>The work lives in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a> (<code>consumer/internal/clickhouse/writer.go</code>). The writer buffers decoded events and flushes on whichever comes first: <strong>1000 events</strong> or <strong>500ms</strong> — the same latency–throughput trade as Triton dynamic batching.</p>
 
 <pre class="mermaid">flowchart TB
   K[Kafka ai_inference_events] --> C[Go consumer]
   C --> B{Batch buffer}
   B -->|flush 1000 or 500ms| CB{Circuit breaker}
-  CB -->|closed| CH[(ClickHouse infra_ai.inference_events)]
-  CB -->|open| R[(Redis overflow LIST)]
-  CB -->|3 insert retries failed| DLQ[Kafka ai_inference_dlq]
+  CB -->|closed| CH[(ClickHouse)]
+  CB -->|open| R[(Redis overflow)]
+  CB -->|retries exhausted| DLQ[Kafka DLQ]
   R -->|drain when closed| CH</pre>
 
-<p><strong>Circuit breaker</strong> (from <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md">OBSERVABILITY.md</a>): five consecutive insert failures → <strong>open</strong> (skip CH, push to Redis). After 30s → <strong>half-open</strong> (probe). One success → <strong>closed</strong>. Overflow drain runs every 5s (up to 5000 events) while closed.</p>
+<p>Five consecutive insert failures open the breaker and push to Redis; after 30s it half-opens and probes. Each batch gets three insert retries; failures land on <code>ai_inference_dlq</code>. Kafka offsets commit only after every event in the record is handed off — ClickHouse row, overflow, or DLQ — so poison payloads do not vanish from the rollup.</p>
 
-<p><strong>DLQ×3:</strong> each batch gets three insert retries; per-event publish to <code>ai_inference_dlq</code> if still failing. Kafka offsets commit only after every event in the record is handed off — CH row, overflow, or DLQ — so you do not silently drop poison payloads.</p>
+<p>The Grafana panel I want next is simple:</p>
 
-<p>Schema columns the writer inserts (same table Day 3 validated at ingest):</p>
-
-<table>
-  <thead><tr><th>Column</th><th>Role</th></tr></thead>
-  <tbody>
-    <tr><td><code>tenant_id</code>, <code>model_id</code></td><td>Shard keys — match Kafka routing and CH <code>ORDER BY</code></td></tr>
-    <tr><td><code>prompt_tokens</code>, <code>completion_tokens</code>, <code>cost_usd</code></td><td>Finance rollups (<a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a>)</td></tr>
-    <tr><td><code>prefill_latency_ms</code>, <code>decode_latency_ms</code></td><td>Explain drivers, not dollars</td></tr>
-    <tr><td><code>status</code>, <code>error_code</code></td><td>Failed calls that may still bill prompt tokens</td></tr>
-  </tbody>
-</table>
-
-<p>Example ingest batch (producer → Kafka, unchanged from README):</p>
-
-<pre><code>{
-  "events": [
-    {
-      "tenant_id": "demo",
-      "model_id": "gpt-4o",
-      "timestamp_unix_ms": 1715000000000,
-      "latency_ms": 342,
-      "prefill_latency_ms": 120,
-      "decode_latency_ms": 222,
-      "prompt_tokens": 512,
-      "completion_tokens": 128,
-      "cost_usd": 0.00423,
-      "status": "success",
-      "request_id": "req-7f3a"
-    }
-  ]
-}</code></pre>
-
-<p>Example rollup — the query Grafana panel (3) will run tomorrow:</p>
-
-<pre><code>SELECT
-  tenant_id,
-  model_id,
-  toStartOfHour(timestamp) AS hour,
-  sum(cost_usd) AS cost_usd,
-  sum(prompt_tokens) AS prompt_tokens,
-  sum(completion_tokens) AS completion_tokens,
-  count() AS requests
+<pre><code>SELECT tenant_id, toStartOfHour(timestamp) AS hour, sum(cost_usd)
 FROM infra_ai.inference_events
-WHERE timestamp &gt;= now() - INTERVAL 24 HOUR
-GROUP BY tenant_id, model_id, hour
-ORDER BY hour DESC, cost_usd DESC;</code></pre>
+GROUP BY tenant_id, hour;</code></pre>
 
-<pre class="mermaid">sequenceDiagram
-  participant Buf as Batch buffer
-  participant T as 500ms timer
-  participant CH as ClickHouse
+<p><a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/deploy/clickhouse/init.sql" target="_blank" rel="noopener">Full query and DDL in GitHub</a> — <code>infra-ai-streaming</code>, batch-writer branch.</p>
 
-  Buf->>Buf: event arrives
-  alt len(buf) &gt;= 1000
-    Buf->>CH: flush now
-  else timer fires
-    T->>CH: flush partial batch
-  end</pre>
+<h2 id="observability">Prove the consumer is honest</h2>
 
-<h2 id="observability">Observability for the pipeline itself</h2>
-
-<p>Inference metrics are useless if the consumer is lying. The consumer exports on <code>:9091/metrics</code> (documented in the repo's OBSERVABILITY.md):</p>
-
-<ul>
-  <li><code>kafka_records_processed_total</code> — records fully handed off</li>
-  <li><code>clickhouse_batch_size</code> / <code>clickhouse_flush_duration_seconds</code> — batching health</li>
-  <li><code>circuit_breaker_state{state}</code> — open should be rare and loud</li>
-  <li><code>redis_overflow_depth</code> — backpressure signal</li>
-  <li><code>dlq_events_total</code> — poison or schema drift</li>
-</ul>
-
-<p>SLO sketches from the doc: <code>rate(dlq_events_total[5m]) == 0</code> and breaker open &lt; 1% of the hour. That is how I prove routing did not drop events under load — same discipline as labeled benchmarks in the daily thread.</p>
-
-<h2 id="experience-link">Same assignment problem at Delivery Hero scale</h2>
-
-<p><a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html"><strong>Experience 4 — Five Thousand Geo-Events Per Second</strong></a> is the map-matching side: Kinesis keyed by <code>rider_id</code> and market, lifecycle-gated OSRM, hot shards during dinner rush. Same design question — <em>who shares fate when load spikes?</em> The IoT post (<a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Experience 3</a>) is the failure-mode mirror: poison belongs in DLQ, not the rollup table.</p>
+<p>Inference metrics are useless if the consumer is lying. On <code>:9091/metrics</code> I watch records fully handed off, batch size and flush duration, breaker state, Redis overflow depth, and DLQ rate. Breaker open should be rare and loud; <code>dlq_events_total</code> at zero is the sketch SLO that says routing did not drop events under load.</p>
 
 <h2 id="takeaway">What I am taking away</h2>
 
-<p>Multi-GPU inference and multi-partition ingestion both reduce to <strong>placement + commutative aggregates + backpressure</strong>. TP/PP name the GPU placement; Kafka keys and Triton instance groups name the ops placement; ClickHouse <code>ORDER BY</code> names the query placement. The batch writer ties it together — batched inserts, breaker-gated Redis overflow, triple-retry DLQ — so <code>cost_usd</code> from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> finally lands where finance can sum it.</p>
+<p>Multi-GPU inference and multi-partition ingestion both reduce to <strong>placement, commutative aggregates, and backpressure</strong>. Triton instance groups and Kafka keys name who shares fate; ClickHouse <code>ORDER BY</code> names where queries stay cheap; the batch writer names what happens when the sink hiccups. The dollars from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> finally have somewhere finance can sum them.</p>
+
+<p>Same partition-key story on a geo stream I led at Delivery Hero — <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a> — keyed by <code>rider_id</code> and market instead of <code>tenant_id</code>.</p>
 
 <div class="series-footer">
   <p><em>Day 4 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
@@ -467,11 +351,9 @@ ORDER BY hour DESC, cost_usd DESC;</code></pre>
       <li><a href="#tp-pp">TP vs PP</a></li>
       <li><a href="#triton-hook">Triton routing table</a></li>
       <li><a href="#kafka">Kafka partitions</a></li>
-      <li><a href="#ds-analogy">Data-systems analogy</a></li>
       <li><a href="#batching-serving">Batching layers</a></li>
       <li><a href="#clickhouse-rollups">Batch writer</a></li>
       <li><a href="#observability">Pipeline metrics</a></li>
-      <li><a href="#experience-link">Experience link</a></li>
       <li><a href="#takeaway">Takeaway</a></li>
       <li><a href="#footnotes">Footnotes</a></li>
     </ul>
