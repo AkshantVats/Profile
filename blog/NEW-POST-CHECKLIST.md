@@ -44,8 +44,8 @@ Use this whenever you publish a post in an existing series.
   ```
   Wrap in `<div class="post-cover-wrap">` (full layout width, not `--read`). CSS from a sibling post:
   `.post-cover-wrap { max-width: var(--layout-max); … }` · `.post-cover img { width:100%; height:auto }` · assets **1200×630** (1.91:1).
-- [ ] **`article:published_time`** — ISO date `YYYY-MM-DD` (this is the **sort date**; do not rely on JSON).
-- [ ] Optional: **`article:modified_time`** only if you revise the post later (sort uses the **later** of published vs modified).
+- [ ] **`article:published_time`** — ISO date `YYYY-MM-DD` (this is the **sort date**; do not rely on JSON). Set it to the **real go-live date** from your 150-day calendar (not a placeholder month in the future). Within a series, the **newest post must have the latest date** so `blog/index.html` and the homepage sort correctly.
+- [ ] Optional: **`article:modified_time`** only if you revise the post later (sort uses the **later** of published vs modified; keep modified ≥ published).
 
 ### Required in the body
 
@@ -65,7 +65,7 @@ Use this whenever you publish a post in an existing series.
 - [ ] Add an entry under the correct **`series.posts`** array.
 - [ ] **`href`**: real path when published, e.g. `blog/series/ai-learning/your-file.html` (not `#`).
 - [ ] **`kicker`**, **`title`**, **`desc`**: used for **series sidebar** and fallback text; keep in sync with the post theme and the series kicker rules above (Experience = `Experience X of N` only).
-- [ ] Put the new post in the order you want in the **sidebar roadmap** (newest near top is fine).
+- [ ] Put the new post **first** in the series `posts` array (newest at top — matches sort order on `blog/index.html`).
 - [ ] **Do not add `addedAt`** — dates come from HTML only.
 - [ ] For **drafts**: keep `"href": "#"` until the HTML file exists and is ready to ship.
 
