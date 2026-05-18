@@ -220,52 +220,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-layout">
 <article class="prose">
-<p>We rolled collectors during an outage. Same <code>trace_id</code>, same failure — present in Monday's view, gone from Tuesday's. I pulled up the exact request that had triggered the page, searched by trace ID in Jaeger, and got back three orphaned spans out of what should have been twelve. Head sampling had no stable hash yet, so deploy day changed which spans survived. The outage was real. The story in the trace backend was optional.</p>
+<p>I kept reading "consistent hashing" as a routing trick and "trace sampling" as a cost knob. They are the same idea wearing different hats: a stable hash and a rule you can defend on a whiteboard.</p>
 
-<p>That was the moment I stopped treating sampling as a cost knob you twist once and forget. Something changed in production — a collector restart, a new pod count during the roll — and the observability layer quietly decided the evidence didn't matter enough to keep. No alert fired. No metric moved. The trace just wasn't there anymore.</p>
+<p>The mistake is assuming sampling starts after data arrives. The sampling decision is part of the system design itself. By the time a trace reaches storage, the important choices were already made: partitioning, identity, and retention.</p>
 
-<p>The intuition was that "sample 1%" means you see 1% of traffic, chosen fairly. What I didn't expect was how many ways that assumption breaks when distributed collectors are involved — and how much the failure mode looks like a routing problem once you see it clearly.</p>
+<p>Random sampling loses the whole incident you need to debug. Naive full-fidelity retention explodes cost before anyone opens a dashboard. The job is picking what stays deterministic, what stays commutative for finance, and what never becomes an identity you index per request.</p>
 
 <h2 id="coin-flip">Why "sample 1%" is not a coin flip</h2>
 
-<p>Without a deterministic hash, each span flips its own coin. Collector A sees the first three spans of trace <code>abc-7f3e</code> and keeps two. Collector B sees the next four spans and keeps none. You open Jaeger, find half a request, and spend thirty minutes wondering whether the gap is a bug in your service or a sampling artifact.</p>
+<p><strong>Head sampling</strong> decides at ingest whether a trace is kept. It is cheap when you do it right — and expensive when each span flips its own coin. Then you debug half a request in Jaeger and wonder where the rest went.</p>
+
+<p><strong>Deterministic head sampling</strong> fixes that. The same <code>trace_id</code> always lands in or out, on every collector, every deploy:</p>
 
 <p>That is not 1% sampling. That is a broken trace pretending to be a sampled one.</p>
 
-<p>The problem compounds on deploy day. When you roll collectors, the random seed changes. A trace that was "in" on Monday is "out" on Tuesday — same <code>trace_id</code>, different random draw. Your week-over-week Grafana panels stop being comparable, because the denominator shifted under you and nobody announced it. The error rate appears to improve after a deploy that changed nothing, because you are now retaining a different slice of traffic.</p>
+<p>Change the sample rate and a different slice of traffic is kept — but any given trace does not randomly appear one week and vanish the next. That is what makes week-over-week dashboards comparable.</p>
 
-<div class="pullquote"><p>The dangerous part is that nothing crashes. Your dashboards still render. The lines still move. You just lost the ability to compare this week to last week, and you will not notice until someone asks why the error rate "improved" after a no-op deploy.</p></div>
+<p><strong>Tail sampling</strong> (the <code>OR</code> branches above) always retains failures, high-<code>cost_usd</code> rows, or paths where the circuit breaker opened. Those are the signals you cannot afford to lose inside a random 1% slice. Head rate bounds cost; tail rules bound regret.</p>
 
-<p>I hit this scenario twice before I understood the root cause. The first time, I blamed the trace backend. The second time, I blamed the collector config. Both times, the real problem was simpler: each span was making an independent random decision, so no trace was ever fully in or fully out. The fragments that survived looked like evidence but were actually noise.</p>
+<p>We once rolled collectors during an incident. Same <code>trace_id</code>, same failure — present in Monday's view, gone from Tuesday's. Head sampling had no stable hash yet; deploy day changed which spans survived. The outage was real. The story in the trace backend was optional.</p>
 
-<h2 id="deterministic">Deterministic head sampling</h2>
-
-<p>The fix is embarrassingly simple. Hash the <code>trace_id</code>, compare against a threshold:</p>
-
-<pre><code>keep = (hash(trace_id) % 10000) &lt; (sample_rate * 10000)</code></pre>
-
-<p>Same trace, same decision, every collector, every deploy. Roll your fleet, change your instance count, swap your container runtime — the hash is stable because it depends only on the <code>trace_id</code>, not on which collector received the span or when. Change the sample rate and a different slice of traffic is kept, but any given trace does not randomly appear one week and vanish the next. That is what makes week-over-week dashboards comparable.</p>
-
-<p>But deterministic head sampling alone is not enough, because a 1% head rate also drops 99% of failures. So you add tail rules:</p>
-
-<pre><code>keep = (hash(trace_id) % 10000) &lt; (sample_rate * 10000)
-    OR status != "success"
-    OR cost_usd &gt;= cost_tail_threshold</code></pre>
-
-<p>Head rate bounds cost. Tail rules bound regret. The failure that woke someone at 3 AM always survives, regardless of what the sample rate dial says. The circuit-breaker trip that cascaded through three services is always retained, because that is the story you cannot afford to reconstruct from memory.</p>
+<p>Finance still needs every row in the warehouse for <code>sum(cost_usd)</code>. SRE still needs enough spans to debug a bad deploy. Sampling is how you serve both without indexing the full cross-product on every scrape. The mistake is treating head rate as a dial you twist without a stable hash — you save money the same week you lose comparability, and nobody notices until the incident trace is missing.</p>
 
 <pre class="mermaid">flowchart TD
-  REQ[Incoming span] --> HASH["hash(trace_id) % 10000"]
-  HASH -->|"below threshold"| IN[Deterministic keep]
-  HASH -->|"above threshold"| CHECK{"Tail rule?"}
-  CHECK -->|"failure or high cost"| OVERRIDE[Force keep]
-  CHECK -->|"normal + above threshold"| DROP[Drop span]
-  IN --> STORE[Trace storage]
-  OVERRIDE --> STORE
-  DROP --> GONE["Lost — but consistently lost"]
-  
-  RAND[Random per-span] -.->|"no stable hash"| HALF["Half a trace in Jaeger"]
-  HALF -.-> CONFUSION["30 min debugging an artifact"]</pre>
+  REQ[Request] --> HASH[hash trace_id]
+  HASH --> KEEP[Keep trace]
+  HASH --> DROP[Drop trace]
+  KEEP --> TAIL[Failure / high cost override]
+  TAIL --> STORE[Trace storage]
+  RANDOM[Random sampling] --> LOST[Missing incident trace]</pre>
 
 <table>
   <thead><tr><th>Approach</th><th>What breaks</th><th>When you notice</th></tr></thead>
@@ -278,11 +261,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <h2 id="routing">Routing vs sampling — same hash discipline</h2>
 
-<p>The producer still keys Kafka by <code>tenant_id</code>. The target is <code>hash(tenant_id:model_id)</code>, so one hot model cannot poison an entire tenant partition. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key. Today names what history you are allowed to keep.</p>
+<p>The producer still keys Kafka by <code>tenant_id</code>; the target is <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is <strong>routing</strong>, not sampling — but it uses the same discipline: a stable hash and a key you document before production. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key; today names what history you are allowed to keep.</p>
 
-<p>Routing is not sampling — but the discipline is identical. A stable hash, a documented key, and a rule that survives deploy day without a migration plan. Change the hash seed without coordination and you get Kafka rebalance pain: partitions shuffle, consumers reprocess, lag spikes while the cluster resettles. Change the sample rate without a stable <code>trace_id</code> hash and you break week-over-week comparability the same way. Different surface, same failure mode: you moved a knob without preserving identity.</p>
+<p>Change the hash seed without a migration plan and you get Kafka rebalance pain or "where did my traces go?" Change the sample rate without a stable <code>trace_id</code> hash and you break week-over-week comparability the same way. Different surface, same failure mode: you moved a knob without preserving identity.</p>
 
-<p>This is why I started thinking of routing and sampling as one discipline. The hash function is the commitment. In routing, it commits a tenant to a partition. In sampling, it commits a trace to a retention decision. Break the commitment during a deploy and you get either rebalance storms or vanishing evidence — both expensive, both silent until someone needs the data that moved.</p>
+<p><strong>Inference events</strong> land in ClickHouse for dollars. Dimensions live in columns, not Prometheus labels. <strong>Traces</strong> sample harder — you cannot afford one span per token at fleet scale. Do not put <code>model_id × tenant_id × pod</code> on counters and call it observability; prove latency and cost in the warehouse, keep ops metrics bounded.</p>
+
+<p>Sampling sits beside the ingest gate: dense events for money, sparser spans for debugging. When throughput climbs for one <code>tenant_id</code> while consumer lag stays flat, routing is healthy — work is accepted and the writer is keeping up. When lag spikes, tail rules should still have kept the breaker story even if head rate is 1%.</p>
 
 <table>
   <thead><tr><th>Routing (Day 4)</th><th>Sampling (Day 5)</th></tr></thead>
@@ -295,17 +280,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <h2 id="proof">One schema, four questions</h2>
 
-<p>Finance needs every row for <code>sum(cost_usd)</code>. They do not care that traces were sampled — cost events must be dense. SRE needs enough spans to debug a bad deploy but cannot afford one span per token at fleet scale. Marketing wants per-tenant dashboards that compare this week to last week. Sampling serves all three without indexing the full cross-product on every scrape, but only if the event shape supports both dense cost events and sparse debug spans in the same pipeline.</p>
-
-<p>The mistake is putting <code>model_id × tenant_id × pod</code> on Prometheus counters and calling it observability. That is a cardinality bomb waiting for the next model rollout to detonate. <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Experience 5</a> bounds what you index; today bounds what you keep. Inference events land in ClickHouse with dimensions as columns, not labels. Traces sample harder. Prove latency and cost in the warehouse; keep ops metrics bounded.</p>
-
-<p>Four panels, four questions that prove the schema works:</p>
+<p>A product SLO board only works if placement, retention, and commutative math share one event shape. Four panels, four questions:</p>
 
 <ul>
-  <li><strong>Ingest throughput by tenant</strong> — bounded label on the ops path. One tenant's line diverges → routing problem or abuse, before you ever open a trace.</li>
+  <li><strong>Ingest throughput by tenant</strong> — bounded label on the ops path. One tenant's line diverges → routing or abuse before you open a trace.</li>
   <li><strong>P99 inference latency by model</strong> — warehouse <code>quantile(0.99)</code> grouped by <code>model_id</code> as a column, not a label cross-product.</li>
-  <li><strong>Cost per hour by tenant</strong> — <code>sum(cost_usd)</code> over every event row. Finance does not care about your sampling rate.</li>
-  <li><strong>Kafka consumer lag</strong> — throughput without lag is an incomplete story. When throughput climbs for one tenant while lag stays flat, routing is healthy. When lag spikes, tail rules should still have kept the breaker story even if head rate is 1%.</li>
+  <li><strong>Cost per hour by tenant</strong> — <code>sum(cost_usd)</code> over every event row; finance does not care that traces were sampled.</li>
+  <li><strong>Kafka consumer lag</strong> — throughput without lag is an incomplete story.</li>
 </ul>
 
 <pre><code>SELECT tenant_id, toStartOfHour(timestamp) AS hour, sum(cost_usd)
@@ -313,13 +294,11 @@ FROM inference_events
 GROUP BY tenant_id, hour
 ORDER BY hour DESC;</code></pre>
 
-<p>Throughput running ahead of lag when the writer is behind is honest, not broken. Sampling does not replace either signal — it keeps trace volume from becoming a third retention crisis on top of routing and dollars.</p>
+<p>Throughput may run ahead of lag when the writer is behind. That is honest, not broken. Sampling does not replace either signal — it keeps trace volume from becoming a third retention crisis on top of routing and dollars. <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Experience 5</a> bounds what you index; today bounds what you keep.</p>
 
 <h2 id="close">Close the loop</h2>
 
-<p>I started this day thinking sampling was a dial you twist to save money. It is — but the dial only works if the hash is stable, the tail rules are explicit, and the downstream schema can handle both dense cost events and sparse debug spans in the same pipeline.</p>
-
-<p>The thing that transfers beyond this pipeline is the principle: any time you introduce randomness into a distributed system, ask what identity it destroys. For traces, that identity is the <code>trace_id</code>. For partitions, it is the tenant key. For dashboards, it is week-over-week comparability. Lose the identity and you have not saved cost — you have laundered away the evidence.</p>
+<p>Ring routing: move backends, minimal key churn. Trace sampling: move sample rate, same <code>trace_id</code> still kept or dropped — comparable week-over-week. Placement, retention, and commutative math are three terms of one design.</p>
 
 <div class="pullquote"><p>Routing decides where work goes. Sampling decides what history survives. Both are hash functions pretending to be infrastructure decisions.</p></div>
 
@@ -381,10 +360,9 @@ ORDER BY hour DESC;</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#coin-flip">Why 1% is not a coin flip</a></li>
-      <li><a href="#deterministic">Deterministic head sampling</a></li>
-      <li><a href="#routing">Routing vs sampling</a></li>
-      <li><a href="#proof">One schema, four questions</a></li>
+      <li><a href="#coin-flip">Why 1% is not random</a></li>
+      <li><a href="#routing">Deterministic routing</a></li>
+      <li><a href="#proof">Four questions</a></li>
       <li><a href="#close">Close the loop</a></li>
       <li><a href="#footnotes">Footnotes</a></li>
     </ul>
