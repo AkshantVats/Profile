@@ -214,29 +214,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-5-sampling-deterministic-routing.png" alt="Cover: Tensor Parallelism Meets Kafka Partitions — Day 4 of N" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-5-sampling-deterministic-routing.png" alt="Cover: Sampling and Deterministic Routing — Day 5 of N" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
-<p>I kept reading "consistent hashing" as a routing trick and "trace sampling" as a cost knob. They use the same hash function and fail in opposite directions: random sampling loses the incident you need; naive full-fidelity metrics explode cardinality before Grafana loads. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key; today names what you are allowed to <strong>store</strong> per request without lying to finance or SRE.</p>
+<p>I kept reading "consistent hashing" as a routing trick and "trace sampling" as a cost knob.</p>
 
-<p>You do not greenfield observability at scale — you inherit Prometheus beside a warehouse, three SDKs, and a finance team that wants <code>sum(cost_usd)</code> by tenant. The job is not "turn on tracing"; it is picking <strong>what is deterministic, what is commutative, and what never becomes a label</strong>. Placement (partition keys, shard keys) and retention (sampling, TTL) are the two levers that survive reorgs and on-call at 2 a.m. Dashboards are the proof those levers match the schema you already committed to in DESIGN.md.</p>
+<p>They are the same idea wearing different hats. Both need a stable hash and a rule you can explain on a whiteboard. Random sampling loses the whole incident you need to debug. Naive full-fidelity metrics explode cardinality before Grafana finishes loading. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key. Today names what you are allowed to <strong>store</strong> per request without lying to finance or SRE.</p>
+
+<p>You do not greenfield observability at scale. You inherit Prometheus beside a warehouse, three SDKs, and a finance team that wants <code>sum(cost_usd)</code> by tenant. The job is not "turn on tracing." It is picking <strong>what is deterministic, what is commutative, and what never becomes a label</strong>. Placement (partition keys, shard keys) and retention (sampling, TTL) are the two levers that survive reorgs and on-call at 2 a.m. Dashboards are the proof those levers match the schema you already committed to in DESIGN.md.</p>
 
 <p>Calendar day six in my public build: the <strong>AI Inference — Product SLOs</strong> dashboard (<code>uid: ai-inference-product</code>) ships four panels — ingest throughput by <code>tenant_id</code>, P99 inference latency by <code>model_id</code>, cost per hour by tenant, Kafka consumer lag. That only works if today's sampling discipline matches yesterday's partition discipline and <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Experience 5</a>'s cardinality war on the same event shape.</p>
 
 <h2 id="coin-flip">Why "sample 1%" is not a coin flip</h2>
 
-<p><strong>Head sampling</strong> decides at ingest whether a trace is kept. Cheap — unless each span flips independently and you debug half a request. <strong>Deterministic head sampling</strong> fixes that: the same <code>trace_id</code> always lands in or out.</p>
+<p><strong>Head sampling</strong> decides at ingest whether a trace is kept. It is cheap when you do it right — and expensive when each span flips its own coin. Then you debug half a request in Jaeger and wonder where the rest went.</p>
+
+<p><strong>Deterministic head sampling</strong> fixes that. The same <code>trace_id</code> always lands in or out, on every collector, every deploy:</p>
 
 <pre><code>keep_trace = (hash(trace_id) % 10000) &lt; (sample_rate * 10000)
          OR status != "success"
          OR cost_usd &gt;= cost_tail_threshold</code></pre>
 
-<p><strong>Tail sampling</strong> always retains failures, high-<code>cost_usd</code> rows from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a>, or paths where the <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> breaker opened — ops signals you cannot afford to lose in a random 1% slice.</p>
+<p>Change the sample rate and a different slice of traffic is kept — but any given trace does not randomly appear one week and vanish the next. That is what makes week-over-week dashboards comparable.</p>
 
-<p>Finance still needs every row in ClickHouse for <code>sum(cost_usd)</code>; SRE still needs enough spans to debug a bad deploy. Sampling is how you serve both without pretending Prometheus can index the full cross-product. The mistake is treating head rate as a dial you twist without a stable hash — you lose comparability the same week you "save money."</p>
+<p><strong>Tail sampling</strong> (in the rule above as the <code>OR</code> branches) always retains failures, high-<code>cost_usd</code> rows from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a>, or paths where the <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> breaker opened. Those are the signals you cannot afford to lose inside a random 1% slice. Head rate bounds cost; tail rules bound regret.</p>
+
+<p>Finance still needs every row in ClickHouse for <code>sum(cost_usd)</code>. SRE still needs enough spans to debug a bad deploy. Sampling is how you serve both without pretending Prometheus can index the full cross-product. The mistake is treating head rate as a dial you twist without a stable hash — you save money the same week you lose comparability, and nobody notices until the incident trace is missing.</p>
 
 <table>
   <thead><tr><th>Approach</th><th>Failure mode</th></tr></thead>
@@ -249,14 +255,16 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <h2 id="routing">Deterministic routing on the data plane</h2>
 
-<p>The producer still keys Kafka by <code>tenant_id</code>; DESIGN targets <code>hash(tenant_id:model_id)</code> — <strong>routing</strong>, not sampling. Change the hash seed without migration and you get Kafka rebalance pain or "where did my traces go?" Changing sample rate without a stable <code>trace_id</code> hash breaks week-over-week comparability the same way.</p>
+<p>The producer still keys Kafka by <code>tenant_id</code>. DESIGN.md targets <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is <strong>routing</strong>, not sampling — but it uses the same discipline: a stable hash and a key you document before production.</p>
 
-<p><strong>Inference events</strong> land in ClickHouse for dollars — dimensions live in columns, not Prometheus labels. <strong>Traces</strong> sample harder. Do not put <code>model_id × tenant_id × pod</code> on counters; prove latency in the warehouse.</p>
+<p>Change the hash seed without a migration plan and you get Kafka rebalance pain or "where did my traces go?" Change the sample rate without a stable <code>trace_id</code> hash and you break week-over-week comparability the same way. Different surface, same failure mode: you moved a knob without preserving identity.</p>
 
-<p>The Rust ingest path already validates <code>cost_usd</code> at the gate from Day 3. Sampling sits beside that gate: dense events for money, sparser spans for debugging. When the product dashboard shows ingest throughput climbing for one <code>tenant_id</code> while consumer lag stays flat, you are seeing routing health. When lag spikes, tail rules should have kept the breaker story even if head rate is 1%.</p>
+<p><strong>Inference events</strong> land in ClickHouse for dollars. Dimensions live in columns, not Prometheus labels. <strong>Traces</strong> sample harder — you cannot afford one span per token at fleet scale. Do not put <code>model_id × tenant_id × pod</code> on counters and call it observability; prove latency and cost in the warehouse, keep ops metrics bounded.</p>
+
+<p>The Rust ingest path already validates <code>cost_usd</code> at the gate from Day 3. Sampling sits beside that gate: dense events for money, sparser spans for debugging. When the product dashboard shows ingest throughput climbing for one <code>tenant_id</code> while consumer lag stays flat, you are seeing routing health — work is accepted and the writer is keeping up. When lag spikes, tail rules should still have kept the breaker story even if head rate is 1%.</p>
 
 <table>
-  <thead><tr><th>Routing (you know)</th><th>Sampling (this post)</th></tr></thead>
+  <thead><tr><th>Routing (Day 4)</th><th>Sampling (Day 5)</th></tr></thead>
   <tbody>
     <tr><td><code>hash(key) → partition</code></td><td><code>hash(trace_id) → keep/drop</code></td></tr>
     <tr><td>Same key → same broker after scale-out</td><td>Same trace → same decision on every collector</td></tr>
@@ -266,19 +274,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <h2 id="cardinality">Cardinality — Experience 5 companion</h2>
 
-<p>At Agoda, a new tag dimension could multiply series before traffic moved — the lesson in <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Cardinality Is the Silent Killer</a> and in <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html#cardinality">Experience 1</a>: model the cross-product <em>before</em> you ship the label. Today's pipeline stores <code>model_id</code> and <code>tenant_id</code> in ClickHouse facts; Prometheus only sees bounded ops metrics.</p>
+<p>At Agoda, a new tag dimension could multiply series before traffic moved — the lesson in <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Cardinality Is the Silent Killer</a> and in <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html#cardinality">Experience 1</a>: model the cross-product <em>before</em> you ship the label.</p>
+
+<p>Today's pipeline stores <code>model_id</code> and <code>tenant_id</code> in ClickHouse facts. Prometheus only sees bounded ops metrics. Sampling bounds what you retain in the trace path so you do not recreate the Agoda index explosion in a different store. Experience 5 bounds what you index; Day 5 bounds what you keep.</p>
 
 <div class="pullquote"><p>The panel is not magic — it is refusing to explode series while still storing enough rows to sum dollars.</p></div>
 
 <h2 id="grafana">Four panels as proof</h2>
 
-<p>The product dashboard ties the thread together — describe by outcome, not ticket:</p>
+<p>The product dashboard ties the thread together. Each panel answers one question; together they prove placement, retention, and commutative math match the schema.</p>
 
 <ul>
-  <li><strong>Ingest throughput by tenant</strong> — Prometheus <code>rate(batch_size_events_sum[1m])</code> by <code>tenant_id</code>; noisy-neighbor detection on a bounded label.</li>
-  <li><strong>P99 inference latency by model</strong> — ClickHouse <code>quantile(0.99)(latency_ms)</code> grouped by <code>model_id</code>; cannot be a Prometheus label at scale.</li>
-  <li><strong>Cost per hour by tenant</strong> — commutative <code>sum(cost_usd)</code> in the warehouse.</li>
-  <li><strong>Kafka consumer lag (events)</strong> — proves the Day 4 writer honest under load.</li>
+  <li><strong>Ingest throughput by tenant</strong> — Prometheus <code>rate(batch_size_events_sum[1m])</code> by <code>tenant_id</code>. Noisy-neighbor detection on a bounded label. If one tenant's line diverges, routing or abuse is suspect before you open a trace.</li>
+  <li><strong>P99 inference latency by model</strong> — ClickHouse <code>quantile(0.99)(latency_ms)</code> grouped by <code>model_id</code>. This cannot be a Prometheus label at scale; it belongs in the warehouse where group-by keys are columns.</li>
+  <li><strong>Cost per hour by tenant</strong> — commutative <code>sum(cost_usd)</code>. Every event row counts for finance even when traces are sampled.</li>
+  <li><strong>Kafka consumer lag (events)</strong> — proves the Day 4 writer is honest under load. Throughput without lag is an incomplete story.</li>
 </ul>
 
 <pre class="mermaid">flowchart LR
@@ -295,19 +305,19 @@ FROM infra_ai.inference_events
 GROUP BY tenant_id, hour
 ORDER BY hour DESC;</code></pre>
 
-<p>P99 uses the same merge caution as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a> if you ever shard quantiles wrong — here the panel reads one ClickHouse table with bounded group-by keys.</p>
+<p>P99 uses the same merge caution as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a> if you ever shard quantiles wrong. Here the panel reads one ClickHouse table with bounded group-by keys — so the percentile is computed once over the rows you actually stored, not merged from pre-compressed shards that lied.</p>
 
-<p>Panel one may run ahead of panel four when lag is non-zero — that is honest, not broken. Throughput on Prometheus proves the ingest path accepted work; lag proves the writer caught up. Sampling does not replace either signal; it keeps trace volume from becoming a third cardinality crisis on top of the two you already manage.</p>
+<p>Panel one may run ahead of panel four when lag is non-zero. That is honest, not broken. Throughput on Prometheus proves the ingest path accepted work; lag proves the writer caught up. Sampling does not replace either signal. It keeps trace volume from becoming a third cardinality crisis on top of the two you already manage.</p>
 
-<p>I link the E2E ops dashboard from the product board when I need breaker and DLQ detail; the product UID is the screenshot I put in the repo README when I want to show finance and SRE the same four tiles without a ticket vocabulary.</p>
+<p>I link the E2E ops dashboard from the product board when I need breaker and DLQ detail. The product UID is the screenshot I put in the repo README when I want to show finance and SRE the same four tiles — routing, retention, dollars, and latency — without a ticket vocabulary.</p>
 
 <h2 id="close">Close the loop</h2>
 
-<p>Ring routing: move backends, minimal key churn. Trace sampling: move sample rate, same <code>trace_id</code> still kept or dropped — comparable week-over-week. <strong>Placement + retention + commutative math</strong> — same trilogy as Day 4; sampling is the third term.</p>
+<p>Ring routing: move backends, minimal key churn. Trace sampling: move sample rate, same <code>trace_id</code> still kept or dropped — comparable week-over-week. <strong>Placement + retention + commutative math</strong> is the trilogy Day 4 started; sampling is the third term.</p>
 
-<p>That trilogy is what I want the four Grafana tiles to enforce visually: routing shows up in throughput and lag; retention shows up in whether trace volume is sane; commutative math shows up in cost and P99 panels that still mean something after you shard.</p>
+<p>That trilogy is what I want the four Grafana tiles to enforce visually. Routing shows up in throughput and lag. Retention shows up in whether trace volume is sane. Commutative math shows up in cost and P99 panels that still mean something after you shard.</p>
 
-<p>Delivery Hero keyed geo streams by <code>rider_id</code> for the same instinct — <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a>.</p>
+<p>Delivery Hero keyed geo streams by <code>rider_id</code> for the same instinct — co-locate what must move together, sample or aggregate what does not need full fidelity. <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a> is the experience-series version of the partition story; today is the retention version on the same pipeline.</p>
 
 <div class="series-footer">
   <p><em>Day 5 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
@@ -326,7 +336,7 @@ ORDER BY hour DESC;</code></pre>
       <span class="footnote-arrow">→</span>
       <span><strong>2.</strong> DESIGN.md — partition hash, cardinality goals</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">
       <span class="footnote-arrow">→</span>
       <span><strong>3.</strong> Day 4 — Kafka partitions and batch writer</span>
     </a>
@@ -350,20 +360,12 @@ ORDER BY hour DESC;</code></pre>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
-            <ul class="toc-list">
+    <ul class="toc-list">
       <li><a href="#coin-flip">Why 1% is not random</a></li>
       <li><a href="#routing">Deterministic routing</a></li>
       <li><a href="#cardinality">Experience 5 link</a></li>
       <li><a href="#grafana">Four panels</a></li>
       <li><a href="#close">Close the loop</a></li>
-      <li><a href="#footnotes">Footnotes</a></li>
-    </ul>
-      <li><a href="#triton-hook">Triton routing table</a></li>
-      <li><a href="#kafka">Kafka partitions</a></li>
-      <li><a href="#batching-serving">Batching layers</a></li>
-      <li><a href="#clickhouse-rollups">Batch writer</a></li>
-      <li><a href="#observability">Pipeline metrics</a></li>
-      <li><a href="#takeaway">Takeaway</a></li>
       <li><a href="#footnotes">Footnotes</a></li>
     </ul>
   </div>
