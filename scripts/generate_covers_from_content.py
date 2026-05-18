@@ -38,6 +38,8 @@ POST_HTML: dict[str, Path | None] = {
     "day-3-token-budgets-cost-structure": None,  # draft: series-index only
     "day-4-tensor-parallelism-kafka-partitions": ROOT
     / "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
+    "day-5-sampling-deterministic-routing": ROOT
+    / "blog/series/ai-learning/day-5-sampling-deterministic-routing.html",
     "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
     / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
@@ -45,6 +47,8 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/experience/seven-million-iot-sensors-failure-modes.html",
     "five-thousand-geo-events-per-second": ROOT
     / "blog/series/experience/five-thousand-geo-events-per-second.html",
+    "cardinality-is-the-silent-killer-roaringbitmap-lessons": ROOT
+    / "blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html",
     "building-ai-inference-observability": ROOT
     / "blog/series/inference-ai-project/building-ai-inference-observability.html",
 }
@@ -56,6 +60,7 @@ TITLE_OVERRIDE: dict[str, str] = {
     "day-2-continuous-batching-vllm": "Continuous Batching in vLLM:\nThe Scheduler That Keeps GPUs Busy",
     "day-3-token-budgets-cost-structure": "Token Budgets and\nReal Cost Structure",
     "day-4-tensor-parallelism-kafka-partitions": "Tensor Parallelism Meets\nKafka Partitions",
+    "day-5-sampling-deterministic-routing": "Sampling and\nDeterministic Routing",
     "building-tsdb-at-agoda": "1.5 Trillion Events/Day\nTSDB at Agoda",
     "when-percentiles-lie-cross-tier-queries": "When Percentiles Lie:\nCross-Tier Queries in a 1.8T/day TSDB",
     "seven-million-iot-sensors-failure-modes": "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
@@ -85,6 +90,10 @@ TOPIC_HINTS: dict[str, str] = {
         "tensor parallel GPU shards with all-reduce, Kafka partitions to consumer batch writer, "
         "circuit breaker Redis overflow DLQ path to ClickHouse, Triton routing table analogy"
     ),
+    "day-5-sampling-deterministic-routing": (
+        "consistent hash ring trace_id keep/drop, head vs tail sampling, "
+        "four Grafana panels throughput P99 cost lag, Kafka to ClickHouse"
+    ),
     "building-tsdb-at-agoda": (
         "Kafka → Rust ingestion → Redis hot tier → S3 Parquet cold tier, "
         "RoaringBitmap inverted index, 1.5T events/day counter, WhiteFalcon query path"
@@ -101,6 +110,10 @@ TOPIC_HINTS: dict[str, str] = {
         "Order SQS PLACED→RIDER PICKED UP → Route Consumers → OSRM cluster → Route JSON, "
         "5k geo-events/s stream, hot rider partition skew, GBQ + Revisit audit path, dinner-rush lag"
     ),
+    "cardinality-is-the-silent-killer-roaringbitmap-lessons": (
+        "RoaringBitmap inverted index tag cross-product explosion, bounded labels vs exploded series, "
+        "model_id tenant_id, Grafana P99 by model panel silhouette, Agoda TSDB"
+    ),
     "building-ai-inference-observability": (
         "HTTP ingest → Rust Axum + WAL → Kafka → Go consumer → ClickHouse + Redis overflow buffer, "
         "prefill/decode latency fields, tenant rate limits, circuit breaker, Grafana tail"
@@ -113,10 +126,12 @@ ACCENT: dict[str, str] = {
     "day-2-continuous-batching-vllm": "neon green #5bd37a",
     "day-3-token-budgets-cost-structure": "neon green #5bd37a",
     "day-4-tensor-parallelism-kafka-partitions": "neon green #5bd37a",
+    "day-5-sampling-deterministic-routing": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
     "five-thousand-geo-events-per-second": "amber #f59e0b",
+    "cardinality-is-the-silent-killer-roaringbitmap-lessons": "electric blue #64b4ff",
     "building-ai-inference-observability": "violet #a78bfa",
 }
 

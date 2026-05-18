@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 4 — Tensor Parallelism &amp; Kafka Partitions (Learning LLM Inference) — Akshant Sharma</title>
-<meta name="description" content="Tensor vs pipeline parallelism, Triton routing tables, Kafka partition keys, and the ClickHouse batch writer with circuit breaker, Redis overflow, and triple-retry DLQ. Day 4 of N.">
-<meta property="og:title" content="Day 4 of Learning LLM Inference — Tensor Parallelism Meets Kafka Partitions">
-<meta property="og:description" content="Model serving scale-out as a sharding problem — TP/PP, partition assignment, cross-partition batching vs continuous batching, and observability that proves routing under load.">
+<title>Day 5 — Sampling &amp; Deterministic Routing (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Head vs tail sampling, deterministic hash(trace_id), bounded Prometheus labels vs ClickHouse rollups, and four Grafana panels that prove one schema. Day 5 of N.">
+<meta property="og:title" content="Day 5 of Learning LLM Inference — Sampling and Deterministic Routing">
+<meta property="og:description" content="Why 1% trace sampling is not free randomness — and why Grafana panels only work if routing and retention share one hash discipline.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-4-tensor-parallelism-kafka-partitions.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-5-sampling-deterministic-routing.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-4-tensor-parallelism-kafka-partitions.png">
-<meta property="article:published_time" content="2026-06-06">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-5-sampling-deterministic-routing.png">
+<meta property="article:published_time" content="2026-05-18">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -189,14 +189,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning · Day 4 of N</span>
+    <span class="tag accent">AI Learning · Day 5 of N</span>
     <span class="tag">LLM inference</span>
-    <span class="tag">Tensor parallelism</span>
-    <span class="tag">Kafka</span>
+    <span class="tag">Sampling</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Grafana</span>
     <span class="tag">Distributed systems</span>
   </div>
-  <h1 class="post-title">Day 4 of Learning LLM Inference — Tensor Parallelism Meets Kafka Partitions</h1>
-  <p class="post-subtitle">4 of N — AI Learning Series. Model serving scale-out as a sharding problem — and why Triton's model repository is just a partition assignment table with GPUs instead of brokers.</p>
+  <h1 class="post-title">Day 5 of Learning LLM Inference — Sampling and Deterministic Routing</h1>
+  <p class="post-subtitle">5 of N — AI Learning Series. Why 1% trace sampling is not free randomness — and why your Grafana panels only work if routing and retention share one hash discipline.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
@@ -207,136 +208,138 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">8 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning · Day 4 of N</span>
+    <span class="meta-item">AI Learning · Day 5 of N</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-4-tensor-parallelism-kafka-partitions.png" alt="Cover: Tensor Parallelism Meets Kafka Partitions — Day 4 of N" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-5-sampling-deterministic-routing.png" alt="Cover: Tensor Parallelism Meets Kafka Partitions — Day 4 of N" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
-<p>I kept reading "tensor parallelism" as a GPU trick and "Kafka partitions" as a messaging trick. They are the same assignment problem with different hardware — and the same way to lie to yourself with a healthy global chart while one shard is on fire.</p>
+<p>I kept reading "consistent hashing" as a routing trick and "trace sampling" as a cost knob. They use the same hash function and fail in opposite directions: random sampling loses the incident you need; naive full-fidelity metrics explode cardinality before Grafana loads. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key; today names what you are allowed to <strong>store</strong> per request without lying to finance or SRE.</p>
 
-<p>Scale a 70B model across four GPUs and you are choosing which layer shards live on which device, then synchronizing partial results on every forward step. Scale inference observability across four consumer instances and you are choosing which <code>tenant_id</code> (soon <code>tenant_id:model_id</code>) events land on which partition, then batching inserts without breaking per-key ordering. NVIDIA Triton's model repository is a partition assignment table with GPUs instead of brokers.</p>
+<p>You do not greenfield observability at scale — you inherit Prometheus beside a warehouse, three SDKs, and a finance team that wants <code>sum(cost_usd)</code> by tenant. The job is not "turn on tracing"; it is picking <strong>what is deterministic, what is commutative, and what never becomes a label</strong>. Placement (partition keys, shard keys) and retention (sampling, TTL) are the two levers that survive reorgs and on-call at 2 a.m. Dashboards are the proof those levers match the schema you already committed to in DESIGN.md.</p>
 
-<p>Staff engineers often inherit systems already distributed across workers. The hard problem is usually not adding nodes; it is deciding where state lives and what remains correct after you split work. Placement first — then kernels, then dashboards.</p>
+<p>Calendar day six in my public build: the <strong>AI Inference — Product SLOs</strong> dashboard (<code>uid: ai-inference-product</code>) ships four panels — ingest throughput by <code>tenant_id</code>, P99 inference latency by <code>model_id</code>, cost per hour by tenant, Kafka consumer lag. That only works if today's sampling discipline matches yesterday's partition discipline and <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Experience 5</a>'s cardinality war on the same event shape.</p>
 
-<p>Previously: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> → cost at ingest; <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> → batching inside one replica. This week I shipped the ClickHouse batch writer on the pipeline I am building in public — the consumer graduates from stdout to a sink that can answer <code>sum(cost_usd)</code> by tenant and hour.</p>
+<h2 id="coin-flip">Why "sample 1%" is not a coin flip</h2>
 
-<h2 id="tp-pp">When one machine is not enough</h2>
+<p><strong>Head sampling</strong> decides at ingest whether a trace is kept. Cheap — unless each span flips independently and you debug half a request. <strong>Deterministic head sampling</strong> fixes that: the same <code>trace_id</code> always lands in or out.</p>
 
-<p>When one GPU cannot hold the weights, you split the model. <strong>Tensor parallelism (TP)</strong> shards individual layers and all-reduces activations every step — good when a layer is too wide. <strong>Pipeline parallelism (PP)</strong> assigns layer stages to devices and pipelines micro-batches through — good when depth dominates, costly when the pipe runs dry. TP optimizes width; PP optimizes depth. I have watched teams buy a fourth GPU, shard badly, and end up slower — the same failure mode as adding Kafka partitions without fixing a hot key.</p>
+<pre><code>keep_trace = (hash(trace_id) % 10000) &lt; (sample_rate * 10000)
+         OR status != "success"
+         OR cost_usd &gt;= cost_tail_threshold</code></pre>
 
-<h2 id="triton-hook">Triton model repository as routing table</h2>
+<p><strong>Tail sampling</strong> always retains failures, high-<code>cost_usd</code> rows from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a>, or paths where the <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> breaker opened — ops signals you cannot afford to lose in a random 1% slice.</p>
 
-<p>NVIDIA Triton maintains a <strong>model repository</strong> — versioned directories with <code>config.pbtxt</code> that declare instance groups, GPU IDs, dynamic batching windows, and which physical replicas exist. A client sends <code>model_name</code> + version; Triton maps that to a concrete instance group. That is the mental model I want to stick with: Kafka's partition assignment table with different nouns.</p>
+<p>Finance still needs every row in ClickHouse for <code>sum(cost_usd)</code>; SRE still needs enough spans to debug a bad deploy. Sampling is how you serve both without pretending Prometheus can index the full cross-product. The mistake is treating head rate as a dial you twist without a stable hash — you lose comparability the same week you "save money."</p>
 
 <table>
-  <thead><tr><th>Triton</th><th>Kafka / observability</th></tr></thead>
+  <thead><tr><th>Approach</th><th>Failure mode</th></tr></thead>
   <tbody>
-    <tr><td><code>model_name</code></td><td>topic (<code>ai_inference_events</code>)</td></tr>
-    <tr><td><code>instance_group</code> count</td><td>partition count</td></tr>
-    <tr><td>GPU id per instance</td><td>broker + partition id</td></tr>
-    <tr><td>dynamic batching window</td><td>consumer micro-batch (1000 events / 500ms)</td></tr>
+    <tr><td>Random head per span</td><td>Broken traces; missing incident</td></tr>
+    <tr><td>100% retention</td><td>Cardinality death; scrape lag</td></tr>
+    <tr><td>Deterministic head + tail rules</td><td>Bounded cost; comparable weeks</td></tr>
   </tbody>
 </table>
 
-<p>When ops says "scale model foo," they mean add instances or widen the instance group — the same conversation as "add partitions and consumers for tenant traffic." The debugging move is the same too: find the shard or GPU group whose queue depth diverges while the fleet chart still looks fine.</p>
+<h2 id="routing">Deterministic routing on the data plane</h2>
 
-<h2 id="kafka">Partitions, keys, and ordering</h2>
+<p>The producer still keys Kafka by <code>tenant_id</code>; DESIGN targets <code>hash(tenant_id:model_id)</code> — <strong>routing</strong>, not sampling. Change the hash seed without migration and you get Kafka rebalance pain or "where did my traces go?" Changing sample rate without a stable <code>trace_id</code> hash breaks week-over-week comparability the same way.</p>
 
-<p>Topic <code>ai_inference_events</code> carries the Rust producer's batch envelope <code>{"events":[...]}</code>. Today the producer keys by <code>tenant_id</code> only; the design doc targets <code>hash(tenant_id:model_id)</code> so one noisy model cannot hot-spot a partition shared with quiet tenants.</p>
+<p><strong>Inference events</strong> land in ClickHouse for dollars — dimensions live in columns, not Prometheus labels. <strong>Traces</strong> sample harder. Do not put <code>model_id × tenant_id × pod</code> on counters; prove latency in the warehouse.</p>
 
-<p>Kafka guarantees <strong>order within a partition</strong>, not across partitions. That is a feature: you scale consumers horizontally until CPU or ClickHouse insert rate caps you. The cost is cross-partition analytics — you filter by <code>tenant_id</code> and time range instead of assuming global ordering.</p>
+<p>The Rust ingest path already validates <code>cost_usd</code> at the gate from Day 3. Sampling sits beside that gate: dense events for money, sparser spans for debugging. When the product dashboard shows ingest throughput climbing for one <code>tenant_id</code> while consumer lag stays flat, you are seeing routing health. When lag spikes, tail rules should have kept the breaker story even if head rate is 1%.</p>
 
-<p>ClickHouse wants the same discipline: <code>ORDER BY (tenant_id, model_id, timestamp)</code> and monthly <code>PARTITION BY toYYYYMM(timestamp)</code> so hourly <code>sum(cost_usd)</code> does not scan the universe. For finance rollups, stick to commutative metrics — <code>sum</code>, <code>count</code> — that survive sharding. Cross-partition percentiles lie the same way merged tier percentiles do; latency needs per-partition dashboards or careful merge, not a fleet average you trust at 8pm.</p>
+<table>
+  <thead><tr><th>Routing (you know)</th><th>Sampling (this post)</th></tr></thead>
+  <tbody>
+    <tr><td><code>hash(key) → partition</code></td><td><code>hash(trace_id) → keep/drop</code></td></tr>
+    <tr><td>Same key → same broker after scale-out</td><td>Same trace → same decision on every collector</td></tr>
+    <tr><td>Hot key overloads one shard</td><td>Random 1% loses <em>all</em> spans for bad traces</td></tr>
+  </tbody>
+</table>
 
+<h2 id="cardinality">Cardinality — Experience 5 companion</h2>
 
-<h2 id="batching-serving">Two batching layers</h2>
+<p>At Agoda, a new tag dimension could multiply series before traffic moved — the lesson in <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Cardinality Is the Silent Killer</a> and in <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html#cardinality">Experience 1</a>: model the cross-product <em>before</em> you ship the label. Today's pipeline stores <code>model_id</code> and <code>tenant_id</code> in ClickHouse facts; Prometheus only sees bounded ops metrics.</p>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">Day 2</a> batching happens <strong>inside</strong> one replica: fill GPU slots per token step. Consumer batching happens <strong>across</strong> unrelated keys in one process — you amortize ClickHouse round-trips, not matmuls. Shrink the vLLM batch for latency; shrink the flush window (500ms) for fresher dashboards; enlarge the batch (1000 events) for throughput. Tune the layer you are actually in.</p>
+<div class="pullquote"><p>The panel is not magic — it is refusing to explode series while still storing enough rows to sum dollars.</p></div>
 
-<div class="pullquote"><p>Partitioning decides <em>who</em> shares fate. Batching decides <em>how often</em> you pay the network tax.</p></div>
+<h2 id="grafana">Four panels as proof</h2>
 
-<h2 id="clickhouse-rollups">Batch writer under load</h2>
+<p>The product dashboard ties the thread together — describe by outcome, not ticket:</p>
 
-<p>The work lives in <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a> (<code>consumer/internal/clickhouse/writer.go</code>). The writer buffers decoded events and flushes on whichever comes first: <strong>1000 events</strong> or <strong>500ms</strong> — the same latency–throughput trade as Triton dynamic batching.</p>
+<ul>
+  <li><strong>Ingest throughput by tenant</strong> — Prometheus <code>rate(batch_size_events_sum[1m])</code> by <code>tenant_id</code>; noisy-neighbor detection on a bounded label.</li>
+  <li><strong>P99 inference latency by model</strong> — ClickHouse <code>quantile(0.99)(latency_ms)</code> grouped by <code>model_id</code>; cannot be a Prometheus label at scale.</li>
+  <li><strong>Cost per hour by tenant</strong> — commutative <code>sum(cost_usd)</code> in the warehouse.</li>
+  <li><strong>Kafka consumer lag (events)</strong> — proves the Day 4 writer honest under load.</li>
+</ul>
 
-<pre class="mermaid">flowchart TB
-  K[Kafka ai_inference_events] --> C[Go consumer]
-  C --> B{Batch buffer}
-  B -->|flush 1000 or 500ms| CB{Circuit breaker}
-  CB -->|closed| CH[(ClickHouse)]
-  CB -->|open| R[(Redis overflow)]
-  CB -->|retries exhausted| DLQ[Kafka DLQ]
-  R -->|drain when closed| CH</pre>
-
-<p>Five consecutive insert failures open the breaker and push to Redis; after 30s it half-opens and probes. Each batch gets three insert retries; failures land on <code>ai_inference_dlq</code>. Kafka offsets commit only after every event in the record is handed off — ClickHouse row, overflow, or DLQ — so poison payloads do not vanish from the rollup.</p>
-
-<p>The Grafana panel I want next is simple:</p>
+<pre class="mermaid">flowchart LR
+  ING[Ingest] -->|head sample hash trace_id| K[Kafka]
+  K --> CH[(ClickHouse events)]
+  K --> T[Traces sampled]
+  CH --> P1[Throughput by tenant]
+  CH --> P2[P99 by model_id]
+  CH --> P3[Cost per hour]
+  K --> P4[Consumer lag]</pre>
 
 <pre><code>SELECT tenant_id, toStartOfHour(timestamp) AS hour, sum(cost_usd)
 FROM infra_ai.inference_events
-GROUP BY tenant_id, hour;</code></pre>
+GROUP BY tenant_id, hour
+ORDER BY hour DESC;</code></pre>
 
-<p><a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/deploy/clickhouse/init.sql" target="_blank" rel="noopener">Full query and DDL in GitHub</a> — <code>infra-ai-streaming</code>, batch-writer branch.</p>
+<p>P99 uses the same merge caution as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a> if you ever shard quantiles wrong — here the panel reads one ClickHouse table with bounded group-by keys.</p>
 
-<h2 id="observability">Prove the consumer is honest</h2>
+<p>Panel one may run ahead of panel four when lag is non-zero — that is honest, not broken. Throughput on Prometheus proves the ingest path accepted work; lag proves the writer caught up. Sampling does not replace either signal; it keeps trace volume from becoming a third cardinality crisis on top of the two you already manage.</p>
 
-<p>Inference metrics are useless if the consumer is lying. On <code>:9091/metrics</code> I watch records fully handed off, batch size and flush duration, breaker state, Redis overflow depth, and DLQ rate. Breaker open should be rare and loud; <code>dlq_events_total</code> at zero is the sketch SLO that says routing did not drop events under load.</p>
+<p>I link the E2E ops dashboard from the product board when I need breaker and DLQ detail; the product UID is the screenshot I put in the repo README when I want to show finance and SRE the same four tiles without a ticket vocabulary.</p>
 
-<h2 id="takeaway">What I am taking away</h2>
+<h2 id="close">Close the loop</h2>
 
-<p>Multi-GPU inference and multi-partition ingestion both reduce to <strong>placement, commutative aggregates, and backpressure</strong>. Triton instance groups and Kafka keys name who shares fate; ClickHouse <code>ORDER BY</code> names where queries stay cheap; the batch writer names what happens when the sink hiccups. The dollars from <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> finally have somewhere finance can sum them.</p>
+<p>Ring routing: move backends, minimal key churn. Trace sampling: move sample rate, same <code>trace_id</code> still kept or dropped — comparable week-over-week. <strong>Placement + retention + commutative math</strong> — same trilogy as Day 4; sampling is the third term.</p>
 
-<p>Same partition-key story on a geo stream I led at Delivery Hero — <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a> — keyed by <code>rider_id</code> and market instead of <code>tenant_id</code>.</p>
+<p>That trilogy is what I want the four Grafana tiles to enforce visually: routing shows up in throughput and lag; retention shows up in whether trace volume is sane; commutative math shows up in cost and P99 panels that still mean something after you shard.</p>
+
+<p>Delivery Hero keyed geo streams by <code>rider_id</code> for the same instinct — <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a>.</p>
 
 <div class="series-footer">
-  <p><em>Day 4 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Up next: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">Day 5</a> — sampling, deterministic routing, and the four Grafana panels that prove the schema.</em></p>
+  <p><em>Day 5 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">Experience 5 — Cardinality Is the Silent Killer</a> (bound the series; today bounds what you retain).</em></p>
+  <p><em>Up next: quantization and precision budgets — another retention knob on the same pipeline.</em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">Footnotes &amp; sources</div>
   <div class="footnote-links">
-    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/OBSERVABILITY.md" target="_blank" rel="noopener">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/feat/grafana-inference-slo-dashboard/deploy/grafana/provisioning/dashboards/ai-inference-product.json" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>1.</strong> infra-ai-streaming OBSERVABILITY.md — batch, breaker, Redis, DLQ metrics (batch-writer branch)</span>
+      <span><strong>1.</strong> AI Inference — Product SLOs dashboard JSON (<code>ai-inference-product</code>)</span>
     </a>
-    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/deploy/clickhouse/init.sql" target="_blank" rel="noopener">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/main/DESIGN.md" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>2.</strong> ClickHouse <code>inference_events</code> DDL — <code>ORDER BY (tenant_id, model_id, timestamp)</code></span>
+      <span><strong>2.</strong> DESIGN.md — partition hash, cardinality goals</span>
     </a>
-    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/feat/consumer-clickhouse-batch-writer/consumer/internal/clickhouse/writer.go" target="_blank" rel="noopener">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">
       <span class="footnote-arrow">→</span>
-      <span><strong>3.</strong> BatchWriter — 1000 / 500ms flush, breaker, overflow, DLQ handoff</span>
+      <span><strong>3.</strong> Day 4 — Kafka partitions and batch writer</span>
     </a>
-    <a href="https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html" target="_blank" rel="noopener">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
       <span class="footnote-arrow">→</span>
-      <span><strong>4.</strong> NVIDIA Triton — model configuration &amp; instance groups</span>
+      <span><strong>4.</strong> Experience 5 — RoaringBitmap and label cross-products</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/inference-ai-project/building-ai-inference-observability.html">
       <span class="footnote-arrow">→</span>
-      <span><strong>5.</strong> Day 2 — continuous batching vs consumer micro-batching</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
-      <span class="footnote-arrow">→</span>
-      <span><strong>6.</strong> Five Thousand Geo-Events Per Second — Experience 4 of N</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
-      <span class="footnote-arrow">→</span>
-      <span><strong>7.</strong> When Percentiles Lie — cross-partition aggregates</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">
-      <span class="footnote-arrow">→</span>
-      <span><strong>8.</strong> Seven Million IoT Sensors — poison streams &amp; DLQ instinct</span>
+      <span><strong>5.</strong> LensAI product post — pipeline architecture</span>
     </a>
   </div>
-  <p class="footnote-note">The ClickHouse batch writer ships on <code>feat/consumer-clickhouse-batch-writer</code>; verify merge to <code>main</code> before citing as production path. Producer partition key is <code>tenant_id</code> today; <code>hash(tenant_id:model_id)</code> remains an open item in DESIGN.md.</p>
+  <p class="footnote-note">Dashboard ships on <code>feat/grafana-inference-slo-dashboard</code>; verify merge before citing as production path.</p>
 </div>
 
 </article>
@@ -347,8 +350,14 @@ GROUP BY tenant_id, hour;</code></pre>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
-    <ul class="toc-list">
-      <li><a href="#tp-pp">TP vs PP</a></li>
+            <ul class="toc-list">
+      <li><a href="#coin-flip">Why 1% is not random</a></li>
+      <li><a href="#routing">Deterministic routing</a></li>
+      <li><a href="#cardinality">Experience 5 link</a></li>
+      <li><a href="#grafana">Four panels</a></li>
+      <li><a href="#close">Close the loop</a></li>
+      <li><a href="#footnotes">Footnotes</a></li>
+    </ul>
       <li><a href="#triton-hook">Triton routing table</a></li>
       <li><a href="#kafka">Kafka partitions</a></li>
       <li><a href="#batching-serving">Batching layers</a></li>
@@ -361,11 +370,11 @@ GROUP BY tenant_id, hour;</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+4%3A+Tensor+parallelism+%26+Kafka+partitions+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+5%3A+Sampling+and+deterministic+routing+%26+Kafka+partitions+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>

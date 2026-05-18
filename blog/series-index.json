@@ -31,6 +31,12 @@
           "desc": "Prompt vs completion buckets, asymmetric rate cards, validate-not-reprice at ingest, and why completion is the variable cost line item."
         },
         {
+          "href": "blog/series/ai-learning/day-5-sampling-deterministic-routing.html",
+          "kicker": "Day 5 of N",
+          "title": "Sampling and Deterministic Routing",
+          "desc": "Head vs tail sampling, hash(trace_id) discipline, bounded Prometheus labels vs ClickHouse rollups, and four Grafana panels on one schema."
+        },
+        {
           "href": "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
           "kicker": "Day 4 of N",
           "title": "Tensor Parallelism Meets Kafka Partitions",
@@ -61,6 +67,12 @@
           "kicker": "Experience 3 of N",
           "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
           "desc": "Walmart SmartBuildings at 7M+ data points: silent wrong telemetry, device identity as partition keys, edge quarantine, and poison streams before cold storage."
+        },
+        {
+          "href": "blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html",
+          "kicker": "Experience 5 of N",
+          "title": "Cardinality Is the Silent Killer — RoaringBitmap Lessons",
+          "desc": "Agoda-scale series explosion, RoaringBitmap indexing, Prometheus walls, and why model×tenant cardinality governs today's P99-by-model dashboard."
         },
         {
           "href": "blog/series/experience/five-thousand-geo-events-per-second.html",
