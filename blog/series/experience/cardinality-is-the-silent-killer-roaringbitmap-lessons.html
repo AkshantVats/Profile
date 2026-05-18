@@ -222,8 +222,6 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>Nothing was on fire. Grafana still rendered. That is the failure mode I keep writing about: dashboards stay green while the truth quietly rots — the same family as <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a> and <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">Seven Million IoT Sensors</a>. Cardinality is the upstream cause. You indexed a cross-product you never modeled on paper first.</p>
 
-<p>On the same calendar week I am publishing <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">AI Learning Day 5</a> on deterministic sampling. Same schema discipline, different surface: traces vs time series. Four panels on the <strong>AI Inference — Product SLOs</strong> dashboard are the proof that both posts share one event shape — and that you have to bound what you index and what you retain before either panel means anything.</p>
-
 <div class="stat-callout">
   <div class="stat-cell"><span class="stat-num">1.8T/day</span><span class="stat-label">Kafka forwarder (team)</span></div>
   <div class="stat-cell"><span class="stat-num">RoaringBitmap</span><span class="stat-label">Per-tag index</span></div>
@@ -247,7 +245,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <div class="attr-box mine">
   <div class="attr-label">My contribution</div>
-  <p>From <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">Experience 1</a>: a moderate-cardinality Kubernetes service tag — modeled cross-product before merge — plus cross-tier quantile work in Experience 2. I did not design the RoaringBitmap engine; I learned its constraints the hard way when proposing new dimensions.</p>
+  <p>From Experience 1: a moderate-cardinality Kubernetes service tag — modeled cross-product before merge — plus cross-tier quantile work in Experience 2. I did not design the RoaringBitmap engine; I learned its constraints the hard way when proposing new dimensions.</p>
 </div>
 
 <pre class="mermaid">flowchart LR
@@ -269,12 +267,11 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 <p>Cardinality explodes with time when the number of tags and series increase — not because traffic doubled, but because each new label value creates another combination with every value that was already there. That is the cross-product. You have to multiply cardinalities on paper before you merge a pull request.</p>
 
 <pre class="mermaid">flowchart TD
-  M[metric: inference_latency_ms] --> T1[model_id: 200 values]
-  M --> T2[tenant_id: 500 values]
-  M --> T3[status: 3 values]
-  T1 --> X["series count up to 200×500×3"]
-  X --> WARN[Prometheus / memory pressure]
-  X --> OK[Bounded tags + columnar store]</pre>
+  M[Metric] --> L[model / tenant / status labels]
+  L --> X["~300k time series"]
+  X --> MEM[Memory pressure]
+  X --> SCR[Scrape duration grows]
+  X --> DROP[Series dropped under limit]</pre>
 
 <p>Prometheus-style labels make the cross-product visible in every scrape target. WhiteFalcon's index made it visible in engineering review: "How many unique values will this tag have in six months, and what metrics already carry it?" The discipline transferred directly to today's inference pipeline. <code>model_id</code> and <code>tenant_id</code> live as ClickHouse columns for analytics. They are not multiplied into Prometheus histogram labels, because columnar stores scan dimensions; label-indexed TSDBs index every combination.</p>
 
@@ -288,39 +285,23 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
 
 <p>Prometheus is a label-indexed TSDB built for ops metrics: a few hundred series per metric name, not hundreds of thousands. It degrades well before the cardinality AI infrastructure routinely produces. You feel it first as scrape duration growth, then as memory pressure, then as series evicted from the limit. Dashboards still load because the remaining series look fine — which is exactly why the failure is easy to miss.</p>
 
-<p>That is why P99-by-<code>model_id</code> on a Prometheus histogram with unbounded labels is a lie waiting to happen. You are not merging tiers wrong; you are merging shards you never meant to create. Same class of bug as cross-tier percentiles in <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">Experience 2</a>, except the shard boundary is "which labels you allowed" instead of Redis vs S3.</p>
+<p>That is why P99-by-<code>model_id</code> on a Prometheus histogram with unbounded labels is a lie waiting to happen. You are not merging tiers wrong; you are merging shards you never meant to create. The shard boundary is which labels you allowed — not Redis vs S3.</p>
 
 <div class="pullquote"><p>Cardinality kills the cluster before traffic does. The dashboard still renders.</p></div>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/inference-ai-project/building-ai-inference-observability.html">LensAI</a> frames the same wall from the product side: Prometheus for ops counters, ClickHouse for analytical slices over high-cardinality inference dimensions. WhiteFalcon did not run ClickHouse; the split is the lesson that transferred.</p>
+<p>The split that transferred from Agoda: Prometheus for bounded ops counters, a columnar store for analytical slices over high-cardinality inference dimensions. WhiteFalcon did not run ClickHouse; the discipline did.</p>
 
 <h2 id="llm-shape">model_id × tenant_id on Today's Pipeline</h2>
 
-<p>Each inference event carries <code>model_id</code>, <code>tenant_id</code>, token counts, phased latency, and <code>cost_usd</code>. Those fields belong on the row. The design target in <a href="https://github.com/AkshantVats/infra-ai-streaming" target="_blank" rel="noopener">infra-ai-streaming</a> is on the order of <strong>10k+ dimension combinations</strong> in the analytical store — framed honestly as a design goal, not a production benchmark. ClickHouse can group by <code>model_id</code> without creating one time series per request; Prometheus cannot.</p>
+<p>Each inference event carries <code>model_id</code>, <code>tenant_id</code>, token counts, phased latency, and <code>cost_usd</code>. Those fields belong on the row. The analytical store targets on the order of <strong>10k+ dimension combinations</strong> — a design goal, not a production benchmark. A columnar engine can group by <code>model_id</code> without creating one time series per request; Prometheus cannot.</p>
 
-<p>Today the producer keys Kafka by <code>tenant_id</code> only. DESIGN.md targets <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is placement, not cardinality — but it comes from the same instinct: bound blast radius before the noisy neighbor shows up on the dashboard. Same dinner-rush shard lesson as <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">Five Thousand Geo-Events Per Second</a>, with different nouns.</p>
+<p>The producer keys Kafka by <code>tenant_id</code>; the target is <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is placement, not cardinality — but it comes from the same instinct: bound blast radius before the noisy neighbor shows up on the dashboard.</p>
 
 <h2 id="grafana-bridge">Why the P99-by-Model Panel Is a Cardinality Bet</h2>
 
-<p>The second panel on <strong>AI Inference — Product SLOs</strong> is titled <strong>P99 inference latency by model</strong>. It runs ClickHouse <code>quantile(0.99)(latency_ms)</code> grouped by <code>model_id</code> over <code>infra_ai.inference_events</code>. It does not use Prometheus <code>histogram_quantile</code> over exploded label sets — because that path would multiply series every time a new model or tenant appears.</p>
+<p>The P99-by-model panel only works because <code>model_id</code> stays a ClickHouse column rather than a Prometheus label. The difference sounds small. One creates analytical dimensions. The other creates new time series.</p>
 
-<p>The panel is only honest if you refused to add <code>request_id</code> as a metric label. Request identity belongs in the event row or in a sampled trace. Histogram labels stay bounded: tenant, cluster, status — dimensions you expect to filter on at ops scale. If someone "helpfully" adds <code>pod</code> to every counter tomorrow, the panel still renders. Your P99 story quietly rots the same way Agoda's scrape duration did: the chart loads; the index behind it does not represent what you think.</p>
-
-<p>Sibling panels on the same dashboard keep the split visible on purpose. <strong>Ingest throughput by tenant</strong> and <strong>Kafka consumer lag</strong> stay on Prometheus with bounded labels — they answer "is the pipe healthy?" <strong>Cost per hour by tenant</strong> sums dollars in ClickHouse — it answers "who spent what?" Cardinality discipline on the product board is not one panel. It is refusing to put high-cardinality dimensions on the wrong store.</p>
-
-<pre class="mermaid">flowchart TB
-  EV[Inference events] --> ING[Rust ingest]
-  ING --> K[Kafka]
-  K --> CH[ClickHouse facts / MVs]
-  K --> PM[Prometheus histograms\nbounded labels only]
-  PM --> GF[Grafana: throughput by tenant]
-  CH --> P2[Grafana: P99 by model_id]
-  CH --> P3[Grafana: cost per hour]
-  BAD[request_id as label] -.->|explodes| PM</pre>
-
-<h2 id="sampling-sibling">Same War, Different Layer (AI Day 5)</h2>
-
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">Day 5</a> bounds what you <em>retain</em>: deterministic <code>hash(trace_id)</code> plus tail rules for failures and high <code>cost_usd</code>. Experience 5 bounds what you <em>index</em>. Same hash discipline; different failure mode when you skip the spreadsheet. Index everything and the TSDB dies. Retain everything and the trace store dies. Model both before you ship the Grafana row.</p>
+<p>Request identity belongs in the event row or in a sampled trace — not on counters. Histogram labels stay bounded: tenant, cluster, status. If someone adds <code>pod</code> to every counter tomorrow, the panel still renders. Your P99 story quietly rots the same way Agoda's scrape duration did: the chart loads; the index behind it does not represent what you think.</p>
 
 <h2 id="failure-modes">How Cardinality Dies Quietly</h2>
 
@@ -350,7 +331,9 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
 
 <p>RoaringBitmap set operations at Agoda scale taught me that observability is an indexing problem before it is a visualization problem. You can ship a beautiful Grafana row on day one and still be lying on day thirty if nobody multiplied tag cardinalities when the label landed.</p>
 
-<p>The inference dashboard I am building is the receipt. Throughput and lag on bounded Prometheus labels — enough to page when the pipe chokes. Dollars and P99 on ClickHouse, where cardinality belongs in columns, not labels. Incidents fade. What stays is the spreadsheet before the label, and the humility to put <code>model_id</code> in the warehouse while you keep Prometheus honest enough to page on lag. The silent killer does not announce itself. It shows up in scrape duration first.</p>
+<p>Throughput and lag on bounded labels — enough to page when the pipe chokes. Dollars and P99 in the warehouse, where cardinality belongs in columns, not labels. Incidents fade. What stays is the spreadsheet before the label.</p>
+
+<div class="pullquote"><p>Traffic growth is visible. Cardinality growth hides inside labels. One shows up on dashboards. The other changes what dashboards mean.</p></div>
 
 <div class="series-footer">
   <p><em>Experience Series · 5 of N</em> — cardinality, RoaringBitmap lessons, and the P99-by-model panel bet.</p>
@@ -374,11 +357,27 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
       <span class="footnote-arrow">→</span>
-      <span>Experience 1 — TSDB contributions and k8s tag dimension</span>
+      <span><strong>4.</strong> Experience 1 — TSDB contributions and k8s tag dimension</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>5.</strong> Experience 2 — When Percentiles Lie</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html">
       <span class="footnote-arrow">→</span>
-      <span>Companion (AI): Day 5 — Sampling and Deterministic Routing</span>
+      <span><strong>6.</strong> Companion (AI): Day 5 — Sampling and Deterministic Routing</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/inference-ai-project/building-ai-inference-observability.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>7.</strong> LensAI — inference observability product</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>8.</strong> Five Thousand Geo-Events Per Second</span>
+    </a>
+    <a href="https://github.com/AkshantVats/infra-ai-streaming" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>9.</strong> infra-ai-streaming — pipeline design goals</span>
     </a>
   </div>
 </div>
