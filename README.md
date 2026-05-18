@@ -4,13 +4,13 @@ Staff Engineer. I build high-throughput distributed systems and the infrastructu
 
 **Blog tooling:** `python scripts/html_to_linkedin_article.py <post.html>` — LinkedIn article export ([scripts/README.md](scripts/README.md)).
 
-Currently building [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming) — an AI inference observability platform in Rust.
+Currently building [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming) — open-source AI inference observability: Rust ingestion, Kafka, ClickHouse analytics, Grafana dashboards for tenant throughput and model P99.
 
 ---
 
 ## What I'm Building
 
-**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** `in progress`
+**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** `active`
 
 An open-source AI inference observability pipeline built for the event volume and metric cardinality that standard monitoring tools break under.
 
@@ -18,10 +18,11 @@ An open-source AI inference observability pipeline built for the event volume an
 Rust ingestion engine → Kafka → Go consumer → ClickHouse → Grafana
 ```
 
-- Axum HTTP server with channel-based backpressure and per-tenant rate limiting
-- Circuit breaker with Redis overflow buffer and Dead Letter Queue
-- Z-score anomaly detection on inference latency per model
-- Helm charts with HPA scaling on Kafka consumer lag
+- Axum HTTP server with channel-based backpressure; batched events to Kafka via rdkafka
+- Go consumer: ClickHouse batch writer (1k events / 500ms), circuit breaker, Redis overflow, DLQ
+- Local stack: Redpanda, ClickHouse, Redis, Prometheus, Grafana (`docker compose up`)
+- Pipeline self-metrics in OBSERVABILITY.md (ingestion P50/P95/P99, consumer lag, DLQ depth)
+- Next: Grafana panels for throughput, P99 by model, cost/hour, consumer lag
 - Target: 1M events/min, sub-100ms ingestion P99
 
 ---
@@ -79,5 +80,7 @@ Technical posts on distributed systems, AI infrastructure, and the gap between t
 ---
 
 ## Open source
+
+**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** — flagship project: high-cardinality LLM inference telemetry from Rust through Kafka to ClickHouse, with Grafana as the proof surface.
 
 This repository is [MIT licensed](LICENSE). To add or update blog posts, see [CONTRIBUTING.md](CONTRIBUTING.md) and [blog/NEW-POST-CHECKLIST.md](blog/NEW-POST-CHECKLIST.md).
