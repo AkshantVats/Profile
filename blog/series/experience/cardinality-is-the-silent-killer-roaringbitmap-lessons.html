@@ -228,13 +228,17 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   <div class="stat-cell"><span class="stat-num">200×500×3</span><span class="stat-label">model×tenant×status</span></div>
 </div>
 
-<h2 id="silent-killer">Cardinality Is the Silent Killer</h2>
+<h2 id="what-cardinality">What Cardinality Actually Means</h2>
+
+<p>A time series is not "a metric." It is a metric name plus one unique combination of label values. <code>http_requests_total{method="GET", status="200"}</code> and <code>http_requests_total{method="POST", status="500"}</code> are two different series in the index, even though they share a name. This matters because traffic can stay perfectly flat while series count climbs. You didn't add load. You added labels.</p>
+
+<p>Each new label value creates another combination with every value already there. That is the cross-product, and it is multiplicative — not additive. Add <code>model_id</code> with two hundred values to a metric already carrying <code>tenant_id</code> with five hundred values and three statuses, and you are not adding two labels. You are inviting up to <strong>300,000</strong> series for that single metric (200 × 500 × 3).</p>
 
 <p>A <strong>time series</strong> is not "a metric." It is a metric name plus one unique combination of tag values. Every distinct combination is its own series in the index. Traffic can stay flat while series count climbs — because you added labels, not because users sent more requests.</p>
 
 <p>Add <code>model_id</code> with two hundred values to a metric that already carries <code>tenant_id</code> with five hundred values and three statuses, and you are not adding two labels. You are inviting up to <strong>300,000</strong> series for that metric alone (200 × 500 × 3). The cluster does not fail loudly. It gets slower first. Then it drops series under memory pressure, or serves aggregates built on an incomplete index. Your dashboard still loads; the number on screen may be computed from a subset you never knew was missing.</p>
 
-<div class="pullquote"><p>The main concern with any new cardinality dimension is not the implementation. It is modeling the cross-product before you start.</p></div>
+<div class="pullquote"><p>Cardinality is multiplicative. One label does not add series — it multiplies them.</p></div>
 
 <h2 id="agoda-index">How WhiteFalcon Indexes Series</h2>
 
@@ -248,6 +252,8 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   <p>From Experience 1: a moderate-cardinality Kubernetes service tag — modeled cross-product before merge — plus cross-tier quantile work in Experience 2. I did not design the RoaringBitmap engine; I learned its constraints the hard way when proposing new dimensions.</p>
 </div>
 
+<p>The engine works like this: one bitmap per tag value, mapping to the set of series IDs that carry it. Query for <code>model=X AND cluster=Y</code> and the engine intersects two bitmaps. That is fast when each tag has tens or hundreds of values. It becomes catastrophic when a high-cardinality tag lands on a high-traffic metric, because every bitmap grows overnight and every filter now walks a structure nobody budgeted for.</p>
+
 <pre class="mermaid">flowchart LR
   K[Kafka events] --> ING[Rust ingestion]
   ING --> HOT[Redis hot tier]
@@ -256,13 +262,16 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   IDX --> SER[Series ID sets]
   SER --> MERGE[Intersect / union]
   MERGE --> HOT
-  MERGE --> COLD[Parquet cold tier]</pre>
+  MERGE --> COLD[Parquet cold tier]
+  IDX -.->|high-cardinality tag| BLOW["Bitmap explosion\n→ slow filter, OOM"]</pre>
+
+<p>Agoda's public engineering posts explain why inverted bitmap sets beat naive posting lists at hundreds of millions of series — I cite them in the footnotes rather than re-derive the compression math. What mattered in review was simpler: if a tag multiplies series faster than traffic grows, you are not "adding observability." You are changing the cost of every query that touches that metric, whether or not anyone updates the dashboard.</p>
 
 <p>When you query, the engine intersects bitmaps: "all series where <code>model=X</code> AND <code>cluster=Y</code>." That is fast when each tag has a modest number of values. It is catastrophic when a high-cardinality tag lands on a high-traffic metric without a spreadsheet first — because every filter now walks a bitmap that grew overnight.</p>
 
 <p>Agoda's public engineering posts on RoaringBitmap indexing explain why inverted sets beat naive posting lists at hundreds of millions of series. I cite them in the footnotes rather than re-derive the compression math. What mattered in review was simpler: if a tag multiplies series faster than traffic grows, you are not "adding observability." You are changing the cost of every query that touches that metric, whether or not anyone updates the dashboard.</p>
 
-<h2 id="cross-product">The Cross-Product You Must Model First</h2>
+<p>I ran the cross-product on a spreadsheet before the PR was merged. Service names were bounded — a few hundred, stable across deploys. Pod names were not. That single distinction was the entire decision. The service tag landed. The pod tag did not.</p>
 
 <p>Cardinality explodes with time when the number of tags and series increase — not because traffic doubled, but because each new label value creates another combination with every value that was already there. That is the cross-product. You have to multiply cardinalities on paper before you merge a pull request.</p>
 
@@ -297,7 +306,7 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
 
 <p>The producer keys Kafka by <code>tenant_id</code>; the target is <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is placement, not cardinality — but it comes from the same instinct: bound blast radius before the noisy neighbor shows up on the dashboard.</p>
 
-<h2 id="grafana-bridge">Why the P99-by-Model Panel Is a Cardinality Bet</h2>
+<p>What I didn't expect was how invisible the degradation is. There is no error. The scrape succeeds — it just takes longer. Series get dropped — but the dropped ones don't appear in the chart, so the chart looks complete. P99-by-<code>model_id</code> on a Prometheus histogram with unbounded labels is a lie waiting to happen, because you are creating shards the index never meant to track.</p>
 
 <p>The P99-by-model panel only works because <code>model_id</code> stays a ClickHouse column rather than a Prometheus label. The difference sounds small. One creates analytical dimensions. The other creates new time series.</p>
 
@@ -320,10 +329,10 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
 <table>
   <thead><tr><th>Chose</th><th>Skipped</th><th>Why</th></tr></thead>
   <tbody>
-    <tr><td>Moderate service-level k8s tag</td><td>High-cardinality pod on every metric</td><td>Cross-product modeled first</td></tr>
+    <tr><td>Bounded service-level k8s tag</td><td>High-cardinality <code>pod</code> on every metric</td><td>Cross-product modeled first; pod values track deploy churn</td></tr>
     <tr><td>ClickHouse for model×tenant analytics</td><td>Prometheus labels for every dimension</td><td>Columnar scan vs series explosion</td></tr>
-    <tr><td>Bounded histogram labels for ops</td><td><code>request_id</code> on counters</td><td>P99 panel stays honest</td></tr>
-    <tr><td>Engineering review for new tags</td><td>Ship-and-pray label in prod</td><td>Silent degradation, not outage</td></tr>
+    <tr><td>Bounded histogram labels for ops</td><td><code>request_id</code> on counters</td><td>P99 panel stays honest; identity belongs on the row</td></tr>
+    <tr><td>Spreadsheet review for new tags</td><td>Ship-and-pray label in prod</td><td>Silent degradation, not an outage — nobody pages on scrape lag</td></tr>
   </tbody>
 </table>
 
@@ -391,12 +400,11 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
         <ul class="toc-list">
-      <li><a href="#silent-killer">Silent killer</a></li>
+      <li><a href="#what-cardinality">What cardinality means</a></li>
       <li><a href="#agoda-index">WhiteFalcon index</a></li>
-      <li><a href="#cross-product">Cross-product</a></li>
+      <li><a href="#spreadsheet">The spreadsheet</a></li>
       <li><a href="#prometheus-wall">Prometheus wall</a></li>
-      <li><a href="#llm-shape">Today's pipeline</a></li>
-      <li><a href="#grafana-bridge">P99 panel bet</a></li>
+      <li><a href="#inference-pipeline">Today's pipeline</a></li>
       <li><a href="#failure-modes">Failure modes</a></li>
       <li><a href="#tradeoffs">Tradeoffs</a></li>
       <li><a href="#stayed">What stayed</a></li>
@@ -423,7 +431,7 @@ inference_latency_ms{model_id="gpt-4o", tenant_id="acme", status="ok"}
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Agoda, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
       <div class="author-card-links">
         <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>

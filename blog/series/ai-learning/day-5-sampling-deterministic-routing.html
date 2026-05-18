@@ -232,9 +232,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p><strong>Deterministic head sampling</strong> fixes that. The same <code>trace_id</code> always lands in or out, on every collector, every deploy:</p>
 
-<pre><code>keep_trace = (hash(trace_id) % 10000) &lt; (sample_rate * 10000)
-         OR status != "success"
-         OR cost_usd &gt;= cost_tail_threshold</code></pre>
+<p>That is not 1% sampling. That is a broken trace pretending to be a sampled one.</p>
 
 <p>Change the sample rate and a different slice of traffic is kept — but any given trace does not randomly appear one week and vanish the next. That is what makes week-over-week dashboards comparable.</p>
 
@@ -253,15 +251,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   RANDOM[Random sampling] --> LOST[Missing incident trace]</pre>
 
 <table>
-  <thead><tr><th>Approach</th><th>Failure mode</th></tr></thead>
+  <thead><tr><th>Approach</th><th>What breaks</th><th>When you notice</th></tr></thead>
   <tbody>
-    <tr><td>Random head per span</td><td>Broken traces; missing incident</td></tr>
-    <tr><td>100% retention</td><td>Cardinality death; scrape lag</td></tr>
-    <tr><td>Deterministic head + tail rules</td><td>Bounded cost; comparable weeks</td></tr>
+    <tr><td>Random head per span</td><td>Broken traces, orphaned spans</td><td>Next incident investigation</td></tr>
+    <tr><td>100% retention</td><td>Storage cost, scrape lag, cardinality explosion</td><td>Next invoice or Prometheus OOM</td></tr>
+    <tr><td>Deterministic head + tail rules</td><td>Bounded cost, comparable weeks, failures always kept</td><td>Nothing — that is the point</td></tr>
   </tbody>
 </table>
 
-<h2 id="routing">Deterministic routing on the data plane</h2>
+<h2 id="routing">Routing vs sampling — same hash discipline</h2>
 
 <p>The producer still keys Kafka by <code>tenant_id</code>; the target is <code>hash(tenant_id:model_id)</code> so one hot model cannot poison a tenant partition. That is <strong>routing</strong>, not sampling — but it uses the same discipline: a stable hash and a key you document before production. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html">Day 4</a> named who shares fate with a partition key; today names what history you are allowed to keep.</p>
 
