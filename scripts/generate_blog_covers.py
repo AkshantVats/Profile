@@ -48,6 +48,7 @@ SERIES_LABEL: dict[str, str] = {
     "day-3-token-budgets-cost-structure": "AI LEARNING SERIES",
     "day-4-tensor-parallelism-kafka-partitions": "AI LEARNING SERIES",
     "day-5-sampling-deterministic-routing": "AI LEARNING SERIES",
+    "day-6-quantization-vs-compression-tradeoffs": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",

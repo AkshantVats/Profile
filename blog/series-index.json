@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html",
+          "kicker": "Day 6 of N",
+          "title": "Quantization vs Compression Tradeoffs",
+          "desc": "INT8/INT4 as Snappy-vs-Zstd for weights — VRAM arithmetic, eval-fail fallback paths, codec analogy, and the precision-as-fidelity reframe."
+        },
+        {
           "href": "blog/series/ai-learning/day-5-sampling-deterministic-routing.html",
           "kicker": "Day 5 of N",
           "title": "Sampling and Deterministic Routing",
@@ -50,6 +56,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html",
+          "kicker": "Experience 6 of N",
+          "title": "Supplier APIs and Token Buckets — Wayfair's Real Circuit Breaker",
+          "desc": "Per-supplier token buckets in Redis, 429 + Retry-After contracts, circuit breakers on downstream failure, fail-open when the bucket store dies, and the same pattern on today's tenant-keyed inference pipeline."
+        },
         {
           "href": "blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html",
           "kicker": "Experience 5 of N",
