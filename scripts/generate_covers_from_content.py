@@ -40,6 +40,10 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html",
     "day-5-sampling-deterministic-routing": ROOT
     / "blog/series/ai-learning/day-5-sampling-deterministic-routing.html",
+    "day-6-quantization-vs-compression-tradeoffs": ROOT
+    / "blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html",
+    "day-7-prompt-caching-infrastructure-layer": ROOT
+    / "blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html",
     "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
     / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
@@ -49,6 +53,8 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/experience/five-thousand-geo-events-per-second.html",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": ROOT
     / "blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": ROOT
+    / "blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html",
     "building-ai-inference-observability": ROOT
     / "blog/series/inference-ai-project/building-ai-inference-observability.html",
 }
@@ -61,10 +67,13 @@ TITLE_OVERRIDE: dict[str, str] = {
     "day-3-token-budgets-cost-structure": "Token Budgets and\nReal Cost Structure",
     "day-4-tensor-parallelism-kafka-partitions": "Tensor Parallelism Meets\nKafka Partitions",
     "day-5-sampling-deterministic-routing": "Sampling and\nDeterministic Routing",
+    "day-6-quantization-vs-compression-tradeoffs": "Quantization vs\nCompression Tradeoffs",
+    "day-7-prompt-caching-infrastructure-layer": "Prompt Caching at the\nInfrastructure Layer",
     "building-tsdb-at-agoda": "1.5 Trillion Events/Day\nTSDB at Agoda",
     "when-percentiles-lie-cross-tier-queries": "When Percentiles Lie:\nCross-Tier Queries in a 1.8T/day TSDB",
     "seven-million-iot-sensors-failure-modes": "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
     "five-thousand-geo-events-per-second": "Five Thousand Geo-Events\nPer Second — Shape of the Stream",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "Ten Thousand Concurrent Requests\n— EKS Patterns That Actually Helped",
     "building-ai-inference-observability": "Building a Production-Grade\nAI Inference Observability Pipeline",
 }
 
@@ -94,6 +103,14 @@ TOPIC_HINTS: dict[str, str] = {
         "consistent hash ring trace_id keep/drop, head vs tail sampling, "
         "four Grafana panels throughput P99 cost lag, Kafka to ClickHouse"
     ),
+    "day-6-quantization-vs-compression-tradeoffs": (
+        "INT8 vs INT4 weight precision, VRAM arithmetic, eval-fail fallback, "
+        "Snappy vs Zstd codec analogy for tensors"
+    ),
+    "day-7-prompt-caching-infrastructure-layer": (
+        "SYSTEM TOOLS RAG prefix blocks with HIT arrow into provider prefix KV cache, "
+        "usage tiers CREATE READ FRESH to cost_usd down, TTL countdown, Anthropic OpenAI cache_read tokens"
+    ),
     "building-tsdb-at-agoda": (
         "Kafka → Rust ingestion → Redis hot tier → S3 Parquet cold tier, "
         "RoaringBitmap inverted index, 1.5T events/day counter, WhiteFalcon query path"
@@ -109,6 +126,11 @@ TOPIC_HINTS: dict[str, str] = {
     "five-thousand-geo-events-per-second": (
         "Order SQS PLACED→RIDER PICKED UP → Route Consumers → OSRM cluster → Route JSON, "
         "5k geo-events/s stream, hot rider partition skew, GBQ + Revisit audit path, dinner-rush lag"
+    ),
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": (
+        "AWS EKS Route Service deployment at dinner-rush peak, dual gauges: CPU low green vs consumer lag high red, "
+        "HPA scaling on max consumer lag not CPU theater, Order SQS + Kinesis → Route Consumers → OSRM → Route JSON pipeline, "
+        "10k+ concurrent HTTP/RPC, Grafana board green while queue stale, Prometheus metrics adapter arrows"
     ),
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": (
         "RoaringBitmap inverted index tag cross-product explosion, bounded labels vs exploded series, "
@@ -127,10 +149,13 @@ ACCENT: dict[str, str] = {
     "day-3-token-budgets-cost-structure": "neon green #5bd37a",
     "day-4-tensor-parallelism-kafka-partitions": "neon green #5bd37a",
     "day-5-sampling-deterministic-routing": "neon green #5bd37a",
+    "day-6-quantization-vs-compression-tradeoffs": "neon green #5bd37a",
+    "day-7-prompt-caching-infrastructure-layer": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
     "five-thousand-geo-events-per-second": "amber #f59e0b",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "electric blue #64b4ff",
     "building-ai-inference-observability": "violet #a78bfa",
 }

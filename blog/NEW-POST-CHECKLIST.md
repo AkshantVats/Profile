@@ -6,6 +6,7 @@ Use this whenever you publish a post in an existing series.
 
 ## Before you start
 
+- [ ] **Delivery Hero Experience posts:** confirm system design with the user **or** read the canonical doc at `akshant-150-day-plan/docs/delivery-hero-rider-tracking-system.md` (image: `docs/assets/delivery-hero-rider-tracking-architecture.png`). DH rider-tracking posts must use that diagram as the architectural core; EKS/HPA stories layer on **Route Service + Route Consumers + OSRM**, not invented Kinesis-only pipelines unless the user adds them. See `.cursor/rules/dh-experience-blogs.mdc`.
 - [ ] Pick **series** (`ai-learning`, `experience`, `lensai` — three series only on index/profile).
 - [ ] Open the **previous post in that series** as your HTML template (layout, nav, TOC, Mermaid, footer).
 - [ ] Note **post number / kicker** by series:
@@ -80,7 +81,21 @@ Use this whenever you publish a post in an existing series.
 
 ---
 
-## 4. Local sanity check
+## 4. Editorial pass (AI Learning series)
+
+Before publishing an AI Learning post, run an editorial pass to align voice with the series:
+
+- [ ] **Re-read last 2–3 published AI posts** (e.g. Day 5, Day 6, Day 3) for voice: learning-while-building LensAI, connected sentences, no fake employer incidents, no footnote-stuffed hedging.
+- [ ] **Fix awkward inline hedges** — move "verify in their docs" / "field names drift" to the footnote section; keep body prose smooth and confident.
+- [ ] **Match Day 3/6 rhythm** — opening = what I built or noticed this week; sections flow with because/so causality, not listicle fragmentation.
+- [ ] **LensAI ingest honest** — mention schema gaps and next steps concretely; do not oversell features that do not exist yet.
+- [ ] **Experience companion: one short sentence** — do not weave a full narrative about the Experience post.
+- [ ] **Max 2 in-body sibling links** — e.g. Day 1 + Day 3; verify `published_time` sort is still correct.
+- [ ] **Format: deep-dive not incident** — AI Learning posts are conceptual deep-dives with systems parallels, not production incident stories.
+
+---
+
+## 5. Local sanity check
 
 - [ ] Serve the repo root locally (e.g. `python3 -m http.server 8080` from repo root) so `fetch()` can load `series-index.json` and post HTML.
 - [ ] Open the **post HTML**: layout, TOC, Mermaid, dark mode.
@@ -90,7 +105,7 @@ Use this whenever you publish a post in an existing series.
 
 ---
 
-## 5. Publish
+## 6. Publish
 
 - [ ] `git add` the new HTML + `blog/series-index.json` (only those unless you changed something else).
 - [ ] Commit with a clear message (only when the user asks).
