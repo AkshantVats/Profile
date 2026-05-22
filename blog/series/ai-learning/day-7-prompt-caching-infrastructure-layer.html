@@ -341,7 +341,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <tr><td>Completion tokens</td><td>400</td><td>400</td></tr>
     <tr><td>Input economics</td><td>Creation + fresh suffix</td><td>Mostly cache read + fresh suffix</td></tr>
     <tr><td>TTFT</td><td>Full prefill on ~8.2k tokens</td><td>Prefill mostly on 200-token suffix</td></tr>
-    <tr><td>Finance signal</td><td><code>cache_creation_input_tokens</code> ↑</td><td><code>cache_read_input_tokens</code> ↑, <code>cost_usd</code> ↓</td></tr>
+    <tr><td>Observability signal</td><td><code>cache_creation_input_tokens</code> ↑</td><td><code>cache_read_input_tokens</code> ↑, <code>cost_usd</code> ↓</td></tr>
   </tbody>
 </table>
 
@@ -376,7 +376,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="series-footer">
   <p><em>Day 7 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> (lag on Route Service + Route Consumers; today is prefix hit rate on inference).</em></p>
+  <p><em>Today's other post: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> (peak scale vs prefill economics).</em></p>
   <p><em>Up next: RAG as an infra pipeline — chunk, embed, retrieve, and the latency budget before the model sees a token.</em></p>
 </div>
 
