@@ -49,11 +49,13 @@ SERIES_LABEL: dict[str, str] = {
     "day-4-tensor-parallelism-kafka-partitions": "AI LEARNING SERIES",
     "day-5-sampling-deterministic-routing": "AI LEARNING SERIES",
     "day-6-quantization-vs-compression-tradeoffs": "AI LEARNING SERIES",
+    "day-7-prompt-caching-infrastructure-layer": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",
     "five-thousand-geo-events-per-second": "EXPERIENCE SERIES",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "EXPERIENCE SERIES",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
 }
 
@@ -123,6 +125,12 @@ PLAIN_SPECS = [
         "seven-million-iot-sensors-failure-modes",
         "EXPERIENCE SERIES",
         "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
+        (147, 197, 253),
+    ),
+    (
+        "ten-thousand-concurrent-requests-eks-patterns-delivery-hero",
+        "EXPERIENCE SERIES",
+        "Ten Thousand Concurrent Requests\n— EKS Patterns That Actually Helped",
         (147, 197, 253),
     ),
     (

@@ -6,6 +6,7 @@ Use this whenever you publish a post in an existing series.
 
 ## Before you start
 
+- [ ] **Delivery Hero Experience posts:** confirm system design with the user **or** read the canonical doc at `akshant-150-day-plan/docs/delivery-hero-rider-tracking-system.md` (image: `docs/assets/delivery-hero-rider-tracking-architecture.png`). DH rider-tracking posts must use that diagram as the architectural core; EKS/HPA stories layer on **Route Service + Route Consumers + OSRM**, not invented Kinesis-only pipelines unless the user adds them. See `.cursor/rules/dh-experience-blogs.mdc`.
 - [ ] Pick **series** (`ai-learning`, `experience`, `lensai` — three series only on index/profile).
 - [ ] Open the **previous post in that series** as your HTML template (layout, nav, TOC, Mermaid, footer).
 - [ ] Note **post number / kicker** by series:

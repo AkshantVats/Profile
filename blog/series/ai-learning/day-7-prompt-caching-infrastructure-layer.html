@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 7 — Prompt Caching at the Infrastructure Layer (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Provider prompt caches as prefix KV hits; Anthropic and OpenAI usage tiers, cache-key design, invalidation, and why cost_usd needs a third input line item. Day 7 of N.">
+<meta property="og:title" content="Day 7 of Learning LLM Inference — Prompt Caching at the Infrastructure Layer">
+<meta property="og:description" content="Prefix reuse as KV-cache hit rate for dollars — session KV vs provider prefix cache, tiered input pricing, cache keys, and InferenceEvent fields.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-7-prompt-caching-infrastructure-layer.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-7-prompt-caching-infrastructure-layer.png?v=1">
+<meta property="article:published_time" content="2026-05-22">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.attr-box.mine table{margin:1em 0 0;font-size:.8125rem}
+.diagram-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.75;overflow-x:auto}
+.diagram-box pre{background:none;border:none;padding:0;margin:0;font-size:inherit;white-space:pre;color:inherit}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.footnote-note{font-size:.8125rem;font-family:var(--ui);color:var(--muted);line-height:1.65;margin-top:1rem}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning · Day 7 of N</span>
+    <span class="tag">LLM inference</span>
+    <span class="tag">Prompt caching</span>
+    <span class="tag">FinOps</span>
+    <span class="tag">Distributed systems</span>
+  </div>
+  <h1 class="post-title">Day 7 of Learning LLM Inference — Prompt Caching at the Infrastructure Layer</h1>
+  <p class="post-subtitle">7 of N — AI Learning Series. Prefix reuse as KV-cache hit rate for dollars — provider caches, cache keys, and the third input bucket on your rate card.</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">11 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning · Day 7 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-7-prompt-caching-infrastructure-layer.png" alt="Cover: Prompt Caching at the Infrastructure Layer — Day 7 of N" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>Day 6 ended with a promise: prompt caching — reusing prefill work when the same bytes show up again. This week finance reconciled a tenant invoice and the numbers did not match what I expected from request volume. <code>sum(cost_usd)</code> had dropped. SRE dashboards showed TTFT improving on the same routes. Completion length was flat. Nobody had changed the model or turned on a cheaper tier.</p>
+
+<p>The root cause was quieter: a stable system prompt plus a fixed RAG corpus had started hitting the provider's prompt cache. We were not serving faster because the GPU got better — we were paying less prefill because the prefix K/V for eight thousand tokens was already warm on their side. Anthropic and OpenAI expose that as separate usage buckets; treat their cache headers like cache-control for transformers — what is immutable, what has TTL, what invalidates the key.</p>
+
+<p>By the end of this post you should be able to read a provider <code>usage</code> block and explain why dollars and TTFT can diverge while completion tokens stay the same.</p>
+
+<h2 id="two-caches">Two different KV caches</h2>
+
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> was about the session KV cache: one request, growing through decode, living in your GPU's VRAM, memory-bandwidth-bound at each step. Provider prompt caching is a different animal — a shared prefix across requests, stored on the provider's fleet, billed on a different tier of the rate card.</p>
+
+<table>
+  <thead><tr><th></th><th>Session KV cache (Day 1)</th><th>Provider prompt cache (Day 7)</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Scope</strong></td><td>One request; grows through decode</td><td>Shared prefix across requests</td></tr>
+    <tr><td><strong>Lives</strong></td><td>Your GPU / vLLM VRAM</td><td>Provider infrastructure</td></tr>
+    <tr><td><strong>Miss cost</strong></td><td>Bandwidth per decode step</td><td>Full prefill charge + latency</td></tr>
+    <tr><td><strong>Hit benefit</strong></td><td>Avoid recomputing prior tokens in this request</td><td>Avoid recomputing shared prefix across requests</td></tr>
+  </tbody>
+</table>
+
+<p>Quantization shrinks weight tensors; prompt caching shrinks repeated prefill work. Orthogonal knobs — do not confuse them.</p>
+
+<h2 id="provider-headers">Cache-control at the API boundary</h2>
+
+<p><strong>Anthropic</strong> makes the contract explicit. You mark content blocks with <code>cache_control: { "type": "ephemeral" }</code> at breakpoints (minimum prefix length is on the order of 1024 tokens — verify in their docs before you hard-code a gate). The <code>usage</code> object carries <code>input_tokens</code>, <code>output_tokens</code>, plus <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code>. Pricing intuition: cache read is cheaper than base input; cache creation pays to warm the prefix. TTL is on the order of five minutes — think <code>Cache-Control: max-age</code>, not permanent storage.</p>
+
+<p><strong>OpenAI</strong> is more automatic on supported models: identical long prefixes (commonly ≥1024 tokens) can hit without you placing breakpoints, though documenting a stable <code>prompt_cache_key</code> where the API allows still helps when traffic is routed across regions. Look for cached prompt detail under <code>usage</code> — e.g. <code>prompt_tokens_details.cached_tokens</code> (field names drift; verify at publish time).</p>
+
+<pre class="mermaid">sequenceDiagram
+  participant GW as Gateway
+  participant API as Provider API
+  participant KV as Prefix KV store
+
+  GW->>API: Messages (stable prefix + user suffix)
+  API->>KV: Lookup prefix hash
+  alt Cache hit (read)
+    KV-->>API: Reuse prefix K/V
+    Note over API: cache_read_input_tokens ↑
+  else Cache miss / create
+    API->>API: Full prefill on prefix
+    Note over API: cache_creation_input_tokens ↑
+  end
+  API-->>GW: Stream completion + usage block
+  GW->>GW: cost_usd from tiered rates</pre>
+
+<div class="attr-box mine">
+  <div class="attr-label">CDN rules for prompts</div>
+  <table>
+    <thead><tr><th>HTTP / CDN</th><th>Prompt cache</th></tr></thead>
+    <tbody>
+      <tr><td>Cacheable path prefix</td><td>Stable system prompt + tools + RAG blob order</td></tr>
+      <tr><td><code>max-age</code></td><td>Provider TTL (minutes)</td></tr>
+      <tr><td><code>Vary</code></td><td>Model name, modality, tool schema version</td></tr>
+      <tr><td>MISS → origin fetch</td><td>MISS → full prefill charge</td></tr>
+      <tr><td>HIT → edge serve</td><td>HIT → <code>cache_read_*</code> tokens</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="cache-key-design">What actually hashes together</h2>
+
+<p>Cache keys are bytes, not intentions. Five rules I keep in code review:</p>
+
+<ol>
+  <li><strong>Byte-stable prefix</strong> — Same text, same bytes: whitespace, JSON key order, tool definition order.</li>
+  <li><strong>Pin immutable blocks first</strong> — System prompt, tool schemas, long RAG context; put the user message in the suffix that changes every turn.</li>
+  <li><strong>Breakpoints are placement</strong> — On Anthropic, moving a <code>cache_control</code> boundary changes what enters the key.</li>
+  <li><strong>Per-tenant isolation</strong> — Include <code>tenant_id</code> in logical key material where the API allows; do not rely on "probably different" traffic.</li>
+  <li><strong>Model version in the key</strong> — A <code>model_id</code> bump is a new origin.</li>
+</ol>
+
+<div class="diagram-box"><pre>[ system │ tools │ RAG corpus ]  ← cache breakpoint(s)
+[ user message + session state ] ← usually outside cache</pre></div>
+
+<p>We once had zero percent hit rate with "the same" RAG content because two services serialized tool JSON with different key ordering. Semantically identical, byte-different — every request was a miss and we paid creation on every call.</p>
+
+<h2 id="invalidation">When hits become lies</h2>
+
+<pre class="mermaid">flowchart TD
+  REQ[New request] --> SAME{Prefix bytes + model unchanged?}
+  SAME -->|no| MISS[MISS — pay fresh input / creation]
+  SAME -->|yes| TTL{Inside provider TTL?}
+  TTL -->|no| MISS
+  TTL -->|yes| HIT[HIT — cache_read pricing + lower TTFT]
+  MISS --> RISK[Watch creation spike in metrics]
+  style MISS fill:#ff6b6b,color:#fff</pre>
+
+<table>
+  <thead><tr><th>Event</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td>TTL expiry</td><td>Next request pays creation or full input</td></tr>
+    <tr><td>Edit system prompt, tools, or RAG</td><td>New prefix → miss</td></tr>
+    <tr><td>Model upgrade / routing change</td><td>New key</td></tr>
+    <tr><td>Tokenizer or truncation drift</td><td>Silent miss — trust <code>usage</code>, not vibes</td></tr>
+    <tr><td>High-cardinality per-user prefix</td><td>No hits — cache becomes write amplification</td></tr>
+  </tbody>
+</table>
+
+<p>Stuffing the user id into the cached prefix destroys hit rate the same way random per-request trace ids destroy comparability in tail sampling: you optimized for uniqueness, not reuse.</p>
+
+<h2 id="cost-model">Third bucket on the rate card</h2>
+
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> split prompt vs completion tokens. Prompt caching adds tiers on the input side:</p>
+
+<pre><code>cost_usd ≈ (fresh_input_tokens / 1e6) × rate_input
+         + (cache_read_input_tokens / 1e6) × rate_cache_read
+         + (cache_creation_input_tokens / 1e6) × rate_cache_write
+         + (completion_tokens / 1e6) × rate_output</code></pre>
+
+<p><strong>As of May 2026 — verify on each vendor pricing page.</strong> Illustrative Sonnet-class tiers: base input ~$3/M, cache write ~$3.75/M, cache read ~$0.30/M — read is an order of magnitude cheaper than warming the prefix.</p>
+
+<h3 id="worked-example">Worked example</h3>
+
+<p>8,000-token stable prefix, 200-token user suffix, 400 completion tokens. Request 1 (cold prefix): pays creation on most of the prefix plus full-rate suffix, plus completion. Request 2 within TTL: ~8k <code>cache_read_input_tokens</code>, ~200 fresh input, same 400 completion — TTFT drops, <code>cost_usd</code> drops, completion bucket unchanged.</p>
+
+<table>
+  <thead><tr><th>Metric</th><th>Request 1 (miss/warm)</th><th>Request 2 (hit)</th></tr></thead>
+  <tbody>
+    <tr><td>Completion tokens</td><td>400</td><td>400</td></tr>
+    <tr><td>Input economics</td><td>Creation + fresh suffix</td><td>Mostly cache read + fresh suffix</td></tr>
+    <tr><td>TTFT</td><td>Full prefill on ~8.2k tokens</td><td>Prefill mostly on 200-token suffix</td></tr>
+    <tr><td>Finance signal</td><td><code>cache_creation_input_tokens</code> ↑</td><td><code>cache_read_input_tokens</code> ↑, <code>cost_usd</code> ↓</td></tr>
+  </tbody>
+</table>
+
+<p>FinOps should chart <code>cache_hit_ratio = cache_read / (cache_read + cache_creation + fresh_input)</code> per <code>tenant_id</code> and <code>model_id</code> in ClickHouse — not as unbounded Prometheus labels. Alert on creation spikes (prefix churn), not only on total spend.</p>
+
+<div class="pullquote"><p>A prompt cache hit is a KV-cache hit for the prefix — priced like a CDN hit, invalidated like one.</p></div>
+
+<h2 id="infra-lensai">What LensAI should record</h2>
+
+<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> carries <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code> — validated at ingest, not repriced. It does <strong>not</strong> yet break out cache tiers. That is honest: you cannot debug prefix economics from <code>prompt_tokens</code> alone when half the prompt was a cache read priced at a different rate.</p>
+
+<table>
+  <thead><tr><th>Field (proposed)</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>cache_read_input_tokens</code></td><td>Hit volume</td></tr>
+    <tr><td><code>cache_creation_input_tokens</code></td><td>Warm cost</td></tr>
+    <tr><td><code>fresh_input_tokens</code> (or derived)</td><td>Uncached prefill</td></tr>
+    <tr><td><code>prompt_cache_hit</code> (bool)</td><td>Quick filters</td></tr>
+    <tr><td><code>pricing_version</code></td><td>Rate-card drift vs producer math</td></tr>
+  </tbody>
+</table>
+
+<p>Producers should map provider <code>usage</code> into <code>cost_usd</code> using the tiered formula above; ingest keeps validating obvious lies (<code>cost_usd &lt; 0</code>, zero latency) and forwarding facts. Grafana wants a column chart of cache hit % by tenant and an estimated-dollars-saved panel with the counterfactual documented in the panel footnote.</p>
+
+<p>On the inference gateway, treat prompt cache like CDN rules for what leaves your stack: pin byte-stable <strong>system + tool + RAG</strong> prefixes, map provider <code>usage</code> into tiered <code>cost_usd</code>, and never confuse cache hits with capacity on the routing plane.</p>
+
+<p>Today's Experience companion — <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> — is Delivery Hero dinner rush on the rider-tracking plane: <strong>Route Service</strong> and <strong>Route Consumers</strong> on AWS EKS under Order SQS-driven load (<code>PLACED</code> through <code>RIDER PICKED UP</code>), OSRM match work behind both, while CPU looked fine and consumer lag stale'd Route JSON. That post scales Route Consumers and Route Service on max consumer lag, not CPU theater. Prompt caching is the complementary FinOps lever — cheaper prefill when prefixes repeat — not a substitute for scaling consumers when Order SQS depth climbs. When ten thousand concurrent requests hit Route Service during peak, stable prefixes on any parallel LLM path are the silent cost win; lag-driven scale-out is still the capacity win. You need both under the same Friday rain.</p>
+
+<h2 id="takeaway">What I am taking away</h2>
+
+<p>Prefix stability is an SLO and a FinOps control. Read cache fields in <code>usage</code> before you blame batching, quantization, or model routing. Shipping the stack to k3d is the deploy shell; this post is the economic reason to stabilize prompts on the gateway before you autoscale GPUs — orthogonal to scaling Route Consumers when Order SQS lag is the bottleneck.</p>
+
+<div class="series-footer">
+  <p><em>Day 7 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> (lag on Route Service + Route Consumers; today is prefix hit rate on inference).</em></p>
+  <p><em>Up next: RAG as an infra pipeline — chunk, embed, retrieve, and the latency budget before the model sees a token.</em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">Footnotes &amp; sources</div>
+  <div class="footnote-links">
+    <a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>1.</strong> Anthropic — prompt caching (breakpoints, usage fields, TTL)</span>
+    </a>
+    <a href="https://platform.openai.com/docs/guides/prompt-caching" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>2.</strong> OpenAI — prompt caching guide</span>
+    </a>
+    <a href="https://www.anthropic.com/pricing" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>3.</strong> Anthropic pricing — input / cache write / cache read tiers</span>
+    </a>
+    <a href="https://openai.com/api/pricing/" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>4.</strong> OpenAI API pricing</span>
+    </a>
+    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>5.</strong> LensAI — InferenceEvent schema (ingest.rs)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>6.</strong> Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</span>
+    </a>
+  </div>
+  <p class="footnote-note">Cache pricing and field names change frequently; verify against live vendor docs before hard-coding rate cards. Day 1 and Day 3 are linked in prose where the series narrative requires them. Delivery Hero references follow the canonical rider-tracking topology (Order Service, Order SQS, Route Service, Route Consumers, OSRM); concurrent-request figures describe the EKS routing plane, not a separate ingest-only pipeline.</p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#two-caches">Two KV caches</a></li>
+      <li><a href="#provider-headers">API cache-control</a></li>
+      <li><a href="#cache-key-design">Cache key design</a></li>
+      <li><a href="#invalidation">Invalidation</a></li>
+      <li><a href="#cost-model">Cost model</a></li>
+      <li><a href="#infra-lensai">LensAI fields</a></li>
+      <li><a href="#takeaway">Takeaway</a></li>
+      <li><a href="#footnotes">Footnotes</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+7%3A+Prompt+caching+at+the+infrastructure+layer+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
