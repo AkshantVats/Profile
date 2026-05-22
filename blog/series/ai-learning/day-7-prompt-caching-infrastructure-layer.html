@@ -220,15 +220,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 <div class="post-layout">
 <article class="prose">
 
-<p>Day 6 ended with a promise: prompt caching — reusing prefill work when the same bytes show up again. Day 7 is me learning that contract while building <strong>LensAI</strong> (<code>infra-ai-streaming</code>): wiring <code>POST /ingest</code>, watching test events land with <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code>, and realizing the provider <code>usage</code> block has more input buckets than my schema stores.</p>
+<p>I was sending the same system prompt on repeat — a long tool schema plus a fixed RAG blob, about eight thousand tokens — while wiring LensAI's <code>POST /ingest</code> endpoint. Request two came back faster and cheaper. Completion tokens matched request one exactly. The provider was not suddenly more efficient at decode; it had skipped most of prefill because the prefix bytes had not changed.</p>
 
-<p>I sent the same long system prompt plus a fixed tool schema on repeat against Anthropic and OpenAI docs examples. Request two within the cache TTL showed lower TTFT and a smaller <code>cost_usd</code> at the gateway — but <code>completion_tokens</code> matched request one. The docs named the delta: <code>cache_read_input_tokens</code> and <code>cache_creation_input_tokens</code> (Anthropic) or cached prompt detail under OpenAI's <code>usage</code>. I was not serving faster because my GPU got better; I was paying less prefill because the provider already held prefix K/V for thousands of tokens on their fleet.</p>
+<p>The <code>usage</code> block named what happened: <code>cache_read_input_tokens</code> and <code>cache_creation_input_tokens</code> on Anthropic, <code>prompt_tokens_details.cached_tokens</code> on OpenAI. The provider had stored the prefix KV from the first call and served it back on the second — same idea as a CDN edge hit, except the "origin fetch" is a full prefill pass billed at input rate.</p>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> split prompt vs completion on the rate card. Prompt caching adds <strong>tiers on the input side</strong> — read, create, and fresh uncached bytes — each priced differently. This post is the deep dive on that third dimension: what hashes together, what invalidates, and what LensAI needs on every <code>InferenceEvent</code> before dashboards can explain dollars and TTFT diverging while completion length stays flat.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> split prompt vs completion on the rate card and argued that <code>cost_usd</code> must land on every row. Prompt caching adds <strong>tiers on the input side</strong> — cached read, cache creation, and fresh uncached bytes — each priced differently. That is the third dimension this post covers: what hashes together, what invalidates, and what LensAI's <code>InferenceEvent</code> needs before dashboards can explain dollars and TTFT diverging while completion length stays flat.</p>
 
 <h2 id="two-caches">Two different KV caches</h2>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> was about the session KV cache: one request, growing through decode, living in your GPU's VRAM, memory-bandwidth-bound at each step. Provider prompt caching is a different animal — a shared prefix across requests, stored on the provider's fleet, billed on a different tier of the rate card.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> was about the session KV cache: one request, growing through decode, living in GPU VRAM, memory-bandwidth-bound at each step. Provider prompt caching is a different mechanism — a shared prefix held across requests on the provider's fleet, billed at a discounted tier.</p>
 
 <table>
   <thead><tr><th></th><th>Session KV cache (Day 1)</th><th>Provider prompt cache (Day 7)</th></tr></thead>
@@ -240,13 +240,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </tbody>
 </table>
 
-<p>Quantization shrinks weight tensors; prompt caching shrinks repeated prefill work. Orthogonal knobs — do not confuse them.</p>
+<p>Day 6 shrank weight tensors with quantization; prompt caching shrinks repeated prefill work. Orthogonal knobs on the same bill — do not confuse them.</p>
 
 <h2 id="provider-headers">Cache-control at the API boundary</h2>
 
-<p><strong>Anthropic</strong> makes the contract explicit. You mark content blocks with <code>cache_control: { "type": "ephemeral" }</code> at breakpoints (minimum prefix length is on the order of 1024 tokens — verify in their docs before you hard-code a gate). The <code>usage</code> object carries <code>input_tokens</code>, <code>output_tokens</code>, plus <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code>. Pricing intuition: cache read is cheaper than base input; cache creation pays to warm the prefix. TTL is on the order of five minutes — think <code>Cache-Control: max-age</code>, not permanent storage.</p>
+<p><strong>Anthropic</strong> makes the contract explicit. You mark content blocks with <code>cache_control: { "type": "ephemeral" }</code> at breakpoints — the prefix must exceed a minimum token length for caching to engage. The <code>usage</code> response carries <code>input_tokens</code>, <code>output_tokens</code>, plus <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code>. Cache read is cheaper than base input; cache creation pays a small premium to warm the prefix. TTL is short — on the order of five minutes, so think <code>Cache-Control: max-age</code>, not durable storage.</p>
 
-<p><strong>OpenAI</strong> is more automatic on supported models: identical long prefixes (commonly ≥1024 tokens) can hit without you placing breakpoints, though documenting a stable <code>prompt_cache_key</code> where the API allows still helps when traffic is routed across regions. Look for cached prompt detail under <code>usage</code> — e.g. <code>prompt_tokens_details.cached_tokens</code> (field names drift; verify at publish time).</p>
+<p><strong>OpenAI</strong> is more automatic on supported models: identical long prefixes can hit without explicit breakpoints, and the cached-tokens detail surfaces under <code>usage.prompt_tokens_details</code>. The mechanics differ from Anthropic's opt-in model, but the economic shape is the same: repeated bytes cost less than fresh ones because the provider already holds the prefix KV.</p>
 
 <pre class="mermaid">sequenceDiagram
   participant GW as Gateway
@@ -284,17 +284,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 <p>Cache keys are bytes, not intentions. Five rules I keep in code review:</p>
 
 <ol>
-  <li><strong>Byte-stable prefix</strong> — Same text, same bytes: whitespace, JSON key order, tool definition order.</li>
-  <li><strong>Pin immutable blocks first</strong> — System prompt, tool schemas, long RAG context; put the user message in the suffix that changes every turn.</li>
+  <li><strong>Byte-stable prefix</strong> — Same text, same bytes. Whitespace, JSON key order, tool definition order all matter.</li>
+  <li><strong>Pin immutable blocks first</strong> — System prompt, tool schemas, long RAG context go at the top; the user message lives in the suffix that changes every turn.</li>
   <li><strong>Breakpoints are placement</strong> — On Anthropic, moving a <code>cache_control</code> boundary changes what enters the key.</li>
-  <li><strong>Per-tenant isolation</strong> — Include <code>tenant_id</code> in logical key material where the API allows; LensAI already keys rollups on <code>tenant_id</code> at ingest — do not rely on "probably different" traffic.</li>
-  <li><strong>Model version in the key</strong> — A <code>model_id</code> bump is a new origin.</li>
+  <li><strong>Per-tenant isolation</strong> — Include <code>tenant_id</code> in logical key material where the API allows. LensAI already keys rollups on <code>tenant_id</code> at ingest, so do not rely on "probably different" traffic patterns for cache separation.</li>
+  <li><strong>Model version in the key</strong> — A <code>model_id</code> bump is a new origin. Routing changes that swap the backing model invalidate every warm prefix.</li>
 </ol>
 
 <div class="diagram-box"><pre>[ system │ tools │ RAG corpus ]  ← cache breakpoint(s)
 [ user message + session state ] ← usually outside cache</pre></div>
 
-<p>I burned an afternoon on zero percent hit rate in a local test harness with "the same" RAG blob — two serializers emitted tool JSON with different key ordering. Semantically identical, byte-different: every request was a miss and I paid creation on every call until I pinned one canonical byte layout.</p>
+<p>I burned an afternoon on zero percent hit rate with "the same" RAG blob in my local test harness. Two serializers were emitting tool JSON with different key ordering — semantically identical, byte-different. Every request was a miss and I paid creation on every call until I pinned one canonical byte layout. The lesson is the same one that makes content-addressable storage fragile: semantic equivalence does not guarantee byte equivalence, and the hash only sees bytes.</p>
 
 <h2 id="invalidation">When hits become lies</h2>
 
@@ -312,13 +312,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <tbody>
     <tr><td>TTL expiry</td><td>Next request pays creation or full input</td></tr>
     <tr><td>Edit system prompt, tools, or RAG</td><td>New prefix → miss</td></tr>
-    <tr><td>Model upgrade / routing change</td><td>New key</td></tr>
-    <tr><td>Tokenizer or truncation drift</td><td>Silent miss — trust <code>usage</code>, not vibes</td></tr>
+    <tr><td>Model upgrade / routing change</td><td>New key entirely</td></tr>
+    <tr><td>Tokenizer or truncation drift</td><td>Silent miss — trust <code>usage</code>, not intuition</td></tr>
     <tr><td>High-cardinality per-user prefix</td><td>No hits — cache becomes write amplification</td></tr>
   </tbody>
 </table>
 
-<p>Stuffing the user id into the cached prefix destroys hit rate the same way random per-request trace ids destroy comparability in tail sampling: you optimized for uniqueness, not reuse.</p>
+<p>Stuffing the user id into the cached prefix destroys hit rate the same way random per-request trace ids destroyed comparability in Day 5's sampling story: you optimized for uniqueness when the system rewards reuse.</p>
 
 <h2 id="cost-model">Third bucket on the rate card</h2>
 
@@ -329,11 +329,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
          + (cache_creation_input_tokens / 1e6) × rate_cache_write
          + (completion_tokens / 1e6) × rate_output</code></pre>
 
-<p><strong>As of May 2026 — verify on each vendor pricing page.</strong> Illustrative Sonnet-class tiers: base input ~$3/M, cache write ~$3.75/M, cache read ~$0.30/M — read is an order of magnitude cheaper than warming the prefix.</p>
+<p>Illustrative Sonnet-class tiers as of May 2026: base input ~$3/M, cache write ~$3.75/M, cache read ~$0.30/M. The read tier is an order of magnitude cheaper than warming the prefix — so the amortization story is clear. One creation charge pays for itself after a handful of cache reads, and every subsequent hit within TTL is nearly free on the input side.</p>
 
 <h3 id="worked-example">Worked example</h3>
 
-<p>8,000-token stable prefix, 200-token user suffix, 400 completion tokens. Request 1 (cold prefix): pays creation on most of the prefix plus full-rate suffix, plus completion. Request 2 within TTL: ~8k <code>cache_read_input_tokens</code>, ~200 fresh input, same 400 completion — TTFT drops, <code>cost_usd</code> drops, completion bucket unchanged.</p>
+<p>8,000-token stable prefix, 200-token user suffix, 400 completion tokens. Request one (cold prefix) pays creation on most of the prefix plus full-rate suffix plus completion. Request two within TTL sees ~8k <code>cache_read_input_tokens</code>, ~200 fresh input, same 400 completion — TTFT drops because prefill only runs on the 200-token suffix, and <code>cost_usd</code> drops because eight thousand tokens moved from $3/M to $0.30/M.</p>
 
 <table>
   <thead><tr><th>Metric</th><th>Request 1 (miss/warm)</th><th>Request 2 (hit)</th></tr></thead>
@@ -345,38 +345,36 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </tbody>
 </table>
 
-<p>Once cache tiers land on every row, LensAI should chart <code>cache_hit_ratio = cache_read / (cache_read + cache_creation + fresh_input)</code> grouped by <code>tenant_id</code> and <code>model_id</code> in ClickHouse — not as unbounded Prometheus labels. Alert on creation spikes (prefix churn), not only on <code>sum(cost_usd)</code>.</p>
+<p>Once cache tiers land on every event row, LensAI can chart <code>cache_hit_ratio = cache_read / (cache_read + cache_creation + fresh_input)</code> grouped by <code>tenant_id</code> and <code>model_id</code> in ClickHouse. Alert on creation spikes — they mean prefix churn — not only on <code>sum(cost_usd)</code>, because a cost spike caused by cache invalidation looks different from one caused by longer completions.</p>
 
 <div class="pullquote"><p>A prompt cache hit is a KV-cache hit for the prefix — priced like a CDN hit, invalidated like one.</p></div>
 
-<h2 id="infra-lensai">What LensAI should record</h2>
+<h2 id="infra-lensai">What LensAI needs next</h2>
 
-<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> in <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs">ingest.rs</a> carries <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code>. Ingest rejects <code>cost_usd &lt; 0</code> and <code>latency_ms == 0</code>, aligns <code>X-Tenant-ID</code> with each event's <code>tenant_id</code>, and forwards facts — same boundary Day 3 argued for. It does <strong>not</strong> yet break out cache tiers. That gap is why this post exists: you cannot debug prefix economics from <code>prompt_tokens</code> alone when half the prompt was a cache read priced at a different rate.</p>
+<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> in <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs">ingest.rs</a> carries <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code>. Ingest rejects <code>cost_usd &lt; 0</code> and <code>latency_ms == 0</code>, aligns <code>X-Tenant-ID</code> with each event's <code>tenant_id</code>, and forwards facts. It does <strong>not</strong> yet break out cache tiers — and that gap is why this post exists. You cannot debug prefix economics from <code>prompt_tokens</code> alone when half the prompt was a cache read priced at a tenth of base rate.</p>
 
 <table>
   <thead><tr><th>Field (proposed)</th><th>Why</th></tr></thead>
   <tbody>
-    <tr><td><code>cache_read_input_tokens</code></td><td>Hit volume</td></tr>
-    <tr><td><code>cache_creation_input_tokens</code></td><td>Warm cost</td></tr>
-    <tr><td><code>fresh_input_tokens</code> (or derived)</td><td>Uncached prefill</td></tr>
-    <tr><td><code>prompt_cache_hit</code> (bool)</td><td>Quick filters</td></tr>
-    <tr><td><code>pricing_version</code></td><td>Rate-card drift vs producer math</td></tr>
+    <tr><td><code>cache_read_input_tokens</code></td><td>Hit volume — the cheap reads</td></tr>
+    <tr><td><code>cache_creation_input_tokens</code></td><td>Warm cost — creation charges</td></tr>
+    <tr><td><code>fresh_input_tokens</code> (or derived)</td><td>Uncached prefill at base rate</td></tr>
+    <tr><td><code>prompt_cache_hit</code> (bool)</td><td>Quick filters and alert conditions</td></tr>
+    <tr><td><code>pricing_version</code></td><td>Rate-card drift detection vs producer math</td></tr>
   </tbody>
 </table>
 
-<p>Producers should map provider <code>usage</code> into <code>cost_usd</code> using the tiered formula above; ingest keeps validating obvious lies (<code>cost_usd &lt; 0</code>, zero latency) and forwarding facts. Grafana wants a column chart of cache hit % by tenant and an estimated-dollars-saved panel with the counterfactual documented in the panel footnote.</p>
+<p>Producers map provider <code>usage</code> into <code>cost_usd</code> using the tiered formula; ingest keeps validating obvious lies and forwarding facts the way Day 3 described. The Grafana work that follows is a column chart of cache hit percentage by tenant and an estimated-dollars-saved panel whose counterfactual is documented in the panel footnote — not guessed.</p>
 
-<p>On the gateway I am building against, treat prompt cache like CDN rules for what leaves the stack: pin byte-stable <strong>system + tool + RAG</strong> prefixes, map provider <code>usage</code> into tiered <code>cost_usd</code> at the producer, and let ingest keep validating facts the way Day 3 described — reject obvious lies, forward dollars, do not silently re-price.</p>
-
-<p>Today's other post — <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7: Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> — is about peak scale on a routing plane (lag-driven consumer scale-out when CPU looks fine). Prompt caching is the complementary economics lever: cheaper prefill when prefixes repeat, not a substitute for adding pods when queue depth is the bottleneck.</p>
+<p>The gateway pattern I am building against treats prompt cache like CDN rules: pin byte-stable <strong>system + tool + RAG</strong> prefixes, map provider <code>usage</code> into tiered <code>cost_usd</code> at the producer, and let ingest validate without re-pricing. Prompt caching is a prefill economics lever — complementary to pod scale-out, not a substitute for it. Today's Experience companion covers the other side: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7</a> is about lag-driven consumer scale-out when CPU looks fine.</p>
 
 <h2 id="takeaway">What I am taking away</h2>
 
-<p>Prefix stability is an SLO and a FinOps control. Read cache fields in <code>usage</code> before you blame quantization, continuous batching, or model routing. The next LensAI change I owe is mapping those tiers into <code>InferenceEvent</code> and extending the Day 3 cost formula — otherwise <code>prompt_tokens</code> alone will keep lying about which bytes were cheap reads.</p>
+<p>Prefix stability is both an SLO and a FinOps control. When TTFT drops but <code>completion_tokens</code> stays flat, read cache fields in <code>usage</code> before blaming quantization, batching, or model routing — the provider may have just served your prefix from its fleet cache. The next LensAI change I owe is mapping those tiers into <code>InferenceEvent</code> and extending the Day 3 cost formula so that <code>prompt_tokens</code> stops lying about which bytes were cheap reads and which were not.</p>
 
 <div class="series-footer">
   <p><em>Day 7 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Today's other post: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> (peak scale vs prefill economics).</em></p>
+  <p><em>Today's companion: <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7 — Ten Thousand Concurrent Requests</a> (peak scale vs prefill economics).</em></p>
   <p><em>Up next: RAG as an infra pipeline — chunk, embed, retrieve, and the latency budget before the model sees a token.</em></p>
 </div>
 
@@ -385,26 +383,26 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="footnote-links">
     <a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>1.</strong> Anthropic — prompt caching (breakpoints, usage fields, TTL)</span>
+      <span><strong>1.</strong> Anthropic — prompt caching docs (breakpoints, minimum prefix length, TTL, usage fields)</span>
     </a>
     <a href="https://platform.openai.com/docs/guides/prompt-caching" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>2.</strong> OpenAI — prompt caching guide</span>
+      <span><strong>2.</strong> OpenAI — prompt caching guide (<code>prompt_tokens_details.cached_tokens</code>)</span>
     </a>
     <a href="https://www.anthropic.com/pricing" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>3.</strong> Anthropic pricing — input / cache write / cache read tiers</span>
+      <span><strong>3.</strong> Anthropic pricing — input / cache write / cache read tiers (verify May 2026)</span>
     </a>
     <a href="https://openai.com/api/pricing/" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>4.</strong> OpenAI API pricing</span>
+      <span><strong>4.</strong> OpenAI API pricing — cached prompt discount (verify May 2026)</span>
     </a>
     <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs" target="_blank" rel="noopener">
       <span class="footnote-arrow">→</span>
-      <span><strong>5.</strong> LensAI — InferenceEvent schema (ingest.rs)</span>
+      <span><strong>5.</strong> LensAI — InferenceEvent schema (ingest.rs @ <code>32fdb37</code>)</span>
     </a>
   </div>
-  <p class="footnote-note">Cache pricing and field names change frequently; verify against live vendor docs before hard-coding rate cards. Day 1 and Day 3 are linked in prose where the series narrative requires them.</p>
+  <p class="footnote-note">Cache pricing, field names, and minimum prefix lengths change across provider releases; verify against live docs before hard-coding rate cards or cache gates. Day 1 and Day 3 are linked in prose where the series narrative requires them.</p>
 </div>
 
 </article>
