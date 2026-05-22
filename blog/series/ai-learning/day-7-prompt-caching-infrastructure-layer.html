@@ -193,7 +193,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <span class="tag">LLM inference</span>
     <span class="tag">Prompt caching</span>
     <span class="tag">FinOps</span>
-    <span class="tag">Distributed systems</span>
+    <span class="tag">LensAI</span>
   </div>
   <h1 class="post-title">Day 7 of Learning LLM Inference — Prompt Caching at the Infrastructure Layer</h1>
   <p class="post-subtitle">7 of N — AI Learning Series. Prefix reuse as KV-cache hit rate for dollars — provider caches, cache keys, and the third input bucket on your rate card.</p>
@@ -220,11 +220,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 <div class="post-layout">
 <article class="prose">
 
-<p>Day 6 ended with a promise: prompt caching — reusing prefill work when the same bytes show up again. This week finance reconciled a tenant invoice and the numbers did not match what I expected from request volume. <code>sum(cost_usd)</code> had dropped. SRE dashboards showed TTFT improving on the same routes. Completion length was flat. Nobody had changed the model or turned on a cheaper tier.</p>
+<p>Day 6 ended with a promise: prompt caching — reusing prefill work when the same bytes show up again. Day 7 is me learning that contract while building <strong>LensAI</strong> (<code>infra-ai-streaming</code>): wiring <code>POST /ingest</code>, watching test events land with <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code>, and realizing the provider <code>usage</code> block has more input buckets than my schema stores.</p>
 
-<p>The root cause was quieter: a stable system prompt plus a fixed RAG corpus had started hitting the provider's prompt cache. We were not serving faster because the GPU got better — we were paying less prefill because the prefix K/V for eight thousand tokens was already warm on their side. Anthropic and OpenAI expose that as separate usage buckets; treat their cache headers like cache-control for transformers — what is immutable, what has TTL, what invalidates the key.</p>
+<p>I sent the same long system prompt plus a fixed tool schema on repeat against Anthropic and OpenAI docs examples. Request two within the cache TTL showed lower TTFT and a smaller <code>cost_usd</code> at the gateway — but <code>completion_tokens</code> matched request one. The docs named the delta: <code>cache_read_input_tokens</code> and <code>cache_creation_input_tokens</code> (Anthropic) or cached prompt detail under OpenAI's <code>usage</code>. I was not serving faster because my GPU got better; I was paying less prefill because the provider already held prefix K/V for thousands of tokens on their fleet.</p>
 
-<p>By the end of this post you should be able to read a provider <code>usage</code> block and explain why dollars and TTFT can diverge while completion tokens stay the same.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html">Day 3</a> split prompt vs completion on the rate card. Prompt caching adds <strong>tiers on the input side</strong> — read, create, and fresh uncached bytes — each priced differently. This post is the deep dive on that third dimension: what hashes together, what invalidates, and what LensAI needs on every <code>InferenceEvent</code> before dashboards can explain dollars and TTFT diverging while completion length stays flat.</p>
 
 <h2 id="two-caches">Two different KV caches</h2>
 
@@ -287,14 +287,14 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <li><strong>Byte-stable prefix</strong> — Same text, same bytes: whitespace, JSON key order, tool definition order.</li>
   <li><strong>Pin immutable blocks first</strong> — System prompt, tool schemas, long RAG context; put the user message in the suffix that changes every turn.</li>
   <li><strong>Breakpoints are placement</strong> — On Anthropic, moving a <code>cache_control</code> boundary changes what enters the key.</li>
-  <li><strong>Per-tenant isolation</strong> — Include <code>tenant_id</code> in logical key material where the API allows; do not rely on "probably different" traffic.</li>
+  <li><strong>Per-tenant isolation</strong> — Include <code>tenant_id</code> in logical key material where the API allows; LensAI already keys rollups on <code>tenant_id</code> at ingest — do not rely on "probably different" traffic.</li>
   <li><strong>Model version in the key</strong> — A <code>model_id</code> bump is a new origin.</li>
 </ol>
 
 <div class="diagram-box"><pre>[ system │ tools │ RAG corpus ]  ← cache breakpoint(s)
 [ user message + session state ] ← usually outside cache</pre></div>
 
-<p>We once had zero percent hit rate with "the same" RAG content because two services serialized tool JSON with different key ordering. Semantically identical, byte-different — every request was a miss and we paid creation on every call.</p>
+<p>I burned an afternoon on zero percent hit rate in a local test harness with "the same" RAG blob — two serializers emitted tool JSON with different key ordering. Semantically identical, byte-different: every request was a miss and I paid creation on every call until I pinned one canonical byte layout.</p>
 
 <h2 id="invalidation">When hits become lies</h2>
 
@@ -345,13 +345,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </tbody>
 </table>
 
-<p>FinOps should chart <code>cache_hit_ratio = cache_read / (cache_read + cache_creation + fresh_input)</code> per <code>tenant_id</code> and <code>model_id</code> in ClickHouse — not as unbounded Prometheus labels. Alert on creation spikes (prefix churn), not only on total spend.</p>
+<p>Once cache tiers land on every row, LensAI should chart <code>cache_hit_ratio = cache_read / (cache_read + cache_creation + fresh_input)</code> grouped by <code>tenant_id</code> and <code>model_id</code> in ClickHouse — not as unbounded Prometheus labels. Alert on creation spikes (prefix churn), not only on <code>sum(cost_usd)</code>.</p>
 
 <div class="pullquote"><p>A prompt cache hit is a KV-cache hit for the prefix — priced like a CDN hit, invalidated like one.</p></div>
 
 <h2 id="infra-lensai">What LensAI should record</h2>
 
-<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> carries <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code> — validated at ingest, not repriced. It does <strong>not</strong> yet break out cache tiers. That is honest: you cannot debug prefix economics from <code>prompt_tokens</code> alone when half the prompt was a cache read priced at a different rate.</p>
+<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> in <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs">ingest.rs</a> carries <code>prompt_tokens</code>, <code>completion_tokens</code>, and producer-computed <code>cost_usd</code>. Ingest rejects <code>cost_usd &lt; 0</code> and <code>latency_ms == 0</code>, aligns <code>X-Tenant-ID</code> with each event's <code>tenant_id</code>, and forwards facts — same boundary Day 3 argued for. It does <strong>not</strong> yet break out cache tiers. That gap is why this post exists: you cannot debug prefix economics from <code>prompt_tokens</code> alone when half the prompt was a cache read priced at a different rate.</p>
 
 <table>
   <thead><tr><th>Field (proposed)</th><th>Why</th></tr></thead>
@@ -366,13 +366,13 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>Producers should map provider <code>usage</code> into <code>cost_usd</code> using the tiered formula above; ingest keeps validating obvious lies (<code>cost_usd &lt; 0</code>, zero latency) and forwarding facts. Grafana wants a column chart of cache hit % by tenant and an estimated-dollars-saved panel with the counterfactual documented in the panel footnote.</p>
 
-<p>On the inference gateway, treat prompt cache like CDN rules for what leaves your stack: pin byte-stable <strong>system + tool + RAG</strong> prefixes, map provider <code>usage</code> into tiered <code>cost_usd</code>, and never confuse cache hits with capacity on the routing plane.</p>
+<p>On the gateway I am building against, treat prompt cache like CDN rules for what leaves the stack: pin byte-stable <strong>system + tool + RAG</strong> prefixes, map provider <code>usage</code> into tiered <code>cost_usd</code> at the producer, and let ingest keep validating facts the way Day 3 described — reject obvious lies, forward dollars, do not silently re-price.</p>
 
-<p>Today's Experience companion — <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> — is Delivery Hero dinner rush on the rider-tracking plane: <strong>Route Service</strong> and <strong>Route Consumers</strong> on AWS EKS under Order SQS-driven load (<code>PLACED</code> through <code>RIDER PICKED UP</code>), OSRM match work behind both, while CPU looked fine and consumer lag stale'd Route JSON. That post scales Route Consumers and Route Service on max consumer lag, not CPU theater. Prompt caching is the complementary FinOps lever — cheaper prefill when prefixes repeat — not a substitute for scaling consumers when Order SQS depth climbs. When ten thousand concurrent requests hit Route Service during peak, stable prefixes on any parallel LLM path are the silent cost win; lag-driven scale-out is still the capacity win. You need both under the same Friday rain.</p>
+<p>Today's other post — <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">Experience 7: Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</a> — is about peak scale on a routing plane (lag-driven consumer scale-out when CPU looks fine). Prompt caching is the complementary economics lever: cheaper prefill when prefixes repeat, not a substitute for adding pods when queue depth is the bottleneck.</p>
 
 <h2 id="takeaway">What I am taking away</h2>
 
-<p>Prefix stability is an SLO and a FinOps control. Read cache fields in <code>usage</code> before you blame batching, quantization, or model routing. Shipping the stack to k3d is the deploy shell; this post is the economic reason to stabilize prompts on the gateway before you autoscale GPUs — orthogonal to scaling Route Consumers when Order SQS lag is the bottleneck.</p>
+<p>Prefix stability is an SLO and a FinOps control. Read cache fields in <code>usage</code> before you blame quantization, continuous batching, or model routing. The next LensAI change I owe is mapping those tiers into <code>InferenceEvent</code> and extending the Day 3 cost formula — otherwise <code>prompt_tokens</code> alone will keep lying about which bytes were cheap reads.</p>
 
 <div class="series-footer">
   <p><em>Day 7 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
@@ -403,12 +403,8 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <span class="footnote-arrow">→</span>
       <span><strong>5.</strong> LensAI — InferenceEvent schema (ingest.rs)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
-      <span class="footnote-arrow">→</span>
-      <span><strong>6.</strong> Experience 7 — Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped</span>
-    </a>
   </div>
-  <p class="footnote-note">Cache pricing and field names change frequently; verify against live vendor docs before hard-coding rate cards. Day 1 and Day 3 are linked in prose where the series narrative requires them. Delivery Hero references follow the canonical rider-tracking topology (Order Service, Order SQS, Route Service, Route Consumers, OSRM); concurrent-request figures describe the EKS routing plane, not a separate ingest-only pipeline.</p>
+  <p class="footnote-note">Cache pricing and field names change frequently; verify against live vendor docs before hard-coding rate cards. Day 1 and Day 3 are linked in prose where the series narrative requires them.</p>
 </div>
 
 </article>
