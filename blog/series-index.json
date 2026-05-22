@@ -7,12 +7,6 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
-          "href": "blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html",
-          "kicker": "Day 7 of N",
-          "title": "Prompt Caching at the Infrastructure Layer",
-          "desc": "Provider prompt caches as prefix KV hits — Anthropic/OpenAI usage tiers, cache-key design, invalidation, and why cost_usd needs a third input line item."
-        },
-        {
           "href": "blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html",
           "kicker": "Day 6 of N",
           "title": "Quantization vs Compression Tradeoffs",
@@ -62,12 +56,6 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
-        {
-          "href": "blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html",
-          "kicker": "Experience 7 of N",
-          "title": "Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped",
-          "desc": "Delivery Hero peak on AWS EKS: CPU theater vs queue lag, custom HPA metrics, PDB rollout traps during dinner rush, and the same consumer-lag Helm discipline on today's ingestion stack."
-        },
         {
           "href": "blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html",
           "kicker": "Experience 6 of N",
