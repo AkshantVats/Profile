@@ -56,6 +56,8 @@ SERIES_LABEL: dict[str, str] = {
     "five-thousand-geo-events-per-second": "EXPERIENCE SERIES",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "EXPERIENCE SERIES",
     "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "EXPERIENCE SERIES",
+    "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "EXPERIENCE SERIES",
+    "delphi-aletheia-feed-sub-second-price-visibility": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
 }
 
