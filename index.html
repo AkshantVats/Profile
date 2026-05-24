@@ -8,8 +8,8 @@
 <meta property="og:title" content="Akshant Sharma — Staff Engineer">
 <meta property="og:description" content="Distributed systems and AI infrastructure. 7.5 years building the layer underneath.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#fafaf9">
-<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<meta name="theme-color" content="#0f0f0e">
+<script>(function(){var t=localStorage.getItem("theme");if(t==="light")return;document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
@@ -556,6 +556,117 @@ section { margin-bottom: 3.25rem; }
 .nw { font-size: 0.875rem; color: var(--sub); margin-bottom: 4px; line-height: 1.45; }
 .ns { font-size: 0.75rem; color: var(--muted); }
 
+/* PROJECT CARDS */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.proj-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.5rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.proj-card:hover { border-color: var(--line2); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.proj-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.proj-name {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.proj-name a { color: inherit; text-decoration: none; }
+.proj-name a:hover { color: var(--green); }
+.proj-tech {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.proj-desc {
+  font-size: 0.875rem;
+  color: var(--sub);
+  line-height: 1.6;
+  flex: 1;
+}
+.proj-footer { display: flex; align-items: center; gap: 12px; margin-top: auto; }
+.proj-link {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--green);
+  text-decoration: none;
+}
+.proj-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.proj-coming {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* STATUS BADGES */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.badge-live {
+  background: rgba(26, 137, 23, 0.1);
+  color: #1a8917;
+  border: 1px solid rgba(26, 137, 23, 0.25);
+}
+.badge-live::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #1a8917;
+}
+.badge-progress {
+  background: rgba(26, 137, 23, 0.08);
+  color: #1a8917;
+  border: 1px solid rgba(26, 137, 23, 0.2);
+}
+.badge-progress::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #1a8917;
+  animation: pulse 3s ease-in-out infinite;
+}
+.badge-planned {
+  background: rgba(180, 83, 9, 0.08);
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+html[data-theme="dark"] .badge-live {
+  background: rgba(91, 211, 122, 0.1);
+  color: #5bd37a;
+  border-color: rgba(91, 211, 122, 0.25);
+}
+html[data-theme="dark"] .badge-live::before { background: #5bd37a; }
+html[data-theme="dark"] .badge-progress {
+  background: rgba(91, 211, 122, 0.08);
+  color: #5bd37a;
+  border-color: rgba(91, 211, 122, 0.2);
+}
+html[data-theme="dark"] .badge-progress::before { background: #5bd37a; }
+html[data-theme="dark"] .badge-planned {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
 /* BETS — compact, project-aligned */
 .bets-grid {
   display: grid;
@@ -573,6 +684,7 @@ section { margin-bottom: 3.25rem; }
     position: relative;
     top: auto;
   }
+  .projects-grid { grid-template-columns: repeat(2, 1fr); }
 }
 .tier-focus .et { padding: 18px 20px; }
 .tier-focus .ec { border-radius: 6px; }
@@ -587,6 +699,7 @@ section { margin-bottom: 3.25rem; }
 .bet:hover { border-color: var(--line2); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04); }
 
 @media (max-width: 640px) {
+  .projects-grid { grid-template-columns: 1fr; }
   .bets-grid { grid-template-columns: 1fr; }
 }
 .bet {
@@ -714,9 +827,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
     <ul class="nm">
       <li><a href="#experience">Experience</a></li>
       <li><a href="#stack">Stack</a></li>
-      <li><a href="#numbers">Numbers</a></li>
-      <li><a href="#building">Building</a></li>
-      <li><a href="#bets">Project</a></li>
+      <li><a href="#projects">Projects</a></li>
       <li><a href="#writing">Writing</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
@@ -882,36 +993,47 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
   </div>
 </section>
 
-<section id="building" class="rev tier-secondary">
-  <div class="sh">Building</div>
-  <div class="build-panel">
-    <div class="pn"><a href="https://github.com/AkshantVats/infra-ai-streaming">infra-ai-streaming</a></div>
-    <p class="pd">An open-source AI inference observability stack for the cardinality and event rates that break classic metrics pipelines. Same class of problem as hyperscale TSDB work — applied to LLM infrastructure.</p>
-    <div class="pipe">
-      <span class="ps">Rust ingest</span><span class="pa">→</span>
-      <span class="ps">Kafka</span><span class="pa">→</span>
-      <span class="ps">Go consumer</span><span class="pa">→</span>
-      <span class="ps">ClickHouse</span><span class="pa">→</span>
-      <span class="ps">Grafana</span>
-    </div>
-    <div class="ppts">
-      <div class="pt">Axum server, channel backpressure, per-tenant rate limits</div>
-      <div class="pt">Circuit breaker + Redis overflow + dead-letter path</div>
-      <div class="pt">Z-score latency anomalies per model (baseline v1)</div>
-      <div class="pt">Helm / HPA on consumer lag</div>
-      <div class="pt">WAL before Kafka for crash-safe ingest</div>
-      <div class="pt">Target: 1M events/min · sub-100ms ingest P99</div>
-    </div>
-  </div>
-</section>
+<section id="projects" class="rev tier-focus">
+  <div class="sh">Projects</div>
+  <div class="projects-grid">
 
-<section id="bets" class="rev tier-secondary">
-  <div class="sh">Why infra-ai-streaming is shaped this way</div>
-  <div class="bets-grid">
-    <div class="bet"><div class="bi">01</div><div class="bt"><strong>Cardinality first.</strong> Inference events explode across model × tenant × phase; columnar analytics (ClickHouse) fits the query shape better than label-indexed TSDB paths.</div></div>
-    <div class="bet"><div class="bi">02</div><div class="bt"><strong>Durability before Kafka.</strong> A WAL on the ingest tier closes the gap between HTTP accept and successful produce so crashes do not silently drop batches.</div></div>
-    <div class="bet"><div class="bi">03</div><div class="bt"><strong>Isolation at the edge.</strong> Per-tenant token buckets in Rust with shared Redis state keep one noisy tenant from starving the pipeline.</div></div>
-    <div class="bet"><div class="bi">04</div><div class="bt"><strong>Kafka as the spine.</strong> Rust ingest and Go consumers evolve independently while replay and lag metrics stay first-class operational signals.</div></div>
+    <div class="proj-card">
+      <div class="proj-header">
+        <span class="proj-name"><a href="https://github.com/AkshantVats/infra-ai-streaming">LensAI</a></span>
+        <span class="status-badge badge-progress">In progress</span>
+      </div>
+      <div class="proj-tech">infra-ai-streaming</div>
+      <p class="proj-desc">Open-source AI inference observability pipeline — Rust ingest, Kafka spine, ClickHouse analytics. Built for the cardinality and event volume that standard monitoring breaks under.</p>
+      <div class="proj-footer">
+        <a href="https://github.com/AkshantVats/infra-ai-streaming" class="proj-link">GitHub →</a>
+        <a href="https://github.com/AkshantVats/infra-ai-streaming#architecture" class="proj-link">Full write-up →</a>
+      </div>
+    </div>
+
+    <div class="proj-card">
+      <div class="proj-header">
+        <span class="proj-name">TraceForge</span>
+        <span class="status-badge badge-planned">Planned</span>
+      </div>
+      <div class="proj-tech">agent-trace-collector</div>
+      <p class="proj-desc">Structured trace collector for AI agent workflows — captures tool calls, reasoning chains, and token flows into a queryable timeline. Designed for multi-agent debugging at scale.</p>
+      <div class="proj-footer">
+        <span class="proj-coming">Coming soon</span>
+      </div>
+    </div>
+
+    <div class="proj-card">
+      <div class="proj-header">
+        <span class="proj-name"><a href="blog/">Writing</a></span>
+        <span class="status-badge badge-live">Live</span>
+      </div>
+      <div class="proj-tech">akshantvats.github.io/Profile/blog</div>
+      <p class="proj-desc">Technical blog — AI infrastructure from a distributed systems lens, production war stories, and project deep-dives. Published as part of a 150-day learning series.</p>
+      <div class="proj-footer">
+        <a href="blog/" class="proj-link">Read posts →</a>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -926,7 +1048,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
         <p class="side-project-dek">AI inference observability for high-cardinality event streams.</p>
         <div class="side-compact-pipe">Rust → Kafka → Go → ClickHouse → Grafana</div>
         <p class="side-mono">1M+ evt/min target · &lt;100ms ingest P99 goal</p>
-        <a href="#building" class="side-anchor">Full write-up</a>
+        <a href="https://github.com/AkshantVats/infra-ai-streaming#architecture" class="side-anchor">Full write-up →</a>
       </div>
 
       <div class="side-block side-writing" id="writing">
@@ -986,6 +1108,8 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
       btn.title = dark ? "Light mode" : "Dark mode";
     }
   }
+  var stored = localStorage.getItem(KEY);
+  apply(stored !== "light");
   document.getElementById("theme-toggle")?.addEventListener("click", function () {
     apply(root.getAttribute("data-theme") !== "dark");
   });
