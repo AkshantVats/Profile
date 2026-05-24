@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-8-rag-as-infra-pipeline.html",
+          "kicker": "Day 8 of N",
+          "title": "RAG as an Infrastructure Pipeline",
+          "desc": "Five pipeline stages, one latency budget — chunking as ETL, embedding as batch job, HNSW vs IVF indexing, retrieval QPS bottleneck, and InferenceEvent RAG fields."
+        },
+        {
           "href": "blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html",
           "kicker": "Day 7 of N",
           "title": "Prompt Caching at the Infrastructure Layer",
@@ -62,6 +68,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html",
+          "kicker": "Experience 8 of N",
+          "title": "Delphi → Aletheia Feed — Sub-Second Price Visibility",
+          "desc": "Wayfair pricing: batch-shaped distribution kept prices stale despite fast reads — Delphi, Aletheia (~21k RPS), Kafka pricing_refresh on 40 partitions, rollout phases, and the verification loop that proved sub-second propagation."
+        },
         {
           "href": "blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html",
           "kicker": "Experience 7 of N",

@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delphi → Aletheia Feed — Sub-Second Price Visibility — Akshant Sharma</title>
+<meta name="description" content="Wayfair pricing: how we moved 250k+ SKUs from batch-shaped price distribution to sub-second visibility through Delphi, Aletheia (~21k RPS), and Kafka pricing_refresh on 40 partitions.">
+<meta property="og:title" content="Delphi → Aletheia Feed — Sub-Second Price Visibility">
+<meta property="og:description" content="The prices were correct in Delphi. Aletheia served them at 21k RPS. Customers still saw stale numbers — because distribution was batch-shaped. Rollout story: Kafka pricing_refresh, 40 partitions, and the verification loop that proved it worked.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/delphi-aletheia-feed-sub-second-price-visibility.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/delphi-aletheia-feed-sub-second-price-visibility.png">
+<meta property="article:published_time" content="2026-05-23">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.footnote-note{font-size:.8125rem;font-family:var(--ui);color:var(--muted);line-height:1.65;margin-top:1rem}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">Experience Series · 8 of N</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Pricing</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">Delphi</span>
+    <span class="tag">Aletheia</span>
+  </div>
+  <h1 class="post-title">Delphi → Aletheia Feed — Sub-Second Price Visibility</h1>
+  <p class="post-subtitle">How batch-shaped distribution kept prices stale despite fast reads</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">13 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Experience Series · 8 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/delphi-aletheia-feed-sub-second-price-visibility.png" alt="Cover: Delphi to Aletheia Feed — Experience Series" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>The prices were correct. Delphi computed them, Aletheia served them at ~21,000 requests per second, and Bigtable held the cache. When a pricing manager asked "what does the customer see right now?", the answer was usually right — just not right <em>yet</em>. The gap between Delphi finishing a retail price computation and Aletheia serving that price to the storefront was measured in hours during full-catalog runs. Not because anything was broken. Because the distribution path was batch-shaped, and batch shape has a latency floor that no read optimization can fix.</p>
+
+<p>Nobody paged over this. No error budget burned. The visibility gap showed up in a quieter way: a pricing manager would adjust margins on a set of SKUs, run a simulation, approve the new retail prices, and then check the storefront twenty minutes later to find the old number still rendering. Support would see a price that didn't match the latest run. Merchandising would hold a flash promo and the storefront price wouldn't update until the next Pilgrim sweep.</p>
+
+<p>The system wasn't wrong. It was slow to be right.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKUs across pricing platform</span></div>
+  <div class="stat-cell"><span class="stat-num">~21k RPS</span><span class="stat-label">Aletheia storefront reads</span></div>
+  <div class="stat-cell"><span class="stat-num">40</span><span class="stat-label">Kafka partitions (pricing_refresh)</span></div>
+  <div class="stat-cell"><span class="stat-num">hrs → sub-sec</span><span class="stat-label">Distribution latency improvement</span></div>
+</div>
+
+<h2 id="visibility-gap">The Visibility Gap</h2>
+
+<p>Understanding the gap requires understanding the topology. Wayfair's pricing platform has a clean separation of concerns: cost aggregation feeds into Delphi (the retail price calculator), which produces final prices that flow to Aletheia (the serving layer) and downstream consumers. Delphi is a stateless pure function — it takes cost inputs from ScheduledReader, adjustment data from PAS Bigtable, margin strategy from MarginOptimizer, and competitor intelligence from CompIntel, then emits a retail price. Aletheia is the read cache that the storefront calls at ~21k RPS.</p>
+
+<p>The problem was in between. Delphi computed a new price. Aletheia served the old one. The path from computation to serving ran through batch pipelines — Pilgrim orchestrating full-catalog pricing runs, Dataflow fanning out to Pub/Sub, the run dispatcher calling Delphi per-SKU — and the results landed in Aletheia's Bigtable backing store on a schedule. If a pricing manager approved new margins at 2 PM and the next Pilgrim sweep ran at 6 PM, the storefront showed stale prices for four hours. The read path was fast; the write-through path was periodic.</p>
+
+<div class="pullquote"><p>The read path was sub-millisecond. The write path was periodic. Customers experienced the write path.</p></div>
+
+<h2 id="batch-world">A Batch-Shaped World (Before)</h2>
+
+<p>Before the feed, the distribution path looked like this: Pilgrim scheduled full-catalog runs on a cadence — typically twice daily for the full catalog, with ad-hoc runs triggered by pricing managers through the PMS UI. Each run manifested millions of SKUs, Dataflow fanned tasks to Pub/Sub (<code>simulation-requests</code>, <code>cost-simulation-requests</code>), the Run Dispatcher consumed messages and called Delphi per-SKU, and the computed prices wrote to Aletheia's Bigtable backing store. The Storefront queried Aletheia, Aletheia queried Bigtable, and the customer saw the price.</p>
+
+<p>The problem was not throughput — Delphi processed full catalogs efficiently on <code>c2d-standard-56</code> GKE nodes (56 vCPU, 224 GiB each). The problem was cadence. Between runs, every price change was invisible to customers. A supplier cost update that landed in SPCS at 10 AM wouldn't surface on the storefront until the next Pilgrim sweep. PAS adjustments (FSP, overrides, corrections) committed to CloudSQL, projected to Bigtable via Dataflow, and then waited for Delphi to read them on the next run. The latency was structural, not computational.</p>
+
+<pre class="mermaid">flowchart TD
+  subgraph before["Before: Batch Distribution"]
+    PM["Pricing Manager\napproves margins"] --> PMS["PMS UI"]
+    PMS --> ORCH["Pricing Run Orchestrator"]
+    ORCH --> DF["Dataflow fan-out\nmillions of SKUs"]
+    DF --> PS["Pub/Sub\nsimulation-requests"]
+    PS --> DISP["Run Dispatcher"]
+    DISP --> DEL["Delphi Calculator\nc2d-standard-56 nodes"]
+    DEL --> BT["Aletheia Bigtable\nbatch write"]
+    BT --> ALE["Aletheia\n~21k RPS reads"]
+    ALE --> SF["Storefront"]
+  end
+
+  subgraph gap["Visibility Gap"]
+    WAIT["⏳ Hours between\nPilgrim sweeps"]
+  end
+
+  DEL -.-> WAIT
+  WAIT -.-> BT
+
+  style WAIT fill:#ff6b6b,color:#fff
+  style gap fill:none,stroke:#ff6b6b,stroke-dasharray:5</pre>
+
+<p>Search indexing had the same problem. The Flink consumers that powered search needed price changes to keep search result ranking honest, but they consumed from a Kafka topic that didn't exist yet for real-time price events. Search showed old prices until the batch catch-up ran.</p>
+
+<div class="attr-box team">
+  <div class="attr-label">Team scope</div>
+  <p>Wayfair's pricing platform: <strong>250,000+ SKUs</strong>, Delphi (calculation core), Aletheia (price serving at ~21k RPS across 7 GKE clusters), PAS (price adjustments, ~3,400 RPS), Pilgrim (batch orchestrator), and the Kafka distribution layer. Multiple teams owned slices; the pricing org spanned Cost, Adjustment, Calculation, and Output Systems.</p>
+</div>
+
+<div class="attr-box mine">
+  <div class="attr-label">My contribution</div>
+  <p>I worked on the price distribution feed from Delphi through Aletheia to Kafka: the <code>pricing_refresh</code> topic design (40 partitions, partition key strategy), the Aletheia event emission path, rollout phasing with shadow-mode verification, and the consumer-lag monitoring that validated sub-second propagation. I did not own Delphi's calculation internals or PAS's adjustment logic.</p>
+</div>
+
+<h2 id="distribution-path">The Distribution Path: Delphi → Aletheia → Kafka</h2>
+
+<p>The fix was not faster batch runs. It was changing the distribution shape from periodic to event-driven. When Delphi computed a new retail price — whether triggered by a Pilgrim run, a PAS adjustment, or a supplier cost change — the result needed to flow to Aletheia immediately and emit a price-change event to Kafka so downstream consumers (search indexer, Flink pipelines, analytics) could react in near-real-time.</p>
+
+<p>The core of this was <strong><code>pricing_refresh</code></strong> — a Kafka topic with <strong>40 partitions</strong>. Aletheia, after receiving a price update from Delphi and writing it to Bigtable, published a price-change event to <code>pricing_refresh</code>. Downstream consumers — Flink jobs for search indexing, analytics pipelines, and internal reconciliation — consumed from this topic. The partition count was sized for the consumer parallelism we needed: 40 partitions let us run enough consumer instances to keep lag under one second during full-catalog pricing runs that touched millions of SKUs.</p>
+
+<pre class="mermaid">flowchart LR
+  subgraph sources["Price Change Triggers"]
+    PILGRIM["Pilgrim\nfull-catalog run"]
+    PAS["PAS adjustment\nFSP / override / correction"]
+    COST["Supplier cost change\nvia SPCS"]
+  end
+
+  sources --> DEL["Delphi\nRetail Price Calculator"]
+  DEL -->|"retail price feed"| ALE["Aletheia\nBigtable write + cache invalidate"]
+  ALE -->|"price-change event"| KAFKA["pricing_refresh\n40 partitions"]
+  ALE -->|"~21k RPS"| SF["Storefront"]
+
+  subgraph consumers["Downstream Consumers"]
+    FLINK["Flink\nsearch indexer"]
+    ANALYTICS["Analytics\nprice propagation tracking"]
+    SIPHON["Siphon3Events\ninternal pricing events"]
+  end
+
+  KAFKA --> consumers
+
+  style KAFKA fill:#1a8917,color:#fff
+  style ALE fill:#2563eb,color:#fff</pre>
+
+<p>Two design decisions mattered. First, the partition key. We keyed on a catalog identifier so that all price changes for related SKUs landed on the same partition, preserving ordering for consumers that needed to see changes in sequence. Random partitioning would have given better distribution but broken ordering guarantees that the search indexer relied on. Second, the event schema carried both the old and new price — not just the new value — so consumers could detect no-ops (price unchanged after recomputation) and skip unnecessary downstream work.</p>
+
+<h2 id="rollout">Rollout: Shadow, Canary, Full</h2>
+
+<p>We did not flip the feed on for all 250k+ SKUs in one deploy. The rollout had three phases, and the ordering was non-negotiable because a broken price feed is worse than a slow one — customers see wrong prices instead of stale prices.</p>
+
+<h3>Phase 1: Shadow mode</h3>
+
+<p>Aletheia emitted events to <code>pricing_refresh</code> but no consumer acted on them. We ran a verification consumer that compared the event's retail price against a direct Delphi lookup and against Aletheia's own serving path. This caught serialization bugs, schema mismatches, and edge cases where Delphi's output and Aletheia's Bigtable write diverged due to race conditions in the batch path. Shadow mode ran for two weeks. We found three classes of bugs: timezone handling in effective-date logic, a float-vs-decimal precision drift on a handful of SKUs, and a retry path that could emit duplicate events with different timestamps.</p>
+
+<h3>Phase 2: Canary — one product category</h3>
+
+<p>We enabled the feed for a single product category (roughly 8,000 SKUs). Search indexer consumed from <code>pricing_refresh</code> for that category only, falling back to the batch path for everything else. We monitored three signals: consumer lag on the canary partitions, price-match rate between Aletheia's serving response and the Kafka event payload, and search result freshness (time from Delphi computation to search index update). Canary ran for one week.</p>
+
+<h3>Phase 3: Full rollout</h3>
+
+<p>All SKUs on the event-driven path. Pilgrim still ran full-catalog sweeps, but they now served as a consistency backstop rather than the primary distribution mechanism. If the feed missed an event (consumer crash, Kafka retention rollover), the next Pilgrim sweep would catch it. The batch path went from "the way prices propagate" to "the safety net."</p>
+
+<pre class="mermaid">flowchart TD
+  subgraph phase1["Phase 1 — Shadow (2 weeks)"]
+    S_ALE["Aletheia emits events"] --> S_KAFKA["pricing_refresh"]
+    S_KAFKA --> S_VERIFY["Verification consumer\ncompare vs Delphi + serving path"]
+    S_VERIFY -->|"3 bug classes found"| S_FIX["Fix: tz, precision, dedup"]
+  end
+
+  subgraph phase2["Phase 2 — Canary (1 week)"]
+    C_FEED["Feed enabled\n~8k SKUs, 1 category"] --> C_SEARCH["Search indexer\ncanary partitions only"]
+    C_FEED --> C_MON["Monitor: lag, match rate, freshness"]
+  end
+
+  subgraph phase3["Phase 3 — Full Rollout"]
+    F_ALL["All 250k+ SKUs\nevent-driven primary"] --> F_PILGRIM["Pilgrim\nsafety net only"]
+    F_ALL --> F_KAFKA["pricing_refresh\n40 partitions, full load"]
+    F_KAFKA --> F_CONSUMERS["Flink + analytics\nfull consumption"]
+  end
+
+  phase1 --> phase2 --> phase3
+
+  style S_VERIFY fill:#ffa94d,color:#fff
+  style C_MON fill:#ffa94d,color:#fff
+  style F_ALL fill:#1a8917,color:#fff</pre>
+
+<h2 id="forty-partitions">Why 40 Partitions</h2>
+
+<p>Partition count is a capacity decision, not a configuration default. Forty came from working backward: during a full-catalog Pilgrim run, Delphi processes millions of SKUs over a window of roughly thirty minutes. That generates a burst of price-change events — not sustained steady-state, but a concentrated spike. We needed enough consumer parallelism to drain the burst before lag accumulated past our SLO (under one second of consumer lag at P99).</p>
+
+<p>Each partition is consumed by at most one consumer instance in a consumer group. With 40 partitions, we could run up to 40 consumer instances for the search indexer — in practice we ran fewer, because each instance handled multiple partitions and the per-message processing time (index update) was fast enough. The constraint was burst absorption, not steady throughput.</p>
+
+<p>We considered 20 and 80. Twenty left headroom too tight during overlapping runs (a scheduled Pilgrim sweep plus a manual manager-triggered run). Eighty would have worked but created operational overhead — more partitions means more rebalance latency when consumer instances restart, and partition reassignment during a rolling deploy is the quiet cause of lag spikes that look like throughput problems. Forty was the trade: enough parallelism for burst, few enough that rebalance stayed fast.</p>
+
+<table>
+  <thead><tr><th>Partition count</th><th>Burst headroom</th><th>Rebalance latency</th><th>Decision</th></tr></thead>
+  <tbody>
+    <tr><td>20</td><td>Tight during overlapping runs</td><td>Fast</td><td>Rejected — lag risk</td></tr>
+    <tr><td>40</td><td>Comfortable for dual-run bursts</td><td>Acceptable</td><td>Chosen</td></tr>
+    <tr><td>80</td><td>Excess headroom</td><td>Slow rebalance on deploy</td><td>Rejected — operational cost</td></tr>
+  </tbody>
+</table>
+
+<h2 id="metrics">Metrics That Proved It Worked</h2>
+
+<p>Three metrics mattered. Everything else was vanity.</p>
+
+<p><strong>Price propagation latency.</strong> Time from Delphi emitting a computed price to Aletheia serving that price on the storefront path. Before the feed: bounded by Pilgrim cadence (2–6 hours depending on run schedule). After: P50 under 200ms, P99 under 800ms. The improvement wasn't incremental — it was a shape change from "periodic" to "continuous."</p>
+
+<p><strong>Consumer lag on <code>pricing_refresh</code>.</strong> Measured per consumer group (search indexer, analytics, reconciliation). Our SLO was &lt;1 second at P99. During steady-state, lag sat at tens of milliseconds. During full-catalog burst, lag occasionally spiked to 600–800ms but never breached one second after we right-sized consumer instances. The 40-partition design held.</p>
+
+<p><strong>Price-match rate.</strong> A reconciliation job compared Aletheia's serving response against the latest Delphi output for a random sample of SKUs every five minutes. Before the feed, match rate during the inter-run gap was as low as 92% (8% of sampled SKUs showed stale prices). After: sustained above 99.5% outside of active pricing runs, and above 99.9% within two minutes of run completion.</p>
+
+<h2 id="what-we-didnt-do">What We Didn't Do</h2>
+
+<p><strong>Replace Pilgrim entirely.</strong> The batch orchestrator stayed as a consistency backstop. If the event-driven path lost messages (unlikely with Kafka's durability guarantees, but possible during topic retention rollover or consumer bugs), Pilgrim's next sweep would reconcile. Killing Pilgrim would have removed the safety net before we trusted the feed's durability at tail. We kept it on a relaxed cadence — same runs, lower frequency.</p>
+
+<p><strong>Stream Delphi computation itself.</strong> Delphi remained a request-response calculator. We considered making it emit to Kafka directly, bypassing Aletheia's write path, but that would have split the write-through into two paths (Bigtable for serving, Kafka for events) with no single source of truth for "what did we actually serve?" Aletheia as the single emitter meant the event and the served price were the same write — one Bigtable mutation, one Kafka produce, same transaction boundary.</p>
+
+<p><strong>Use <code>sku_pricing_refresh</code> (3 partitions) for the primary feed.</strong> That topic existed for a narrower use case — SKU-level refresh for specific downstream consumers. Its partition count couldn't absorb full-catalog burst, and overloading it would have broken existing consumers. We kept the two topics separate: <code>pricing_refresh</code> (40 partitions) for the primary distribution feed, <code>sku_pricing_refresh</code> (3 partitions) for the targeted SKU-level path.</p>
+
+<h2 id="read-model-bridge">The Read-Model Bridge</h2>
+
+<p>Aletheia's architecture is a read model — Bigtable as the backing store, in-memory cache for hot paths, GraphQL API for the storefront. The feed didn't change Aletheia's read architecture; it changed Aletheia's write path from "batch load from Delphi output" to "incremental write on each price computation, then emit event." The read model stayed the same. The projection became continuous instead of periodic.</p>
+
+<p>This mattered because Aletheia serves across 7 GKE clusters (<code>dsm1</code>, <code>iad1</code>, <code>fra1</code>, <code>grq1</code>, <code>pdx1</code>, plus dev/SDE). Price changes needed to propagate to all clusters' Bigtable replicas before the serving path would reflect the update. Cross-region Bigtable replication introduced its own latency — typically under 500ms for the US regions, slightly higher for EU — but this was additive to the feed latency, not a replacement for it. The feed moved the bottleneck from "hours waiting for Pilgrim" to "sub-second waiting for Bigtable replication," which was an entirely different and much smaller problem.</p>
+
+<h2 id="rollback">Rollback Plan</h2>
+
+<p>Every phase had a revert path. Shadow mode: stop the verification consumer — zero customer impact, since no downstream acted on the events. Canary: toggle the search indexer back to batch-only for the canary category. Full rollout: increase Pilgrim frequency back to pre-feed cadence and disable Aletheia's event emission. The feed was additive — it added a faster path alongside the existing batch path rather than replacing it. Reverting meant the batch path became primary again. We kept the revert toggle in Aletheia's configuration for three months after full rollout before removing it.</p>
+
+<h2 id="lensai-bridge">Pattern Recognition</h2>
+
+<p>The shape of this problem — fast reads hiding slow writes, batch distribution creating a visibility gap that no read optimization fixes — is the same shape I see in LensAI's inference observability pipeline. Inference events flow through Kafka to ClickHouse, and the gap between "the inference happened" and "the dashboard shows it" is determined by the ingestion pipeline's flush interval and ClickHouse's merge schedule — not by Grafana's query speed. Fast reads, slow writes. The lesson from pricing is that you fix the write-through, not the read path.</p>
+
+<div class="series-footer">
+  <p><em>Experience Series · 8 of N</em> — Wayfair pricing: from batch-shaped distribution to sub-second price visibility via Delphi, Aletheia, and Kafka <code>pricing_refresh</code>.</p>
+  <p><em>Sibling posts: <a href="supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">Experience 6 — Supplier APIs and Token Buckets</a> covers rate limiting on the same pricing platform. <a href="five-thousand-geo-events-per-second.html">Experience 4 — Five Thousand Geo-Events Per Second</a> covers Kafka partition discipline in a different domain.</em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">Footnotes &amp; related</div>
+  <div class="footnote-links">
+    <a href="https://kafka.apache.org/documentation/#design_motivation" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>1.</strong> Apache Kafka — design motivation and partition model</span>
+    </a>
+    <a href="https://cloud.google.com/bigtable/docs/replication-overview" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>2.</strong> Cloud Bigtable — replication and consistency</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>3.</strong> Experience 6 — Supplier APIs and Token Buckets</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>4.</strong> Experience 4 — Five Thousand Geo-Events Per Second</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>5.</strong> Experience 7 — Ten Thousand Concurrent Requests</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/inference-ai-project/building-ai-inference-observability.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>6.</strong> LensAI — AI inference observability pipeline</span>
+    </a>
+  </div>
+  <p class="footnote-note">Architecture follows the Wayfair pricing platform topology: Delphi (calculation core), Aletheia (price serving, ~21k RPS), PAS (adjustments), Pilgrim (batch orchestrator), Kafka pricing_refresh (40 partitions). SKU counts and RPS figures from production Datadog APM traces.</p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="experience"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#visibility-gap">The visibility gap</a></li>
+      <li><a href="#batch-world">Batch-shaped world (before)</a></li>
+      <li><a href="#distribution-path">Distribution path</a></li>
+      <li><a href="#rollout">Rollout phases</a></li>
+      <li><a href="#forty-partitions">Why 40 partitions</a></li>
+      <li><a href="#metrics">Metrics that proved it</a></li>
+      <li><a href="#what-we-didnt-do">What we didn't do</a></li>
+      <li><a href="#read-model-bridge">Read-model bridge</a></li>
+      <li><a href="#rollback">Rollback plan</a></li>
+      <li><a href="#lensai-bridge">Pattern recognition</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Delphi+%E2%86%92+Aletheia+Feed+%E2%80%94+Sub-Second+Price+Visibility&url=https://akshantvats.github.io/Profile/blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
