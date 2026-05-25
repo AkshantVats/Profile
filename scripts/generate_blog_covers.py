@@ -58,6 +58,7 @@ SERIES_LABEL: dict[str, str] = {
     "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "EXPERIENCE SERIES",
     "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "EXPERIENCE SERIES",
     "delphi-aletheia-feed-sub-second-price-visibility": "EXPERIENCE SERIES",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
 }
 

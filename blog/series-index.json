@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-9-gpu-memory-management.html",
+          "kicker": "Day 9 of N",
+          "title": "GPU Memory Management",
+          "desc": "Four VRAM tenants, one capacity plan — weight loading transients, activation checkpointing, the batch-size cliff, and why OOM at batch=4 is a capacity problem, not a model problem."
+        },
+        {
           "href": "blog/series/ai-learning/day-8-rag-as-infra-pipeline.html",
           "kicker": "Day 8 of N",
           "title": "RAG as an Infrastructure Pipeline",
@@ -68,6 +74,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/we-killed-redpanda-on-purpose-chaos-as-commit-message.html",
+          "kicker": "Experience 9 of N",
+          "title": "We Killed Redpanda on Purpose — Chaos as Commit Message",
+          "desc": "Agoda WhiteFalcon at 1.5T/day: a broker recovered, dashboards went green, and queries were wrong for 47 minutes during rebalance. Chaos testing turned that invisible gap into evidence — and a freshness watermark closed it."
+        },
         {
           "href": "blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html",
           "kicker": "Experience 8 of N",

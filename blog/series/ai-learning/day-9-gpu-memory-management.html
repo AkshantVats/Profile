@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 9 — GPU Memory Management (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Four tenants share one VRAM budget: weights, activations, KV cache, and framework overhead. Batch-size cliff, the OOM wall at batch=4 on an A10G, and observability fields for GPU memory. Day 9 of N.">
+<meta property="og:title" content="Day 9 of Learning LLM Inference — GPU Memory Management">
+<meta property="og:description" content="Four VRAM tenants, one capacity plan — weight loading transients, activation checkpointing, the batch-size cliff, and why an OOM at batch=4 is a capacity problem, not a model problem.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-9-gpu-memory-management.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-9-gpu-memory-management.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-9-gpu-memory-management.png?v=1">
+<meta property="article:published_time" content="2026-05-26">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.attr-box.mine table{margin:1em 0 0;font-size:.8125rem}
+.diagram-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.75;overflow-x:auto}
+.diagram-box pre{background:none;border:none;padding:0;margin:0;font-size:inherit;white-space:pre;color:inherit}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.footnote-note{font-size:.8125rem;font-family:var(--ui);color:var(--muted);line-height:1.65;margin-top:1rem}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning · Day 9 of N</span>
+    <span class="tag">GPU memory</span>
+    <span class="tag">VRAM</span>
+    <span class="tag">OOM</span>
+    <span class="tag">LensAI</span>
+  </div>
+  <h1 class="post-title">Day 9 of Learning LLM Inference — GPU Memory Management</h1>
+  <p class="post-subtitle">9 of N — AI Learning Series. Four tenants share one VRAM budget — weights, activations, KV cache, and overhead. The batch-size cliff is a capacity problem, not a model problem.</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">14 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning · Day 9 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-9-gpu-memory-management.png" alt="Cover: GPU Memory Management — Day 9 of N" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>I hit an OOM deploying a 7B model on an A10G at batch size four. The model loads fine. A single request completes. Two requests — fine. Three — fine. Four requests in the batch and PyTorch throws <code>CUDA out of memory</code> without a useful breakdown of where the 24 GB went.</p>
+
+<p>The instinct was to assume the model was too big. It was not. The 7B model in FP16 weighs 14 GB. The A10G has 24 GB. That leaves 10 GB — which sounds generous until you account for the other tenants sharing that VRAM. Activations scale with batch size. The KV cache grows with sequence length times batch size. CUDA itself reserves workspace. And during <code>load_state_dict</code>, the weights briefly exist twice in memory. The OOM was not a model-size problem. It was a capacity-planning problem — four tenants competing for a fixed budget, with no visibility into who was consuming what.</p>
+
+<p>That framing connects two things I have already written about. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> described the KV cache as a memory-bandwidth problem — each decode step reads the entire cache, and bandwidth determines tokens per second. Today flips the lens: the KV cache is also a <strong>capacity</strong> problem because it grows linearly with context length and batch size, competing with everything else for a fixed VRAM envelope. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html">Day 6</a> covered quantization as a way to shrink the weight footprint — which buys headroom for the other tenants. This post maps the full layout so the tradeoffs connect.</p>
+
+<h2 id="vram-anatomy">The four tenants of VRAM</h2>
+
+<p>GPU memory is a single address space shared by four categories of allocation. They are not managed by separate allocators or isolated by quotas — they coexist in one pool, and the first allocation that pushes the sum past the hardware limit triggers OOM. The tenants:</p>
+
+<table>
+  <thead><tr><th>Tenant</th><th>Scales with</th><th>7B FP16 on A10G (24 GB)</th><th>Analogy</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Weights</strong></td><td>Parameters × bytes/param</td><td>~14 GB</td><td>Base image on disk</td></tr>
+    <tr><td><strong>Activations</strong></td><td>Batch size × sequence length × hidden dim</td><td>~2–6 GB (batch-dependent)</td><td>Per-request heap allocation</td></tr>
+    <tr><td><strong>KV cache</strong></td><td>Layers × heads × seq_len × batch × 2 (K+V)</td><td>~1–4 GB (context-dependent)</td><td>Connection-pool memory</td></tr>
+    <tr><td><strong>Framework overhead</strong></td><td>CUDA context + allocator fragmentation</td><td>~0.5–1.5 GB</td><td>OS kernel reserved pages</td></tr>
+  </tbody>
+</table>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">14 GB</span><span class="stat-label">Weights (FP16)</span></div>
+  <div class="stat-cell"><span class="stat-num">~4 GB</span><span class="stat-label">Activations (batch=4)</span></div>
+  <div class="stat-cell"><span class="stat-num">~3 GB</span><span class="stat-label">KV cache (2k ctx)</span></div>
+  <div class="stat-cell"><span class="stat-num">~1 GB</span><span class="stat-label">CUDA overhead</span></div>
+</div>
+
+<p>At batch size one, the activations are small and the KV cache holds one sequence — total consumption is around 16–17 GB, leaving comfortable headroom. At batch size four, activations quadruple and the KV cache holds four sequences. The sum pushes past 22 GB, leaving less than 2 GB of headroom on a 24 GB card. One slightly longer prompt — a 3k-token context instead of 2k — and the budget overflows.</p>
+
+<p>The capacity-planning parallel is exact. In a database system, you track working set memory, connection pool overhead, OS buffers, and page cache — and you size the instance so the sum stays below the limit with headroom for spikes. GPU memory is the same discipline applied to a different hardware surface. The problem is that most serving frameworks report only total VRAM utilization, not per-tenant breakdown — so you cannot tell whether you are weight-bound, activation-bound, or KV-cache-bound until you hit OOM and start guessing.</p>
+
+<h2 id="weight-loading">Weight loading — the transient 2× cliff</h2>
+
+<p>Loading a model is not a single allocation. The standard PyTorch pattern — <code>model.load_state_dict(torch.load(path))</code> — creates the weights in CPU memory, then copies them to GPU. But before the copy completes and the CPU-side tensors are freed, both copies exist simultaneously. For a 7B FP16 model, that is 14 GB on GPU plus 14 GB in the process of being transferred — a transient peak of 28 GB, which exceeds the A10G's 24 GB.</p>
+
+<p>The workaround is well-known: <code>device_map="auto"</code> in Hugging Face, or <code>torch.load(path, map_location="cuda")</code> to load directly onto GPU. But the failure mode is subtle. If you are deploying with a container that also runs a health-check model or a tokenizer warm-up before the main model loads, the memory timeline has a spike that exceeds steady-state by nearly 2×. Sizing your GPU for steady-state means the startup crashes.</p>
+
+<p>Day 6 showed that INT8 cuts the weight footprint to 7 GB. That changes the transient story too — the load peak drops to 14 GB, well within budget. So quantization is not only a steady-state optimization; it is a startup-reliability optimization. The same decision that saves money at serving time also prevents OOM at boot time.</p>
+
+<p>One practice I adopted after debugging this: always check <code>torch.cuda.max_memory_allocated()</code> after model load, not just during inference. The max-memory watermark captures the transient peak. If the watermark is within 2 GB of the hardware limit, any increase in model size or batch configuration will OOM at startup before a single request is served.</p>
+
+<h2 id="activations">Activations — the per-request cost nobody quotes</h2>
+
+<p>Activations are the intermediate tensors computed during the forward pass. Every layer produces an activation tensor that gets consumed by the next layer — and at FP16, these tensors are large. For a typical transformer layer processing a batch of sequences, the activation memory scales as:</p>
+
+<pre><code>activation_bytes ≈ batch_size × seq_len × hidden_dim × num_layers × 2 bytes × factor</code></pre>
+
+<p>The <code>factor</code> depends on which intermediate tensors the framework keeps alive simultaneously — typically 2–4× the single-layer size because attention and FFN intermediates overlap in the computation graph. For a 7B model (hidden_dim=4096, 32 layers) processing batch=4 at seq_len=2048, the activation footprint is in the 2–6 GB range depending on the framework's memory strategy.</p>
+
+<p>The critical difference between activations and weights: <strong>weights are constant, activations scale linearly with batch size.</strong> Doubling the batch doubles the activation memory. This is why OOM happens at batch=4 but not batch=2 — the weight and overhead tenants stay fixed, but activations jump by enough to cross the threshold.</p>
+
+<h3>Activation checkpointing — trading compute for memory</h3>
+
+<p>The standard mitigation is activation checkpointing (gradient checkpointing in training contexts, but the technique applies to inference too). Instead of keeping all layer activations alive for the backward pass or for later reuse, you recompute them on demand. This trades compute (rerunning layers) for memory (not storing their outputs).</p>
+
+<p>In inference serving, the tradeoff is: keep all activations alive and maximize throughput at the cost of VRAM, or checkpoint aggressively and serve higher batch sizes at the cost of extra FLOPs per request. The decision depends on whether you are VRAM-bound or compute-bound — and on a 24 GB card serving a 14 GB model, you are almost certainly VRAM-bound, which means checkpointing buys you real headroom.</p>
+
+<p>The analogy to traditional systems: activation checkpointing is the GPU equivalent of swapping hot data to disk when memory pressure is high. You accept higher latency per request in exchange for the ability to serve more concurrent requests. The same capacity-vs-latency tradeoff you make when choosing between fewer fast instances and more slow instances — applied at the CUDA allocator level.</p>
+
+<h2 id="kv-cache-revisit">KV cache revisited — from bandwidth to capacity</h2>
+
+<p>Day 1 framed the KV cache as a bandwidth problem: at decode time, the entire cache is read once per token generated, so memory bandwidth determines tokens per second. That analysis was about <strong>throughput</strong>. Today the question is different: how much VRAM does the KV cache actually consume, and how does that consumption interact with the other tenants?</p>
+
+<p>The formula for KV cache size is mechanical:</p>
+
+<pre><code>kv_bytes = 2 × num_layers × num_kv_heads × head_dim × seq_len × batch_size × bytes_per_element</code></pre>
+
+<p>For a 7B model (32 layers, 32 KV heads, head_dim=128) in FP16, a single sequence at 2048 tokens costs:</p>
+
+<pre><code>2 × 32 × 32 × 128 × 2048 × 2 bytes = ~1.07 GB per sequence</code></pre>
+
+<p>At batch=4, that is ~4.3 GB for KV cache alone. Combined with 14 GB of weights and 1 GB of CUDA overhead, you are at 19.3 GB before activations even enter the picture. This is why the batch-size cliff is so sharp — each additional sequence in the batch adds a full gigabyte of KV cache on top of the linear activation growth.</p>
+
+<p>RAG workloads intensify this problem. When you retrieve 5–10 document chunks and prepend them to the context window, the effective sequence length jumps from a short user query (maybe 200 tokens) to 2000–4000 tokens of retrieved context plus the query. The KV cache balloons by an order of magnitude compared to a bare query — and this happens on every request, not just occasionally. Day 8 described RAG as a five-stage pipeline; today's lens adds that stage four (retrieval) directly inflates the KV cache tenant in stage five (generate). Optimizing retrieval top-k is not just about prompt cost — it is about VRAM pressure on the serving GPU.</p>
+
+<h2 id="batch-size-cliff">The batch-size cliff</h2>
+
+<p>The OOM at batch=4 is not a gradual degradation — it is a cliff. At batch=3, total VRAM sits at ~21 GB (comfortable). At batch=4, it jumps to ~23.5 GB (barely fits). At batch=5, it exceeds 24 GB and crashes. There is no graceful warning, no backpressure signal, no "running low" state. You go from serving requests to a hard crash with one additional concurrent sequence.</p>
+
+<pre class="mermaid">graph LR
+  subgraph "batch=1 (~17 GB)"
+    W1["Weights<br/>14 GB"]
+    A1["Activations<br/>~1 GB"]
+    K1["KV cache<br/>~1 GB"]
+    O1["Overhead<br/>~1 GB"]
+  end
+  subgraph "batch=4 (~23.5 GB)"
+    W4["Weights<br/>14 GB"]
+    A4["Activations<br/>~4 GB"]
+    K4["KV cache<br/>~4.3 GB"]
+    O4["Overhead<br/>~1.2 GB"]
+  end
+  LIMIT["A10G limit: 24 GB"] -.->|"1.7 GB headroom"| W4
+  style LIMIT fill:#ff6b6b,color:#fff
+  style K4 fill:#fef3c7,stroke:#d97706
+  style A4 fill:#fef3c7,stroke:#d97706</pre>
+
+<p>The connection-pool analogy makes this intuitive. In a web server, each connection holds memory for buffers, session state, and stack frames. You can serve N connections with M megabytes of RAM — but the (N+1)th connection that pushes past the OS limit does not get a "slow" response; it gets a connection-refused error. The batch-size cliff is the GPU equivalent of hitting <code>max_connections</code>. One more request and the process dies.</p>
+
+<p>The operational consequence: you need to <strong>know your batch-size ceiling</strong> before production traffic discovers it. The ceiling is not a model property — it is a function of the model, the GPU, the sequence length distribution, and the serving framework's memory strategy. Change any one variable and the ceiling moves. A model that safely runs batch=8 on 2k-token queries might OOM at batch=3 on 8k-token queries because the KV cache and activations scale with sequence length.</p>
+
+<p>What I wish existed: a pre-flight memory estimator that takes (model, GPU, max_seq_len, target_batch_size) and returns "fits" or "will OOM at step N." The arithmetic is deterministic — the formula above is not approximate. But no standard serving framework surfaces this as a first-class API. You either run the empirical test (start the server, send concurrent requests, see if it crashes) or you do the arithmetic by hand and hope your accounting of the overhead tenant is correct.</p>
+
+<h2 id="day6-vs-day9">Day 6 vs Day 9 — precision vs memory layout</h2>
+
+<p>Day 6 covered quantization — reducing bytes per parameter to shrink the weight tenant. Today covers the full memory layout — all four tenants and how they interact. The distinction matters because teams often reach for quantization as the only GPU memory lever, when the actual bottleneck might be the KV cache or activations, not weights.</p>
+
+<table>
+  <thead><tr><th></th><th>Day 6 (Quantization)</th><th>Day 9 (Memory management)</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Focus</strong></td><td>Weight tensor precision</td><td>Full VRAM budget across all tenants</td></tr>
+    <tr><td><strong>Lever</strong></td><td>Reduce bytes/param (FP16→INT8→INT4)</td><td>Balance allocation across weights, activations, KV, overhead</td></tr>
+    <tr><td><strong>Fixes</strong></td><td>Weight tenant too large for target GPU</td><td>Batch-size ceiling too low; OOM at N concurrent requests</td></tr>
+    <tr><td><strong>Tradeoff</strong></td><td>Precision loss (eval quality risk)</td><td>Throughput vs memory (checkpointing, batch limits)</td></tr>
+    <tr><td><strong>When it helps</strong></td><td>Weights dominate VRAM (&gt;70%)</td><td>Non-weight tenants dominate (high batch, long context)</td></tr>
+    <tr><td><strong>When it doesn't</strong></td><td>KV cache or activations are the bottleneck</td><td>Model barely fits even at batch=1 (need smaller model or bigger GPU)</td></tr>
+    <tr><td><strong>Day 6 prerequisite?</strong></td><td>—</td><td>Yes — quantize first, then plan the remaining budget</td></tr>
+  </tbody>
+</table>
+
+<p>The correct sequence is: quantize first (Day 6) to right-size the weight tenant, then plan the remaining VRAM budget (today) across activations, KV cache, and overhead for your target batch size and sequence length. Doing it in reverse — trying to fit batch=8 with FP16 weights and hoping activation checkpointing alone saves enough — usually fails because 14 GB of weights leaves too little room for anything else.</p>
+
+<h2 id="lensai-metrics">LensAI — proposed GPU memory observability fields</h2>
+
+<p><strong>Today</strong> in <code>infra-ai-streaming</code>: <code>InferenceEvent</code> carries <code>latency_ms</code>, token counts, and <code>cost_usd</code>. When a serving pod hits memory pressure or OOMs, the dashboard shows the pod restarting — but cannot show <em>why</em>. Was it a KV cache spike from a long-context request? Activation growth from a batch-size surge? A new model version with larger embeddings? Without per-tenant memory telemetry, the root-cause investigation is guesswork.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Proposed GPU memory fields for InferenceEvent</div>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>gpu_vram_used_bytes</code></td><td>u64</td><td>Total allocated — the headline number for capacity alerts</td></tr>
+      <tr><td><code>gpu_vram_peak_bytes</code></td><td>u64</td><td>Max watermark since last report — catches transient spikes</td></tr>
+      <tr><td><code>batch_size_current</code></td><td>u16</td><td>Active concurrent sequences — correlate with OOM events</td></tr>
+      <tr><td><code>kv_cache_bytes</code></td><td>u64</td><td>KV cache tenant — distinguish cache pressure from weight pressure</td></tr>
+      <tr><td><code>kv_cache_seq_count</code></td><td>u16</td><td>Sequences held in cache — batch-size proxy from the cache side</td></tr>
+      <tr><td><code>max_seq_len_current</code></td><td>u32</td><td>Longest active sequence — predict KV cache growth</td></tr>
+      <tr><td><code>gpu_utilization_pct</code></td><td>f32</td><td>Compute utilization — detect memory-bound vs compute-bound state</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<pre class="mermaid">flowchart LR
+  GPU["GPU serving pod"] -->|"periodic poll"| EXPORTER["Metrics exporter<br/><em>nvidia-smi + torch.cuda</em>"]
+  EXPORTER -->|"InferenceEvent fields"| KAFKA["Kafka topic<br/><em>inference-events</em>"]
+  KAFKA --> CLICK["ClickHouse<br/><em>gpu_memory_* columns</em>"]
+  CLICK --> GRAF["Grafana<br/><em>VRAM heatmap + batch alerts</em>"]
+  GRAF -->|"alert: vram > 90%"| PD["PagerDuty"]
+
+  style GPU fill:#ecfdf5,stroke:#059669
+  style KAFKA fill:#f0f4ff,stroke:#2563eb
+  style GRAF fill:#fef3c7,stroke:#d97706</pre>
+
+<p>The exporter polls <code>torch.cuda.memory_allocated()</code> and <code>torch.cuda.max_memory_allocated()</code> per forward pass, attaches batch size from the scheduler, and enriches the <code>InferenceEvent</code> before publishing. On the Grafana side: a VRAM utilization heatmap by pod, a time-series of <code>batch_size_current</code> overlaid with <code>gpu_vram_used_bytes</code>, and an alert when <code>gpu_vram_peak_bytes</code> crosses 90% of hardware capacity — the "approaching the cliff" early warning.</p>
+
+<p>The gap these fields close: today, when a pod OOMs and restarts, the post-mortem says "memory pressure." With per-tenant fields, the post-mortem can say "KV cache grew to 6 GB because three 8k-token RAG requests landed on the same pod within the same batch window." That specificity turns a generic "need bigger GPU" conclusion into an actionable "cap max_seq_len at 4k or shard long-context requests to dedicated pods" recommendation.</p>
+
+<h2 id="takeaway">Takeaway — memory is a capacity plan</h2>
+
+<p>GPU memory management is not a model-tuning exercise. It is capacity planning — the same discipline that sizes database instances, sets connection-pool limits, and provisions Kafka partitions. The budget is fixed by hardware, the tenants are known, and the arithmetic is deterministic. The only variable is visibility: do you know how much each tenant is consuming before the OOM tells you?</p>
+
+<div class="pullquote"><p>A GPU's VRAM is a fixed-size connection pool shared by four tenants with no isolation. The batch-size cliff is not a bug — it is the capacity limit you failed to measure.</p></div>
+
+<p>The sequence that now makes sense to me: Day 6 quantizes the weight tenant to buy headroom. Today maps the headroom across activations, KV cache, and overhead for a target batch size. The result is a deployment configuration that you can reason about before traffic arrives — not a prayer that the first spike will not OOM the pod. Next, I want to understand how serving frameworks actually <em>schedule</em> requests within that memory budget — the runtime that decides which sequences get batched, evicted, or queued when VRAM is tight.</p>
+
+<div class="series-footer">
+  <p><em>Day 9 of N — Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Up next: scheduling and request routing — how serving frameworks decide what fits in a memory budget that is already spoken for.</em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">Footnotes &amp; sources</div>
+  <div class="footnote-links">
+    <a href="https://pytorch.org/docs/stable/generated/torch.cuda.memory_stats.html" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>1.</strong> PyTorch CUDA memory management — memory_stats(), max_memory_allocated(), and the caching allocator</span>
+    </a>
+    <a href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#memory-management" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>2.</strong> NVIDIA CUDA Programming Guide — device memory allocation, unified addressing, and memory pools</span>
+    </a>
+    <a href="https://huggingface.co/docs/transformers/perf_infer_gpu_one" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>3.</strong> Hugging Face — GPU inference performance tips, device_map, and activation checkpointing</span>
+    </a>
+    <a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>4.</strong> Efficient Memory Management for Large Language Model Serving with PagedAttention (vLLM paper)</span>
+    </a>
+    <a href="https://github.com/akshantvats/infra-ai-streaming/blob/32fdb379895e83140a7e3534c5c1cb65f0f72268/ingestion/src/handlers/ingest.rs" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>5.</strong> LensAI — InferenceEvent schema (ingest.rs @ <code>32fdb37</code>)</span>
+    </a>
+  </div>
+  <p class="footnote-note">VRAM calculations are model-architecture-specific; verify layer counts, head dimensions, and KV head counts against your model's config.json. The A10G figures assume PCIe variant (24 GB); SXM variants and multi-GPU setups change the capacity constraints. Day 1 and Day 6 are linked in prose where the series narrative requires them.</p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#vram-anatomy">Four tenants of VRAM</a></li>
+      <li><a href="#weight-loading">Weight loading</a></li>
+      <li><a href="#activations">Activations</a></li>
+      <li><a href="#kv-cache-revisit">KV cache revisited</a></li>
+      <li><a href="#batch-size-cliff">Batch-size cliff</a></li>
+      <li><a href="#day6-vs-day9">Day 6 vs Day 9</a></li>
+      <li><a href="#lensai-metrics">LensAI metrics</a></li>
+      <li><a href="#takeaway">Takeaway</a></li>
+      <li><a href="#footnotes">Footnotes</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-9-gpu-memory-management.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+9%3A+GPU+Memory+Management+%28LLM+inference+for+systems+engineers%29&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-9-gpu-memory-management.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
