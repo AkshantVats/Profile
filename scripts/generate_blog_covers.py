@@ -50,6 +50,9 @@ SERIES_LABEL: dict[str, str] = {
     "day-5-sampling-deterministic-routing": "AI LEARNING SERIES",
     "day-6-quantization-vs-compression-tradeoffs": "AI LEARNING SERIES",
     "day-7-prompt-caching-infrastructure-layer": "AI LEARNING SERIES",
+    "day-8-rag-as-infra-pipeline": "AI LEARNING SERIES",
+    "day-9-gpu-memory-management": "AI LEARNING SERIES",
+    "day-10-serving-frameworks-queue-schedulers": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",
@@ -59,6 +62,7 @@ SERIES_LABEL: dict[str, str] = {
     "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "EXPERIENCE SERIES",
     "delphi-aletheia-feed-sub-second-price-visibility": "EXPERIENCE SERIES",
     "we-killed-redpanda-on-purpose-chaos-as-commit-message": "EXPERIENCE SERIES",
+    "reading-victoriametrics-source-oss-interview-prep": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
 }
 

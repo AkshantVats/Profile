@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep — Akshant Sharma</title>
+<meta name="description" content="Four-pass OSS reading for Staff interviews: VictoriaMetrics hot paths, what production Go teaches that tutorials skip, WhiteFalcon comparison, and why latency metrics need a queue model first.">
+<meta property="og:title" content="Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep">
+<meta property="og:description" content="Staff interviews ask how a system handles backpressure and batching — not whether you read the docs. A repeatable four-pass pattern for VictoriaMetrics, Vector, and million-line codebases under a clock.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/reading-victoriametrics-source-oss-interview-prep.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/reading-victoriametrics-source-oss-interview-prep.png">
+<meta property="article:published_time" content="2026-05-27">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.footnote-note{font-size:.8125rem;font-family:var(--ui);color:var(--muted);line-height:1.65;margin-top:1rem}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">Experience Series · 10 of N</span>
+    <span class="tag">Open Source</span>
+    <span class="tag">Rust</span>
+    <span class="tag">VictoriaMetrics</span>
+    <span class="tag">Interview Prep</span>
+    <span class="tag">Observability</span>
+  </div>
+  <h1 class="post-title">Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep</h1>
+  <p class="post-subtitle">What production Rust teaches that tutorials skip</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">12 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Experience Series · 10 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/reading-victoriametrics-source-oss-interview-prep.png" alt="Cover: Reading VictoriaMetrics Source at 11pm — Experience Series" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+<p>It is 11pm. No pager, no bridge, no dashboard turning red — just a laptop, a clone of VictoriaMetrics, and tomorrow's first upstream PR on the calendar. I am not debugging production. I am reading source the way I read WhiteFalcon when I joined Agoda: find the hot path, name the invariants, ignore the rest until I need it. Staff interviews rarely ask whether you read the docs. They ask you to walk through how a system handles <strong>backpressure, batching, and failure</strong> under pressure. Tutorials do not teach that. Codebases do.</p>
+
+<p>Anomaly detection on <code>model_id</code> latency is only trustworthy if you understand how each serving framework reports time — and reading an OSS ingest path tonight is the same literacy exercise as reading a scheduler tomorrow. The companion post on <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html">serving frameworks as queue schedulers</a> names the queue model; this post names how I learn a foreign repo fast enough to contribute.</p>
+
+<h2 id="question">The question interviews actually ask</h2>
+
+<p>The opening scene is deliberate study, not incident response. Yesterday's chaos post owned the outage narrative; today is methodology. The thesis is simple: you cannot answer "what happens when ingest spikes?" from a README. You follow one request, watch where memory is pooled, where errors become metrics, and where tests encode invariants the authors refuse to break.</p>
+
+<p>Onboarding to <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">WhiteFalcon</a> felt the same at a larger scale — Rust ingestion, Kafka backbone, Redis hot tier — except the time box was tighter and the grep budget was unlimited. OSS tonight is the gym; production employers are the game.</p>
+
+<h2 id="four-pass">A repeatable OSS reading pattern (four passes)</h2>
+
+<p>I use the same four passes on VictoriaMetrics, Vector, or any production repo:</p>
+
+<ol>
+  <li><strong>Entry point</strong> — <code>main</code>, HTTP handler, or the file named in the issue. What config or request triggers work?</li>
+  <li><strong>Data path</strong> — one happy write or read: ingest → buffer → flush → storage. Stop at the first <code>batch</code>, channel, or <code>sync.Pool</code>.</li>
+  <li><strong>Failure surface</strong> — panic vs returned error, retry loops, metric names on error paths. Interviews probe what tutorials hide.</li>
+  <li><strong>Tests as spec</strong> — <code>*_test.go</code> fixtures state what the authors consider invariant.</li>
+</ol>
+
+<table>
+  <thead><tr><th>Dimension</th><th>Tutorial focus</th><th>Production focus</th></tr></thead>
+  <tbody>
+    <tr><td>Error handling</td><td>Happy path only</td><td>Metrics + partial failure</td></tr>
+    <tr><td>Allocation</td><td>Allocate freely</td><td>Pools, reuse, zero-copy where possible</td></tr>
+    <tr><td>Concurrency</td><td>One goroutine</td><td>Bounded workers, backpressure</td></tr>
+    <tr><td>Observability</td><td>Println</td><td>Histograms on reject paths</td></tr>
+  </tbody>
+</table>
+
+<pre class="mermaid">flowchart LR
+  EP[Entry point\nhandler / CLI] --> DP[Data path\none happy trace]
+  DP --> FP[Failure surface\nretries / metrics]
+  FP --> TS[Tests as spec\ninvariants]
+  TS --> PR[OSS contribution\nor interview story]</pre>
+
+<h2 id="vm-evening">What VictoriaMetrics teaches in one evening</h2>
+
+<p>I am reading as a contributor, not claiming I built VictoriaMetrics. Tonight's path started at prom scrape → row parsing → remote write — the ingest edge before storage, not the full TSDB core.</p>
+
+<p>In <code>lib/promscrape/scrapework.go</code>, scraped samples flow through a <code>sync.Pool</code> of reusable row buffers — production Go refusing to allocate per scrape:</p>
+
+<pre><code>func putAutoRows(rows *parser.Rows) {
+    rows.Reset()
+    autoRowsPool.Put(rows)
+}
+
+var autoRowsPool sync.Pool</code></pre>
+
+<p>That pattern — reset, return to pool, pre-allocate label buffers in <code>addRows</code> — is the kind of detail interviews ask about after you say "we batch ingest." It connects lightly to <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">cardinality discipline</a> without re-explaining RoaringBitmap: labels are where cardinality enters, and scrape code pre-sizes label slices because unbounded label growth is an ops incident waiting for a dashboard.</p>
+
+<h2 id="agoda-scale">Same skill, Agoda scale (comparison only)</h2>
+
+<div class="attr-box team">
+  <div class="attr-label">Team context</div>
+  WhiteFalcon — Agoda's in-house TSDB at roughly <strong>1.5 trillion events per day</strong> (Rust + Kafka + Ceph cold tier). Core infra team owned ingestion, storage tiers, and cluster operations. I was Sr. SWE on core infra Apr–Sep 2024.
+</div>
+
+<div class="attr-box mine">
+  <div class="attr-label">My scope (comparison only)</div>
+  Cross-tier query work, cardinality indexing, compression — <strong>not</strong> owning the entire TSDB or every broker restart playbook. The four-pass reading pattern transferred; the grep targets were Rust handlers instead of Go scrape workers.
+</div>
+
+<pre class="mermaid">flowchart TB
+  OSS[OSS repo tonight\nVM / Vector] --> P[Four-pass reading]
+  WF[WhiteFalcon onboarding\ncomparison only] --> P
+  P --> SK[Skill: name hot path\n+ invariants under pressure]
+  SK --> INT[Interview: walk through\nbackpressure / batching]</pre>
+
+<h2 id="oss-pr">OSS PR as interview artifact</h2>
+
+<p>Tomorrow's deliverable is a doc example, benchmark, or reproducible bug report — all count. Recruiters care because day-one Staff work is navigating unfamiliar code, writing a minimal repro, and accepting review feedback. The first PR may be small; the post is about <strong>process</strong>, not maintainer cosplay.</p>
+
+<p>Reading VM/Vector ingestion informs how we instrument <code>model_id × tenant_id</code> latency in <code>infra-ai-streaming</code> without trusting framework-default timers blindly — the same discipline as asking whether a metric includes queue wait.</p>
+
+<h2 id="latency-trust">Reading list for latency you can trust</h2>
+
+<p>Before z-score on <code>model_id</code> latency (tomorrow's work), I need a checklist for any serving stack:</p>
+
+<table>
+  <thead><tr><th>Ask first</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td>Queue model?</td><td>FCFS vs prefill-first vs single-slot local</td></tr>
+    <tr><td>Phase split?</td><td>Prefill vs decode vs queue wait folded into one number</td></tr>
+    <tr><td>Batch boundary?</td><td>Iteration-level vs request-level</td></tr>
+    <tr><td>Client vs server clock?</td><td>RTT includes admission wait the server never labels</td></tr>
+  </tbody>
+</table>
+
+<pre class="mermaid">flowchart LR
+  READ[Read OSS ingest path] --> Q[Ask: queue model?]
+  Q --> MET[Metric definition\nserver vs queue vs GPU]
+  MET --> Z[z-score on model_id\nneeds phase labels]</pre>
+
+<h2 id="wrong">What I still get wrong</h2>
+
+<p>Reading is not owning. A small doc PR is not architecture authority. VictoriaMetrics is not WhiteFalcon. The punchline I keep returning to: <strong>interview prep is codebase literacy under a clock</strong> — OSS is where I practice before the next million-line repo expects answers in thirty minutes.</p>
+
+<div class="series-footer">
+  <p><em>Experience Series · 10 of N</em> — four-pass OSS reading, production Go patterns, and why latency trust starts at ingest semantics.</p>
+  <p><em>Companion: <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html">AI Learning Day 10 — Serving Frameworks Compared as Queue Schedulers</a>.</em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">Footnotes &amp; related</div>
+  <div class="footnote-links">
+    <a href="https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/lib/promscrape/scrapework.go" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>1.</strong> VictoriaMetrics — <code>scrapework.go</code> (promscrape row pooling)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>2.</strong> Experience 1 — Building WhiteFalcon at Agoda</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html">
+      <span class="footnote-arrow">→</span>
+      <span><strong>3.</strong> Experience 9 — Chaos as commit message (incident frame — not retold here)</span>
+    </a>
+    <a href="https://github.com/akshantvats/infra-ai-streaming" target="_blank" rel="noopener">
+      <span class="footnote-arrow">→</span>
+      <span><strong>4.</strong> infra-ai-streaming — LensAI inference observability</span>
+    </a>
+  </div>
+  <p class="footnote-note">VictoriaMetrics snippet from public source at read time; OSS PR URL TBD after merge. Agoda scale figures from resume and published Experience posts.</p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="experience"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#question">The interview question</a></li>
+      <li><a href="#four-pass">Four-pass pattern</a></li>
+      <li><a href="#vm-evening">VictoriaMetrics evening</a></li>
+      <li><a href="#agoda-scale">Agoda comparison</a></li>
+      <li><a href="#oss-pr">OSS PR artifact</a></li>
+      <li><a href="#latency-trust">Latency you can trust</a></li>
+      <li><a href="#wrong">What I still get wrong</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Reading+VictoriaMetrics+Source+at+11pm+%E2%80%94+Chaos+as+Commit+Message&url=https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
