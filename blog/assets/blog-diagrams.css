@@ -1,0 +1,41 @@
+/* Shared diagram styles — works in light and dark (uses post :root variables). */
+.diagram-box,
+.prose .ascii-diagram {
+  background: var(--code-bg, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 1.5em 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  line-height: 1.75;
+  overflow-x: auto;
+}
+.diagram-box pre,
+.prose .ascii-diagram pre {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  white-space: pre;
+  color: inherit;
+}
+.prose .mermaid {
+  background: var(--code-bg, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 1.5em 0;
+  overflow-x: auto;
+  text-align: center;
+}
+.prose .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Mermaid may emit a solid diagram background — keep the post surface visible. */
+.prose .mermaid svg[style*="background"] {
+  background: transparent !important;
+}

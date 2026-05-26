@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html",
+          "kicker": "Day 10 of N",
+          "title": "Serving Frameworks Compared as Queue Schedulers",
+          "desc": "Ask the queue model before the benchmark score — vLLM vs TGI vs Ollama on admission, continuous batching, and KV memory, and why LensAI needs serving_framework on model_id latency."
+        },
+        {
           "href": "blog/series/ai-learning/day-9-gpu-memory-management.html",
           "kicker": "Day 9 of N",
           "title": "GPU Memory Management",
@@ -74,6 +80,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html",
+          "kicker": "Experience 10 of N",
+          "title": "Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep",
+          "desc": "Four-pass OSS reading for Staff interviews: VictoriaMetrics/Vector hot paths, what production Rust teaches, Agoda WhiteFalcon comparison, and why latency metrics need a queue model first."
+        },
         {
           "href": "blog/series/experience/we-killed-redpanda-on-purpose-chaos-as-commit-message.html",
           "kicker": "Experience 9 of N",

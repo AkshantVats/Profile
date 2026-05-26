@@ -31,6 +31,7 @@ COVERS_DIR = ROOT / "blog" / "assets" / "covers"
 OG_DIR = ROOT / "blog" / "assets" / "og"
 SCRIPT_DIR = Path(__file__).resolve().parent
 RICH_GENERATED_DIR = SCRIPT_DIR / "cover_assets_rich"
+CONTENT_GENERATED_DIR = SCRIPT_DIR / "cover_generated"
 
 DEFAULT_ASSETS = Path(
     "/Users/akshant/.cursor/projects/Users-akshant-Desktop-github-Profile/assets"
@@ -50,6 +51,9 @@ SERIES_LABEL: dict[str, str] = {
     "day-5-sampling-deterministic-routing": "AI LEARNING SERIES",
     "day-6-quantization-vs-compression-tradeoffs": "AI LEARNING SERIES",
     "day-7-prompt-caching-infrastructure-layer": "AI LEARNING SERIES",
+    "day-8-rag-as-infra-pipeline": "AI LEARNING SERIES",
+    "day-9-gpu-memory-management": "AI LEARNING SERIES",
+    "day-10-serving-frameworks-queue-schedulers": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",
@@ -59,6 +63,7 @@ SERIES_LABEL: dict[str, str] = {
     "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "EXPERIENCE SERIES",
     "delphi-aletheia-feed-sub-second-price-visibility": "EXPERIENCE SERIES",
     "we-killed-redpanda-on-purpose-chaos-as-commit-message": "EXPERIENCE SERIES",
+    "reading-victoriametrics-source-oss-interview-prep": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
 }
 
@@ -380,6 +385,16 @@ def process_rich_generated(slug: str, filename: str) -> None:
     )
 
 
+def process_content_generated(slug: str) -> bool:
+    """Install scripts/cover_generated/<slug>.png if present."""
+    src = CONTENT_GENERATED_DIR / f"{slug}.png"
+    if not src.exists():
+        return False
+    img = Image.open(src).convert("RGB")
+    write_cover(slug, img)
+    return True
+
+
 def run_rich(assets_dir: Path, slugs: list[str] | None = None) -> None:
     targets = slugs or ALL_SLUGS
     print("Rich infographic covers → blog/assets/{covers,og}/")
@@ -388,8 +403,10 @@ def run_rich(assets_dir: Path, slugs: list[str] | None = None) -> None:
             process_user_art(assets_dir, slug, USER_ART[slug])
         elif slug in RICH_GENERATED:
             process_rich_generated(slug, RICH_GENERATED[slug])
+        elif process_content_generated(slug):
+            continue
         else:
-            print(f"  ? unknown slug: {slug}")
+            print(f"  ? no art for {slug} — use generate_covers_from_content.py")
 
 
 # --- Deprecated plain generator ---
