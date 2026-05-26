@@ -31,6 +31,7 @@ COVERS_DIR = ROOT / "blog" / "assets" / "covers"
 OG_DIR = ROOT / "blog" / "assets" / "og"
 SCRIPT_DIR = Path(__file__).resolve().parent
 RICH_GENERATED_DIR = SCRIPT_DIR / "cover_assets_rich"
+CONTENT_GENERATED_DIR = SCRIPT_DIR / "cover_generated"
 
 DEFAULT_ASSETS = Path(
     "/Users/akshant/.cursor/projects/Users-akshant-Desktop-github-Profile/assets"
@@ -384,6 +385,16 @@ def process_rich_generated(slug: str, filename: str) -> None:
     )
 
 
+def process_content_generated(slug: str) -> bool:
+    """Install scripts/cover_generated/<slug>.png if present."""
+    src = CONTENT_GENERATED_DIR / f"{slug}.png"
+    if not src.exists():
+        return False
+    img = Image.open(src).convert("RGB")
+    write_cover(slug, img)
+    return True
+
+
 def run_rich(assets_dir: Path, slugs: list[str] | None = None) -> None:
     targets = slugs or ALL_SLUGS
     print("Rich infographic covers → blog/assets/{covers,og}/")
@@ -392,8 +403,10 @@ def run_rich(assets_dir: Path, slugs: list[str] | None = None) -> None:
             process_user_art(assets_dir, slug, USER_ART[slug])
         elif slug in RICH_GENERATED:
             process_rich_generated(slug, RICH_GENERATED[slug])
+        elif process_content_generated(slug):
+            continue
         else:
-            print(f"  ? unknown slug: {slug}")
+            print(f"  ? no art for {slug} — use generate_covers_from_content.py")
 
 
 # --- Deprecated plain generator ---

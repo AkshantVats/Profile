@@ -44,6 +44,16 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html",
     "day-7-prompt-caching-infrastructure-layer": ROOT
     / "blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html",
+    "day-8-rag-as-infra-pipeline": ROOT
+    / "blog/series/ai-learning/day-8-rag-as-infra-pipeline.html",
+    "day-9-gpu-memory-management": ROOT
+    / "blog/series/ai-learning/day-9-gpu-memory-management.html",
+    "day-10-serving-frameworks-queue-schedulers": ROOT
+    / "blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": ROOT
+    / "blog/series/experience/we-killed-redpanda-on-purpose-chaos-as-commit-message.html",
+    "reading-victoriametrics-source-oss-interview-prep": ROOT
+    / "blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html",
     "building-tsdb-at-agoda": ROOT / "blog/series/experience/building-tsdb-at-agoda.html",
     "when-percentiles-lie-cross-tier-queries": ROOT
     / "blog/series/experience/when-percentiles-lie-cross-tier-queries.html",
@@ -69,6 +79,11 @@ TITLE_OVERRIDE: dict[str, str] = {
     "day-5-sampling-deterministic-routing": "Sampling and\nDeterministic Routing",
     "day-6-quantization-vs-compression-tradeoffs": "Quantization vs\nCompression Tradeoffs",
     "day-7-prompt-caching-infrastructure-layer": "Prompt Caching at the\nInfrastructure Layer",
+    "day-8-rag-as-infra-pipeline": "RAG as an\nInfrastructure Pipeline",
+    "day-9-gpu-memory-management": "GPU Memory Management\nFour Tenants, One VRAM Budget",
+    "day-10-serving-frameworks-queue-schedulers": "Serving Frameworks Compared\nas Queue Schedulers",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "We Killed Redpanda on Purpose\nChaos as Commit Message",
+    "reading-victoriametrics-source-oss-interview-prep": "Reading VictoriaMetrics Source at 11pm\nOSS as Interview Prep",
     "building-tsdb-at-agoda": "1.5 Trillion Events/Day\nTSDB at Agoda",
     "when-percentiles-lie-cross-tier-queries": "When Percentiles Lie:\nCross-Tier Queries in a 1.8T/day TSDB",
     "seven-million-iot-sensors-failure-modes": "Seven Million IoT Sensors\n— Failure Modes Textbooks Skip",
@@ -111,6 +126,28 @@ TOPIC_HINTS: dict[str, str] = {
         "SYSTEM TOOLS RAG prefix blocks with HIT arrow into provider prefix KV cache, "
         "usage tiers CREATE READ FRESH to cost_usd down, TTL countdown, Anthropic OpenAI cache_read tokens"
     ),
+    "day-8-rag-as-infra-pipeline": (
+        "chunk embed index retrieve rerank generate pipeline, vector DB + object store tiers, "
+        "staleness TTL, eval gates, LensAI ingest schema gaps"
+    ),
+    "day-9-gpu-memory-management": (
+        "VRAM bar: weights activations KV cache overhead on A10G 24GB, OOM cliff at 24GB, "
+        "batch=1 OK vs batch=4 OOM, four tenants one budget"
+    ),
+    "day-10-serving-frameworks-queue-schedulers": (
+        "three serving framework columns vLLM TGI Ollama as queue schedulers, "
+        "request queue with admission arrows, prefill vs decode phases, continuous batching slots, "
+        "KV memory pressure meter, serving_framework label on latency_ms panel"
+    ),
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": (
+        "Kafka Redpanda 3-broker cluster one broker KILLED red dashed box, "
+        "recovery gap timeline T0 healthy T1 kill T2 wrong data window T3 restored, chaos engineering"
+    ),
+    "reading-victoriametrics-source-oss-interview-prep": (
+        "four-pass OSS reading map: entrypoints → hot path → backpressure → compare WhiteFalcon, "
+        "VictoriaMetrics ingest arrows, Go code window at 11pm clock, time-series blocks, "
+        "Staff interview checklist, metrics literacy"
+    ),
     "building-tsdb-at-agoda": (
         "Kafka → Rust ingestion → Redis hot tier → S3 Parquet cold tier, "
         "RoaringBitmap inverted index, 1.5T events/day counter, WhiteFalcon query path"
@@ -151,6 +188,11 @@ ACCENT: dict[str, str] = {
     "day-5-sampling-deterministic-routing": "neon green #5bd37a",
     "day-6-quantization-vs-compression-tradeoffs": "neon green #5bd37a",
     "day-7-prompt-caching-infrastructure-layer": "neon green #5bd37a",
+    "day-8-rag-as-infra-pipeline": "neon green #5bd37a",
+    "day-9-gpu-memory-management": "neon green #5bd37a",
+    "day-10-serving-frameworks-queue-schedulers": "neon green #5bd37a",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "electric blue #64b4ff",
+    "reading-victoriametrics-source-oss-interview-prep": "electric blue #64b4ff",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
