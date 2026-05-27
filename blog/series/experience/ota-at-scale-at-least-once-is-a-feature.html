@@ -247,16 +247,18 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>In our WeIoT SmartBuildings work (Aug 2018 – May 2021), this staged approach mattered because we managed 7M+ sensors and tens of millions of telemetry points per minute on Azure IoT Hub + Stream Analytics. The rollout tooling didn’t just push firmware; it owned the state transitions that kept analytics honest.</p>
 
-<pre class="mermaid">flowchart LR
-  subgraph before [Before — push and pray]
-    C1[Cloud blob] --> D1[Device reboot]
-    D1 -.->|no durable ack| Q1[Unknown fleet state]
-  end
-  subgraph after [After — acked rollout]
-    M[Manifest + version gate] --> E[Edge download]
-    E --> A[Durable ack]
-    A --> R[Retry / quarantine lane]
-  end</pre>
+<pre class="mermaid">flowchart TB
+  C1[Cloud blob] --> D1[Device reboot]
+  D1 -.->|no durable ack| Q1[Unknown fleet state]
+
+  M[Manifest + version gate] --> E[Edge download]
+  E --> A[Durable ack]
+  A --> R[Retry / quarantine lane]
+
+  classDef exact fill:#ecfdf5,stroke:#059669,color:#111827
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  class C1,D1,Q1 exact
+  class M,E,A,R pipeline</pre>
 
 <h2 id="vm-evening">At-least-once is a feature when apply is idempotent</h2>
 
@@ -322,7 +324,13 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
   DEV --> Z[z-score flag\nlatency anomaly]
   EDGE --> AGG[Clean aggregates]
   Z --> AGG
-  SEM[Semantic cache false positives] --> OPS[Operator queue\nexact rules → fuzzy]</pre>
+  SEM[Semantic cache false positives] --> OPS[Operator queue\nexact rules → fuzzy]
+
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827
+  class DEV,EDGE,Z,AGG pipeline
+  class SEM semantic
+  style OPS fill:#fef3c7,stroke:#d97706,color:#111827</pre>
 
 <p>If that semantic cache lookup returns “fast but wrong,” you still want the event to surface in the same anomalies queue. The companion post <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html">AI Learning Day 11 — Semantic Caching vs Exact-Match Redis</a> explains how τ and false-positive budgets turn architecture into an SLA.</p>
 

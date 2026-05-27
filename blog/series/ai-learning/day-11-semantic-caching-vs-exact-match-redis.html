@@ -245,19 +245,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 <div class="pullquote"><p>Exact caches fail on drift; semantic caches fail on similarity.</p></div>
 
 <pre class="mermaid">flowchart TB
-  subgraph exact["Exact-match (Redis)"]
-    P1[Prompt bytes] --> H1[SHA-256 / hash]
-    H1 --> R1[Redis GET]
-    R1 -->|hit| OUT1[Stored completion]
-  end
-  subgraph semantic["Semantic cache"]
-    P2[Prompt text] --> E[Embed model]
-    E --> V[Vector index\nHNSW / Redis Stack]
-    V -->|sim ≥ τ| OUT2[Nearest stored completion]
-    V -->|sim < τ| MISS[Miss → full LLM path]
-  end
-  style semantic fill:#f0f4ff,stroke:#2563eb,color:#242424
-  style exact fill:#ecfdf5,stroke:#059669,color:#242424</pre>
+  P1[Prompt bytes] --> H1[SHA-256 / hash]
+  H1 --> R1[Redis GET]
+  R1 -->|hit| OUT1[Stored completion]
+
+  P2[Prompt text] --> EMB[Embed model]
+  EMB --> VEC[Vector index\nHNSW / Redis Stack]
+  VEC -->|sim ≥ τ| OUT2[Nearest stored completion]
+  VEC -->|sim < τ| MISS[Miss → full LLM path]
+
+  classDef exact fill:#ecfdf5,stroke:#059669,color:#111827
+  classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827
+  class P1,H1,R1,OUT1 exact
+  class P2,EMB,VEC,OUT2,MISS semantic</pre>
 
 <h2 id="continuous-batching">Exact-match Redis — when bytes are the contract</h2>
 
@@ -309,7 +309,10 @@ latency_ms ≈ embed + lookup]
 prompt emb + completion]
   HIT --> FP["False positive risk
 wrong sim ≥ τ"]
-  style FP fill:#fef3c7,stroke:#d97706,color:#242424</pre>
+
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  class Q,EMB,ANN,T,HIT,LLM,STORE pipeline
+  style FP fill:#fef3c7,stroke:#d97706,color:#111827</pre>
 
 <h2 id="three-frameworks">Options table — exact vs semantic vs hybrid</h2>
 
@@ -389,7 +392,10 @@ wrong sim ≥ τ"]
   K --> CH[ClickHouse]
   K --> P["Prometheus\nanomalies_detected_total"]
   P --> G[Grafana alert]
-  style K fill:#fef3c7,stroke:#d97706,color:#242424</pre>
+
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  class IE,C,Z,SC,CH,P,G pipeline
+  style K fill:#fef3c7,stroke:#d97706,color:#111827</pre>
 
 <p>Exact z-score on latency catches “slow wrong.” Semantic cache monitoring catches “fast wrong.” Both belong in the same anomalies topic, so on-call doesn’t split brain across Redis logs and Grafana P99.</p>
 

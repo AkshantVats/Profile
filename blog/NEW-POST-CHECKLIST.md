@@ -56,8 +56,11 @@ Use this whenever you publish a post in an existing series.
 
 ### If the post has diagrams
 
-- [ ] Reuse **Mermaid** script + init from a post that already has it (e.g. Experience post 2 or AI Learning Day 2).
-- [ ] Wrap diagrams in `<pre class="mermaid">` (or your series’ pattern).
+- [ ] Read **[DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)** — the only Mermaid standard for this blog.
+- [ ] Reuse **Mermaid** CDN + `blog/assets/blog-diagrams.js` + `blog/assets/blog-diagrams.css`.
+- [ ] Wrap diagrams in `<pre class="mermaid">`.
+- [ ] **Gold reference:** diagram 2 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart`, theme defaults + single `style` accent (`#fef3c7` / `#111827`). Comparisons: `classDef exact` / `semantic` per [DIAGRAM-STYLE.md](DIAGRAM-STYLE.md).
+- [ ] Toggle light/dark on the post — verify **both** themes: light mode = dark text on light fills; dark mode = light/grey text (`#ececea`) on dark fills; cream accent nodes (`#fef3c7`) keep dark text (`#111827`) in **both** themes.
 
 ---
 

@@ -1,79 +1,110 @@
 /**
  * Theme-aware Mermaid for blog posts. Call after mermaid.min.js loads.
- * Re-renders on #theme-toggle so diagrams stay readable in light and dark.
+ * Gold standard: blog/DIAGRAM-STYLE.md — Day 11 diagram 2.
  */
 (function () {
+  var ACCENT_FILL = "#fef3c7";
+  var ACCENT_TEXT = "#111827";
+  var ACCENT_RGB = { r: 254, g: 243, b: 199 };
+
+  var LIGHT_VARS = {
+    darkMode: false,
+    background: "transparent",
+    mainBkg: "transparent",
+    secondBkg: "transparent",
+    tertiaryBkg: "transparent",
+    primaryColor: "#ffffff",
+    primaryTextColor: "#111827",
+    primaryBorderColor: "#059669",
+    secondaryColor: "#f0f4ff",
+    secondaryTextColor: "#111827",
+    secondaryBorderColor: "#2563eb",
+    tertiaryColor: ACCENT_FILL,
+    tertiaryTextColor: ACCENT_TEXT,
+    tertiaryBorderColor: "#d97706",
+    lineColor: "#059669",
+    textColor: "#242424",
+    nodeTextColor: "#111827",
+    titleColor: "#242424",
+    edgeLabelBackground: "#ffffff",
+    clusterBkg: "#f6f6f4",
+    clusterBorder: "#757575",
+    actorBorder: "#059669",
+    actorBkg: "#ffffff",
+    actorTextColor: "#111827",
+    signalColor: "#059669",
+    labelBoxBkgColor: "#ffffff",
+    labelBoxBorderColor: "#059669",
+    labelTextColor: "#111827",
+    noteBkgColor: ACCENT_FILL,
+    noteTextColor: ACCENT_TEXT,
+    noteBorderColor: "#d97706",
+  };
+
+  var DARK_VARS = {
+    darkMode: true,
+    background: "transparent",
+    mainBkg: "transparent",
+    secondBkg: "transparent",
+    tertiaryBkg: "transparent",
+    primaryColor: "#1e3328",
+    primaryTextColor: "#ececea",
+    primaryBorderColor: "#059669",
+    secondaryColor: "#1a2744",
+    secondaryTextColor: "#ececea",
+    secondaryBorderColor: "#2563eb",
+    tertiaryColor: ACCENT_FILL,
+    tertiaryTextColor: ACCENT_TEXT,
+    tertiaryBorderColor: "#d97706",
+    lineColor: "#059669",
+    textColor: "#ececea",
+    nodeTextColor: "#ececea",
+    titleColor: "#ececea",
+    edgeLabelBackground: "#171716",
+    clusterBkg: "#1f1f1e",
+    clusterBorder: "#7c7c74",
+    actorBorder: "#059669",
+    actorBkg: "#1e3328",
+    actorTextColor: "#ececea",
+    signalColor: "#059669",
+    labelBoxBkgColor: "#1e3328",
+    labelBoxBorderColor: "#059669",
+    labelTextColor: "#ececea",
+    noteBkgColor: ACCENT_FILL,
+    noteTextColor: ACCENT_TEXT,
+    noteBorderColor: "#d97706",
+  };
+
+  var DARK_CLASSDEF_REPLACEMENTS = [
+    [
+      /classDef pipeline fill:#ffffff,stroke:#059669,color:#111827/g,
+      "classDef pipeline fill:#1e3328,stroke:#059669,color:#ececea",
+    ],
+    [
+      /classDef exact fill:#ecfdf5,stroke:#059669,color:#111827/g,
+      "classDef exact fill:#1e3328,stroke:#059669,color:#ececea",
+    ],
+    [
+      /classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827/g,
+      "classDef semantic fill:#1a2744,stroke:#2563eb,color:#ececea",
+    ],
+  ];
+
   function isDark() {
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
   function themeVariables() {
-    if (isDark()) {
-      return {
-        background: "transparent",
-        mainBkg: "transparent",
-        secondBkg: "transparent",
-        tertiaryBkg: "transparent",
-        primaryColor: "#1e3328",
-        primaryTextColor: "#ececea",
-        primaryBorderColor: "#5bd37a",
-        secondaryColor: "#1a2744",
-        secondaryTextColor: "#ececea",
-        secondaryBorderColor: "#93c5fd",
-        tertiaryColor: "#3d3420",
-        tertiaryTextColor: "#ececea",
-        tertiaryBorderColor: "#fbbf24",
-        lineColor: "#a8a89e",
-        textColor: "#ececea",
-        nodeTextColor: "#ececea",
-        titleColor: "#ececea",
-        edgeLabelBackground: "#171716",
-        clusterBkg: "#1f1f1e",
-        clusterBorder: "#7c7c74",
-        actorBorder: "#a8a89e",
-        actorBkg: "#1e3328",
-        actorTextColor: "#ececea",
-        signalColor: "#a8a89e",
-        labelBoxBkgColor: "#1e3328",
-        labelBoxBorderColor: "#5bd37a",
-        labelTextColor: "#ececea",
-        noteBkgColor: "#3d3420",
-        noteTextColor: "#ececea",
-        noteBorderColor: "#fbbf24",
-      };
-    }
-    return {
-      background: "transparent",
-      mainBkg: "transparent",
-      secondBkg: "transparent",
-      tertiaryBkg: "transparent",
-      primaryColor: "#ecfdf5",
-      primaryTextColor: "#242424",
-      primaryBorderColor: "#059669",
-      secondaryColor: "#f0f4ff",
-      secondaryTextColor: "#242424",
-      secondaryBorderColor: "#2563eb",
-      tertiaryColor: "#fef3c7",
-      tertiaryTextColor: "#242424",
-      tertiaryBorderColor: "#d97706",
-      lineColor: "#6b6b6b",
-      textColor: "#242424",
-      nodeTextColor: "#242424",
-      titleColor: "#242424",
-      edgeLabelBackground: "#ffffff",
-      clusterBkg: "#f6f6f4",
-      clusterBorder: "#757575",
-      actorBorder: "#6b6b6b",
-      actorBkg: "#ecfdf5",
-      actorTextColor: "#242424",
-      signalColor: "#6b6b6b",
-      labelBoxBkgColor: "#ecfdf5",
-      labelBoxBorderColor: "#059669",
-      labelTextColor: "#242424",
-      noteBkgColor: "#fef3c7",
-      noteTextColor: "#242424",
-      noteBorderColor: "#d97706",
-    };
+    return isDark() ? DARK_VARS : LIGHT_VARS;
+  }
+
+  function adaptSourceForTheme(src) {
+    if (!isDark()) return src;
+    var out = src;
+    DARK_CLASSDEF_REPLACEMENTS.forEach(function (pair) {
+      out = out.replace(pair[0], pair[1]);
+    });
+    return out;
   }
 
   function stashSources() {
@@ -84,45 +115,104 @@
     });
   }
 
-  function restoreSources() {
+  function prepareSourcesForRender() {
     document.querySelectorAll("pre.mermaid").forEach(function (el) {
-      if (el.dataset.mermaidSrc) {
-        // Mermaid may have replaced the original text with <svg> (or left
-        // stale children). Reset the container before re-rendering.
-        el.innerHTML = "";
-        el.textContent = el.dataset.mermaidSrc;
-        el.removeAttribute("data-processed");
+      if (!el.dataset.mermaidSrc) {
+        el.dataset.mermaidSrc = el.textContent.trim();
       }
+      var src = adaptSourceForTheme(el.dataset.mermaidSrc);
+      el.innerHTML = "";
+      el.textContent = src;
+      el.removeAttribute("data-processed");
     });
   }
 
-  function applyReadabilityOverrides() {
-    var vars = themeVariables();
-    var fallbackText = vars.nodeTextColor || vars.textColor || "#242424";
-    var line = vars.lineColor || "#6b6b6b";
+  function parseHex(hex) {
+    var h = hex.replace("#", "");
+    if (h.length === 3) {
+      h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    if (h.length !== 6) return null;
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
 
-    // Post-process the freshly rendered SVGs to keep labels readable.
-    // We intentionally do NOT blanket-overwrite all colors because many
-    // diagrams use per-block `style ... fill/stroke/color` directives.
-    document.querySelectorAll(".prose .mermaid svg").forEach(function (svg) {
-      // If Mermaid didn't explicitly set a label fill, ensure it is readable
-      // for the current theme.
-      svg.querySelectorAll("text").forEach(function (t) {
-        var styleAttr = t.getAttribute("style") || "";
-        var hasFillStyle = styleAttr.includes("fill");
-        var hasFillAttr = t.hasAttribute("fill");
-        if (!hasFillStyle && !hasFillAttr) {
-          t.style.fill = fallbackText;
-        }
-      });
+  function relativeLuminance(r, g, b) {
+    var srgb = [r, g, b].map(function (c) {
+      c = c / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+  }
 
-      // Ensure arrow lines always have a visible stroke.
-      svg.querySelectorAll("[stroke]").forEach(function (el) {
-        var styleAttr = el.getAttribute("style") || "";
-        var hasStrokeStyle = styleAttr.includes("stroke");
-        if (!hasStrokeStyle) {
-          el.style.stroke = line;
-        }
+  function parseCssColor(value) {
+    if (!value || value === "none" || value === "transparent") return null;
+    var v = value.trim().toLowerCase();
+    if (v.startsWith("#")) return parseHex(v);
+    var rgb = v.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?/);
+    if (rgb) {
+      var alpha = rgb[4] !== undefined ? parseFloat(rgb[4]) : 1;
+      if (alpha <= 0) return null;
+      return {
+        r: Math.round(parseFloat(rgb[1])),
+        g: Math.round(parseFloat(rgb[2])),
+        b: Math.round(parseFloat(rgb[3])),
+      };
+    }
+    return null;
+  }
+
+  function colorFromElement(el) {
+    if (!el) return null;
+    var style = el.getAttribute("style") || "";
+    var styleFill = style.match(/(?:^|;)\s*fill\s*:\s*([^;]+)/i);
+    if (styleFill) return parseCssColor(styleFill[1]);
+    var attrFill = el.getAttribute("fill");
+    if (attrFill) return parseCssColor(attrFill);
+    try {
+      return parseCssColor(window.getComputedStyle(el).fill);
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function shapeFill(group) {
+    var shapes = group.querySelectorAll("rect, polygon, circle, ellipse, path");
+    var best = null;
+    var bestLum = -1;
+    shapes.forEach(function (shape) {
+      var fill = colorFromElement(shape);
+      if (!fill) return;
+      var lum = relativeLuminance(fill.r, fill.g, fill.b);
+      if (lum > bestLum) {
+        bestLum = lum;
+        best = fill;
+      }
+    });
+    return best;
+  }
+
+  function isAccentFill(rgb) {
+    var dr = Math.abs(rgb.r - ACCENT_RGB.r);
+    var dg = Math.abs(rgb.g - ACCENT_RGB.g);
+    var db = Math.abs(rgb.b - ACCENT_RGB.b);
+    return dr <= 8 && dg <= 8 && db <= 8;
+  }
+
+  function setLabelColor(labelEl, color) {
+    labelEl.style.setProperty("fill", color, "important");
+    labelEl.setAttribute("fill", color);
+  }
+
+  function fixAccentNodes() {
+    document.querySelectorAll(".prose .mermaid svg .node").forEach(function (group) {
+      var fill = shapeFill(group);
+      if (!fill || !isAccentFill(fill)) return;
+      group.querySelectorAll("text, tspan").forEach(function (t) {
+        setLabelColor(t, ACCENT_TEXT);
       });
     });
   }
@@ -130,19 +220,21 @@
   async function renderBlogMermaid() {
     if (typeof mermaid === "undefined") return;
     stashSources();
-    restoreSources();
+    prepareSourcesForRender();
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
       theme: "base",
       themeVariables: themeVariables(),
+      flowchart: { htmlLabels: false },
+      sequence: { useMaxWidth: true },
     });
     var nodes = document.querySelectorAll("pre.mermaid");
     if (nodes.length) {
       await mermaid.run({ nodes: nodes });
     }
-
-    applyReadabilityOverrides();
+    fixAccentNodes();
+    requestAnimationFrame(fixAccentNodes);
   }
 
   window.renderBlogMermaid = renderBlogMermaid;
