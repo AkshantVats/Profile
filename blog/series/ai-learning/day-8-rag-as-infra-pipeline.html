@@ -235,11 +235,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   B --> C["3. Index<br/><em>HNSW / IVF structure</em>"]
   C --> D["4. Retrieve<br/><em>Top-k ANN query</em>"]
   D --> E["5. Generate<br/><em>LLM with context</em>"]
-  style A fill:#f0f4ff,stroke:#2563eb
-  style B fill:#f0f4ff,stroke:#2563eb
-  style C fill:#f0f4ff,stroke:#2563eb
-  style D fill:#fef3c7,stroke:#d97706
-  style E fill:#ecfdf5,stroke:#059669</pre>
+  style A fill:#f0f4ff,stroke:#2563eb,color:#242424
+  style B fill:#f0f4ff,stroke:#2563eb,color:#242424
+  style C fill:#f0f4ff,stroke:#2563eb,color:#242424
+  style D fill:#fef3c7,stroke:#d97706,color:#242424
+  style E fill:#ecfdf5,stroke:#059669,color:#242424</pre>
 
 <p>Stages 1–3 run at <strong>ingest time</strong> — when documents enter the system. Stage 4 runs at <strong>query time</strong>, and stage 5 is the LLM call. The common mistake is optimizing stage 5 (model selection, prompt caching, temperature) while stages 1–4 are unmonitored. Day 7 covered prompt caching — a stage-5 optimization. Today is about everything before the model.</p>
 
@@ -324,7 +324,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
   QPS["QPS ceiling"] -.->|bottleneck| ANN
   style QPS fill:#ff6b6b,color:#fff
-  style ANN fill:#fef3c7,stroke:#d97706</pre>
+  style ANN fill:#fef3c7,stroke:#d97706,color:#242424</pre>
 
 <p>The bottleneck is usually not the ANN search itself — HNSW can return top-10 from a million vectors in single-digit milliseconds on a warm index. The bottleneck is the <strong>fan-in pattern</strong>: query embedding + ANN search + optional re-ranking + context assembly, all sequential, all before the LLM sees a token. At 50 QPS, each query gets 20ms of wall clock. If embedding alone takes 30ms because you are calling an external API, you are already over budget before retrieval starts.</p>
 

@@ -360,7 +360,14 @@ def write_cover(slug: str, img: Image.Image) -> None:
     OG_DIR.mkdir(parents=True, exist_ok=True)
     out = resize_cover(img)
     cover_path = COVERS_DIR / f"{slug}.png"
-    out.save(cover_path, "PNG", optimize=True)
+    # For a couple of newer deterministic covers, we want less PNG
+    # post-processing so the output doesn't compress down into small
+    # placeholders (keep them "rich" / infographic-like).
+    optimize_png = slug not in {
+        "ota-at-scale-at-least-once-is-a-feature",
+        "day-11-semantic-caching-vs-exact-match-redis",
+    }
+    out.save(cover_path, "PNG", optimize=optimize_png)
     shutil.copy2(cover_path, OG_DIR / f"{slug}.png")
     print(f"  ✓ {slug}.png  ({out.size[0]}×{out.size[1]})  badge: {SERIES_LABEL.get(slug, '—')}")
 

@@ -256,8 +256,8 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     V -->|sim ≥ τ| OUT2[Nearest stored completion]
     V -->|sim < τ| MISS[Miss → full LLM path]
   end
-  style semantic fill:#f0f4ff,stroke:#2563eb
-  style exact fill:#ecfdf5,stroke:#059669</pre>
+  style semantic fill:#f0f4ff,stroke:#2563eb,color:#242424
+  style exact fill:#ecfdf5,stroke:#059669,color:#242424</pre>
 
 <h2 id="continuous-batching">Exact-match Redis — when bytes are the contract</h2>
 
@@ -309,7 +309,7 @@ latency_ms ≈ embed + lookup]
 prompt emb + completion]
   HIT --> FP["False positive risk
 wrong sim ≥ τ"]
-  style FP fill:#fef3c7,stroke:#d97706</pre>
+  style FP fill:#fef3c7,stroke:#d97706,color:#242424</pre>
 
 <h2 id="three-frameworks">Options table — exact vs semantic vs hybrid</h2>
 
@@ -389,7 +389,7 @@ wrong sim ≥ τ"]
   K --> CH[ClickHouse]
   K --> P["Prometheus\nanomalies_detected_total"]
   P --> G[Grafana alert]
-  style K fill:#fef3c7,stroke:#d97706</pre>
+  style K fill:#fef3c7,stroke:#d97706,color:#242424</pre>
 
 <p>Exact z-score on latency catches “slow wrong.” Semantic cache monitoring catches “fast wrong.” Both belong in the same anomalies topic, so on-call doesn’t split brain across Redis logs and Grafana P99.</p>
 
