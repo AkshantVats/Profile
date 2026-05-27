@@ -87,9 +87,43 @@
   function restoreSources() {
     document.querySelectorAll("pre.mermaid").forEach(function (el) {
       if (el.dataset.mermaidSrc) {
+        // Mermaid may have replaced the original text with <svg> (or left
+        // stale children). Reset the container before re-rendering.
+        el.innerHTML = "";
         el.textContent = el.dataset.mermaidSrc;
         el.removeAttribute("data-processed");
       }
+    });
+  }
+
+  function applyReadabilityOverrides() {
+    var vars = themeVariables();
+    var fallbackText = vars.nodeTextColor || vars.textColor || "#242424";
+    var line = vars.lineColor || "#6b6b6b";
+
+    // Post-process the freshly rendered SVGs to keep labels readable.
+    // We intentionally do NOT blanket-overwrite all colors because many
+    // diagrams use per-block `style ... fill/stroke/color` directives.
+    document.querySelectorAll(".prose .mermaid svg").forEach(function (svg) {
+      // If Mermaid didn't explicitly set a label fill, ensure it is readable
+      // for the current theme.
+      svg.querySelectorAll("text").forEach(function (t) {
+        var styleAttr = t.getAttribute("style") || "";
+        var hasFillStyle = styleAttr.includes("fill");
+        var hasFillAttr = t.hasAttribute("fill");
+        if (!hasFillStyle && !hasFillAttr) {
+          t.style.fill = fallbackText;
+        }
+      });
+
+      // Ensure arrow lines always have a visible stroke.
+      svg.querySelectorAll("[stroke]").forEach(function (el) {
+        var styleAttr = el.getAttribute("style") || "";
+        var hasStrokeStyle = styleAttr.includes("stroke");
+        if (!hasStrokeStyle) {
+          el.style.stroke = line;
+        }
+      });
     });
   }
 
@@ -107,6 +141,8 @@
     if (nodes.length) {
       await mermaid.run({ nodes: nodes });
     }
+
+    applyReadabilityOverrides();
   }
 
   window.renderBlogMermaid = renderBlogMermaid;
