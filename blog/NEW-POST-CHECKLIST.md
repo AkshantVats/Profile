@@ -54,13 +54,46 @@ Use this whenever you publish a post in an existing series.
 - [ ] **Tags** in `.post-tags` if you use filters on the blog index.
 - [ ] Series footer / “Up next” if your series uses it.
 
-### If the post has diagrams
+### Diagrams (required)
 
-- [ ] Read **[DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)** — the only Mermaid standard for this blog.
-- [ ] Reuse **Mermaid** CDN + `blog/assets/blog-diagrams.js` + `blog/assets/blog-diagrams.css`.
-- [ ] Wrap diagrams in `<pre class="mermaid">`.
-- [ ] **Gold reference:** diagram 2 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart`, theme defaults + single `style` accent (`#fef3c7` / `#111827`). Comparisons: `classDef exact` / `semantic` per [DIAGRAM-STYLE.md](DIAGRAM-STYLE.md).
-- [ ] Toggle light/dark on the post — verify **both** themes: light mode = dark text on light fills; dark mode = light/grey text (`#ececea`) on dark fills; cream accent nodes (`#fef3c7`) keep dark text (`#111827`) in **both** themes.
+Architecture, data-path, and flow posts **must** include Mermaid diagrams. Any post with `<pre class="mermaid">` blocks **must** follow this section — no exceptions.
+
+- [ ] Read **[DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)** — the only Mermaid standard for this blog (GitHub Primer palette, `theme: 'base'`, shared assets).
+- [ ] **MUST** link shared assets in every post with diagrams:
+  - `<link rel="stylesheet" href="../../assets/blog-diagrams.css">` in `<head>`
+  - `<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>` before `</body>`
+  - `<script src="../../assets/blog-diagrams.js"></script>` after Mermaid CDN (adjust `../../` depth to match series folder)
+- [ ] **MUST** wrap diagram source in `<pre class="mermaid">` (not fenced markdown alone).
+- [ ] **MUST** use the standard `classDef` pattern from [DIAGRAM-STYLE.md](DIAGRAM-STYLE.md). Copy this block into every comparison or pipeline diagram:
+
+  ```
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  classDef accent fill:#fef3c7,stroke:#d97706,color:#111827
+  classDef exact fill:#ecfdf5,stroke:#059669,color:#111827
+  classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827
+  ```
+
+  Apply classes to nodes; use a single inline `style Node fill:#fef3c7,stroke:#d97706,color:#111827` only for accent/warning/Kafka nodes.
+- [ ] **Gold reference:** diagram 2 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart LR`, `classDef pipeline` on default nodes, one cream accent via `style`.
+- [ ] **MUST** run automated verification before push:
+
+  ```bash
+  node scripts/verify-blog-diagrams.mjs --slug <slug>
+  ```
+
+  Use `day11` or `ota` for known posts; add a new entry to `scripts/verify-blog-diagrams.mjs` when shipping a post with diagrams. Exit code must be `0`.
+- [ ] **MUST** toggle `#theme-toggle` in the browser and visually confirm **both** themes:
+  - **Light:** dark labels (`#111827`) on light/white fills; cream accent keeps dark text.
+  - **Dark:** light/grey labels (`#ececea`) on dark green/blue fills; cream accent keeps dark text (`#111827`).
+
+**Anti-patterns (do not ship):**
+
+- `subgraph` wrappers for simple parallel paths — use flat `flowchart LR` / `flowchart TB` with `classDef` instead.
+- Inline `style` on every node — use `classDef` + `class`; reserve inline `style` for one accent node per diagram.
+- White or near-white text (`#fff`, `#ececea`) on pipeline/default nodes in light mode.
+- Light text on dark pipeline fills without dark-mode `classDef` swap (shared JS handles swap — do not fight it with CSS `!important`).
+- Missing `blog-diagrams.css` / `blog-diagrams.js` while using Mermaid blocks.
+- `htmlLabels: true` or custom Mermaid init that bypasses `blog-diagrams.js`.
 
 ---
 

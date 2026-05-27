@@ -117,3 +117,74 @@ Serve repo root, open the post, toggle `#theme-toggle`:
 - `#a7f3d0` / `#93c5fd` mint/sky fills with theme-light label color
 - White node labels on dark fills
 - `htmlLabels: true`
+
+---
+
+## For agents / future posts
+
+Use this section when drafting or editing any Profile blog post with Mermaid diagrams.
+
+### Step-by-step
+
+1. **Copy HTML shell** from the latest post in the same series (nav, theme toggle, Mermaid CDN + shared assets).
+2. **Read this file** and [NEW-POST-CHECKLIST.md](NEW-POST-CHECKLIST.md) § Diagrams (required).
+3. **Author diagrams** as flat flowcharts with `classDef` (see template below). Gold reference: Day 11 diagram 2.
+4. **Register the post** in `scripts/verify-blog-diagrams.mjs` (`slug`, `path`, `diagrams` count, `requiredClassDefs`).
+5. **Run** `node scripts/verify-blog-diagrams.mjs --slug <slug>` — must exit `0`.
+6. **Visual pass:** serve repo root (`python3 -m http.server 8080`), open the post, toggle light/dark, confirm labels readable on every node.
+
+### Required HTML head / body links
+
+Adjust `../../` depth for your series folder (`blog/series/<series>/` → two levels up to `blog/assets/`).
+
+```html
+<!-- in <head> -->
+<link rel="stylesheet" href="../../assets/blog-diagrams.css">
+
+<!-- before </body>, after inline theme/post scripts -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="../../assets/blog-diagrams.js"></script>
+```
+
+Do **not** add a second `mermaid.initialize()` — `blog-diagrams.js` owns init and re-render on theme toggle.
+
+### Mermaid block template (copy)
+
+**Comparison (two paths):**
+
+```html
+<pre class="mermaid">flowchart TB
+  A[Left path node] --> B[Left outcome]
+  C[Right path node] --> D[Right outcome]
+
+  classDef exact fill:#ecfdf5,stroke:#059669,color:#111827
+  classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827
+  class A,B exact
+  class C,D semantic</pre>
+```
+
+**Pipeline + single accent (gold pattern):**
+
+```html
+<pre class="mermaid">flowchart LR
+  Q[Input] --> P[Process]
+  P --> OUT[Output]
+  P --> WARN["Risk / Kafka / warning node"]
+
+  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
+  class Q,P,OUT pipeline
+  style WARN fill:#fef3c7,stroke:#d97706,color:#111827</pre>
+```
+
+### Verify script
+
+```bash
+node scripts/verify-blog-diagrams.mjs              # all registered posts
+node scripts/verify-blog-diagrams.mjs --slug day11 # one post
+```
+
+Checks: shared asset links, required `classDef` strings, diagram count, light/dark label contrast (Playwright). Requires `npm install` (playwright) from repo root.
+
+### Cursor rule
+
+Agents editing `blog/**/*.html` should also follow `.cursor/rules/blog-diagrams.mdc`.

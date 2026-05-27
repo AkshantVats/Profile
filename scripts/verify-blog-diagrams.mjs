@@ -1,6 +1,7 @@
 /**
  * Verify blog Mermaid diagram text visibility (light + dark).
  * Run: node scripts/verify-blog-diagrams.mjs
+ *      node scripts/verify-blog-diagrams.mjs --slug day11
  */
 import { chromium } from "playwright";
 import { createServer } from "http";
@@ -241,15 +242,38 @@ async function verifyPost(page, port, post) {
   return results;
 }
 
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let slug = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--slug" && args[i + 1]) {
+      slug = args[++i];
+    } else if (args[i] === "--help" || args[i] === "-h") {
+      console.log("Usage: node scripts/verify-blog-diagrams.mjs [--slug <slug>]");
+      console.log(`Known slugs: ${POSTS.map((p) => p.slug).join(", ")}`);
+      process.exit(0);
+    }
+  }
+  return slug;
+}
+
 async function main() {
+  const slugFilter = parseArgs();
+  const posts = slugFilter ? POSTS.filter((p) => p.slug === slugFilter) : POSTS;
+  if (slugFilter && !posts.length) {
+    console.error(`Unknown slug "${slugFilter}". Known: ${POSTS.map((p) => p.slug).join(", ")}`);
+    process.exit(1);
+  }
+
   const { server, port } = await serve();
   const browser = await chromium.launch();
   const page = await browser.newPage();
   let failed = false;
 
   console.log("\n=== Blog diagram theme verification ===\n");
+  if (slugFilter) console.log(`Filter: --slug ${slugFilter}\n`);
 
-  for (const post of POSTS) {
+  for (const post of posts) {
     console.log(`## ${post.slug.toUpperCase()} (${post.path})\n`);
     const results = await verifyPost(page, port, post);
 

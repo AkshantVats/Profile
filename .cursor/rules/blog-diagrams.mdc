@@ -1,0 +1,18 @@
+---
+description: Mermaid diagrams must use shared blog-diagrams assets and classDef gold standard
+globs: blog/**/*.html
+alwaysApply: false
+---
+
+# Blog Mermaid diagrams
+
+When adding or editing Mermaid in Profile blog posts:
+
+1. **Read** `blog/DIAGRAM-STYLE.md` and `blog/NEW-POST-CHECKLIST.md` § Diagrams (required).
+2. **Include** `blog/assets/blog-diagrams.css` (head) + Mermaid CDN + `blog/assets/blog-diagrams.js` (body). Do not duplicate `mermaid.initialize()`.
+3. **Author** flat `flowchart LR` / `flowchart TB` — no `subgraph` for simple parallel paths.
+4. **Use `classDef`** with light-mode hex from DIAGRAM-STYLE (`pipeline`, `exact`, `semantic`); one inline `style` for cream accent nodes only (`#fef3c7` / `#111827`).
+5. **Register** new posts in `scripts/verify-blog-diagrams.mjs` and run `node scripts/verify-blog-diagrams.mjs --slug <slug>` before push.
+6. **Verify both themes** — dark text on light fills (light mode); `#ececea` text on dark fills (dark mode); cream accent keeps `#111827` in both.
+
+**Do not:** inline `style` spam, white text on pipeline nodes, CSS `!important` on `.node text`, or mint/sky ad-hoc fills.
