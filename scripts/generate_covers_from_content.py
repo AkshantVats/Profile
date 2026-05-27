@@ -67,6 +67,10 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html",
     "building-ai-inference-observability": ROOT
     / "blog/series/inference-ai-project/building-ai-inference-observability.html",
+    "ota-at-scale-at-least-once-is-a-feature": ROOT
+    / "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
+    "day-11-semantic-caching-vs-exact-match-redis": ROOT
+    / "blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
 }
 
 # Short display titles for cover art (strip "Day N of …" prefixes from h1)
@@ -90,6 +94,8 @@ TITLE_OVERRIDE: dict[str, str] = {
     "five-thousand-geo-events-per-second": "Five Thousand Geo-Events\nPer Second — Shape of the Stream",
     "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "Ten Thousand Concurrent Requests\n— EKS Patterns That Actually Helped",
     "building-ai-inference-observability": "Building a Production-Grade\nAI Inference Observability Pipeline",
+    "ota-at-scale-at-least-once-is-a-feature": "OTA at Scale — At-Least-Once\nIs a Feature, Not a Bug",
+    "day-11-semantic-caching-vs-exact-match-redis": "Semantic Caching vs\nExact-Match Redis",
 }
 
 # Topic bullets fed into image-generation prompts
@@ -177,6 +183,16 @@ TOPIC_HINTS: dict[str, str] = {
         "HTTP ingest → Rust Axum + WAL → Kafka → Go consumer → ClickHouse + Redis overflow buffer, "
         "prefill/decode latency fields, tenant rate limits, circuit breaker, Grafana tail"
     ),
+    "ota-at-scale-at-least-once-is-a-feature": (
+        "Walmart OTA delivery semantics under intermittent networks: staged manifests + durable device acks, "
+        "at-least-once retry with idempotent apply keys (device_id + target_version + image hash), "
+        "quarantine lane + manifest rollback, and z-score edge anomaly filtering upstream"
+    ),
+    "day-11-semantic-caching-vs-exact-match-redis": (
+        "Exact-match Redis vs semantic embedding ANN cache: byte hash keys vs embedding vectors, "
+        "similarity threshold τ tuned like tail-latency SLO, false positive risk + observability, "
+        "hybrid recommendation, and anomalies fan-in with z-score latency events"
+    ),
 }
 
 ACCENT: dict[str, str] = {
@@ -200,6 +216,8 @@ ACCENT: dict[str, str] = {
     "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "electric blue #64b4ff",
     "building-ai-inference-observability": "violet #a78bfa",
+    "ota-at-scale-at-least-once-is-a-feature": "electric blue #64b4ff",
+    "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
 }
 
 

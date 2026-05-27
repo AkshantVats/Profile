@@ -64,7 +64,9 @@ SERIES_LABEL: dict[str, str] = {
     "delphi-aletheia-feed-sub-second-price-visibility": "EXPERIENCE SERIES",
     "we-killed-redpanda-on-purpose-chaos-as-commit-message": "EXPERIENCE SERIES",
     "reading-victoriametrics-source-oss-interview-prep": "EXPERIENCE SERIES",
+    "ota-at-scale-at-least-once-is-a-feature": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
+    "day-11-semantic-caching-vs-exact-match-redis": "AI LEARNING SERIES",
 }
 
 # slug → source filename under assets dir (user-provided infographic art)

@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
+          "kicker": "Day 11 of N",
+          "title": "Semantic Caching vs Exact-Match Redis",
+          "desc": "Exact Redis when bytes are the contract; semantic cache when paraphrase is the traffic — tune ANN threshold like tail latency and wire false positives into the same anomalies queue as z-score latency detection."
+        },
+        {
           "href": "blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html",
           "kicker": "Day 10 of N",
           "title": "Serving Frameworks Compared as Queue Schedulers",
@@ -80,6 +86,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
+          "kicker": "Experience 11 of N",
+          "title": "OTA at Scale — At-Least-Once Is a Feature, Not a Bug",
+          "desc": "Walmart WeIoT OTA under flaky networks: idempotent firmware apply, durable acks as Kafka offsets in disguise, quarantine lanes, and why z-score anomaly detection is edge filtering moved upstream."
+        },
         {
           "href": "blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html",
           "kicker": "Experience 10 of N",
