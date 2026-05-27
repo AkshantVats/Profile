@@ -1,55 +1,110 @@
 /**
  * Theme-aware Mermaid for blog posts. Call after mermaid.min.js loads.
- * Gold standard: blog/DIAGRAM-STYLE.md — light node fills, green stroke, dark labels in both themes.
+ * Gold standard: blog/DIAGRAM-STYLE.md — Day 11 diagram 2.
  */
 (function () {
-  var NODE_TEXT = "#111827";
-  var NODE_TEXT_ALT = "#242424";
-  var PAGE_TEXT_LIGHT = "#242424";
-  var PAGE_TEXT_DARK = "#ececea";
-  var LUMINANCE_LIGHT_FILL = 0.55;
+  var ACCENT_FILL = "#fef3c7";
+  var ACCENT_TEXT = "#111827";
+  var ACCENT_RGB = { r: 254, g: 243, b: 199 };
+
+  var LIGHT_VARS = {
+    darkMode: false,
+    background: "transparent",
+    mainBkg: "transparent",
+    secondBkg: "transparent",
+    tertiaryBkg: "transparent",
+    primaryColor: "#ffffff",
+    primaryTextColor: "#111827",
+    primaryBorderColor: "#059669",
+    secondaryColor: "#f0f4ff",
+    secondaryTextColor: "#111827",
+    secondaryBorderColor: "#2563eb",
+    tertiaryColor: ACCENT_FILL,
+    tertiaryTextColor: ACCENT_TEXT,
+    tertiaryBorderColor: "#d97706",
+    lineColor: "#059669",
+    textColor: "#242424",
+    nodeTextColor: "#111827",
+    titleColor: "#242424",
+    edgeLabelBackground: "#ffffff",
+    clusterBkg: "#f6f6f4",
+    clusterBorder: "#757575",
+    actorBorder: "#059669",
+    actorBkg: "#ffffff",
+    actorTextColor: "#111827",
+    signalColor: "#059669",
+    labelBoxBkgColor: "#ffffff",
+    labelBoxBorderColor: "#059669",
+    labelTextColor: "#111827",
+    noteBkgColor: ACCENT_FILL,
+    noteTextColor: ACCENT_TEXT,
+    noteBorderColor: "#d97706",
+  };
+
+  var DARK_VARS = {
+    darkMode: true,
+    background: "transparent",
+    mainBkg: "transparent",
+    secondBkg: "transparent",
+    tertiaryBkg: "transparent",
+    primaryColor: "#1e3328",
+    primaryTextColor: "#ececea",
+    primaryBorderColor: "#059669",
+    secondaryColor: "#1a2744",
+    secondaryTextColor: "#ececea",
+    secondaryBorderColor: "#2563eb",
+    tertiaryColor: ACCENT_FILL,
+    tertiaryTextColor: ACCENT_TEXT,
+    tertiaryBorderColor: "#d97706",
+    lineColor: "#059669",
+    textColor: "#ececea",
+    nodeTextColor: "#ececea",
+    titleColor: "#ececea",
+    edgeLabelBackground: "#171716",
+    clusterBkg: "#1f1f1e",
+    clusterBorder: "#7c7c74",
+    actorBorder: "#059669",
+    actorBkg: "#1e3328",
+    actorTextColor: "#ececea",
+    signalColor: "#059669",
+    labelBoxBkgColor: "#1e3328",
+    labelBoxBorderColor: "#059669",
+    labelTextColor: "#ececea",
+    noteBkgColor: ACCENT_FILL,
+    noteTextColor: ACCENT_TEXT,
+    noteBorderColor: "#d97706",
+  };
+
+  var DARK_CLASSDEF_REPLACEMENTS = [
+    [
+      /classDef pipeline fill:#ffffff,stroke:#059669,color:#111827/g,
+      "classDef pipeline fill:#1e3328,stroke:#059669,color:#ececea",
+    ],
+    [
+      /classDef exact fill:#ecfdf5,stroke:#059669,color:#111827/g,
+      "classDef exact fill:#1e3328,stroke:#059669,color:#ececea",
+    ],
+    [
+      /classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827/g,
+      "classDef semantic fill:#1a2744,stroke:#2563eb,color:#ececea",
+    ],
+  ];
 
   function isDark() {
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
   function themeVariables() {
-    var pageText = isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
-    var line = isDark() ? "#a8a89e" : "#6b6b6b";
-    var nodeBkg = isDark() ? "#1e3328" : "#ecfdf5";
-    var nodeText = isDark() ? PAGE_TEXT_DARK : NODE_TEXT;
-    return {
-      background: "transparent",
-      mainBkg: "transparent",
-      secondBkg: "transparent",
-      tertiaryBkg: "transparent",
-      primaryColor: nodeBkg,
-      primaryTextColor: nodeText,
-      primaryBorderColor: "#059669",
-      secondaryColor: isDark() ? "#1a2744" : "#f0f4ff",
-      secondaryTextColor: nodeText,
-      secondaryBorderColor: "#2563eb",
-      tertiaryColor: "#fef3c7",
-      tertiaryTextColor: NODE_TEXT,
-      tertiaryBorderColor: "#d97706",
-      lineColor: line,
-      textColor: pageText,
-      nodeTextColor: nodeText,
-      titleColor: pageText,
-      edgeLabelBackground: isDark() ? "#171716" : "#ffffff",
-      clusterBkg: isDark() ? "#1f1f1e" : "#f6f6f4",
-      clusterBorder: isDark() ? "#7c7c74" : "#757575",
-      actorBorder: line,
-      actorBkg: nodeBkg,
-      actorTextColor: nodeText,
-      signalColor: line,
-      labelBoxBkgColor: nodeBkg,
-      labelBoxBorderColor: "#059669",
-      labelTextColor: nodeText,
-      noteBkgColor: "#fef3c7",
-      noteTextColor: NODE_TEXT,
-      noteBorderColor: "#d97706",
-    };
+    return isDark() ? DARK_VARS : LIGHT_VARS;
+  }
+
+  function adaptSourceForTheme(src) {
+    if (!isDark()) return src;
+    var out = src;
+    DARK_CLASSDEF_REPLACEMENTS.forEach(function (pair) {
+      out = out.replace(pair[0], pair[1]);
+    });
+    return out;
   }
 
   function stashSources() {
@@ -60,13 +115,15 @@
     });
   }
 
-  function restoreSources() {
+  function prepareSourcesForRender() {
     document.querySelectorAll("pre.mermaid").forEach(function (el) {
-      if (el.dataset.mermaidSrc) {
-        el.innerHTML = "";
-        el.textContent = el.dataset.mermaidSrc;
-        el.removeAttribute("data-processed");
+      if (!el.dataset.mermaidSrc) {
+        el.dataset.mermaidSrc = el.textContent.trim();
       }
+      var src = adaptSourceForTheme(el.dataset.mermaidSrc);
+      el.innerHTML = "";
+      el.textContent = src;
+      el.removeAttribute("data-processed");
     });
   }
 
@@ -116,47 +173,10 @@
     var attrFill = el.getAttribute("fill");
     if (attrFill) return parseCssColor(attrFill);
     try {
-      var computed = window.getComputedStyle(el).fill;
-      return parseCssColor(computed);
+      return parseCssColor(window.getComputedStyle(el).fill);
     } catch (_e) {
       return null;
     }
-  }
-
-  function isLightFill(rgb) {
-    return relativeLuminance(rgb.r, rgb.g, rgb.b) > LUMINANCE_LIGHT_FILL;
-  }
-
-  function textColorForFill(fillColor) {
-    var rgb = parseCssColor(fillColor);
-    if (!rgb) return isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
-    return isLightFill(rgb) ? NODE_TEXT : isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
-  }
-
-  function setLabelColor(labelEl, color) {
-    labelEl.style.setProperty("fill", color, "important");
-    labelEl.style.setProperty("color", color, "important");
-    labelEl.setAttribute("fill", color);
-    labelEl.querySelectorAll("span, p, div").forEach(function (child) {
-      child.style.setProperty("color", color, "important");
-    });
-  }
-
-  function applyTextColorToGroup(group, fillColor) {
-    var textColor = fillColor
-      ? textColorForFill(fillColor)
-      : isDark()
-        ? PAGE_TEXT_DARK
-        : PAGE_TEXT_LIGHT;
-    group.querySelectorAll("text, tspan").forEach(function (t) {
-      setLabelColor(t, textColor);
-    });
-    group.querySelectorAll("foreignObject").forEach(function (fo) {
-      fo.style.setProperty("color", textColor, "important");
-      fo.querySelectorAll(".nodeLabel, .label, span, p, div").forEach(function (el) {
-        el.style.setProperty("color", textColor, "important");
-      });
-    });
   }
 
   function shapeFill(group) {
@@ -172,61 +192,27 @@
         best = fill;
       }
     });
-    if (best) return best;
-    var cluster = group.closest(".cluster");
-    if (cluster && cluster !== group) {
-      return shapeFill(cluster);
-    }
-    return null;
+    return best;
   }
 
-  function applyReadabilityOverrides() {
-    var vars = themeVariables();
-    var fallbackText = vars.textColor || PAGE_TEXT_LIGHT;
-    var line = vars.lineColor || "#6b6b6b";
+  function isAccentFill(rgb) {
+    var dr = Math.abs(rgb.r - ACCENT_RGB.r);
+    var dg = Math.abs(rgb.g - ACCENT_RGB.g);
+    var db = Math.abs(rgb.b - ACCENT_RGB.b);
+    return dr <= 8 && dg <= 8 && db <= 8;
+  }
 
-    document.querySelectorAll(".prose .mermaid svg").forEach(function (svg) {
-      svg.querySelectorAll(".node").forEach(function (group) {
-        var fill = shapeFill(group);
-        applyTextColorToGroup(
-          group,
-          fill ? "rgb(" + fill.r + "," + fill.g + "," + fill.b + ")" : null
-        );
-      });
+  function setLabelColor(labelEl, color) {
+    labelEl.style.setProperty("fill", color, "important");
+    labelEl.setAttribute("fill", color);
+  }
 
-      svg.querySelectorAll(".cluster").forEach(function (group) {
-        var fill = shapeFill(group);
-        applyTextColorToGroup(
-          group,
-          fill ? "rgb(" + fill.r + "," + fill.g + "," + fill.b + ")" : null
-        );
-      });
-
-      svg.querySelectorAll(".edgeLabel").forEach(function (labelGroup) {
-        var bg = labelGroup.querySelector("rect, polygon");
-        var bgFill = colorFromElement(bg);
-        if (bgFill) {
-          applyTextColorToGroup(
-            labelGroup,
-            "rgb(" + bgFill.r + "," + bgFill.g + "," + bgFill.b + ")"
-          );
-        }
-      });
-
-      svg.querySelectorAll("text").forEach(function (t) {
-        var parentNode = t.closest(".node, .cluster, .edgeLabel");
-        if (parentNode) return;
-        var styleAttr = t.getAttribute("style") || "";
-        if (!styleAttr.includes("fill") && !t.hasAttribute("fill")) {
-          t.style.fill = fallbackText;
-        }
-      });
-
-      svg.querySelectorAll("[stroke]").forEach(function (el) {
-        var styleAttr = el.getAttribute("style") || "";
-        if (!styleAttr.includes("stroke")) {
-          el.style.stroke = line;
-        }
+  function fixAccentNodes() {
+    document.querySelectorAll(".prose .mermaid svg .node").forEach(function (group) {
+      var fill = shapeFill(group);
+      if (!fill || !isAccentFill(fill)) return;
+      group.querySelectorAll("text, tspan").forEach(function (t) {
+        setLabelColor(t, ACCENT_TEXT);
       });
     });
   }
@@ -234,7 +220,7 @@
   async function renderBlogMermaid() {
     if (typeof mermaid === "undefined") return;
     stashSources();
-    restoreSources();
+    prepareSourcesForRender();
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
@@ -247,9 +233,8 @@
     if (nodes.length) {
       await mermaid.run({ nodes: nodes });
     }
-
-    applyReadabilityOverrides();
-    requestAnimationFrame(applyReadabilityOverrides);
+    fixAccentNodes();
+    requestAnimationFrame(fixAccentNodes);
   }
 
   window.renderBlogMermaid = renderBlogMermaid;

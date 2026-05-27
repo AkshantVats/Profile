@@ -40,27 +40,8 @@
 .prose .mermaid svg[style*="background"] {
   background: transparent !important;
 }
-/* HTML labels (foreignObject) — inherit readable color from JS post-process. */
-.prose .mermaid foreignObject {
-  overflow: visible;
-}
-.prose .mermaid foreignObject .nodeLabel,
-.prose .mermaid foreignObject .label,
-.prose .mermaid foreignObject span,
-.prose .mermaid foreignObject p,
-.prose .mermaid foreignObject div {
-  line-height: 1.25;
-}
-/* SVG text labels — gold standard: dark text on light node fills (both themes). */
 .prose .mermaid .node text,
-.prose .mermaid .node tspan {
-  fill: #111827 !important;
-  font-family: var(--ui, system-ui, sans-serif);
-}
-html[data-theme="dark"] .prose .mermaid .node text,
-html[data-theme="dark"] .prose .mermaid .node tspan {
-  fill: #111827 !important;
-}
+.prose .mermaid .node tspan,
 .prose .mermaid .cluster text,
 .prose .mermaid .edgeLabel text {
   font-family: var(--ui, system-ui, sans-serif);
