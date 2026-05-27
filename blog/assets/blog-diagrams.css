@@ -1,4 +1,5 @@
-/* Shared diagram styles — works in light and dark (uses post :root variables). */
+/* Shared diagram styles — works in light and dark (uses post :root variables).
+   Mermaid authoring standard: blog/DIAGRAM-STYLE.md (gold ref: Day 11 diagram 2). */
 .diagram-box,
 .prose .ascii-diagram {
   background: var(--code-bg, var(--surface));
@@ -38,4 +39,21 @@
 /* Mermaid may emit a solid diagram background — keep the post surface visible. */
 .prose .mermaid svg[style*="background"] {
   background: transparent !important;
+}
+/* HTML labels (foreignObject) — inherit readable color from JS post-process. */
+.prose .mermaid foreignObject {
+  overflow: visible;
+}
+.prose .mermaid foreignObject .nodeLabel,
+.prose .mermaid foreignObject .label,
+.prose .mermaid foreignObject span,
+.prose .mermaid foreignObject p,
+.prose .mermaid foreignObject div {
+  line-height: 1.25;
+}
+/* SVG text labels — avoid theme forcing low-contrast greys on pastel fills. */
+.prose .mermaid .node text,
+.prose .mermaid .cluster text,
+.prose .mermaid .edgeLabel text {
+  font-family: var(--ui, system-ui, sans-serif);
 }

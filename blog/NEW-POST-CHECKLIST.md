@@ -56,8 +56,10 @@ Use this whenever you publish a post in an existing series.
 
 ### If the post has diagrams
 
-- [ ] Reuse **Mermaid** script + init from a post that already has it (e.g. Experience post 2 or AI Learning Day 2).
-- [ ] Wrap diagrams in `<pre class="mermaid">` (or your series’ pattern).
+- [ ] Reuse **Mermaid** CDN + `blog/assets/blog-diagrams.js` + `blog/assets/blog-diagrams.css` (see [DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)).
+- [ ] Wrap diagrams in `<pre class="mermaid">`.
+- [ ] **Gold reference:** diagram 2 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart`, no `subgraph`, `classDef` with explicit `fill`/`stroke`/`color:#242424`, accent nodes via single `style` when needed. Shared JS sets `htmlLabels: false` and theme-aware label contrast.
+- [ ] Local: toggle light/dark on the post before ship.
 
 ---
 
