@@ -109,6 +109,7 @@ Before publishing an AI Learning post, run an editorial pass to align voice with
 
 - [ ] `git add` the new HTML + `blog/series-index.json` (only those unless you changed something else).
 - [ ] Commit with a clear message (only when the user asks).
+- [ ] **Before push:** `git fetch origin` → merge or rebase `origin/main` → resolve conflicts if any (`blog/series-index.json`, shared scripts) → confirm mergeable locally or on GitHub → re-run [§5 Local sanity check](#5-local-sanity-check).
 - [ ] `git push` to `main` (GitHub Pages deploys from there).
 - [ ] After ~1–2 min, **hard refresh** (Cmd+Shift+R) on homepage, `/blog/`, and the post — cached `series-index.json` can look stale.
 
