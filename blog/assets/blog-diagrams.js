@@ -1,80 +1,52 @@
 /**
  * Theme-aware Mermaid for blog posts. Call after mermaid.min.js loads.
- * Re-renders on #theme-toggle so diagrams stay readable in light and dark.
+ * Gold standard: blog/DIAGRAM-STYLE.md — light node fills, green stroke, dark labels in both themes.
  */
 (function () {
-  var LIGHT_TEXT = "#242424";
-  var DARK_TEXT = "#ececea";
+  var NODE_TEXT = "#111827";
+  var NODE_TEXT_ALT = "#242424";
+  var PAGE_TEXT_LIGHT = "#242424";
+  var PAGE_TEXT_DARK = "#ececea";
+  var LUMINANCE_LIGHT_FILL = 0.55;
 
   function isDark() {
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
+  /** Node palette matches light mode in both themes so classDef fills stay readable. */
   function themeVariables() {
-    if (isDark()) {
-      return {
-        background: "transparent",
-        mainBkg: "transparent",
-        secondBkg: "transparent",
-        tertiaryBkg: "transparent",
-        primaryColor: "#1e3328",
-        primaryTextColor: DARK_TEXT,
-        primaryBorderColor: "#5bd37a",
-        secondaryColor: "#1a2744",
-        secondaryTextColor: DARK_TEXT,
-        secondaryBorderColor: "#93c5fd",
-        tertiaryColor: "#3d3420",
-        tertiaryTextColor: DARK_TEXT,
-        tertiaryBorderColor: "#fbbf24",
-        lineColor: "#a8a89e",
-        textColor: DARK_TEXT,
-        nodeTextColor: DARK_TEXT,
-        titleColor: DARK_TEXT,
-        edgeLabelBackground: "#171716",
-        clusterBkg: "#1f1f1e",
-        clusterBorder: "#7c7c74",
-        actorBorder: "#a8a89e",
-        actorBkg: "#1e3328",
-        actorTextColor: DARK_TEXT,
-        signalColor: "#a8a89e",
-        labelBoxBkgColor: "#1e3328",
-        labelBoxBorderColor: "#5bd37a",
-        labelTextColor: DARK_TEXT,
-        noteBkgColor: "#3d3420",
-        noteTextColor: DARK_TEXT,
-        noteBorderColor: "#fbbf24",
-      };
-    }
+    var pageText = isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
+    var line = isDark() ? "#a8a89e" : "#6b6b6b";
     return {
       background: "transparent",
       mainBkg: "transparent",
       secondBkg: "transparent",
       tertiaryBkg: "transparent",
-      primaryColor: "#ecfdf5",
-      primaryTextColor: LIGHT_TEXT,
+      primaryColor: "#ffffff",
+      primaryTextColor: NODE_TEXT,
       primaryBorderColor: "#059669",
       secondaryColor: "#f0f4ff",
-      secondaryTextColor: LIGHT_TEXT,
+      secondaryTextColor: NODE_TEXT,
       secondaryBorderColor: "#2563eb",
       tertiaryColor: "#fef3c7",
-      tertiaryTextColor: LIGHT_TEXT,
+      tertiaryTextColor: NODE_TEXT,
       tertiaryBorderColor: "#d97706",
-      lineColor: "#6b6b6b",
-      textColor: LIGHT_TEXT,
-      nodeTextColor: LIGHT_TEXT,
-      titleColor: LIGHT_TEXT,
-      edgeLabelBackground: "#ffffff",
-      clusterBkg: "#f6f6f4",
-      clusterBorder: "#757575",
-      actorBorder: "#6b6b6b",
-      actorBkg: "#ecfdf5",
-      actorTextColor: LIGHT_TEXT,
-      signalColor: "#6b6b6b",
-      labelBoxBkgColor: "#ecfdf5",
+      lineColor: line,
+      textColor: pageText,
+      nodeTextColor: NODE_TEXT,
+      titleColor: pageText,
+      edgeLabelBackground: isDark() ? "#171716" : "#ffffff",
+      clusterBkg: isDark() ? "#1f1f1e" : "#f6f6f4",
+      clusterBorder: isDark() ? "#7c7c74" : "#757575",
+      actorBorder: line,
+      actorBkg: "#ffffff",
+      actorTextColor: NODE_TEXT,
+      signalColor: line,
+      labelBoxBkgColor: "#ffffff",
       labelBoxBorderColor: "#059669",
-      labelTextColor: LIGHT_TEXT,
+      labelTextColor: NODE_TEXT,
       noteBkgColor: "#fef3c7",
-      noteTextColor: LIGHT_TEXT,
+      noteTextColor: NODE_TEXT,
       noteBorderColor: "#d97706",
     };
   }
@@ -150,10 +122,14 @@
     }
   }
 
+  function isLightFill(rgb) {
+    return relativeLuminance(rgb.r, rgb.g, rgb.b) > LUMINANCE_LIGHT_FILL;
+  }
+
   function textColorForFill(fillColor) {
     var rgb = parseCssColor(fillColor);
-    if (!rgb) return isDark() ? DARK_TEXT : LIGHT_TEXT;
-    return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.55 ? LIGHT_TEXT : DARK_TEXT;
+    if (!rgb) return isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
+    return isLightFill(rgb) ? NODE_TEXT : isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
   }
 
   function setLabelColor(labelEl, color) {
@@ -165,8 +141,16 @@
     });
   }
 
-  function applyTextColorToGroup(group, fillColor) {
-    var textColor = fillColor ? textColorForFill(fillColor) : isDark() ? DARK_TEXT : LIGHT_TEXT;
+  function applyTextColorToGroup(group, fillColor, opts) {
+    opts = opts || {};
+    var textColor;
+    if (opts.forceNodeText) {
+      textColor = NODE_TEXT;
+    } else if (fillColor) {
+      textColor = textColorForFill(fillColor);
+    } else {
+      textColor = isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
+    }
     group.querySelectorAll("text, tspan").forEach(function (t) {
       setLabelColor(t, textColor);
     });
@@ -191,11 +175,15 @@
 
   function applyReadabilityOverrides() {
     var vars = themeVariables();
-    var fallbackText = vars.nodeTextColor || vars.textColor || LIGHT_TEXT;
+    var fallbackText = vars.textColor || PAGE_TEXT_LIGHT;
     var line = vars.lineColor || "#6b6b6b";
 
     document.querySelectorAll(".prose .mermaid svg").forEach(function (svg) {
-      svg.querySelectorAll(".node, .cluster").forEach(function (group) {
+      svg.querySelectorAll(".node").forEach(function (group) {
+        applyTextColorToGroup(group, null, { forceNodeText: true });
+      });
+
+      svg.querySelectorAll(".cluster").forEach(function (group) {
         var fill = shapeFill(group);
         applyTextColorToGroup(
           group,

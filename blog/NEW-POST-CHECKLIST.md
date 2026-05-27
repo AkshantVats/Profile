@@ -56,10 +56,11 @@ Use this whenever you publish a post in an existing series.
 
 ### If the post has diagrams
 
-- [ ] Reuse **Mermaid** CDN + `blog/assets/blog-diagrams.js` + `blog/assets/blog-diagrams.css` (see [DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)).
+- [ ] Read **[DIAGRAM-STYLE.md](DIAGRAM-STYLE.md)** — the only Mermaid standard for this blog.
+- [ ] Reuse **Mermaid** CDN + `blog/assets/blog-diagrams.js` + `blog/assets/blog-diagrams.css`.
 - [ ] Wrap diagrams in `<pre class="mermaid">`.
-- [ ] **Gold reference:** diagram 2 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart`, no `subgraph`, `classDef` with explicit `fill`/`stroke`/`color:#242424`, accent nodes via single `style` when needed. Shared JS sets `htmlLabels: false` and theme-aware label contrast.
-- [ ] Local: toggle light/dark on the post before ship.
+- [ ] **Gold reference:** diagrams 2 & 3 in [Day 11 semantic caching post](series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html) — flat `flowchart`, no `subgraph`, `classDef pipeline` + `classDef accent` (`fill:#ffffff`, `stroke:#059669`, `color:#111827`); assign with `class`, not per-node `style` spam.
+- [ ] **Mermaid uses gold `classDef` pattern; verified black text in light + dark toggle** (`#theme-toggle` on the post).
 
 ---
 
