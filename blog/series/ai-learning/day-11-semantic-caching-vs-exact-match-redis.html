@@ -254,10 +254,10 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   VEC -->|sim ≥ τ| OUT2[Nearest stored completion]
   VEC -->|sim < τ| MISS[Miss → full LLM path]
 
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef secondary fill:#f0f4ff,stroke:#2563eb,color:#111827
-  class P1,H1,R1,OUT1 pipeline
-  class P2,EMB,VEC,OUT2,MISS secondary</pre>
+  classDef exact fill:#ecfdf5,stroke:#059669,color:#111827
+  classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827
+  class P1,H1,R1,OUT1 exact
+  class P2,EMB,VEC,OUT2,MISS semantic</pre>
 
 <h2 id="continuous-batching">Exact-match Redis — when bytes are the contract</h2>
 
@@ -309,11 +309,7 @@ latency_ms ≈ embed + lookup]
 prompt emb + completion]
   HIT --> FP["False positive risk
 wrong sim ≥ τ"]
-
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef accent fill:#fef3c7,stroke:#d97706,color:#111827
-  class Q,EMB,ANN,T,HIT,LLM,STORE pipeline
-  class FP accent</pre>
+  style FP fill:#fef3c7,stroke:#d97706,color:#111827</pre>
 
 <h2 id="three-frameworks">Options table — exact vs semantic vs hybrid</h2>
 
@@ -393,11 +389,7 @@ wrong sim ≥ τ"]
   K --> CH[ClickHouse]
   K --> P["Prometheus\nanomalies_detected_total"]
   P --> G[Grafana alert]
-
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef accent fill:#fef3c7,stroke:#d97706,color:#111827
-  class IE,C,Z,SC,CH,P,G pipeline
-  class K accent</pre>
+  style K fill:#fef3c7,stroke:#d97706,color:#111827</pre>
 
 <p>Exact z-score on latency catches “slow wrong.” Semantic cache monitoring catches “fast wrong.” Both belong in the same anomalies topic, so on-call doesn’t split brain across Redis logs and Grafana P99.</p>
 

@@ -13,38 +13,39 @@
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
 
-  /** Node palette matches light mode in both themes so classDef fills stay readable. */
   function themeVariables() {
     var pageText = isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
     var line = isDark() ? "#a8a89e" : "#6b6b6b";
+    var nodeBkg = isDark() ? "#1e3328" : "#ecfdf5";
+    var nodeText = isDark() ? PAGE_TEXT_DARK : NODE_TEXT;
     return {
       background: "transparent",
       mainBkg: "transparent",
       secondBkg: "transparent",
       tertiaryBkg: "transparent",
-      primaryColor: "#ffffff",
-      primaryTextColor: NODE_TEXT,
+      primaryColor: nodeBkg,
+      primaryTextColor: nodeText,
       primaryBorderColor: "#059669",
-      secondaryColor: "#f0f4ff",
-      secondaryTextColor: NODE_TEXT,
+      secondaryColor: isDark() ? "#1a2744" : "#f0f4ff",
+      secondaryTextColor: nodeText,
       secondaryBorderColor: "#2563eb",
       tertiaryColor: "#fef3c7",
       tertiaryTextColor: NODE_TEXT,
       tertiaryBorderColor: "#d97706",
       lineColor: line,
       textColor: pageText,
-      nodeTextColor: NODE_TEXT,
+      nodeTextColor: nodeText,
       titleColor: pageText,
       edgeLabelBackground: isDark() ? "#171716" : "#ffffff",
       clusterBkg: isDark() ? "#1f1f1e" : "#f6f6f4",
       clusterBorder: isDark() ? "#7c7c74" : "#757575",
       actorBorder: line,
-      actorBkg: "#ffffff",
-      actorTextColor: NODE_TEXT,
+      actorBkg: nodeBkg,
+      actorTextColor: nodeText,
       signalColor: line,
-      labelBoxBkgColor: "#ffffff",
+      labelBoxBkgColor: nodeBkg,
       labelBoxBorderColor: "#059669",
-      labelTextColor: NODE_TEXT,
+      labelTextColor: nodeText,
       noteBkgColor: "#fef3c7",
       noteTextColor: NODE_TEXT,
       noteBorderColor: "#d97706",
@@ -141,16 +142,12 @@
     });
   }
 
-  function applyTextColorToGroup(group, fillColor, opts) {
-    opts = opts || {};
-    var textColor;
-    if (opts.forceNodeText) {
-      textColor = NODE_TEXT;
-    } else if (fillColor) {
-      textColor = textColorForFill(fillColor);
-    } else {
-      textColor = isDark() ? PAGE_TEXT_DARK : PAGE_TEXT_LIGHT;
-    }
+  function applyTextColorToGroup(group, fillColor) {
+    var textColor = fillColor
+      ? textColorForFill(fillColor)
+      : isDark()
+        ? PAGE_TEXT_DARK
+        : PAGE_TEXT_LIGHT;
     group.querySelectorAll("text, tspan").forEach(function (t) {
       setLabelColor(t, textColor);
     });
@@ -163,9 +160,19 @@
   }
 
   function shapeFill(group) {
-    var shape = group.querySelector("rect, polygon, circle, ellipse, path");
-    var fill = colorFromElement(shape);
-    if (fill) return fill;
+    var shapes = group.querySelectorAll("rect, polygon, circle, ellipse, path");
+    var best = null;
+    var bestLum = -1;
+    shapes.forEach(function (shape) {
+      var fill = colorFromElement(shape);
+      if (!fill) return;
+      var lum = relativeLuminance(fill.r, fill.g, fill.b);
+      if (lum > bestLum) {
+        bestLum = lum;
+        best = fill;
+      }
+    });
+    if (best) return best;
     var cluster = group.closest(".cluster");
     if (cluster && cluster !== group) {
       return shapeFill(cluster);
@@ -180,7 +187,11 @@
 
     document.querySelectorAll(".prose .mermaid svg").forEach(function (svg) {
       svg.querySelectorAll(".node").forEach(function (group) {
-        applyTextColorToGroup(group, null, { forceNodeText: true });
+        var fill = shapeFill(group);
+        applyTextColorToGroup(
+          group,
+          fill ? "rgb(" + fill.r + "," + fill.g + "," + fill.b + ")" : null
+        );
       });
 
       svg.querySelectorAll(".cluster").forEach(function (group) {
@@ -238,6 +249,7 @@
     }
 
     applyReadabilityOverrides();
+    requestAnimationFrame(applyReadabilityOverrides);
   }
 
   window.renderBlogMermaid = renderBlogMermaid;
