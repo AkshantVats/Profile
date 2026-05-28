@@ -132,6 +132,8 @@ Before publishing an AI Learning post, run an editorial pass to align voice with
 **Anti-patterns (do not ship):**
 
 - Do not leave editorial labels like `(cold open)` in headings.
+- Do not rewrite **h1**, **og:title**, **post-subtitle**, or **h2/h3** for style — only strip plan/editorial artifacts (e.g. `(cold open)`, `Options table —`, `(bridge to today)`). Do not replace an existing h2 with new prose rewrites.
+- Do not attribute **AI inference, semantic cache, LLM, or embedding** work to employers (Wayfair, Agoda, Walmart, Delivery Hero). Employer names are OK only for **real infra/SWE** work you actually did; use generic DS parallels or link to a separate Experience post instead.
 
 ---
 

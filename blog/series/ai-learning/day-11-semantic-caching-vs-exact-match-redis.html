@@ -229,7 +229,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>That is why this post treats semantic caching as architecture, not a micro-optimization: it is an approximate nearest neighbor lookup, and the similarity threshold <strong>τ</strong> becomes an SLA dial.</p>
 
-<h2 id="two-queues">Three cache layers — do not conflate them</h2>
+<h2 id="three-layers">Three cache layers — do not conflate them</h2>
 
 <p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html">Day 7</a> covered provider prefix caching: byte-identical prompt prefixes get a deterministic hit. <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html">Day 1</a> covered session KV caching: decode state is deterministic inside one request. Today’s layer is an application semantic cache: store <code>(prompt embedding → completion)</code> (or retrieval bundles) under your own service-level contract.</p>
 
@@ -259,7 +259,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   class P1,H1,R1,OUT1 exact
   class P2,EMB,VEC,OUT2,MISS semantic</pre>
 
-<h2 id="continuous-batching">Exact-match Redis — when bytes are the contract</h2>
+<h2 id="exact-redis">Exact-match Redis — when bytes are the contract</h2>
 
 <p><strong>Mechanism:</strong> build a deterministic cache key from normalized prompt bytes plus routing attributes (for example <code>model_id</code>, temperature, and any tool/schema version). Store the completion blob with TTL + LRU eviction. On a hit, you return the cached JSON without touching the full LLM inference path.</p>
 
@@ -279,9 +279,9 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   </tbody>
 </table>
 
-<p>At Wayfair, deterministic caching worked when the bytes represented a stable contract (canonical offer identity), not when the “same data” arrived as different raw strings. Exact caches don’t fail because Redis is wrong; they fail because the bytes stopped being the contract.</p>
+<p>In pricing systems, exact-match keys work when the bytes represent a stable contract (canonical offer identity), not when the same logical offer arrives as different raw strings — the same key discipline as a Kafka-backed price feed, not an embedding lookup (<a href="https://akshantvats.github.io/Profile/blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html">Experience 8 — Delphi → Aletheia</a>). Exact caches don’t fail because Redis is wrong; they fail because the bytes stopped being the contract.</p>
 
-<h2 id="gpu-memory">Semantic cache — embeddings as keys</h2>
+<h2 id="semantic-cache">Semantic cache — embeddings as keys</h2>
 
 <p><strong>Mechanism:</strong> embed the incoming prompt (using the same embedding model used to build the index), run ANN search (top-1 or top-k), and compare the similarity score against <strong>τ</strong>. If <code>sim ≥ τ</code>, return the cached completion without calling the full LLM path; otherwise fall back to full inference.</p>
 
@@ -443,9 +443,9 @@ wrong sim ≥ τ"]
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
       <li><a href="#benchmark-lied">The cache hit that was wrong</a></li>
-      <li><a href="#two-queues">Three cache layers</a></li>
-      <li><a href="#continuous-batching">Exact-match Redis</a></li>
-      <li><a href="#gpu-memory">Semantic cache</a></li>
+      <li><a href="#three-layers">Three cache layers</a></li>
+      <li><a href="#exact-redis">Exact-match Redis</a></li>
+      <li><a href="#semantic-cache">Semantic cache</a></li>
       <li><a href="#three-frameworks">Exact vs semantic vs hybrid</a></li>
       <li><a href="#metrics-miss">False positive risk</a></li>
       <li><a href="#lensai">LensAI bridge</a></li>
