@@ -85,6 +85,17 @@ function luminance({ r, g, b }) {
   return 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2];
 }
 
+function checkEntityLabels(pageData) {
+  const issues = [];
+  const samples = pageData?.samples || [];
+  for (const s of samples) {
+    if (s.label && /&(lt|gt|amp|quot|#)/.test(s.label)) {
+      issues.push({ label: s.label, problem: "literal HTML entity in rendered label" });
+    }
+  }
+  return issues;
+}
+
 async function sampleDiagramLabels(page, diagramIndex) {
   return page.evaluate((idx) => {
     function parseRgb(str) {
@@ -152,7 +163,12 @@ async function sampleDiagramLabels(page, diagramIndex) {
       const label = (text.textContent || "").trim().slice(0, 40);
       samples.push({ i, label, fill, textFill });
     });
-    return { kind: "flowchart", count: samples.length, samples };
+    const edgeLabels = [];
+    svg.querySelectorAll(".edgeLabel text, .edgeLabel tspan").forEach((text) => {
+      const label = (text.textContent || "").trim();
+      if (label) edgeLabels.push({ label, fill: "", textFill: window.getComputedStyle(text).fill });
+    });
+    return { kind: "flowchart", count: samples.length, samples: samples.concat(edgeLabels) };
   }, diagramIndex);
 }
 
@@ -230,7 +246,7 @@ async function verifyPost(page, port, post) {
           ? checkContrast(data.samples, theme)
           : data.count === 0
             ? [{ problem: "no flowchart nodes sampled" }]
-            : checkContrast(data.samples, theme);
+            : checkContrast(data.samples, theme).concat(checkEntityLabels(data));
       results[theme][`diagram${d + 1}`] = {
         kind: data.kind,
         nodes: data.count,

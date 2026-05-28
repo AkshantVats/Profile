@@ -90,6 +90,17 @@
     ],
   ];
 
+  function decodeHtmlEntities(str) {
+    if (!str || str.indexOf("&") === -1) return str;
+    var el = document.createElement("textarea");
+    el.innerHTML = str;
+    return el.value;
+  }
+
+  function normalizeMermaidSource(src) {
+    return decodeHtmlEntities(src);
+  }
+
   function isDark() {
     return document.documentElement.getAttribute("data-theme") === "dark";
   }
@@ -110,7 +121,7 @@
   function stashSources() {
     document.querySelectorAll("pre.mermaid").forEach(function (el) {
       if (!el.dataset.mermaidSrc) {
-        el.dataset.mermaidSrc = el.textContent.trim();
+        el.dataset.mermaidSrc = normalizeMermaidSource(el.textContent.trim());
       }
     });
   }
@@ -118,9 +129,9 @@
   function prepareSourcesForRender() {
     document.querySelectorAll("pre.mermaid").forEach(function (el) {
       if (!el.dataset.mermaidSrc) {
-        el.dataset.mermaidSrc = el.textContent.trim();
+        el.dataset.mermaidSrc = normalizeMermaidSource(el.textContent.trim());
       }
-      var src = adaptSourceForTheme(el.dataset.mermaidSrc);
+      var src = adaptSourceForTheme(normalizeMermaidSource(el.dataset.mermaidSrc));
       el.innerHTML = "";
       el.textContent = src;
       el.removeAttribute("data-processed");
@@ -217,6 +228,17 @@
     });
   }
 
+  function fixSvgEntityLabels() {
+    document.querySelectorAll(".prose .mermaid svg text, .prose .mermaid svg tspan").forEach(function (el) {
+      var t = el.textContent;
+      if (!t || t.indexOf("&") === -1) return;
+      var decoded = decodeHtmlEntities(t);
+      if (decoded !== t) {
+        el.textContent = decoded;
+      }
+    });
+  }
+
   async function renderBlogMermaid() {
     if (typeof mermaid === "undefined") return;
     stashSources();
@@ -233,8 +255,12 @@
     if (nodes.length) {
       await mermaid.run({ nodes: nodes });
     }
+    fixSvgEntityLabels();
     fixAccentNodes();
-    requestAnimationFrame(fixAccentNodes);
+    requestAnimationFrame(function () {
+      fixSvgEntityLabels();
+      fixAccentNodes();
+    });
   }
 
   window.renderBlogMermaid = renderBlogMermaid;
