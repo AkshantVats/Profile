@@ -52,7 +52,7 @@
     primaryBorderColor: "#059669",
     secondaryColor: "#1a2744",
     secondaryTextColor: "#ececea",
-    secondaryBorderColor: "#2563eb",
+    secondaryBorderColor: "#60a5fa",
     tertiaryColor: ACCENT_FILL,
     tertiaryTextColor: ACCENT_TEXT,
     tertiaryBorderColor: "#d97706",
@@ -86,7 +86,11 @@
     ],
     [
       /classDef semantic fill:#f0f4ff,stroke:#2563eb,color:#111827/g,
-      "classDef semantic fill:#1a2744,stroke:#2563eb,color:#ececea",
+      "classDef semantic fill:#1a2744,stroke:#60a5fa,color:#ececea",
+    ],
+    [
+      /style ([A-Za-z0-9_-]+) fill:#fef3c7,stroke:#d97706,color:#111827/g,
+      "style $1 fill:#5b3b12,stroke:#f59e0b,color:#ececea",
     ],
   ];
 
@@ -206,24 +210,32 @@
     return best;
   }
 
-  function isAccentFill(rgb) {
-    var dr = Math.abs(rgb.r - ACCENT_RGB.r);
-    var dg = Math.abs(rgb.g - ACCENT_RGB.g);
-    var db = Math.abs(rgb.b - ACCENT_RGB.b);
-    return dr <= 8 && dg <= 8 && db <= 8;
-  }
-
   function setLabelColor(labelEl, color) {
     labelEl.style.setProperty("fill", color, "important");
     labelEl.setAttribute("fill", color);
+    labelEl.style.setProperty("color", color, "important");
+    labelEl.setAttribute("color", color);
   }
 
-  function fixAccentNodes() {
+  function labelNodesForContrast() {
+    var LIGHT_TEXT = "#ececea";
+    var DARK_TEXT = "#111827";
+    var LUMINANCE_THRESHOLD = 0.52;
     document.querySelectorAll(".prose .mermaid svg .node").forEach(function (group) {
       var fill = shapeFill(group);
-      if (!fill || !isAccentFill(fill)) return;
-      group.querySelectorAll("text, tspan").forEach(function (t) {
-        setLabelColor(t, ACCENT_TEXT);
+      if (!fill) return;
+      var lum = relativeLuminance(fill.r, fill.g, fill.b);
+      var textColor = lum >= LUMINANCE_THRESHOLD ? DARK_TEXT : LIGHT_TEXT;
+
+      group.querySelectorAll("text, tspan, .nodeLabel").forEach(function (t) {
+        setLabelColor(t, textColor);
+      });
+
+      group.querySelectorAll("foreignObject").forEach(function (fo) {
+        fo.querySelectorAll("div, span, p").forEach(function (el) {
+          el.style.setProperty("color", textColor, "important");
+          el.style.setProperty("fill", textColor, "important");
+        });
       });
     });
   }
@@ -256,10 +268,10 @@
       await mermaid.run({ nodes: nodes });
     }
     fixSvgEntityLabels();
-    fixAccentNodes();
+    labelNodesForContrast();
     requestAnimationFrame(function () {
       fixSvgEntityLabels();
-      fixAccentNodes();
+      labelNodesForContrast();
     });
   }
 
