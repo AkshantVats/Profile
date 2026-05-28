@@ -303,7 +303,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>Finally, retries need a cap. Intermittent networks don’t justify retry storms—cap retries, back off, and alert on the slope of quarantine growth.</p>
 
-<h2 id="oss-pr">Edge filtering upstream (bridge to today)</h2>
+<h2 id="oss-pr">Edge filtering upstream</h2>
 
 <p>The earlier IoT work taught the hard lesson: when you ingest poison telemetry, you don’t just add noise—you make aggregates wrong. The safest fix is to quarantine bad identity and bad state at the edge, before it turns into rollups.</p>
 
@@ -340,7 +340,7 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
 
 <p>So if I were shipping OTA today, I’d frame at-least-once like a consumer group: acknowledge only after idempotent apply, and isolate poison via quarantine so it can’t contaminate aggregates. Like <strong>Kafka consumer offsets</strong>, “success” is the point where the side effects are safe to replay.</p>
 
-<h2 id="wrong">One operational punchline</h2>
+<h2 id="wrong">At-least-once is only a bug when apply isn't idempotent</h2>
 
 <p>At-least-once is only a bug when apply isn’t idempotent. The fix isn’t fewer retries; it’s explicit verification, durable acks, and quarantine lanes wired to the same operator queue.</p>
 
@@ -381,9 +381,9 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <li><a href="#four-pass">Push OTA vs acked rollout</a></li>
       <li><a href="#vm-evening">At-least-once with idempotent apply</a></li>
       <li><a href="#agoda-scale">Intermittent networks change the SLO</a></li>
-      <li><a href="#oss-pr">Edge filtering upstream (bridge)</a></li>
+      <li><a href="#oss-pr">Edge filtering upstream</a></li>
       <li><a href="#latency-trust">What I'd ship differently now</a></li>
-      <li><a href="#wrong">One operational punchline</a></li>
+      <li><a href="#wrong">When at-least-once becomes a bug</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
