@@ -14,6 +14,12 @@ const ROOT = join(__dirname, "..");
 
 const POSTS = [
   {
+    slug: "day12",
+    path: "/blog/series/ai-learning/day-12-embeddings-as-dense-time-series-ids.html",
+    diagrams: 3,
+    requiredClassDefs: ["classDef exact", "classDef semantic", "classDef pipeline"],
+  },
+  {
     slug: "day11",
     path: "/blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
     diagrams: 3,
@@ -24,6 +30,13 @@ const POSTS = [
     path: "/blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
     diagrams: 3,
     requiredClassDefs: ["classDef exact", "classDef pipeline"],
+    requiredAssets: ["blog-diagrams.js", "blog-diagrams.css"],
+  },
+  {
+    slug: "readme12",
+    path: "/blog/series/experience/two-weeks-one-readme-hiring-committees-scroll.html",
+    diagrams: 3,
+    requiredClassDefs: ["classDef exact", "classDef semantic", "classDef pipeline"],
     requiredAssets: ["blog-diagrams.js", "blog-diagrams.css"],
   },
 ];
@@ -172,6 +185,64 @@ async function sampleDiagramLabels(page, diagramIndex) {
   }, diagramIndex);
 }
 
+async function sampleSpecificNodeContrast(page, labelNeedle) {
+  return page.evaluate((needle) => {
+    function parseRgb(str) {
+      const m = str && str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!m) return null;
+      return { r: +m[1], g: +m[2], b: +m[3] };
+    }
+    function luminance({ r, g, b }) {
+      const s = [r, g, b].map((c) => {
+        c /= 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2];
+    }
+    function contrastRatio(a, b) {
+      const L1 = luminance(a);
+      const L2 = luminance(b);
+      const hi = Math.max(L1, L2);
+      const lo = Math.min(L1, L2);
+      return (hi + 0.05) / (lo + 0.05);
+    }
+    function nodeFill(node) {
+      const shapes = node.querySelectorAll("rect, polygon, circle, ellipse, path");
+      let best = null;
+      let bestLum = -1;
+      shapes.forEach((shape) => {
+        const raw = shape.getAttribute("fill") || shape.style.fill || window.getComputedStyle(shape).fill;
+        const rgb = parseRgb(raw);
+        if (!rgb) return;
+        const lum = luminance(rgb);
+        if (lum > bestLum) {
+          bestLum = lum;
+          best = rgb;
+        }
+      });
+      return best;
+    }
+    const nodes = Array.from(document.querySelectorAll(".prose .mermaid svg .node"));
+    for (const node of nodes) {
+      const textEl = node.querySelector("text, tspan, .nodeLabel");
+      const label = (textEl?.textContent || "").trim().toLowerCase();
+      if (!label || !label.includes(needle.toLowerCase())) continue;
+      const fill = nodeFill(node);
+      const textRaw = window.getComputedStyle(textEl).fill;
+      const text = parseRgb(textRaw);
+      if (!fill || !text) return { found: true, error: "missing fill or text color" };
+      return {
+        found: true,
+        label: label,
+        fill: fill,
+        text: text,
+        ratio: contrastRatio(fill, text),
+      };
+    }
+    return { found: false };
+  }, labelNeedle);
+}
+
 function checkContrast(samples, theme) {
   const issues = [];
   for (const s of samples || []) {
@@ -253,6 +324,23 @@ async function verifyPost(page, port, post) {
         issues,
       };
     }
+  }
+
+  if (post.slug === "day12") {
+    const p99 = await sampleSpecificNodeContrast(page, "p99 search latency");
+    const p99Issues = [];
+    if (!p99.found) {
+      p99Issues.push({ problem: "target label not found: p99 search latency" });
+    } else if (p99.error) {
+      p99Issues.push({ problem: p99.error });
+    } else if (p99.ratio < 4.5) {
+      p99Issues.push({ problem: `low contrast ratio for p99 node (${p99.ratio.toFixed(2)})` });
+    }
+    results.dark.p99Node = {
+      kind: "targeted",
+      nodes: p99.found ? 1 : 0,
+      issues: p99Issues,
+    };
   }
 
   return results;

@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-12-embeddings-as-dense-time-series-ids.html",
+          "kicker": "Day 12 of N",
+          "title": "Embeddings as Dense Time-Series IDs",
+          "desc": "Vectors are high-cardinality series in ANN storage engines — HNSW write amplification, IVF sharding tradeoffs, and observability fields that separate index build from query latency."
+        },
+        {
           "href": "blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
           "kicker": "Day 11 of N",
           "title": "Semantic Caching vs Exact-Match Redis",
@@ -86,6 +92,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/two-weeks-one-readme-hiring-committees-scroll.html",
+          "kicker": "Experience 12 of N",
+          "title": "Two Weeks, One README — What Hiring Committees Actually Scroll",
+          "desc": "A hiring-committee README playbook: architecture PNG, explicit tradeoffs, benchmark honesty, chaos summary, and a five-command quickstart that reviewers can actually run."
+        },
         {
           "href": "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
           "kicker": "Experience 11 of N",

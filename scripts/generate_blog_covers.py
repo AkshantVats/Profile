@@ -54,6 +54,7 @@ SERIES_LABEL: dict[str, str] = {
     "day-8-rag-as-infra-pipeline": "AI LEARNING SERIES",
     "day-9-gpu-memory-management": "AI LEARNING SERIES",
     "day-10-serving-frameworks-queue-schedulers": "AI LEARNING SERIES",
+    "day-12-embeddings-as-dense-time-series-ids": "AI LEARNING SERIES",
     "building-tsdb-at-agoda": "EXPERIENCE SERIES",
     "when-percentiles-lie-cross-tier-queries": "EXPERIENCE SERIES",
     "seven-million-iot-sensors-failure-modes": "EXPERIENCE SERIES",
@@ -65,6 +66,7 @@ SERIES_LABEL: dict[str, str] = {
     "we-killed-redpanda-on-purpose-chaos-as-commit-message": "EXPERIENCE SERIES",
     "reading-victoriametrics-source-oss-interview-prep": "EXPERIENCE SERIES",
     "ota-at-scale-at-least-once-is-a-feature": "EXPERIENCE SERIES",
+    "two-weeks-one-readme-hiring-committees-scroll": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
     "day-11-semantic-caching-vs-exact-match-redis": "AI LEARNING SERIES",
 }
