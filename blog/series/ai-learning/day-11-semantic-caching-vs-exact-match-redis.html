@@ -223,7 +223,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>A semantic cache hit is approximate nearest neighbor with business consequences — tune the similarity threshold like a tail-latency SLO. The anomalies topic is where exact rules end — semantic cache false positives will land in the same operational queue; in <a href="https://akshantvats.github.io/Profile/blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html">Experience 11</a>, that mindset shows up as idempotent apply for at-least-once OTA.</p>
 
-<h2 id="benchmark-lied">The cache hit that was wrong (cold open)</h2>
+<h2 id="benchmark-lied">The cache hit that was wrong</h2>
 
 <p>Benchmarks that report latency only tell half the story. A cache hit changes the semantics of “success”: exact-match Redis returns the cached completion only when bytes are the contract; semantic caches return when embeddings are “close enough.” The operational question is not “did we save tokens?” — it’s “what is the worst acceptable wrongness, and where does that event go?”</p>
 

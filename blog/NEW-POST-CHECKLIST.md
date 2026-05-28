@@ -129,6 +129,10 @@ Before publishing an AI Learning post, run an editorial pass to align voice with
 - [ ] **Max 2 in-body sibling links** — e.g. Day 1 + Day 3; verify `published_time` sort is still correct.
 - [ ] **Format: deep-dive not incident** — AI Learning posts are conceptual deep-dives with systems parallels, not production incident stories.
 
+**Anti-patterns (do not ship):**
+
+- Do not leave editorial labels like `(cold open)` in headings.
+
 ---
 
 ## 5. Local sanity check
