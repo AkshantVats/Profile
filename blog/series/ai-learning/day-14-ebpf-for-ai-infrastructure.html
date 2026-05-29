@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 14 — eBPF for AI Infrastructure (Learning LLM Inference) — Akshant Sharma</title>
+<meta name="description" content="Kernel probes vs SDK patches — when zero-instrumentation wins. eBPF socket probes capture LLM HTTP calls at the syscall layer, zero application changes required. Day 14 of N.">
+<meta property="og:title" content="Day 14 of Learning LLM Inference — eBPF for AI Infrastructure: Kernel Probes vs SDK Patches">
+<meta property="og:description" content="Cilium proved network observability without sidecars. eBPF can do the same for LLM HTTP — capturing model_id, token hints, and authorization at the socket layer without touching application code.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-14-ebpf-for-ai-infrastructure.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-14-ebpf-for-ai-infrastructure.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-14-ebpf-for-ai-infrastructure.png">
+<meta property="article:published_time" content="2026-05-29">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'&#x2190; '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.diagram-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.75;overflow-x:auto}
+.diagram-box pre{background:none;border:none;padding:0;margin:0;font-size:inherit;white-space:pre;color:inherit}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &#xB7; Day 14 of N</span>
+    <span class="tag">eBPF</span>
+    <span class="tag">AI observability</span>
+    <span class="tag">Kernel probes</span>
+    <span class="tag">Distributed systems</span>
+  </div>
+  <h1 class="post-title">Day 14 &#8212; eBPF for AI Infrastructure: Kernel Probes vs SDK Patches</h1>
+  <p class="post-subtitle">14 of N &#8212; AI Learning Series. Kernel probes vs SDK patches &#8212; when zero-instrumentation wins. eBPF socket probes capture LLM HTTP calls with zero application code changes.</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">May 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">24 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &#xB7; Day 14 of N</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-14-ebpf-for-ai-infrastructure.png" alt="Cover: eBPF for AI Infrastructure &#8212; Day 14 of N" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>Cilium proved network observability without app changes &#8212; LLM HTTP is the next syscall surface.</p>
+
+<p>Every LLM SDK ships with a tracing hook.</p>
+
+<p>Almost no one enables it.</p>
+
+<p>The OpenAI Python SDK has callback hooks. The Anthropic client exposes middleware interfaces. LangChain wraps everything in trace spans. Yet if you instrument a real production fleet, you will find that the majority of LLM calls are invisible &#8212; not because engineers made a deliberate choice to skip tracing, but because the friction of SDK instrumentation compounds across every service, every language, every version bump.</p>
+
+<p>A microservice running Go doesn&#8217;t use the Python SDK. A legacy Java service calls the API directly over HTTP. A data science team prototyping in a notebook never wired in the OpenTelemetry exporter. The SDK instrumentation gap is not a discipline problem. It is an architecture problem.</p>
+
+<p>eBPF solves this at the wrong layer &#8212; and that&#8217;s exactly why it works.</p>
+
+<p>If you can attach probes at the kernel socket layer and parse the HTTP payload in BPF maps, you capture every LLM call regardless of language, SDK version, or whether the application team knows observability exists. The same way Cilium provided network policy and flow visibility without requiring every pod to run a sidecar proxy, eBPF can provide LLM call visibility without requiring every service to update its dependencies.</p>
+
+<h2 id="sdk-gap">The SDK Instrumentation Gap &#8212; Why Apps Skip It</h2>
+
+<p>Let me be precise about what the gap looks like in practice.</p>
+
+<p>Imagine a platform team that decides to instrument all LLM calls for cost attribution. They publish a wrapper library. They document the integration. They send a migration guide to every team.</p>
+
+<p>Six months later:</p>
+
+<ul>
+  <li>the Python services that run <code>openai</code> SDK &#8212; partially instrumented</li>
+  <li>the Go services that call the REST API directly &#8212; zero instrumentation</li>
+  <li>the internal ML platform that uses a vendor-specific client &#8212; different trace format, not compatible</li>
+  <li>third-party SaaS tools that call OpenAI on behalf of the company &#8212; completely opaque</li>
+  <li>the data pipeline that calls an embedding endpoint in a Spark UDF &#8212; no one thought to add tracing</li>
+</ul>
+
+<p>Each gap has a legitimate reason. The team can&#8217;t force a Go rewrite to use the Python wrapper. The SaaS vendor won&#8217;t accept patches. The Spark UDF runs in a context where adding heavyweight dependencies breaks the cluster image build.</p>
+
+<p>The result: you&#8217;re flying blind on a large fraction of your actual LLM spend. You don&#8217;t know which models are being called, you can&#8217;t see token counts, you can&#8217;t detect unauthorized API key usage, and you can&#8217;t build cost-by-team attribution that closes against the invoice.</p>
+
+<p>This is the instrumentation gap that motivated me to look at eBPF.</p>
+
+<h2 id="ebpf-basics">eBPF Basics &#8212; Probe Attachment Points</h2>
+
+<p>eBPF (extended Berkeley Packet Filter) is a kernel subsystem that lets you run sandboxed programs in the Linux kernel without loading kernel modules or modifying kernel source. The BPF verifier guarantees safety: infinite loops are rejected, memory access bounds are checked, and the program cannot crash the kernel.</p>
+
+<p>For LLM HTTP tracing, the relevant attachment points are:</p>
+
+<ul>
+  <li><strong><code>kprobe/tcp_connect</code></strong> &#8212; fires when a process opens a TCP connection. Captures the destination IP and port, plus the PID and file descriptor (FD). This is where we record that PID 1234 opened FD 7 to <code>api.openai.com:443</code>.</li>
+  <li><strong><code>kprobe/tcp_sendmsg</code></strong> or <strong><code>kprobe/__sys_sendto</code></strong> &#8212; fires when data is written to a socket. At this point we can read the userspace buffer and parse the HTTP request headers and body from the process&#8217;s address space.</li>
+  <li><strong><code>kprobe/tcp_recvmsg</code></strong> or <strong><code>kprobe/__sys_recvfrom</code></strong> &#8212; fires on receive. We can extract the HTTP response, parse the <code>x-request-id</code>, status code, and response body for token count hints.</li>
+  <li><strong><code>tracepoint/sock/inet_sock_set_state</code></strong> &#8212; fires on TCP state transitions. Useful for detecting connection reuse vs new connections and correlating FD lifecycle to request lifecycle.</li>
+</ul>
+
+<div class="diagram-box"><pre>Probe Attachment Points for LLM HTTP Tracing
+&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;&#9473;
+
+  Application Process (PID 1234)
+  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+  &#9474;  openai.chat.completions.create &#9474;
+  &#9474;  HTTP POST /v1/chat/completions  &#9474;
+  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9515;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                 &#9474; syscall boundary
+  - - - - - - - &#9532; - - - - - - - - -
+                 &#9660;
+  Linux Kernel Socket Layer
+  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+  &#9474;  tcp_connect  &lt;-- kprobe A      &#9474;  record PID+FD -&gt; dst IP
+  &#9474;  tcp_sendmsg  &lt;-- kprobe B      &#9474;  parse HTTP headers + body
+  &#9474;  tcp_recvmsg  &lt;-- kprobe C      &#9474;  parse HTTP response
+  &#9474;  sock_set_state &lt;- tracepoint D  &#9474;  conn lifecycle
+  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9515;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                 &#9474; BPF maps
+  - - - - - - - &#9532; - - - - - - - - -
+                 &#9660;
+  BPF Ring Buffer
+  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
+  &#9474;  {pid, fd, model, tokens, ts}   &#9474;
+  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9515;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+                 &#9474; perf_event_output
+                 &#9660;
+  Userspace Agent --&gt; Kafka topic: infra-ai-streaming</pre></div>
+
+<p>The critical design constraint: BPF programs run in the kernel and are extremely size-limited. The verifier imposes a complexity bound. You cannot do arbitrary string parsing in BPF. The strategy is to do minimal extraction in kernel space &#8212; capture the raw bytes of the HTTP payload into a ring buffer event &#8212; and do the full HTTP parsing in userspace.</p>
+
+<h2 id="http-parsing">HTTP Parsing via eBPF Maps &#8212; Extracting model_id, Auth, Token Hints</h2>
+
+<p>The data flow has three stages.</p>
+
+<h3>Stage 1: Connection tracking in BPF hash map</h3>
+
+<p>When <code>tcp_connect</code> fires, the BPF program checks whether the destination resolves to a known LLM endpoint. Since DNS resolution happens in userspace, the BPF program maintains a map of known destination IPs that the userspace agent populates.</p>
+
+<pre><code>// BPF hash map: PID+FD -&gt; connection metadata
+struct conn_key {
+    u32 pid;
+    u32 fd;
+};
+
+struct conn_val {
+    u64 ts_connect_ns;
+    u32 dst_ip;
+    u16 dst_port;
+    u8  is_llm_endpoint;  // set by userspace agent
+};</code></pre>
+
+<p>When <code>tcp_connect</code> fires for a connection to a known LLM IP, we write a <code>conn_val</code> entry keyed by <code>{pid, fd}</code>. This is the correlation anchor for everything that follows.</p>
+
+<h3>Stage 2: Payload capture on send</h3>
+
+<p>When <code>tcp_sendmsg</code> fires, we look up the connection map. If this FD belongs to an LLM endpoint, we read the first N bytes of the send buffer from userspace memory using <code>bpf_probe_read_user</code>:</p>
+
+<pre><code>// In the kprobe handler for tcp_sendmsg
+struct conn_val *conn = bpf_map_lookup_elem(&amp;conn_map, &amp;key);
+if (conn &amp;&amp; conn-&gt;is_llm_endpoint) {
+    struct send_event ev = {};
+    ev.pid = pid;
+    ev.fd  = fd;
+    ev.ts  = bpf_ktime_get_ns();
+    // read first 512 bytes of the send buffer
+    bpf_probe_read_user(ev.payload, sizeof(ev.payload), iov_base);
+    bpf_ringbuf_output(&amp;ring_buf, &amp;ev, sizeof(ev), 0);
+}</code></pre>
+
+<p>512 bytes is enough to capture the HTTP request line (<code>POST /v1/chat/completions HTTP/1.1</code>), the <code>Authorization: Bearer sk-...</code> header, the <code>Content-Type</code>, and the beginning of the JSON body which contains <code>"model": "gpt-4o"</code>. For most OpenAI-compatible API calls the model field appears within the first 200 bytes of the body.</p>
+
+<h3>Stage 3: Response correlation</h3>
+
+<p>When <code>tcp_recvmsg</code> fires for an LLM endpoint FD, we capture the response bytes. The response body contains the <code>usage</code> object with <code>prompt_tokens</code> and <code>completion_tokens</code>. We also capture the HTTP status code and the <code>x-request-id</code> header for correlation with provider-side logs.</p>
+
+<pre class="mermaid">sequenceDiagram
+    participant App as Application Process
+    participant Kernel as Linux Kernel
+    participant BPF as BPF Program
+    participant Map as BPF Maps
+    participant Ring as Ring Buffer
+    participant Agent as Userspace Agent
+    participant Kafka as Kafka Topic
+
+    App->>Kernel: tcp_connect(api.openai.com:443)
+    Kernel->>BPF: kprobe/tcp_connect fires
+    BPF->>Map: write conn_map[pid+fd] = {ts, ip, is_llm=true}
+
+    App->>Kernel: tcp_sendmsg(fd, POST /v1/chat/completions)
+    Kernel->>BPF: kprobe/tcp_sendmsg fires
+    BPF->>Map: lookup conn_map[pid+fd]
+    BPF->>Ring: emit send_event{pid, fd, payload[0..512], ts}
+
+    App->>Kernel: tcp_recvmsg(fd, buf)
+    Kernel->>BPF: kprobe/tcp_recvmsg fires
+    BPF->>Ring: emit recv_event{pid, fd, payload[0..512], ts}
+
+    Agent->>Ring: poll ring buffer
+    Ring-->>Agent: send_event + recv_event
+    Agent->>Agent: parse HTTP, extract model_id, tokens, auth hash
+    Agent->>Kafka: produce LLMCallEvent to infra-ai-streaming</pre>
+
+<h2 id="userspace-agent">Userspace Agent &#8212; BPF Ring Buffer Consumer</h2>
+
+<p>The userspace agent is a Go or Rust daemon that runs on each node. Its responsibilities:</p>
+
+<ul>
+  <li><strong>Ring buffer consumer</strong> &#8212; polls the BPF ring buffer for <code>send_event</code> and <code>recv_event</code> records</li>
+  <li><strong>HTTP parser</strong> &#8212; reconstructs the HTTP request and response from the captured payload bytes</li>
+  <li><strong>Field extraction</strong> &#8212; parses JSON to extract <code>model</code>, <code>max_tokens</code>, and from the response <code>usage.prompt_tokens</code>, <code>usage.completion_tokens</code></li>
+  <li><strong>Correlation by PID+FD</strong> &#8212; joins the send and recv events using the <code>{pid, fd, ts}</code> tuple</li>
+  <li><strong>Kafka producer</strong> &#8212; emits a structured <code>LLMCallEvent</code> to the <code>infra-ai-streaming</code> topic</li>
+  <li><strong>IP resolver</strong> &#8212; resolves LLM provider hostnames and writes IP-to-endpoint mappings back into a BPF map so the kernel program can filter efficiently</li>
+</ul>
+
+<p>The correlation by PID+FD is where the real work happens. A single process may have multiple concurrent LLM calls open on different file descriptors. The agent must correctly pair each send event to its matching recv event without cross-contaminating records from different requests.</p>
+
+<pre><code>// Correlation table in userspace
+type PendingRequest struct {
+    PID       uint32
+    FD        uint32
+    SendTS    uint64
+    Model     string
+    AuthHash  string
+    MaxTokens int
+}
+
+// On recv_event, look up matching send by PID+FD
+func (a *Agent) correlate(recv RecvEvent) *LLMCallEvent {
+    key := fmt.Sprintf("%d:%d", recv.PID, recv.FD)
+    pending, ok := a.pending[key]
+    if !ok {
+        return nil // no matching send — HTTP keep-alive mid-stream
+    }
+    delete(a.pending, key)
+    return &amp;LLMCallEvent{
+        PID:             recv.PID,
+        Model:           pending.Model,
+        AuthKeyHash:     pending.AuthHash,
+        PromptTokens:    parseUsageFromResponse(recv.Payload),
+        CompletionTokens: parseCompletionFromResponse(recv.Payload),
+        LatencyMs:       (recv.TS - pending.SendTS) / 1e6,
+        Endpoint:        a.resolveEndpoint(recv.FD),
+    }
+}</code></pre>
+
+<p>There is an important edge case: HTTP/2 multiplexing and TLS. If the application uses HTTP/2 over TLS (which OpenAI&#8217;s API supports), the payload captured by <code>tcp_sendmsg</code> will be encrypted ciphertext, not plaintext HTTP. In this case the kernel-side BPF program cannot directly read the model name from the payload.</p>
+
+<p>Two workarounds exist:</p>
+
+<ol>
+  <li><strong>uprobes on SSL_write/SSL_read</strong> &#8212; attach at the OpenSSL or BoringSSL function boundary in userspace, where the data is still plaintext. This requires knowing the library path and works per-process rather than globally.</li>
+  <li><strong>LD_PRELOAD interception</strong> &#8212; inject a shim that intercepts TLS write calls. More portable across TLS libraries but requires more deployment ceremony.</li>
+</ol>
+
+<p>For internal microservices calling self-hosted models over plain HTTP, neither workaround is needed. The LLM endpoint IP filtering plus unencrypted payload capture is sufficient.</p>
+
+<h2 id="kafka-connection">Connection to infra-ai-streaming Kafka Topic</h2>
+
+<p>The userspace agent produces events to a Kafka topic I&#8217;ve been calling <code>infra-ai-streaming</code> throughout this series. The eBPF path creates a zero-SDK source for this topic alongside the SDK-instrumented path.</p>
+
+<pre class="mermaid">flowchart TD
+    subgraph Sources["Event Sources"]
+        SDK["SDK Instrumented Services\n(Python openai, LangChain)"]
+        EBPF["eBPF Probe Agent\n(zero-SDK coverage)"]
+        PROXY["LLM Gateway Proxy\n(centralized path)"]
+    end
+
+    subgraph Topic["Kafka: infra-ai-streaming"]
+        T1["Partition by model_id"]
+        T2["Partition by team_id"]
+        T3["Partition by auth_key_hash"]
+    end
+
+    subgraph Consumers["Downstream Consumers"]
+        COST["Cost Attribution Service"]
+        ALERT["Shadow LLM Alerting"]
+        AUDIT["Compliance Audit Log"]
+        TSDB["TSDB Metrics Rollup"]
+    end
+
+    SDK -->|"LLMCallEvent + trace_id"| T1
+    EBPF -->|"LLMCallEvent source=ebpf"| T1
+    PROXY -->|"LLMCallEvent source=proxy"| T1
+    T1 --> COST
+    T2 --> ALERT
+    T3 --> AUDIT
+    T1 --> TSDB</pre>
+
+<p>The <code>source</code> field on every event distinguishes eBPF-captured records from SDK-instrumented ones. This matters for deduplication: a Python service that is both instrumented via SDK and running on a node with the eBPF agent will generate two events per call. The consumer deduplicates on <code>x-request-id</code> (extracted from the response header by both paths).</p>
+
+<p>The schema for a <code>LLMCallEvent</code> produced by the eBPF path:</p>
+
+<pre><code>{
+  "event_type": "llm_call",
+  "source": "ebpf",
+  "ts_ms": 1748476800000,
+  "pid": 12847,
+  "process_name": "inference-svc",
+  "model_id": "gpt-4o",
+  "endpoint": "api.openai.com",
+  "auth_key_hash": "sha256:a3f9...",
+  "prompt_tokens": 1240,
+  "completion_tokens": 312,
+  "latency_ms": 2340,
+  "http_status": 200,
+  "request_id": "req_abc123xyz",
+  "node": "k8s-node-07"
+}</code></pre>
+
+<h2 id="ds-analogy">eBPF Maps as Kafka Compacted Topics &#8212; The Distributed Systems Analogy</h2>
+
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &#8212; mine</div>
+  <p>eBPF maps are like Kafka compacted topics. The kernel maintains the latest state per key &#8212; in our case <code>PID+FD &#8594; connection metadata</code> &#8212; exactly the way a compacted Kafka topic retains only the most recent value per message key. When a connection closes (FD is released), the BPF program deletes the map entry, just as a tombstone message removes a key from a compacted log. The userspace agent reading from the BPF ring buffer is the consumer: it processes events in order, joins them with state from the map, and produces downstream records. You have already operated this exact pattern &#8212; compacted topics as state stores, ring buffer as the event stream, consumer as the enrichment join. The mental model transfers directly. The only difference is that the &#8220;broker&#8221; is the kernel and the &#8220;retention policy&#8221; is enforced by the verifier.</p>
+</div>
+
+<p>This analogy is load-bearing for thinking about failure modes too. A Kafka compacted topic can lag if the consumer falls behind. A BPF ring buffer can drop events if the userspace agent is too slow to drain it. The same backpressure thinking applies: if the agent is blocked on a slow Kafka producer, ring buffer events get dropped silently. The fix is the same as in stream processing &#8212; async producer with local buffering and a drop counter exposed as a metric.</p>
+
+<h2 id="observability-value">Why This Matters for AI Observability</h2>
+
+<p>The eBPF approach delivers three things that SDK instrumentation cannot.</p>
+
+<h3>Shadow LLM usage detection</h3>
+
+<p>If an engineer on a team builds a quick internal tool that calls GPT-4o directly &#8212; not through the platform gateway, not through any instrumented wrapper &#8212; their costs will be invisible to every SDK-based monitoring system. The eBPF probe catches it regardless. The <code>auth_key_hash</code> field in the event will reveal which API key was used, even if that key was never registered with the platform.</p>
+
+<p>This is the &#8220;shadow LLM&#8221; problem: usage that exists on the invoice but not in any observability dashboard. It is the AI infrastructure equivalent of shadow IT.</p>
+
+<h3>SDK-less microservices</h3>
+
+<p>Any service that calls an LLM endpoint over raw HTTP &#8212; whether by design or because the team is using a language without a maintained SDK &#8212; is fully covered. This is especially relevant for polyglot shops where Rust, Go, and Java services coexist with Python ML services.</p>
+
+<h3>Retroactive instrumentation</h3>
+
+<p>Once the eBPF agent is deployed to the node, all existing services on that node are instrumented without redeployment. No SDK version bumps. No restart required. No coordination with application teams. This is the same operational model as Cilium: you deploy it to the cluster, and network observability appears for all pods simultaneously.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell">
+    <span class="stat-num">0</span>
+    <span class="stat-label">App code changes</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">100%</span>
+    <span class="stat-label">Language coverage</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">&lt;2%</span>
+    <span class="stat-label">CPU overhead</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">1</span>
+    <span class="stat-label">Agent per node</span>
+  </div>
+</div>
+
+<h2 id="os-ds-table">eBPF Concepts vs Distributed Systems Concepts</h2>
+
+<p>The mental model transfers cleanly from distributed systems experience.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>eBPF / OS Concept</th>
+      <th>Distributed Systems Equivalent</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>BPF_MAP_TYPE_HASH</code></td>
+      <td>Kafka compacted topic / Redis hash</td>
+      <td>Latest value per key; kernel-managed retention</td>
+    </tr>
+    <tr>
+      <td>BPF ring buffer</td>
+      <td>Kafka topic partition</td>
+      <td>Ordered, bounded; drops on overflow if consumer lags</td>
+    </tr>
+    <tr>
+      <td>Userspace agent</td>
+      <td>Kafka consumer group (single consumer)</td>
+      <td>Drains ring buffer, enriches, produces downstream</td>
+    </tr>
+    <tr>
+      <td>kprobe attachment</td>
+      <td>Interceptor / middleware</td>
+      <td>Fires on kernel function entry; zero app changes</td>
+    </tr>
+    <tr>
+      <td>BPF verifier</td>
+      <td>Schema registry + consumer contract</td>
+      <td>Guarantees program safety before load; no runtime crashes</td>
+    </tr>
+    <tr>
+      <td><code>bpf_probe_read_user</code></td>
+      <td>Remote read / RPC</td>
+      <td>Cross-boundary memory read; can fail if page not present</td>
+    </tr>
+    <tr>
+      <td>PID+FD correlation key</td>
+      <td>Kafka message key / partition key</td>
+      <td>Routes events for the same connection to same consumer</td>
+    </tr>
+    <tr>
+      <td>Tracepoint vs kprobe</td>
+      <td>Stable API vs internal hook</td>
+      <td>Tracepoints are ABI-stable; kprobes may break on kernel update</td>
+    </tr>
+    <tr>
+      <td>Map entry TTL / deletion</td>
+      <td>Tombstone in compacted log</td>
+      <td>Explicit delete on connection close removes stale state</td>
+    </tr>
+    <tr>
+      <td>Cilium network policy</td>
+      <td>Service mesh / sidecar proxy</td>
+      <td>Both provide observability; eBPF needs no app changes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="security-constraints">Security and CAP Constraints</h2>
+
+<p>eBPF is powerful and the Linux security model reflects that. Deploying an eBPF probe agent requires elevated privileges that have real security implications.</p>
+
+<h3>Required capabilities</h3>
+
+<p>To load BPF programs and attach probes, the agent needs one of:</p>
+
+<ul>
+  <li><strong><code>CAP_SYS_ADMIN</code></strong> &#8212; the traditional catch-all; required on kernels older than 5.8</li>
+  <li><strong><code>CAP_BPF</code> + <code>CAP_PERFMON</code></strong> &#8212; introduced in Linux 5.8 as a more granular split; preferred for new deployments</li>
+</ul>
+
+<p>In Kubernetes, this means the DaemonSet pod must run with <code>securityContext.capabilities.add: [BPF, PERFMON, NET_ADMIN]</code> or with <code>privileged: true</code>. Neither option is comfortable in a shared multi-tenant cluster, which is why eBPF-based observability tools typically run as cluster-level infrastructure rather than tenant workloads.</p>
+
+<h3>seccomp implications</h3>
+
+<p>seccomp profiles whitelist which syscalls a process may make. A container with a strict seccomp profile that doesn&#8217;t allow <code>bpf(2)</code> syscalls will fail to load BPF programs. The runtime default seccomp profile in most Kubernetes distributions blocks <code>bpf(2)</code>. The agent needs either a custom seccomp profile that permits it or the <code>Unconfined</code> seccomp setting (which is broader than necessary).</p>
+
+<h3>The privilege-vs-coverage tradeoff</h3>
+
+<p>This is the core tension of the eBPF approach for LLM observability:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Approach</th>
+      <th>Coverage</th>
+      <th>Privilege Required</th>
+      <th>Deployment Friction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>SDK instrumentation</td>
+      <td>Only SDK-using services</td>
+      <td>None</td>
+      <td>Per-service integration work</td>
+    </tr>
+    <tr>
+      <td>LLM gateway proxy</td>
+      <td>Only calls routed through gateway</td>
+      <td>None (app-level)</td>
+      <td>Requires routing migration</td>
+    </tr>
+    <tr>
+      <td>eBPF probe agent</td>
+      <td>All calls on the node</td>
+      <td>CAP_BPF + CAP_PERFMON</td>
+      <td>One DaemonSet, cluster admin approval</td>
+    </tr>
+    <tr>
+      <td>eBPF + uprobes (TLS)</td>
+      <td>All calls including HTTPS</td>
+      <td>CAP_BPF + CAP_PERFMON + library paths</td>
+      <td>Higher complexity, per-runtime tuning</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>For most organizations, the practical deployment is a hybrid: SDK instrumentation for services that already have it, an LLM gateway proxy for new services, and the eBPF agent as the backstop that catches everything else. The three sources feed the same Kafka topic with a <code>source</code> tag; the cost attribution system deduplicates on <code>request_id</code>.</p>
+
+<h2 id="bcc-tools">BCC Tools and the Proof-of-Concept Pattern</h2>
+
+<p>Before writing production BPF programs in C, it is worth prototyping with BCC (BPF Compiler Collection) or <code>bpftrace</code>. Both let you write BPF programs in a higher-level syntax and run them interactively.</p>
+
+<p>A one-liner to trace all <code>sendmsg</code> calls to port 443:</p>
+
+<pre><code>sudo bpftrace -e '
+kprobe:tcp_sendmsg {
+  $sk = (struct sock *)arg0;
+  $dport = $sk-&gt;__sk_common.skc_dport;
+  if ($dport == 0xBB01) {  // port 443 in big-endian
+    printf("PID=%d COMM=%s send to :443\n", pid, comm);
+  }
+}'</code></pre>
+
+<p>This proves the probe attachment works before you invest in the full ring buffer + userspace agent stack. BCC provides Python bindings that let you write the kernel BPF program in C but drive it from Python, which is excellent for iteration speed:</p>
+
+<pre><code>from bcc import BPF
+
+prog = """
+#include &lt;linux/ptrace.h&gt;
+#include &lt;net/sock.h&gt;
+
+BPF_HASH(conn_map, u64, u32);
+
+int kprobe__tcp_sendmsg(struct pt_regs *ctx, struct sock *sk) {
+    u64 key = (u64)bpf_get_current_pid_tgid() &lt;&lt; 32 | (u32)sk;
+    u32 dport = sk-&gt;__sk_common.skc_dport;
+    if (dport == htons(443)) {
+        conn_map.increment(key);
+        bpf_trace_printk("LLM send pid=%d\\n", bpf_get_current_pid_tgid() &gt;&gt; 32);
+    }
+    return 0;
+}
+"""
+b = BPF(text=prog)
+b.trace_print()</code></pre>
+
+<p>The Cilium team&#8217;s <code>tetragon</code> project is the production-grade version of this pattern: a Kubernetes-native eBPF security observability tool that attaches probes at the system call boundary and streams events to a gRPC endpoint. The LLM tracing use case follows the same architecture.</p>
+
+<pre class="mermaid">flowchart LR
+    subgraph KernelSpace["Kernel Space"]
+        K1["kprobe/tcp_connect"]
+        K2["kprobe/tcp_sendmsg"]
+        K3["kprobe/tcp_recvmsg"]
+        K4["tracepoint/sock/inet_sock_set_state"]
+        M1["BPF Hash Map\nconn_map[pid+fd]"]
+        M2["BPF Hash Map\nllm_ips[dst_ip]"]
+        RB["BPF Ring Buffer"]
+    end
+
+    subgraph UserSpace["Userspace (Agent Process)"]
+        DR["Ring Buffer Drainer\n(goroutine)"]
+        HP["HTTP Parser\nmodel + tokens + auth"]
+        CO["Correlator\npid+fd join send+recv"]
+        KP["Kafka Producer\ninfra-ai-streaming"]
+        IR["IP Resolver\npopulates llm_ips map"]
+    end
+
+    K1 --> M1
+    K1 --> M2
+    K2 --> M1
+    K2 --> RB
+    K3 --> RB
+    K4 --> M1
+    RB --> DR
+    DR --> HP
+    HP --> CO
+    CO --> KP
+    IR --> M2</pre>
+
+<h2 id="bigger-picture">The Bigger Picture &#8212; What eBPF Changes for AI Infrastructure</h2>
+
+<p>We are at an early moment in AI infrastructure observability where the tooling gap is significant. Application Performance Monitoring (APM) vendors are adding LLM tracing features, but they all require SDK integration. The cloud providers are adding per-request logging APIs, but you have to opt in and they only cover calls through their own endpoints.</p>
+
+<p>eBPF represents a different bet: instead of instrumenting the application layer, instrument the syscall layer. This is the same architectural decision that Cilium, Falco, and Pixie made for network observability, security monitoring, and service mesh metrics respectively. All three have seen production adoption at significant scale.</p>
+
+<p>The LLM HTTP tracing use case is actually easier than the network policy enforcement case (Cilium&#8217;s primary use case) because:</p>
+
+<ul>
+  <li>we are read-only (no packet modification required)</li>
+  <li>we only care about a small set of destination IPs and ports</li>
+  <li>the payload structure is predictable JSON over HTTP/1.1 or HTTP/2</li>
+  <li>latency requirements are loose (we tolerate ring buffer batching delays)</li>
+</ul>
+
+<p>The harder part is the organizational and security story. Getting <code>CAP_BPF</code> granted to a DaemonSet in a production cluster requires security team review. The argument is straightforward &#8212; this is the same privilege model that Cilium already runs under &#8212; but it takes time.</p>
+
+<div class="pullquote">
+  <p>Zero-SDK LLM tracing via eBPF is not a replacement for SDK instrumentation. It is the backstop that makes SDK instrumentation optional &#8212; and turns observability from a best-effort practice into a structural guarantee.</p>
+</div>
+
+<h2 id="bpf-cilium-parallel">The Cilium Parallel &#8212; Why This Architecture Wins</h2>
+
+<p>Cilium&#8217;s key insight was that the sidecar proxy model (Envoy, Linkerd) required injecting a new process into every pod, creating operational overhead and latency. eBPF network policies run in the kernel and require nothing from the application or the pod spec.</p>
+
+<p>The LLM observability parallel is identical.</p>
+
+<p>SDK instrumentation is the sidecar model: you must modify every application. The eBPF probe agent is the Cilium model: deploy it once to the node and get coverage for free.</p>
+
+<p>The performance characteristics are also similar:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Sidecar proxy (Envoy)</th>
+      <th>SDK instrumentation</th>
+      <th>eBPF agent</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Latency overhead</td>
+      <td>1&#8211;5ms per request</td>
+      <td>~0.1ms (in-process)</td>
+      <td>~0.01ms (kernel hook)</td>
+    </tr>
+    <tr>
+      <td>Memory overhead</td>
+      <td>50&#8211;150MB per pod</td>
+      <td>SDK library (~10MB)</td>
+      <td>BPF maps + agent (~20MB total)</td>
+    </tr>
+    <tr>
+      <td>Coverage</td>
+      <td>All traffic through proxy</td>
+      <td>Only SDK-using code paths</td>
+      <td>All TCP calls on the node</td>
+    </tr>
+    <tr>
+      <td>Deploy ceremony</td>
+      <td>Mutating webhook, pod restart</td>
+      <td>Dependency + code change</td>
+      <td>DaemonSet, one-time cluster setup</td>
+    </tr>
+    <tr>
+      <td>TLS handling</td>
+      <td>Terminates and re-encrypts</td>
+      <td>Before encryption</td>
+      <td>Needs uprobes for TLS</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="what-next">What Comes Next</h2>
+
+<p>Day 15 is coming soon.</p>
+
+<p>The pattern is becoming clearer every day:</p>
+
+<p>LLM infrastructure is systems engineering all the way down. eBPF moves that observation from the application layer to the kernel layer &#8212; and once you can observe every call without touching application code, the cost attribution, anomaly detection, and compliance questions become tractable problems rather than aspirational goals.</p>
+
+<div class="series-footer">
+  <p><em>Day 14 of N &#8212; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Zero-SDK tracing is the design decision that merges Blog A&#8217;s cardinality discipline with Blog B&#8217;s probe attachment strategy in one Kafka topic.</em></p>
+  <p><em>Up next: Day 15 coming soon.</em></p>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#sdk-gap">SDK instrumentation gap</a></li>
+      <li><a href="#ebpf-basics">eBPF basics</a></li>
+      <li><a href="#http-parsing">HTTP parsing via maps</a></li>
+      <li><a href="#userspace-agent">Userspace agent</a></li>
+      <li><a href="#kafka-connection">Kafka connection</a></li>
+      <li><a href="#ds-analogy">DS analogy</a></li>
+      <li><a href="#observability-value">Why it matters</a></li>
+      <li><a href="#os-ds-table">eBPF vs DS concepts</a></li>
+      <li><a href="#security-constraints">Security &amp; CAP</a></li>
+      <li><a href="#bcc-tools">BCC tools</a></li>
+      <li><a href="#bigger-picture">Bigger picture</a></li>
+      <li><a href="#bpf-cilium-parallel">Cilium parallel</a></li>
+      <li><a href="#what-next">What comes next</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-14-ebpf-for-ai-infrastructure.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+14%3A+eBPF+for+AI+Infrastructure+%28zero-SDK+LLM+tracing%29&amp;url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-14-ebpf-for-ai-infrastructure.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
