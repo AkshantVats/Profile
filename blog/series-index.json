@@ -105,6 +105,12 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html",
+          "kicker": "Experience 15 of N",
+          "title": "Cross-Tier Query Latency — Hot Redis, Cold Ceph",
+          "desc": "How WhiteFalcon’s histogram-based storage design makes cross-tier quantile queries mathematically correct — and why SLOs dominated by hot-tier reads hide cold-tier degradation until it’s too late."
+        },
+        {
           "href": "blog/series/experience/order-sqs-route-consumers-delivery-hero.html",
           "kicker": "Experience · Delivery Hero",
           "title": "Order SQS → Route Consumers: Decoupling Map-Match from Status",
