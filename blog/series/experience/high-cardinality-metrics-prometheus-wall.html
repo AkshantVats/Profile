@@ -257,18 +257,30 @@ html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.0
       <p>Cardinality does not grow linearly with the number of labels. It grows as the product of every distinct value across every dimension. One bad label multiplies everything that came before it.</p>
     </div>
 
-    <pre class="mermaid">flowchart TB
+    <pre class="mermaid">%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TB
   S0["service (1)"] --> S1["endpoint (8)"]
   S1 --> S2["status_code (6)"]
   S2 --> S3["model_id (15)"]
-  S3 --> S4["pod (50)  &lt;-- injected automatically"]
-  S4 --> S5["zone (4)  &lt;-- multi-region rollout"]
-  S5 --> S6["experiment_id (200+)  &lt;-- A/B testing"]
-  S6 --> BOOM["~14M active series\nTSDB OOM · scrapes fail"]
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef danger fill:#fef2f2,stroke:#dc2626,color:#111827
-  class S0,S1,S2,S3 pipeline
-  class S4,S5,S6,BOOM danger</pre>
+  S3 --> S4["pod (50) — auto-injected"]
+  S4 --> S5["zone (4) — multi-region"]
+  S5 --> S6["experiment_id (200+)"]
+  S6 --> BOOM["14M series — TSDB OOM"]</pre>
 
     <h2 id="tsdb-mechanics">Why Prometheus TSDB breaks under high cardinality</h2>
 
@@ -323,18 +335,29 @@ metric_relabel_configs:
 
     <p>The third phase was architectural: push high-cardinality dimensions into the trace pipeline instead. Experiment-level breakdown moved to a ClickHouse-backed aggregation layer where columnar storage makes sparse high-cardinality queries far cheaper than Prometheus ever could.</p>
 
-    <pre class="mermaid">flowchart LR
-  INGEST["Metric ingest\n(scrape endpoint)"] --> RELABEL["relabel_configs\nDrop unbounded labels"]
-  RELABEL --> PROM["Prometheus TSDB\nbounded dims only"]
-  RELABEL --> SIDECAR["Trace sidecar\nexperiment_id, pod, request_id"]
-  SIDECAR --> CH["ClickHouse\nhigh-cardinality analytics"]
-  PROM --> DASH["Grafana\nalert + SLO dashboards"]
-  CH --> DASH
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef store fill:#f0f9ff,stroke:#0284c7,color:#111827
-  class INGEST,RELABEL pipeline
-  class PROM,CH store
-  class SIDECAR,DASH pipeline</pre>
+    <pre class="mermaid">%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  INGEST["Metric ingest"] --> RELABEL["relabel_configs"]
+  RELABEL --> PROM["Prometheus TSDB"]
+  RELABEL --> SIDECAR["Trace sidecar"]
+  SIDECAR --> CH["ClickHouse analytics"]
+  PROM --> DASH["Grafana dashboards"]
+  CH --> DASH</pre>
 
     <h2 id="ingest-time-enforcement">Bounding cardinality at ingest time</h2>
 
@@ -381,20 +404,30 @@ metric_relabel_configs:
 
     <p>The last two rows are worth calling out explicitly. <code>/api/search?q=paris&checkin=2026-05-01</code> is unbounded. <code>/api/search</code> (the route template) is not. The distinction between URL path and URL route is one of the most common cardinality mistakes in web service instrumentation.</p>
 
-    <pre class="mermaid">flowchart LR
-  PROP["Proposed label"] --> CHECK{"Bounded\nmax distinct\nvalues?"}
-  CHECK -- "Yes, &lt; 100" --> PROD{"Product with\nexisting labels\n&lt; 50k?"}
-  CHECK -- "No / unknown" --> REJ1["Reject — move to\ntrace or log pipeline"]
-  PROD -- "Yes" --> APP["Approved\nfor Prometheus"]
-  PROD -- "No" --> NORM{"Can value be\nnormalized to\nbounded bucket?"}
+    <pre class="mermaid">%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  PROP["Proposed label"] --> CHECK{"Bounded &lt; 100?"}
+  CHECK -- "Yes" --> PROD{"Product &lt; 50k series?"}
+  CHECK -- "No" --> REJ1["Reject — use traces"]
+  PROD -- "Yes" --> APP["Approved for Prometheus"]
+  PROD -- "No" --> NORM{"Normalizable?"}
   NORM -- "Yes" --> APP
-  NORM -- "No" --> REJ2["Reject — cardinality\nbudget exceeded"]
-  classDef pipeline fill:#ffffff,stroke:#059669,color:#111827
-  classDef reject fill:#fef2f2,stroke:#dc2626,color:#111827
-  classDef approve fill:#f0fdf4,stroke:#059669,color:#111827
-  class PROP,CHECK,PROD,NORM pipeline
-  class REJ1,REJ2 reject
-  class APP approve</pre>
+  NORM -- "No" --> REJ2["Reject — over budget"]</pre>
 
     <h2 id="cardinality-in-llm-tracing">Why LLM tracing amplifies the problem</h2>
 
