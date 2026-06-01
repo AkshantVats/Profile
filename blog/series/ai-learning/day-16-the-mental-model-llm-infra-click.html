@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 15 — Multi-Model Routing Strategies | AI Learning Series</title>
-<meta name="description" content="Cost-first vs quality-first vs latency-first routing between LLM models — routing policy as a feature flag engine with GPUs. Day 15 of N.">
-<meta property="og:title" content="Day 15 — Multi-Model Routing Strategies">
-<meta property="og:description" content="Cost-first vs quality-first vs latency-first routing between LLM models — routing policy as a feature flag engine with GPUs.">
+<title>Day 16 — The Mental Model That Made LLM Infra Click | AI Learning Series</title>
+<meta name="description" content="Prefill as batch write, decode as serial consumer, KV cache as hot tier, continuous batching as variable-partition consumer group. Day 16 of N.">
+<meta property="og:title" content="Day 16 — The Mental Model That Made LLM Infra Click">
+<meta property="og:description" content="Prefill/decode + KV cache + continuous batching explained through distributed-systems analogies — the three concepts that make LLM serving legible to data-plane engineers.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-15-multi-model-routing-strategies.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-15-multi-model-routing-strategies.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-15-multi-model-routing-strategies.png">
-<meta property="article:published_time" content="2026-05-30">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
+<meta property="article:published_time" content="2026-06-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -92,14 +92,6 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
 .stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
 .stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.attr-box{border-radius:8px;padding:16px 18px;margin:.5rem 0 1.75rem;font-size:.9375rem;line-height:1.7;font-family:var(--ui);color:var(--sub)}
-.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
-.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
-.attr-label{font-family:var(--mono);font-size:.625rem;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:600}
-.attr-box.team .attr-label{color:var(--team-accent)}
-.attr-box.mine .attr-label{color:var(--mine-accent)}
-.diagram-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.75;overflow-x:auto}
-.diagram-box pre{background:none;border:none;padding:0;margin:0;font-size:inherit;white-space:pre;color:inherit}
 .pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
 .pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
 .footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
@@ -187,140 +179,219 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &#xB7; Day 15 of 150</span>
-    <span class="tag">Multi-Model Routing</span>
-    <span class="tag">LLM infrastructure</span>
-    <span class="tag">Feature flags</span>
-    <span class="tag">Distributed systems</span>
+    <span class="tag accent">AI Learning &#xB7; Day 16 of 150</span>
+    <span class="tag">LLM Inference</span>
+    <span class="tag">Prefill</span>
+    <span class="tag">Decode</span>
+    <span class="tag">KV Cache</span>
+    <span class="tag">Continuous Batching</span>
+    <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 15 &#8212; Multi-Model Routing Strategies</h1>
-  <p class="post-subtitle">15 of 150 &#8212; AI Learning Series. Cost-first vs quality-first vs latency-first routing between LLM models &#8212; routing policy as a feature flag engine with GPUs, and shadow routing for safe model promotion.</p>
+  <h1 class="post-title">Day 16 &#8212; The Mental Model That Made LLM Infra Click</h1>
+  <p class="post-subtitle">Prefill/decode + KV cache + continuous batching in distributed-systems analogies</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">May 2026</span>
+    <span class="meta-item">June 2, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">18 min read</span>
+    <span class="meta-item">11 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &#xB7; Day 15 of 150</span>
+    <span class="meta-item">AI Learning &#xB7; Day 16 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-15-multi-model-routing-strategies.png" alt="Cover: Day 15 — Multi-Model Routing Strategies" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-16-the-mental-model-llm-infra-click.png" alt="Cover: The Mental Model That Made LLM Infra Click — Day 16 of N" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<h2 id="hook">Routing Is Policy &#8212; You&#8217;ve Operated This Before</h2>
+<p>When I started working on LLM observability infrastructure, API latency was opaque. Time from request to last token was a single number. Some requests were fast. Some were slow for the first token and then fast. The tools I knew &#x2014; Kafka lag, ClickHouse flush time, Redis hit rate &#x2014; had no obvious analogue to LLM serving.</p>
 
-<p>Routing is policy engines &#8212; you operated feature flags for humans; models are flags with GPUs. That framing landed for me the moment I saw a routing table that chose between GPT-4 and Mistral based on prompt complexity. It looked exactly like a rollout rule in LaunchDarkly, not a new category of infrastructure.</p>
+<p>The mental model clicked when I stopped thinking about inference as a black box and named the two phases inside it. After that, every eBPF probe design decision, every Grafana column, and every SLO conversation had a structure.</p>
 
-<p>I had spent years configuring LaunchDarkly and Flipt &#8212; writing rules like &#8220;if user.tier == enterprise and region == APAC, serve variant B at 20%.&#8221; A multi-model router does the same thing: &#8220;if prompt.token_count &lt; 500 and user.tier == free, route to Mistral-7B; otherwise route to GPT-4o.&#8221; The predicate language is identical. The only difference is that the &#8220;variant&#8221; is a model endpoint backed by a GPU, and the cost of getting the rule wrong shows up on an invoice rather than in a conversion metric.</p>
+<p><strong>If you can explain Kafka, you can explain inference &#x2014; after you name the two phases.</strong></p>
 
-<p>That mental model transfer &#8212; flag rules to routing rules &#8212; is the unlock. Once I stopped thinking of multi-model routing as a new AI problem and started thinking of it as feature flag infrastructure with a cost dimension, the design decisions became obvious.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">inference phases</span></div>
+  <div class="stat-cell"><span class="stat-num">TTFT</span><span class="stat-label">prefill cost visible</span></div>
+  <div class="stat-cell"><span class="stat-num">KV cache</span><span class="stat-label">hot tier for attention</span></div>
+  <div class="stat-cell"><span class="stat-num">continuous batching</span><span class="stat-label">variable-slot consumers</span></div>
+</div>
 
-<h2 id="what-routing-is">What Multi-Model Routing Is</h2>
+<h2 id="prefill">Phase 1: Prefill &#x2014; the batch write</h2>
 
-<p>A router sits in front of a fleet of models and decides, per-request, which model handles it. The decision function is a policy: a set of weighted rules over request attributes like prompt length, user tier, required response quality, and current model latency. Each rule is evaluated in priority order, and the first match determines the target model.</p>
+<p>A prompt arrives at an LLM serving system. The first thing that happens is <strong>prefill</strong>: every input token is processed simultaneously, in parallel, by the transformer layers. The model reads the full context window and builds a <strong>KV cache</strong> &#x2014; a set of key-value vectors for every attention layer, for every input token.</p>
 
-<p>Think of it like a smart postmaster who reads the label and chooses whether to send a parcel overnight vs ground based on sender priority and current delivery load. The postmaster does not open the parcel to inspect the contents &#8212; they read the label metadata and apply a dispatch policy. A model router does exactly the same: it reads the request headers and prompt attributes without generating a response, applies a policy table, and dispatches to the appropriate model endpoint.</p>
+<p>Prefill is compute-bound. It scales with the number of input tokens (context length). A 100-token prompt finishes in milliseconds; a 50,000-token RAG context takes noticeably longer. The output of prefill is not text &#x2014; it is the KV cache.</p>
 
-<p>The attributes a router can evaluate include prompt token count (cheap to compute before sending), detected intent via a lightweight embedding classifier (a small model that classifies the request type), user tier from the authentication context, and the current P50 latency of each candidate model from a health-check loop. The router itself is a thin, stateless service &#8212; it holds no conversation state and adds single-digit milliseconds of overhead per request.</p>
+<p><strong>Kafka analogy:</strong> Prefill is a producer writing a large batch to a topic. The write (prompt tokens &#x2192; attention layers &#x2192; KV cache) happens in one shot, in parallel across all &#x201C;partitions&#x201D; (transformer heads). The cost scales with batch size (context length). The produced artifact (the KV cache) sits in GPU memory for the consumer phase.</p>
 
-<p>So what does this buy? It buys the ability to serve the cheapest acceptable model for each request rather than routing everything to the most capable model by default. For a SaaS product where 60% of requests are simple factual lookups, routing those to a smaller model can cut inference costs significantly without user-visible quality degradation.</p>
+<h2 id="decode">Phase 2: Decode &#x2014; the serial consumer</h2>
 
-<h2 id="three-axis">The Three-Axis Tradeoff</h2>
+<p>After prefill, the model generates tokens <strong>one at a time</strong>, autoregressively. To generate token N, it reads the KV cache for tokens 0 through N&#x2212;1, runs the attention computation, and samples the next token. It then appends that token to the KV cache and generates token N+1.</p>
 
-<p>Cost, quality, latency &#8212; you can optimise for two. This is the routing operator&#8217;s equivalent of the CAP theorem: every routing policy is a position on a triangle, and the router policy is the mechanism that enforces your chosen position.</p>
+<p>Decode is memory-bandwidth-bound. Each step reads the full KV cache &#x2014; which grows by one token per step. The GPU&#x2019;s HBM bandwidth is the bottleneck, not FLOPs. Generating 500 tokens requires 500 serial memory reads of the growing KV cache.</p>
 
-<p>An operator choosing cost-first routes short factual queries to a smaller model and reserves large models for complex reasoning or high-tier users. Quality degrades for edge cases but the bill shrinks. An operator choosing quality-first routes everything to GPT-4o or Claude Opus and eats the cost; this makes sense during early product development when you need maximum accuracy to validate the product thesis before optimising. An operator choosing latency-first keeps a hot pool of smaller models &#8212; fast to respond, always warm &#8212; and falls back to larger models only when a confidence score from the small model drops below threshold.</p>
+<p><strong>Kafka analogy:</strong> Decode is a slow consumer reading one message at a time from a partition where each read also appends to the end of the partition. The &#x201C;message&#x201D; is the KV cache state. The consumer cannot be parallelized across tokens within a single sequence &#x2014; it is inherently serial.</p>
 
-<pre class="mermaid">%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    REQ[Incoming Request]
-    POLICY[Router Policy\ncost-first / quality-first / latency-first]
-    LARGE[Large Model\nGPT-4o / Claude Opus]
-    MID[Mid Model\nGPT-3.5 / Claude Haiku]
-    SMALL[Small Model\nMistral-7B / Llama-3-8B]
-    REQ --> POLICY
-    POLICY -->|high complexity / high tier| LARGE
-    POLICY -->|medium complexity| MID
-    POLICY -->|low complexity / cost-first| SMALL</pre>
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
+flowchart LR
+  subgraph prefill["Phase 1: Prefill"]
+    P["Prompt tokens"] --> ATT["Transformer layers"]
+    ATT --> KVC[("KV cache · GPU HBM")]
+  end
+  subgraph decode["Phase 2: Decode"]
+    KVC --> D1["Token 1"]
+    D1 --> D2["Token 2"]
+    D2 --> DN["Token N"]
+  end
+  GROW["Token appended each step"] -.-> KVC
+</pre>
 
-<p>The triangle is not static &#8212; the router policy is a live configuration, not a compile-time decision. I can move from quality-first to cost-first by updating a policy file, exactly like flipping a feature flag from 0% to 100% rollout. That mutability is the entire point of the policy engine abstraction.</p>
+<h2 id="kvcache">The KV cache &#x2014; your hot tier for attention states</h2>
 
-<h2 id="policy-design">Routing Policy Design</h2>
+<p>The KV cache lives in GPU HBM. It is structurally a hot tier. It holds the minimum pre-computed form (attention vectors, not raw tokens) needed for the next decode step. Eviction happens when context exceeds the memory budget.</p>
 
-<p>The policy is a priority-ordered list of rules. Each rule is: <code>if &lt;predicate&gt; then route_to &lt;model&gt;</code>. Predicates evaluate prompt attributes &#8212; token count, detected intent via embeddings, user tier from auth context, and current model health. Rules are evaluated top-down; first match wins.</p>
+<table>
+  <thead>
+    <tr><th>TSDB hot tier (Redis)</th><th>LLM KV cache (GPU HBM)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Recent metric buckets</td><td>Current sequence attention states</td></tr>
+    <tr><td>Eviction by time window</td><td>Eviction when context overflows</td></tr>
+    <tr><td>Flush to cold tier on close</td><td>Offload to CPU RAM (prefix caching)</td></tr>
+    <tr><td>DRAM-speed reads</td><td>HBM-speed reads</td></tr>
+    <tr><td>Memory-sized capacity</td><td>Strictly memory-sized capacity</td></tr>
+  </tbody>
+</table>
 
-<p>This is identical to how LaunchDarkly evaluates flag rules. Rule 1 might be &#8220;if user is on the enterprise plan, always route to GPT-4o&#8221; &#8212; a hard override, same as a targeting rule that bypasses the rollout percentage. Rule 2 might be &#8220;if prompt token count exceeds 2000, route to a long-context model.&#8221; Rule 3 is the default: route to the cost-optimised small model for everything else. The mental model transferred almost without friction when I first built this.</p>
+<div class="pullquote"><p>The KV cache is not an optimization &#x2014; it is the fundamental data structure that makes autoregressive generation possible at usable speed.</p></div>
 
-<pre><code>rules:
-  - name: enterprise-override
-    predicate: user.tier == "enterprise"
-    target: gpt-4o
-    priority: 1
-  - name: long-context
-    predicate: prompt.token_count > 2000
-    target: claude-3-haiku-long
-    priority: 2
-  - name: complex-intent
-    predicate: intent_classifier.score("reasoning") > 0.8
-    target: gpt-4o
-    priority: 3
-  - name: default
-    predicate: true
-    target: mistral-7b
-    priority: 99</code></pre>
+<p>The engineering constraint: <strong>longer contexts &#x2192; larger caches &#x2192; fewer concurrent requests fit in GPU memory &#x2192; throughput drops</strong>. A model running 8K context per request can serve roughly 4&#xD7; more concurrent users than the same model at 32K context given identical GPU memory. This is the memory wall in LLM serving &#x2014; the same cardinality wall that causes label explosion in metrics systems.</p>
 
-<p>The intent classifier in rule 3 deserves attention. It is a small, fast embedding model that scores the incoming prompt against a set of intent categories &#8212; simple factual, creative writing, code generation, multi-step reasoning. Running this classifier adds 5&#8211;10ms of latency but enables much more precise routing than token count alone. So what does correct policy design buy you? It buys routing decisions that match the actual difficulty distribution of your traffic rather than treating every request as if it might need the most capable model.</p>
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
+flowchart TB
+  subgraph gpu["GPU memory · fixed budget"]
+    WEIGHTS["Model weights (fixed)"]
+    KV1["KV cache req_1 · 8K"]
+    KV2["KV cache req_2 · 8K"]
+    KV3["KV cache req_3 · 8K"]
+  end
+  subgraph longctx["Same GPU · 32K context"]
+    KVL1["KV cache req_1 · 32K"]
+    KVL2["KV cache req_2 · 32K"]
+    OOM["No room for req_3"]
+  end
+  KV3 -.->|"context 4x"| OOM
+</pre>
 
-<h2 id="shadow-routing">Shadow Routing for Evaluation</h2>
+<h2 id="batching">Continuous batching &#x2014; the variable-partition consumer group</h2>
 
-<p>Shadow routing duplicates live traffic to a candidate model without serving its response to the user. The production model answers the user; the shadow model answers in parallel, its response captured and scored offline. I compare quality offline &#8212; running the shadow response through an LLM judge that scores coherence, factual accuracy, and task completion against the production model&#8217;s response.</p>
+<p><strong>Static batching:</strong> the server collects a full batch of N requests, runs prefill for all simultaneously, then decodes all in lockstep until the last sequence finishes. If request 1 needs 10 tokens and request 2 needs 500 tokens, request 1 holds a batch slot for 490 idle decode steps.</p>
 
-<p>This is A/B testing for model quality, and it lets me promote a cheaper model to primary only after I have statistical confidence it meets quality SLAs. The analogy: a new hire who shadows calls for two weeks before going solo &#8212; they hear the conversation, they draft their own answer, but the customer gets the experienced rep&#8217;s response until we&#8217;ve validated the new hire&#8217;s judgment. Shadow routing is that two-week probation period for model endpoints.</p>
+<p><strong>Continuous batching</strong> (also called in-flight batching): as soon as a request emits its EOS token, the slot is freed and a new request enters the batch mid-stride. No slot idles waiting for the longest sequence.</p>
 
-<p>The shadow infrastructure is straightforward. The router sends the request to both the primary and shadow endpoints, returns the primary response immediately, and enqueues the shadow response for async evaluation. The evaluator runs an LLM-as-judge prompt that scores the shadow response on the same dimensions as the primary, producing a quality delta. When the rolling quality delta stays within tolerance for a configurable number of requests &#8212; say, 1000 requests over 48 hours &#8212; the router can be updated to promote the shadow model to primary for that rule. So what does shadow routing change? It converts model promotion from a leap of faith into a measurement exercise.</p>
+<p><strong>Kafka consumer group analogy:</strong> Static batching is a consumer group that waits for all partitions to finish a batch before polling new messages &#x2014; the slowest partition determines throughput. Continuous batching is a consumer group where each partition is polled independently as it completes; a fast partition returns its slot immediately.</p>
 
-<h2 id="lensai">Connection to LensAI</h2>
+<table>
+  <thead>
+    <tr><th>Static batching</th><th>Continuous batching</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Batch completes at slowest request</td><td>Slot freed at each request&#x2019;s EOS</td></tr>
+    <tr><td>GPU utilization drops as fast requests finish</td><td>GPU stays saturated throughout</td></tr>
+    <tr><td>Simple scheduler</td><td>Iteration-level slot management</td></tr>
+    <tr><td>Low throughput under mixed response lengths</td><td>2&#x2013;5&#xD7; higher throughput in production</td></tr>
+  </tbody>
+</table>
 
-<p>The eBPF probe I built on Day 14 captures raw HTTP events per model endpoint. Layering the router policy on top means LensAI can attribute latency and cost not just to a model name but to a routing decision &#8212; did quality-first routing on user tier A cause the P99 spike, or was it the fallback to GPT-4o when Mistral&#8217;s confidence dropped below threshold?</p>
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
+flowchart TB
+  subgraph static["Static batch of 3"]
+    S1["req_1: done step 10"] --> WAIT1["Idle 490 steps"]
+    S2["req_2: runs 500 steps"]
+    S3["req_3: done step 200"] --> WAIT2["Idle 300 steps"]
+  end
+  subgraph continuous["Continuous · dynamic slots"]
+    C1["req_1: done step 10"] --> FREE1["Slot freed"]
+    C2["req_2: runs 500 steps"]
+    C3["req_3: done step 200"] --> FREE2["Slot freed"]
+    FREE1 --> REQ4["req_4 enters"]
+    FREE2 --> REQ5["req_5 enters"]
+  end
+</pre>
 
-<p>That attribution gap &#8212; knowing the model that answered but not the rule that sent it there &#8212; is exactly the observability hole I am trying to close. Without routing context on each LLMCallEvent, I can see that GPT-4o latency spiked at 19:47, but I cannot tell whether it spiked because traffic that should have hit Mistral was incorrectly escalated, or because GPT-4o itself degraded. The router policy ID and matched rule name need to be fields on every event, not just the model name. That is the schema extension I am building for LensAI this week.</p>
+<h2 id="lensai">LensAI: the two-phase latency columns</h2>
 
-<h2 id="closing">Measurement First, Policy Second</h2>
+<p>From the daily thread: <em>&#x201C;Parsed <code>model_id</code> fields in eBPF events must align with the two-phase latency columns Blog B introduced on Day 1.&#x201D;</em></p>
 
-<p>Tomorrow I write the syscall capture layer &#8212; Day 15&#8217;s eBPF program that sits behind all of this, capturing socket events per connection. Multi-model routing is the policy layer; eBPF is the measurement layer. Without both, I would have either a black-box router whose decisions I cannot observe, or a profiler with no context about which routing decisions drove the traffic it is measuring.</p>
+<p>When an eBPF probe observes an LLM API call from the outside &#x2014; capturing bytes at <code>SSL_write</code> (request) and <code>SSL_read</code> (response) &#x2014; it sees the two-phase split from the outside:</p>
 
-<p>The pairing is not coincidental. Feature flag systems without experiment tracking are just config files. Model routers without observability are just load balancers. The discipline is the same: every routing decision needs to produce a structured event that says what rule fired, why, and what the outcome was. That event is the unit of learning that lets you improve the policy over time.</p>
+<ul>
+  <li><strong>Time to first response byte</strong> &#x2248; <strong>prefill time</strong> (server runs prefill; no bytes until the first token is generated)</li>
+  <li><strong>Time from first byte to last byte</strong> &#x2248; <strong>decode time</strong> (tokens streaming, one per step)</li>
+</ul>
+
+<table>
+  <thead>
+    <tr><th>Field</th><th>Phase</th><th>eBPF capture</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>prefill_latency_ms</code></td><td>Phase 1</td><td>SSL_read first byte ts &#x2212; SSL_write ts</td></tr>
+    <tr><td><code>decode_latency_ms</code></td><td>Phase 2</td><td>SSL_read last byte ts &#x2212; first byte ts</td></tr>
+    <tr><td><code>total_latency_ms</code></td><td>Both</td><td>SSL_read last byte ts &#x2212; SSL_write ts</td></tr>
+    <tr><td><code>model_id</code></td><td>Join key</td><td>&#x201C;model&#x201D; JSON field in request body</td></tr>
+  </tbody>
+</table>
+
+<p><code>model_id</code> is the join key. Without it, a spike in <code>prefill_latency_ms</code> is invisible per model &#x2014; you cannot distinguish a GPT-4o prefill regression from a cheaper model behaving as expected. <code>model_id</code> in every event is what makes the two-phase columns actionable in Grafana.</p>
+
+<h2 id="takeaway">Takeaway</h2>
+
+<p>Three concepts unlock LLM serving operations as a data-plane problem:</p>
+
+<ol>
+  <li><strong>Prefill = batch write</strong> (compute-bound, scales with context length, produces KV cache)</li>
+  <li><strong>Decode = serial consumer</strong> (memory-bandwidth-bound, scales with output tokens, reads KV cache per step)</li>
+  <li><strong>Continuous batching = variable-partition consumer group</strong> (slots freed on sequence completion, not batch completion)</li>
+</ol>
+
+<p>The KV cache is the hot tier. Context length is the cardinality knob. Throughput under continuous batching is throughput under optimal consumer group utilization &#x2014; the same principle as maximizing partition fan-out while staying within Kafka consumer lag budgets.</p>
+
+<p>Once you have these analogies, every serving system configuration decision &#x2014; how many concurrent requests a GPU can handle, when TTFT spikes, why a 32K context request hurts other users &#x2014; has a mechanical explanation from the data systems vocabulary you already hold.</p>
 
 <div class="series-footer">
-  <p><em>Day 15 of 150 &#8212; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Routing is policy engines &#8212; the feature flag mental model transfers directly once you accept that the &#8220;variant&#8221; is a GPU-backed model endpoint.</em></p>
-  <p><em>Previous: <a href="day-14-ebpf-for-ai-infrastructure.html">Day 14 &#8212; eBPF for AI Infrastructure: Kernel Probes vs SDK Patches &#8594;</a></em></p>
-  <p><em>Next: <a href="day-16-the-mental-model-llm-infra-click.html">Day 16 &#8212; The Mental Model That Made LLM Infra Click &#8594;</a></em></p>
+  <p><em>Day 16 of 150 &#x2014; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Prefill is the batch write, decode is the serial consumer &#x2014; naming the two phases is the unlock.</em></p>
+  <p><em>Previous: <a href="day-15-multi-model-routing-strategies.html">Day 15 &#x2014; Multi-Model Routing Strategies &#x2194;</a></em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html">Experience 15 &#x2014; Cross-Tier Query Latency: Hot Redis, Cold Ceph</a> &#x2014; the same tier-boundary intuition in storage systems.</em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-2-continuous-batching-vllm.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 2 &#x2014; Continuous Batching in vLLM (gold reference for batching deep-dive)
+    </a>
+    <a href="day-14-ebpf-for-ai-infrastructure.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 14 &#x2014; eBPF for AI Infrastructure: Kernel Probes vs SDK Patches
+    </a>
+    <a href="day-15-multi-model-routing-strategies.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 15 &#x2014; Multi-Model Routing Strategies
+    </a>
+  </div>
 </div>
 
 </article>
@@ -332,23 +403,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#hook">Routing is policy</a></li>
-      <li><a href="#what-routing-is">What multi-model routing is</a></li>
-      <li><a href="#three-axis">Three-axis tradeoff</a></li>
-      <li><a href="#policy-design">Policy design</a></li>
-      <li><a href="#shadow-routing">Shadow routing</a></li>
-      <li><a href="#lensai">Connection to LensAI</a></li>
-      <li><a href="#closing">Measurement first</a></li>
+      <li><a href="#prefill">Phase 1: Prefill</a></li>
+      <li><a href="#decode">Phase 2: Decode</a></li>
+      <li><a href="#kvcache">The KV cache</a></li>
+      <li><a href="#batching">Continuous batching</a></li>
+      <li><a href="#lensai">LensAI: two-phase latency</a></li>
+      <li><a href="#takeaway">Takeaway</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-15-multi-model-routing-strategies.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+15%3A+Multi-Model+Routing+Strategies+%E2%80%94+routing+as+feature+flags+with+GPUs&amp;url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-15-multi-model-routing-strategies.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+16+%E2%80%94+The+Mental+Model+That+Made+LLM+Infra+Click&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
@@ -362,11 +432,11 @@ flowchart TD
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Contributed to WhiteFalcon at Agoda, built logistics infra at Delivery Hero, IoT platforms at Walmart Labs, and pricing systems at Wayfair.</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
       <div class="author-card-links">
         <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
         <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
-        <a href="../../index.html" class="ff-posts">All posts</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
       </div>
     </div>
@@ -376,6 +446,7 @@ flowchart TD
 <script>
 (function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>
 (function(){

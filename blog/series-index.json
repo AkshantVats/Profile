@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html",
+          "kicker": "Day 16 of 150",
+          "title": "Day 16 — The Mental Model That Made LLM Infra Click",
+          "desc": "Prefill as batch write, decode as serial consumer, KV cache as hot tier, continuous batching as variable-partition consumer group — the three analogies that make LLM serving operations legible to data-plane engineers."
+        },
+        {
           "href": "blog/series/ai-learning/day-15-multi-model-routing-strategies.html",
           "kicker": "Day 15 of 150",
           "title": "Day 15 — Multi-Model Routing Strategies",
