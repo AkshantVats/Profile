@@ -5,3 +5,10 @@ Thumbs.db
 .venv-covers/
 scripts/__pycache__/
 scripts/output/
+node_modules/
+tmp-*.png
+scripts/cover_generated/
+scripts/linkedin-export/
+.venv/
+__pycache__/
+*.pyc
