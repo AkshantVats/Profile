@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 16 — The Mental Model That Made LLM Infra Click | AI Learning Series</title>
-<meta name="description" content="Prefill as batch write, decode as serial consumer, KV cache as hot tier, continuous batching as variable-partition consumer group. Day 16 of N.">
-<meta property="og:title" content="Day 16 — The Mental Model That Made LLM Infra Click">
-<meta property="og:description" content="Prefill/decode + KV cache + continuous batching explained through distributed-systems analogies — the three concepts that make LLM serving legible to data-plane engineers.">
+<title>Building in Public &#8212; The Blog Post That Outlives LinkedIn | Experience Series</title>
+<meta name="description" content="Architecture posts as durable hiring signals — why a well-written technical post outlasts a hundred LinkedIn announcements, and how to write one that gets referenced months later.">
+<meta property="og:title" content="Building in Public &#8212; The Blog Post That Outlives LinkedIn">
+<meta property="og:description" content="Platform thinking is reuse, not rewrite. The blog posts that document real engineering decisions — real numbers, real tradeoffs, real code — outlive the algorithm by years.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/building-in-public-blog-post-that-outlives-linkedin.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
-<meta property="article:published_time" content="2026-06-02">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/building-in-public-blog-post-that-outlives-linkedin.png">
+<meta property="article:published_time" content="2026-06-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,6 +94,12 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
 .pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
 .footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
 .footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
 .footnote-links{display:flex;flex-direction:column;gap:6px}
@@ -111,24 +117,6 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
 .share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
 .share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
-.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
-.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
-.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
-.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
-.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
-.series-post:first-child{border-top:none;padding-top:4px}
-.series-post.current{color:var(--text)}
-.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
-.series-post.current .series-post-kicker{color:var(--sub)}
-.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
-.series-post.current .series-post-num{color:var(--green)}
-.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
-.series-post.current .series-post-title{font-weight:600}
-.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
-.series-post.current .series-post-desc{color:var(--sub)}
-.series-post--draft{opacity:.72}
-a.series-post-title{color:inherit;text-decoration:none;display:block}
-a.series-post-title:hover{color:var(--green)}
 .post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
 .author-card{display:flex;gap:20px;align-items:flex-start}
 .author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
@@ -179,218 +167,131 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &#xB7; Day 16 of 150</span>
-    <span class="tag">LLM Inference</span>
-    <span class="tag">Prefill</span>
-    <span class="tag">Decode</span>
-    <span class="tag">KV Cache</span>
-    <span class="tag">Continuous Batching</span>
+    <span class="tag accent">Experience Series &#xB7; 16 of N</span>
+    <span class="tag">Building in Public</span>
+    <span class="tag">Hiring Signals</span>
+    <span class="tag">Platform Thinking</span>
     <span class="tag">LensAI</span>
+    <span class="tag">OSS</span>
   </div>
-  <h1 class="post-title">Day 16 &#8212; The Mental Model That Made LLM Infra Click</h1>
-  <p class="post-subtitle">Prefill/decode + KV cache + continuous batching in distributed-systems analogies</p>
+  <h1 class="post-title">Building in Public &#8212; The Blog Post That Outlives LinkedIn</h1>
+  <p class="post-subtitle">Architecture posts as durable hiring signals</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 2, 2026</span>
+    <span class="meta-item">June 3, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">11 min read</span>
+    <span class="meta-item">10 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &#xB7; Day 16 of 150</span>
+    <span class="meta-item">Experience Series &#xB7; 16 of N</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-16-the-mental-model-llm-infra-click.png" alt="Cover: The Mental Model That Made LLM Infra Click — Day 16 of N" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/building-in-public-blog-post-that-outlives-linkedin.png" alt="Cover: Building in Public — The Blog Post That Outlives LinkedIn" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>When I started working on LLM observability infrastructure, API latency was opaque. Time from request to last token was a single number. Some requests were fast. Some were slow for the first token and then fast. The tools I knew &#x2014; Kafka lag, ClickHouse flush time, Redis hit rate &#x2014; had no obvious analogue to LLM serving.</p>
+<p>A LinkedIn post about shipping a distributed system gets 200 impressions over three days, then falls below the fold. A blog post with the same story &#x2014; architecture diagram, explicit tradeoffs, honest benchmark numbers &#x2014; gets referenced in a hiring committee email nine months later.</p>
 
-<p>The mental model clicked when I stopped thinking about inference as a black box and named the two phases inside it. After that, every eBPF probe design decision, every Grafana column, and every SLO conversation had a structure.</p>
+<p>I noticed this pattern after writing about WhiteFalcon&#x2019;s storage tiering at Agoda. The LinkedIn version said &#x201C;shipped cross-tier query optimizations at 1.5T events/day.&#x201D; The blog version explained how histogram bucket counts enable mathematically correct P99 merges across Redis and Ceph tier boundaries. The LinkedIn post is already gone from feeds. The blog post still surfaces in conversations about distributed storage design.</p>
 
-<p><strong>If you can explain Kafka, you can explain inference &#x2014; after you name the two phases.</strong></p>
+<p><strong>Platform thinking is reuse, not rewrite.</strong> The same applies to writing: a post that documents a real decision becomes a contract you can reference again.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">inference phases</span></div>
-  <div class="stat-cell"><span class="stat-num">TTFT</span><span class="stat-label">prefill cost visible</span></div>
-  <div class="stat-cell"><span class="stat-num">KV cache</span><span class="stat-label">hot tier for attention</span></div>
-  <div class="stat-cell"><span class="stat-num">continuous batching</span><span class="stat-label">variable-slot consumers</span></div>
+  <div class="stat-cell"><span class="stat-num">90s</span><span class="stat-label">hiring committee scroll time</span></div>
+  <div class="stat-cell"><span class="stat-num">3 days</span><span class="stat-label">LinkedIn post lifespan</span></div>
+  <div class="stat-cell"><span class="stat-num">months</span><span class="stat-label">good post citation window</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">real decision documented</span></div>
 </div>
 
-<h2 id="prefill">Phase 1: Prefill &#x2014; the batch write</h2>
+<h2 id="algorithm-vs-search">The algorithm versus search</h2>
 
-<p>A prompt arrives at an LLM serving system. The first thing that happens is <strong>prefill</strong>: every input token is processed simultaneously, in parallel, by the transformer layers. The model reads the full context window and builds a <strong>KV cache</strong> &#x2014; a set of key-value vectors for every attention layer, for every input token.</p>
+<p>LinkedIn&#x2019;s algorithm surfaces engagement, not expertise. A post that gets reactions in the first hour stays visible. A post with technical depth but no early engagement disappears regardless of quality. This is the wrong signal for demonstrating engineering judgment at the senior and staff level.</p>
 
-<p>Prefill is compute-bound. It scales with the number of input tokens (context length). A 100-token prompt finishes in milliseconds; a 50,000-token RAG context takes noticeably longer. The output of prefill is not text &#x2014; it is the KV cache.</p>
+<p>A blog post indexed by search engines has the opposite dynamic. Someone searches &#x201C;Kafka consumer group rebalancing under high partition counts&#x201D; six months from now and finds the post where I worked through the rebalance latency problem at Delivery Hero. The algorithm has no part in that discovery. The engineering decision documented in writing is the entire artifact.</p>
 
-<p><strong>Kafka analogy:</strong> Prefill is a producer writing a large batch to a topic. The write (prompt tokens &#x2192; attention layers &#x2192; KV cache) happens in one shot, in parallel across all &#x201C;partitions&#x201D; (transformer heads). The cost scales with batch size (context length). The produced artifact (the KV cache) sits in GPU memory for the consumer phase.</p>
+<p>The distribution mechanism and the shelf life are the key difference. Social posts optimize for the first 48 hours. Written documentation optimizes for the long tail: people who have the same problem you already solved, arriving months later with the same search intent.</p>
 
-<h2 id="decode">Phase 2: Decode &#x2014; the serial consumer</h2>
+<h2 id="what-makes-a-post-referenceable">What makes a post referenceable</h2>
 
-<p>After prefill, the model generates tokens <strong>one at a time</strong>, autoregressively. To generate token N, it reads the KV cache for tokens 0 through N&#x2212;1, runs the attention computation, and samples the next token. It then appends that token to the KV cache and generates token N+1.</p>
+<p>After 17 posts in this series, the pattern is clear. The posts that get referenced in hiring conversations have three properties that the posts that disappear do not.</p>
 
-<p>Decode is memory-bandwidth-bound. Each step reads the full KV cache &#x2014; which grows by one token per step. The GPU&#x2019;s HBM bandwidth is the bottleneck, not FLOPs. Generating 500 tokens requires 500 serial memory reads of the growing KV cache.</p>
+<p>First: <strong>a real constraint named explicitly.</strong> &#x201C;High cardinality metrics&#x201D; is a category. &#x201C;1.5T events per day with 240 million unique series IDs, where standard Prometheus label explosion would exhaust 24GB of heap in under a minute&#x201D; is a constraint. The specificity is what makes it searchable and verifiable. Anyone who has hit the same constraint recognizes it immediately.</p>
 
-<p><strong>Kafka analogy:</strong> Decode is a slow consumer reading one message at a time from a partition where each read also appends to the end of the partition. The &#x201C;message&#x201D; is the KV cache state. The consumer cannot be parallelized across tokens within a single sequence &#x2014; it is inherently serial.</p>
+<p>Second: <strong>the decision that was rejected.</strong> Every real architecture decision involves a road not taken. Documenting why you did not use ClickHouse for hot-tier serving &#x2014; because HBM latency at P99 is incompatible with the SLO, not because you didn&#x2019;t know about ClickHouse &#x2014; tells the reader you actually made the decision under constraint, not under ignorance.</p>
+
+<p>Third: <strong>something the reader can reproduce.</strong> A command, a benchmark, a schema. Not pseudocode &#x2014; actual syntax. The reader&#x2019;s bar for trust rises sharply when they can run the thing and see the output you described.</p>
+
+<div class="attr-box team"><div class="attr-label">Pattern from production systems</div>At Agoda, WhiteFalcon&#x2019;s internal documentation that survived team turnover always had this structure: constraint + decision + rejected alternative + benchmark. The docs that became folklore were the ones that named the failure modes explicitly, with data.</div>
+
+<h2 id="the-contract-metaphor">The documentation contract</h2>
+
+<p>Think of a blog post as a contract you sign with a future reader who has the same problem. A bad contract has vague terms: &#x201C;we improved database performance by redesigning the schema.&#x201D; A good contract is specific and falsifiable: &#x201C;migrating cold-tier Parquet compression from Snappy to Zstd reduced storage cost by 15&#x2013;20% with less than 1% read latency impact, measured on 30-day compacted files at 512MB block size.&#x201D;</p>
+
+<p>The specificity is both the value for the reader and the proof for the hiring committee. A staff engineer who sees that sentence knows you understand compression tradeoffs, that you measured before and after, and that you know the operating constraint (read latency P99 must not regress). That is three signals in one sentence. A LinkedIn post version of the same work gets none of them across.</p>
 
 <pre class="mermaid">
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
 flowchart LR
-  subgraph prefill["Phase 1: Prefill"]
-    P["Prompt tokens"] --> ATT["Transformer layers"]
-    ATT --> KVC[("KV cache · GPU HBM")]
+  subgraph short["Short-form post"]
+    L["LinkedIn announcement"] --> F["Falls below fold in 3 days"]
   end
-  subgraph decode["Phase 2: Decode"]
-    KVC --> D1["Token 1"]
-    D1 --> D2["Token 2"]
-    D2 --> DN["Token N"]
-  end
-  GROW["Token appended each step"] -.-> KVC
-</pre>
-
-<h2 id="kvcache">The KV cache &#x2014; your hot tier for attention states</h2>
-
-<p>The KV cache lives in GPU HBM. It is structurally a hot tier. It holds the minimum pre-computed form (attention vectors, not raw tokens) needed for the next decode step. Eviction happens when context exceeds the memory budget.</p>
-
-<table>
-  <thead>
-    <tr><th>TSDB hot tier (Redis)</th><th>LLM KV cache (GPU HBM)</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Recent metric buckets</td><td>Current sequence attention states</td></tr>
-    <tr><td>Eviction by time window</td><td>Eviction when context overflows</td></tr>
-    <tr><td>Flush to cold tier on close</td><td>Offload to CPU RAM (prefix caching)</td></tr>
-    <tr><td>DRAM-speed reads</td><td>HBM-speed reads</td></tr>
-    <tr><td>Memory-sized capacity</td><td>Strictly memory-sized capacity</td></tr>
-  </tbody>
-</table>
-
-<div class="pullquote"><p>The KV cache is not an optimization &#x2014; it is the fundamental data structure that makes autoregressive generation possible at usable speed.</p></div>
-
-<p>The engineering constraint: <strong>longer contexts &#x2192; larger caches &#x2192; fewer concurrent requests fit in GPU memory &#x2192; throughput drops</strong>. A model running 8K context per request can serve roughly 4&#xD7; more concurrent users than the same model at 32K context given identical GPU memory. This is the memory wall in LLM serving &#x2014; the same cardinality wall that causes label explosion in metrics systems.</p>
-
-<pre class="mermaid">
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
-flowchart TB
-  subgraph gpu["GPU memory · fixed budget"]
-    WEIGHTS["Model weights (fixed)"]
-    KV1["KV cache req_1 · 8K"]
-    KV2["KV cache req_2 · 8K"]
-    KV3["KV cache req_3 · 8K"]
-  end
-  subgraph longctx["Same GPU · 32K context"]
-    KVL1["KV cache req_1 · 32K"]
-    KVL2["KV cache req_2 · 32K"]
-    OOM["No room for req_3"]
-  end
-  KV3 -.->|"context 4x"| OOM
-</pre>
-
-<h2 id="batching">Continuous batching &#x2014; the variable-partition consumer group</h2>
-
-<p><strong>Static batching:</strong> the server collects a full batch of N requests, runs prefill for all simultaneously, then decodes all in lockstep until the last sequence finishes. If request 1 needs 10 tokens and request 2 needs 500 tokens, request 1 holds a batch slot for 490 idle decode steps.</p>
-
-<p><strong>Continuous batching</strong> (also called in-flight batching): as soon as a request emits its EOS token, the slot is freed and a new request enters the batch mid-stride. No slot idles waiting for the longest sequence.</p>
-
-<p><strong>Kafka consumer group analogy:</strong> Static batching is a consumer group that waits for all partitions to finish a batch before polling new messages &#x2014; the slowest partition determines throughput. Continuous batching is a consumer group where each partition is polled independently as it completes; a fast partition returns its slot immediately.</p>
-
-<table>
-  <thead>
-    <tr><th>Static batching</th><th>Continuous batching</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Batch completes at slowest request</td><td>Slot freed at each request&#x2019;s EOS</td></tr>
-    <tr><td>GPU utilization drops as fast requests finish</td><td>GPU stays saturated throughout</td></tr>
-    <tr><td>Simple scheduler</td><td>Iteration-level slot management</td></tr>
-    <tr><td>Low throughput under mixed response lengths</td><td>2&#x2013;5&#xD7; higher throughput in production</td></tr>
-  </tbody>
-</table>
-
-<pre class="mermaid">
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
-flowchart TB
-  subgraph static["Static batch of 3"]
-    S1["req_1: done step 10"] --> WAIT1["Idle 490 steps"]
-    S2["req_2: runs 500 steps"]
-    S3["req_3: done step 200"] --> WAIT2["Idle 300 steps"]
-  end
-  subgraph continuous["Continuous · dynamic slots"]
-    C1["req_1: done step 10"] --> FREE1["Slot freed"]
-    C2["req_2: runs 500 steps"]
-    C3["req_3: done step 200"] --> FREE2["Slot freed"]
-    FREE1 --> REQ4["req_4 enters"]
-    FREE2 --> REQ5["req_5 enters"]
+  subgraph long["Long-form post"]
+    B["Blog with constraint + decision"] --> I["Indexed by search engines"]
+    I --> REF["Referenced in hiring email — months later"]
   end
 </pre>
 
-<h2 id="lensai">LensAI: the two-phase latency columns</h2>
+<h2 id="accumulation">The accumulation effect</h2>
 
-<p>From the daily thread: <em>&#x201C;Parsed <code>model_id</code> fields in eBPF events must align with the two-phase latency columns Blog B introduced on Day 1.&#x201D;</em></p>
+<p>A single well-written post helps. Seventeen posts in a consistent series does something different. Each post builds the same vocabulary &#x2014; Kafka, ClickHouse, eBPF, cardinality, latency percentiles &#x2014; from a different angle. A hiring committee reading three posts in the series sees a coherent technical perspective across multiple problem spaces, not a collection of isolated examples.</p>
 
-<p>When an eBPF probe observes an LLM API call from the outside &#x2014; capturing bytes at <code>SSL_write</code> (request) and <code>SSL_read</code> (response) &#x2014; it sees the two-phase split from the outside:</p>
+<p>This is the platform thinking analogy from the bridge: the Kafka producer I built today for <code>ebpf-llm-tracer</code> reuses the exact <code>InferenceEvent</code> schema I documented in the infra-ai-streaming design posts. The documentation contract I wrote earlier became an integration contract I could implement without rethinking the design. Writing about platform decisions creates reusable artifacts, the same way well-designed interfaces create reusable code.</p>
 
-<ul>
-  <li><strong>Time to first response byte</strong> &#x2248; <strong>prefill time</strong> (server runs prefill; no bytes until the first token is generated)</li>
-  <li><strong>Time from first byte to last byte</strong> &#x2248; <strong>decode time</strong> (tokens streaming, one per step)</li>
-</ul>
+<p>The accumulation effect works in two directions. Forward: each post creates something the next post can reference. Backward: each new post adds context that makes the older ones more legible. A reader who finds post 17 and reads back through the series gets the full arc: TSDB at Agoda, geospatial tracking at Delivery Hero, pricing engine at Wayfair, and now zero-SDK LLM observability via eBPF. That is a legible engineering biography, not a resume.</p>
 
-<table>
-  <thead>
-    <tr><th>Field</th><th>Phase</th><th>eBPF capture</th></tr>
-  </thead>
-  <tbody>
-    <tr><td><code>prefill_latency_ms</code></td><td>Phase 1</td><td>SSL_read first byte ts &#x2212; SSL_write ts</td></tr>
-    <tr><td><code>decode_latency_ms</code></td><td>Phase 2</td><td>SSL_read last byte ts &#x2212; first byte ts</td></tr>
-    <tr><td><code>total_latency_ms</code></td><td>Both</td><td>SSL_read last byte ts &#x2212; SSL_write ts</td></tr>
-    <tr><td><code>model_id</code></td><td>Join key</td><td>&#x201C;model&#x201D; JSON field in request body</td></tr>
-  </tbody>
-</table>
+<h2 id="failure-modes">The failure modes</h2>
 
-<p><code>model_id</code> is the join key. Without it, a spike in <code>prefill_latency_ms</code> is invisible per model &#x2014; you cannot distinguish a GPT-4o prefill regression from a cheaper model behaving as expected. <code>model_id</code> in every event is what makes the two-phase columns actionable in Grafana.</p>
+<p>The posts that do not survive have one of three failure modes. <strong>Vagueness</strong>: scale numbers that are obviously rounded or omitted, decisions described without the constraint that drove them. <strong>Completeness theater</strong>: a post that covers every possible angle but reaches no conclusions &#x2014; it reads like a survey, not like someone who had to make a hard call. <strong>Resume phrasing</strong>: &#x201C;delivered a high-performance system at scale&#x201D; is a line from a CV, not a sentence from someone explaining what they built.</p>
 
-<h2 id="takeaway">Takeaway</h2>
+<p>The test I use: if a senior engineer unfamiliar with the problem could not reproduce the key decision from the post alone, the post is not specific enough. It is not about length &#x2014; a tight 1,000-word post with real numbers is more referenceable than a sprawling 3,000-word overview without them.</p>
 
-<p>Three concepts unlock LLM serving operations as a data-plane problem:</p>
+<h2 id="lensai">LensAI: writing the contract before the code</h2>
 
-<ol>
-  <li><strong>Prefill = batch write</strong> (compute-bound, scales with context length, produces KV cache)</li>
-  <li><strong>Decode = serial consumer</strong> (memory-bandwidth-bound, scales with output tokens, reads KV cache per step)</li>
-  <li><strong>Continuous batching = variable-partition consumer group</strong> (slots freed on sequence completion, not batch completion)</li>
-</ol>
+<p>For LensAI, the documentation pattern has a practical consequence. The <code>InferenceEvent</code> schema &#x2014; <code>model_id</code>, <code>tenant_id</code>, <code>latency_ms</code>, <code>prompt_tokens</code>, <code>source</code> &#x2014; was defined in writing before the Kafka producer existed. Today&#x2019;s Day 17 code implemented exactly that schema without design discussion because the documentation contract was already signed.</p>
 
-<p>The KV cache is the hot tier. Context length is the cardinality knob. Throughput under continuous batching is throughput under optimal consumer group utilization &#x2014; the same principle as maximizing partition fan-out while staying within Kafka consumer lag budgets.</p>
+<p>This is how production infrastructure works at Agoda, Wayfair, Delivery Hero: the schema and the integration contract are decided in writing first. The code is the implementation of a decision that was already made. Writing first is not documentation overhead &#x2014; it is the mechanism by which distributed teams can build independently against the same contract.</p>
 
-<p>Once you have these analogies, every serving system configuration decision &#x2014; how many concurrent requests a GPU can handle, when TTFT spikes, why a 32K context request hurts other users &#x2014; has a mechanical explanation from the data systems vocabulary you already hold.</p>
+<p>Platform thinking is reuse, not rewrite. Blog posts, like good API contracts, are the artifact that enables others &#x2014; and your future self &#x2014; to build without re-litigating every decision from scratch.</p>
 
 <div class="series-footer">
-  <p><em>Day 16 of 150 &#x2014; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Prefill is the batch write, decode is the serial consumer &#x2014; naming the two phases is the unlock.</em></p>
-  <p><em>Previous: <a href="day-15-multi-model-routing-strategies.html">Day 15 &#x2014; Multi-Model Routing Strategies &#x2194;</a></em></p>
-  <p><em>Next: <a href="day-17-llm-observability-what-actually-matters.html">Day 17 &#x2014; LLM Observability: What Actually Matters &#x2192;</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html">Experience 15 &#x2014; Cross-Tier Query Latency: Hot Redis, Cold Ceph</a> &#x2014; the same tier-boundary intuition in storage systems.</em></p>
+  <p><em>Experience Series &#xB7; 16 of N &#x2014; Staff engineer with 7.5 years building distributed systems, writing about decisions and their consequences in public.</em></p>
+  <p><em>Previous: <a href="cross-tier-query-latency-hot-redis-cold-ceph.html">Experience 15 &#x2014; Cross-Tier Query Latency: Hot Redis, Cold Ceph</a></em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html">Day 17 &#x2014; LLM Observability: What Actually Matters</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-2-continuous-batching-vllm.html">
+    <a href="two-weeks-one-readme-hiring-committees-scroll.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 2 &#x2014; Continuous Batching in vLLM (gold reference for batching deep-dive)
+      Experience 12 &#x2014; Two Weeks, One README: Hiring Committees Scroll
     </a>
-    <a href="day-14-ebpf-for-ai-infrastructure.html">
+    <a href="building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 14 &#x2014; eBPF for AI Infrastructure: Kernel Probes vs SDK Patches
+      Experience 1 &#x2014; Building a TSDB at Agoda: WhiteFalcon Under the Hood
     </a>
-    <a href="day-15-multi-model-routing-strategies.html">
+    <a href="cross-tier-query-latency-hot-redis-cold-ceph.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 15 &#x2014; Multi-Model Routing Strategies
+      Experience 15 &#x2014; Cross-Tier Query Latency: Hot Redis, Cold Ceph
     </a>
   </div>
 </div>
@@ -399,27 +300,27 @@ flowchart TB
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+    <div id="series-nav-mount" data-series-slug="experience"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#prefill">Phase 1: Prefill</a></li>
-      <li><a href="#decode">Phase 2: Decode</a></li>
-      <li><a href="#kvcache">The KV cache</a></li>
-      <li><a href="#batching">Continuous batching</a></li>
-      <li><a href="#lensai">LensAI: two-phase latency</a></li>
-      <li><a href="#takeaway">Takeaway</a></li>
+      <li><a href="#algorithm-vs-search">Algorithm vs search</a></li>
+      <li><a href="#what-makes-a-post-referenceable">What makes it referenceable</a></li>
+      <li><a href="#the-contract-metaphor">The documentation contract</a></li>
+      <li><a href="#accumulation">The accumulation effect</a></li>
+      <li><a href="#failure-modes">Failure modes</a></li>
+      <li><a href="#lensai">LensAI: contract before code</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+16+%E2%80%94+The+Mental+Model+That+Made+LLM+Infra+Click&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Building+in+Public+%E2%80%94+The+Blog+Post+That+Outlives+LinkedIn&url=https://akshantvats.github.io/Profile/blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>

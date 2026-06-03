@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html",
+          "kicker": "Day 17 of 150",
+          "title": "Day 17 — LLM Observability: What Actually Matters",
+          "desc": "Arize vs Langfuse vs Helicone schema diff against eBPF-captured events — the four fields to add now before the first billion rows land, and the cardinality lesson from WhiteFalcon."
+        },
+        {
           "href": "blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html",
           "kicker": "Day 16 of 150",
           "title": "Day 16 — The Mental Model That Made LLM Infra Click",
@@ -110,6 +116,12 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html",
+          "kicker": "Experience 16 of N",
+          "title": "Building in Public — The Blog Post That Outlives LinkedIn",
+          "desc": "Architecture posts as durable hiring signals — why a well-written technical post outlasts a hundred LinkedIn announcements, and how platform thinking applied to writing creates reusable artifacts."
+        },
         {
           "href": "blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html",
           "kicker": "Experience 15 of N",

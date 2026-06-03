@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 16 — The Mental Model That Made LLM Infra Click | AI Learning Series</title>
-<meta name="description" content="Prefill as batch write, decode as serial consumer, KV cache as hot tier, continuous batching as variable-partition consumer group. Day 16 of N.">
-<meta property="og:title" content="Day 16 — The Mental Model That Made LLM Infra Click">
-<meta property="og:description" content="Prefill/decode + KV cache + continuous batching explained through distributed-systems analogies — the three concepts that make LLM serving legible to data-plane engineers.">
+<title>Day 17 &#8212; LLM Observability: What Actually Matters | AI Learning Series</title>
+<meta name="description" content="Arize vs Langfuse vs Helicone schema comparison — why LLM observability schema design matters as much as the implementation, and the Agoda lesson about retrofitting cardinality.">
+<meta property="og:title" content="Day 17 &#8212; LLM Observability: What Actually Matters">
+<meta property="og:description" content="Add fields for tool spans and cache hits now — retrofitting schema is Agoda cardinality pain again. A schema diff across Arize, Langfuse, and Helicone against what eBPF actually captures.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-17-llm-observability-what-actually-matters.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-16-the-mental-model-llm-infra-click.png">
-<meta property="article:published_time" content="2026-06-02">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-17-llm-observability-what-actually-matters.png">
+<meta property="article:published_time" content="2026-06-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -94,6 +94,12 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
 .pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
 .footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
 .footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
 .footnote-links{display:flex;flex-direction:column;gap:6px}
@@ -111,24 +117,6 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
 .share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
 .share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
-.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
-.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
-.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
-.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
-.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
-.series-post:first-child{border-top:none;padding-top:4px}
-.series-post.current{color:var(--text)}
-.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
-.series-post.current .series-post-kicker{color:var(--sub)}
-.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
-.series-post.current .series-post-num{color:var(--green)}
-.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
-.series-post.current .series-post-title{font-weight:600}
-.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
-.series-post.current .series-post-desc{color:var(--sub)}
-.series-post--draft{opacity:.72}
-a.series-post-title{color:inherit;text-decoration:none;display:block}
-a.series-post-title:hover{color:var(--green)}
 .post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
 .author-card{display:flex;gap:20px;align-items:flex-start}
 .author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
@@ -179,210 +167,177 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &#xB7; Day 16 of 150</span>
-    <span class="tag">LLM Inference</span>
-    <span class="tag">Prefill</span>
-    <span class="tag">Decode</span>
-    <span class="tag">KV Cache</span>
-    <span class="tag">Continuous Batching</span>
+    <span class="tag accent">AI Learning &#xB7; Day 17 of 150</span>
+    <span class="tag">LLM Observability</span>
+    <span class="tag">Schema Design</span>
+    <span class="tag">Arize</span>
+    <span class="tag">Langfuse</span>
+    <span class="tag">eBPF</span>
     <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 16 &#8212; The Mental Model That Made LLM Infra Click</h1>
-  <p class="post-subtitle">Prefill/decode + KV cache + continuous batching in distributed-systems analogies</p>
+  <h1 class="post-title">Day 17 &#8212; LLM Observability: What Actually Matters</h1>
+  <p class="post-subtitle">Arize vs Langfuse vs Helicone &#x2014; schema diff against your events</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 2, 2026</span>
+    <span class="meta-item">June 3, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">11 min read</span>
+    <span class="meta-item">12 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &#xB7; Day 16 of 150</span>
+    <span class="meta-item">AI Learning &#xB7; Day 17 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-16-the-mental-model-llm-infra-click.png" alt="Cover: The Mental Model That Made LLM Infra Click — Day 16 of N" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-17-llm-observability-what-actually-matters.png" alt="Cover: Day 17 — LLM Observability: What Actually Matters" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>When I started working on LLM observability infrastructure, API latency was opaque. Time from request to last token was a single number. Some requests were fast. Some were slow for the first token and then fast. The tools I knew &#x2014; Kafka lag, ClickHouse flush time, Redis hit rate &#x2014; had no obvious analogue to LLM serving.</p>
+<p>Add the fields for tool spans and cache hits now. Don&#x2019;t wait. Retrofitting an observability schema after 100 million events are already in ClickHouse is the Agoda cardinality migration all over again: painful, expensive, and entirely avoidable if you had asked the right question earlier.</p>
 
-<p>The mental model clicked when I stopped thinking about inference as a black box and named the two phases inside it. After that, every eBPF probe design decision, every Grafana column, and every SLO conversation had a structure.</p>
+<p>I hit this exact wall while designing the <code>InferenceEvent</code> schema for LensAI. The instinct was to start minimal &#x2014; just <code>model_id</code>, <code>latency_ms</code>, <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>tenant_id</code>. Ship fast, add later. The problem is that &#x201C;add later&#x201D; in a high-throughput ClickHouse table with billions of rows means a migration that takes hours and potentially rebuilds materialized views.</p>
 
-<p><strong>If you can explain Kafka, you can explain inference &#x2014; after you name the two phases.</strong></p>
+<p><strong>Schema is an infrastructure decision, not a data decision.</strong> Get the field list right before the first row lands.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">inference phases</span></div>
-  <div class="stat-cell"><span class="stat-num">TTFT</span><span class="stat-label">prefill cost visible</span></div>
-  <div class="stat-cell"><span class="stat-num">KV cache</span><span class="stat-label">hot tier for attention</span></div>
-  <div class="stat-cell"><span class="stat-num">continuous batching</span><span class="stat-label">variable-slot consumers</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">major platforms compared</span></div>
+  <div class="stat-cell"><span class="stat-num">12</span><span class="stat-label">core fields that matter</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">fields worth adding now</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">good migrations at 1B rows</span></div>
 </div>
 
-<h2 id="prefill">Phase 1: Prefill &#x2014; the batch write</h2>
+<h2 id="the-cardinality-lesson">The cardinality lesson from Agoda</h2>
 
-<p>A prompt arrives at an LLM serving system. The first thing that happens is <strong>prefill</strong>: every input token is processed simultaneously, in parallel, by the transformer layers. The model reads the full context window and builds a <strong>KV cache</strong> &#x2014; a set of key-value vectors for every attention layer, for every input token.</p>
+<p>At Agoda, WhiteFalcon&#x2019;s TSDB ingested 1.5 trillion events per day. A cardinality mistake at the schema level &#x2014; adding a label that was actually an identifier, not a dimension &#x2014; could silently double index memory usage. The WhiteFalcon team had a rule: before any new label, enumerate the bounded set of values it can take. If you cannot enumerate it, it is a metric field, not a label.</p>
 
-<p>Prefill is compute-bound. It scales with the number of input tokens (context length). A 100-token prompt finishes in milliseconds; a 50,000-token RAG context takes noticeably longer. The output of prefill is not text &#x2014; it is the KV cache.</p>
+<p>LLM observability has the same cardinality problem in a different shape. Think of it as a filing cabinet with drawers. Each drawer is a dimension (<code>model_id</code>, <code>tenant_id</code>, <code>provider</code>). Each drawer has a bounded set of folders inside. A <code>request_id</code> is not a drawer &#x2014; it is a unique label on each individual document. Storing it as a Prometheus label would mean one time series per API call. Instead, it belongs in ClickHouse as a row attribute, not a metric dimension.</p>
 
-<p><strong>Kafka analogy:</strong> Prefill is a producer writing a large batch to a topic. The write (prompt tokens &#x2192; attention layers &#x2192; KV cache) happens in one shot, in parallel across all &#x201C;partitions&#x201D; (transformer heads). The cost scales with batch size (context length). The produced artifact (the KV cache) sits in GPU memory for the consumer phase.</p>
+<p>The schema question is always the same: which fields go in the index (dimensions, bounded cardinality) and which go in the row (attributes, unbounded)? Getting this wrong creates two failure modes: under-dimensioned data that can&#x2019;t answer &#x201C;which model is slow?&#x201D; and over-dimensioned data that explodes the index.</p>
 
-<h2 id="decode">Phase 2: Decode &#x2014; the serial consumer</h2>
+<h2 id="what-the-platforms-capture">What Arize, Langfuse, and Helicone capture</h2>
 
-<p>After prefill, the model generates tokens <strong>one at a time</strong>, autoregressively. To generate token N, it reads the KV cache for tokens 0 through N&#x2212;1, runs the attention computation, and samples the next token. It then appends that token to the KV cache and generates token N+1.</p>
+<p>I did a schema diff across the three major LLM observability platforms to understand where LensAI&#x2019;s eBPF-captured events fit. The comparison reveals what each platform optimizes for &#x2014; and which fields require SDK instrumentation that eBPF cannot provide.</p>
 
-<p>Decode is memory-bandwidth-bound. Each step reads the full KV cache &#x2014; which grows by one token per step. The GPU&#x2019;s HBM bandwidth is the bottleneck, not FLOPs. Generating 500 tokens requires 500 serial memory reads of the growing KV cache.</p>
+<table>
+  <thead>
+    <tr><th>Field</th><th>Arize</th><th>Langfuse</th><th>Helicone</th><th>eBPF (LensAI)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>model_id</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (request body)</td></tr>
+    <tr><td><code>prompt_tokens</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (response body)</td></tr>
+    <tr><td><code>completion_tokens</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (response body)</td></tr>
+    <tr><td><code>latency_ms</code> (TTFT + decode)</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (two-phase)</td></tr>
+    <tr><td><code>cost_usd</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (computed)</td></tr>
+    <tr><td><code>status_code</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (response header)</td></tr>
+    <tr><td><code>tenant_id</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (pid &#x2192; process UID)</td></tr>
+    <tr><td><code>request_id</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713; (x-request-id header)</td></tr>
+    <tr><td><code>prompt_text</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2715; (TLS plaintext needed)</td></tr>
+    <tr><td><code>tool_calls</code> (spans)</td><td>&#x2713;</td><td>&#x2713;</td><td>partial</td><td>&#x2715; (app layer only)</td></tr>
+    <tr><td><code>cache_hit</code> (prompt cache)</td><td>partial</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2715; (not in HTTP headers)</td></tr>
+    <tr><td><code>user_id</code></td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2713;</td><td>&#x2715; (app-layer concern)</td></tr>
+    <tr><td><code>source</code> (SDK vs eBPF)</td><td>&#x2715;</td><td>&#x2715;</td><td>&#x2715;</td><td>&#x2713; (always &#x201C;ebpf-llm-tracer&#x201D;)</td></tr>
+    <tr><td><code>pid</code> / <code>process_name</code></td><td>&#x2715;</td><td>&#x2715;</td><td>&#x2715;</td><td>&#x2713; (unique to eBPF)</td></tr>
+  </tbody>
+</table>
 
-<p><strong>Kafka analogy:</strong> Decode is a slow consumer reading one message at a time from a partition where each read also appends to the end of the partition. The &#x201C;message&#x201D; is the KV cache state. The consumer cannot be parallelized across tokens within a single sequence &#x2014; it is inherently serial.</p>
+<p>The columns where eBPF is blank are the fields that require the application layer: prompt text (requires TLS decryption at application layer or agent-side capture), tool spans (requires SDK hooks), and cache hits (the API does not return these in HTTP headers &#x2014; they appear in the response body and require full JSON parsing).</p>
+
+<h2 id="what-actually-matters">What actually matters at the infrastructure layer</h2>
+
+<p>The fields that drive operational decisions are not the same as the fields that are interesting for ML evaluation. SDK-oriented platforms like Arize optimize for the full prompt + response cycle because their use case is model quality evaluation: did the model answer correctly, did it use tools correctly, did it hallucinate? That requires prompt text, response text, and structured tool spans.</p>
+
+<p>Infrastructure-layer observability has a different question: <em>is the system healthy and is the cost under control?</em> That requires a different field set.</p>
+
+<pre class="mermaid">
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
+flowchart TB
+  subgraph ml["ML evaluation layer"]
+    PT["prompt_text"] --> QUAL["Model quality scoring"]
+    RC["response_content"] --> QUAL
+    TC["tool_call spans"] --> QUAL
+  end
+  subgraph infra["Infrastructure layer"]
+    MID["model_id"] --> COST["Cost attribution"]
+    TOK["prompt + completion tokens"] --> COST
+    LAT["two-phase latency_ms"] --> SLO["SLO alerting"]
+    TEN["tenant_id"] --> COST
+    SRC["source=ebpf"] --> VIS["Shadow usage visibility"]
+  end
+  QUAL --> OPS["Ops decisions"]
+  COST --> OPS
+  SLO --> OPS
+</pre>
+
+<p>The infrastructure layer questions are: which tenant is spending the most on <code>gpt-4o</code>? Is the <code>claude-opus-4-8</code> prefill latency trending up across all tenants or just one? Are there processes making OpenAI calls without going through the approved gateway? These are answerable from the eight fields eBPF captures without any SDK.</p>
+
+<h2 id="fields-to-add-now">The four fields to add now</h2>
+
+<p>After the schema diff, four fields should be in the initial schema even though LensAI does not yet capture them. Not capturing them is fine. Not having the column is a migration debt.</p>
+
+<p><strong><code>cache_hit</code> (boolean)</strong>: OpenAI and Anthropic both have prompt caching. A request that hits the prompt cache costs 10&#x2013;50% less and runs in less time. Without a <code>cache_hit</code> field, your cost and latency numbers are a blend of cached and uncached requests. When prompt caching is adopted widely, every ClickHouse query that aggregates cost will silently underestimate uncached cost. The fix is a nullable boolean now.</p>
+
+<p><strong><code>tool_call_count</code> (integer)</strong>: Tool calls are a growing share of production LLM workloads. They do not require full span tracing to be useful &#x2014; just knowing how many tool calls occurred in a request tells you whether latency anomalies come from multi-hop agent loops vs. single-request inference. A count is capturable from the response body.</p>
+
+<p><strong><code>streaming</code> (boolean)</strong>: Streaming responses have fundamentally different latency profiles. Mixing streaming and non-streaming requests in the same <code>latency_ms</code> P99 is like mixing OLAP and OLTP query times. Knowing which is which before you have millions of rows is essential for correct SLO computation.</p>
+
+<p><strong><code>model_version</code> (string)</strong>: Model providers alias their models. <code>gpt-4o</code> is a moving target &#x2014; the model behind that alias has changed multiple times. When a latency regression appears after a model update, distinguishing <code>gpt-4o-2024-08-06</code> from <code>gpt-4o-2025-01-29</code> requires the model version, not just the alias. Some providers return this in the response; it is capturable now.</p>
+
+<div class="attr-box mine"><div class="attr-label">LensAI schema decision</div>All four fields are now in the <code>InferenceEvent</code> struct as nullable fields. None are populated by the current eBPF capture &#x2014; they are zero values. The column exists in ClickHouse from day one. When a future capture path adds cache hit detection or streaming response parsing, there is no schema migration required.</div>
+
+<h2 id="ebpf-gap">The eBPF observability gap</h2>
+
+<p>The fields eBPF cannot capture without full TLS interception are worth naming honestly. Prompt text and response text are the big gap. SDK-based platforms like Langfuse collect the full conversation; eBPF sees only the HTTP metadata.</p>
+
+<p>This is a feature, not a limitation, for the infrastructure use case. Storing prompt text at LLM API volumes is a significant storage and privacy concern. A <code>model_id</code> + <code>prompt_tokens</code> + <code>latency_ms</code> + <code>tenant_id</code> row is roughly 100 bytes. A full prompt + response at 4K tokens is 8&#x2013;16KB. The storage ratio is 80&#x2013;160&#xD7;. For infrastructure cost attribution and SLO monitoring, the metadata is the right layer.</p>
 
 <pre class="mermaid">
 %%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
 flowchart LR
-  subgraph prefill["Phase 1: Prefill"]
-    P["Prompt tokens"] --> ATT["Transformer layers"]
-    ATT --> KVC[("KV cache · GPU HBM")]
+  subgraph ebpf["eBPF layer (LensAI)"]
+    META["Metadata only\n100 bytes/event"]
+    MID2["model_id + tenant_id\nlatency + tokens + cost"]
   end
-  subgraph decode["Phase 2: Decode"]
-    KVC --> D1["Token 1"]
-    D1 --> D2["Token 2"]
-    D2 --> DN["Token N"]
+  subgraph sdk["SDK layer (Arize/Langfuse)"]
+    FULL["Full conversation\n8–16KB/event"]
+    PROMPT["prompt_text + response\ntool spans + evals"]
   end
-  GROW["Token appended each step"] -.-> KVC
+  META --> INFRA["Infrastructure SLOs\nCost attribution\nAnomaly detection"]
+  FULL --> EVAL["Model quality evals\nPrompt debugging\nTrace replay"]
 </pre>
 
-<h2 id="kvcache">The KV cache &#x2014; your hot tier for attention states</h2>
-
-<p>The KV cache lives in GPU HBM. It is structurally a hot tier. It holds the minimum pre-computed form (attention vectors, not raw tokens) needed for the next decode step. Eviction happens when context exceeds the memory budget.</p>
-
-<table>
-  <thead>
-    <tr><th>TSDB hot tier (Redis)</th><th>LLM KV cache (GPU HBM)</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Recent metric buckets</td><td>Current sequence attention states</td></tr>
-    <tr><td>Eviction by time window</td><td>Eviction when context overflows</td></tr>
-    <tr><td>Flush to cold tier on close</td><td>Offload to CPU RAM (prefix caching)</td></tr>
-    <tr><td>DRAM-speed reads</td><td>HBM-speed reads</td></tr>
-    <tr><td>Memory-sized capacity</td><td>Strictly memory-sized capacity</td></tr>
-  </tbody>
-</table>
-
-<div class="pullquote"><p>The KV cache is not an optimization &#x2014; it is the fundamental data structure that makes autoregressive generation possible at usable speed.</p></div>
-
-<p>The engineering constraint: <strong>longer contexts &#x2192; larger caches &#x2192; fewer concurrent requests fit in GPU memory &#x2192; throughput drops</strong>. A model running 8K context per request can serve roughly 4&#xD7; more concurrent users than the same model at 32K context given identical GPU memory. This is the memory wall in LLM serving &#x2014; the same cardinality wall that causes label explosion in metrics systems.</p>
-
-<pre class="mermaid">
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
-flowchart TB
-  subgraph gpu["GPU memory · fixed budget"]
-    WEIGHTS["Model weights (fixed)"]
-    KV1["KV cache req_1 · 8K"]
-    KV2["KV cache req_2 · 8K"]
-    KV3["KV cache req_3 · 8K"]
-  end
-  subgraph longctx["Same GPU · 32K context"]
-    KVL1["KV cache req_1 · 32K"]
-    KVL2["KV cache req_2 · 32K"]
-    OOM["No room for req_3"]
-  end
-  KV3 -.->|"context 4x"| OOM
-</pre>
-
-<h2 id="batching">Continuous batching &#x2014; the variable-partition consumer group</h2>
-
-<p><strong>Static batching:</strong> the server collects a full batch of N requests, runs prefill for all simultaneously, then decodes all in lockstep until the last sequence finishes. If request 1 needs 10 tokens and request 2 needs 500 tokens, request 1 holds a batch slot for 490 idle decode steps.</p>
-
-<p><strong>Continuous batching</strong> (also called in-flight batching): as soon as a request emits its EOS token, the slot is freed and a new request enters the batch mid-stride. No slot idles waiting for the longest sequence.</p>
-
-<p><strong>Kafka consumer group analogy:</strong> Static batching is a consumer group that waits for all partitions to finish a batch before polling new messages &#x2014; the slowest partition determines throughput. Continuous batching is a consumer group where each partition is polled independently as it completes; a fast partition returns its slot immediately.</p>
-
-<table>
-  <thead>
-    <tr><th>Static batching</th><th>Continuous batching</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Batch completes at slowest request</td><td>Slot freed at each request&#x2019;s EOS</td></tr>
-    <tr><td>GPU utilization drops as fast requests finish</td><td>GPU stays saturated throughout</td></tr>
-    <tr><td>Simple scheduler</td><td>Iteration-level slot management</td></tr>
-    <tr><td>Low throughput under mixed response lengths</td><td>2&#x2013;5&#xD7; higher throughput in production</td></tr>
-  </tbody>
-</table>
-
-<pre class="mermaid">
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#1e3a5f', 'primaryTextColor': '#f0f4f8', 'primaryBorderColor': '#4a90d9', 'lineColor': '#4a90d9', 'secondaryColor': '#0d2137', 'tertiaryColor': '#0a1a2e', 'background': 'transparent', 'nodeBorder': '#4a90d9', 'clusterBkg': '#0d2137', 'titleColor': '#f0f4f8', 'edgeLabelBackground': '#0d2137'}}}%%
-flowchart TB
-  subgraph static["Static batch of 3"]
-    S1["req_1: done step 10"] --> WAIT1["Idle 490 steps"]
-    S2["req_2: runs 500 steps"]
-    S3["req_3: done step 200"] --> WAIT2["Idle 300 steps"]
-  end
-  subgraph continuous["Continuous · dynamic slots"]
-    C1["req_1: done step 10"] --> FREE1["Slot freed"]
-    C2["req_2: runs 500 steps"]
-    C3["req_3: done step 200"] --> FREE2["Slot freed"]
-    FREE1 --> REQ4["req_4 enters"]
-    FREE2 --> REQ5["req_5 enters"]
-  end
-</pre>
-
-<h2 id="lensai">LensAI: the two-phase latency columns</h2>
-
-<p>From the daily thread: <em>&#x201C;Parsed <code>model_id</code> fields in eBPF events must align with the two-phase latency columns Blog B introduced on Day 1.&#x201D;</em></p>
-
-<p>When an eBPF probe observes an LLM API call from the outside &#x2014; capturing bytes at <code>SSL_write</code> (request) and <code>SSL_read</code> (response) &#x2014; it sees the two-phase split from the outside:</p>
-
-<ul>
-  <li><strong>Time to first response byte</strong> &#x2248; <strong>prefill time</strong> (server runs prefill; no bytes until the first token is generated)</li>
-  <li><strong>Time from first byte to last byte</strong> &#x2248; <strong>decode time</strong> (tokens streaming, one per step)</li>
-</ul>
-
-<table>
-  <thead>
-    <tr><th>Field</th><th>Phase</th><th>eBPF capture</th></tr>
-  </thead>
-  <tbody>
-    <tr><td><code>prefill_latency_ms</code></td><td>Phase 1</td><td>SSL_read first byte ts &#x2212; SSL_write ts</td></tr>
-    <tr><td><code>decode_latency_ms</code></td><td>Phase 2</td><td>SSL_read last byte ts &#x2212; first byte ts</td></tr>
-    <tr><td><code>total_latency_ms</code></td><td>Both</td><td>SSL_read last byte ts &#x2212; SSL_write ts</td></tr>
-    <tr><td><code>model_id</code></td><td>Join key</td><td>&#x201C;model&#x201D; JSON field in request body</td></tr>
-  </tbody>
-</table>
-
-<p><code>model_id</code> is the join key. Without it, a spike in <code>prefill_latency_ms</code> is invisible per model &#x2014; you cannot distinguish a GPT-4o prefill regression from a cheaper model behaving as expected. <code>model_id</code> in every event is what makes the two-phase columns actionable in Grafana.</p>
+<p>The two layers are complementary, not competing. LensAI&#x2019;s value is zero-SDK coverage &#x2014; every process making LLM API calls is captured, including shadow usage that never went through the SDK. The SDK layer goes deeper on the calls the application team intentionally instruments.</p>
 
 <h2 id="takeaway">Takeaway</h2>
 
-<p>Three concepts unlock LLM serving operations as a data-plane problem:</p>
+<p>Three decisions to make before the first event lands in your LLM observability store:</p>
 
 <ol>
-  <li><strong>Prefill = batch write</strong> (compute-bound, scales with context length, produces KV cache)</li>
-  <li><strong>Decode = serial consumer</strong> (memory-bandwidth-bound, scales with output tokens, reads KV cache per step)</li>
-  <li><strong>Continuous batching = variable-partition consumer group</strong> (slots freed on sequence completion, not batch completion)</li>
+  <li><strong>Separate index dimensions from row attributes.</strong> <code>model_id</code>, <code>tenant_id</code>, <code>provider</code> are bounded dimensions &#x2014; they belong in the index. <code>request_id</code> is an attribute &#x2014; it belongs in the row only. Mixing them creates the cardinality explosion Agoda spent months unwinding.</li>
+  <li><strong>Add nullable columns for fields you don&#x2019;t capture yet.</strong> Cache hit, tool call count, streaming, model version. Zero value in the column is fine. Missing the column is a debt that compounds with every GB of data you write.</li>
+  <li><strong>Decide which layer each field belongs to.</strong> Metadata (eBPF) or full content (SDK). These are not the same system. Build the infrastructure layer first &#x2014; it covers 100% of processes at low cost. Add the SDK layer where you need conversation-level tracing.</li>
 </ol>
 
-<p>The KV cache is the hot tier. Context length is the cardinality knob. Throughput under continuous batching is throughput under optimal consumer group utilization &#x2014; the same principle as maximizing partition fan-out while staying within Kafka consumer lag budgets.</p>
-
-<p>Once you have these analogies, every serving system configuration decision &#x2014; how many concurrent requests a GPU can handle, when TTFT spikes, why a 32K context request hurts other users &#x2014; has a mechanical explanation from the data systems vocabulary you already hold.</p>
+<p>The schema is the contract. Everything downstream &#x2014; Grafana dashboards, cost attribution queries, anomaly detection &#x2014; builds on it. Get it right before the first row, not after the first million.</p>
 
 <div class="series-footer">
-  <p><em>Day 16 of 150 &#x2014; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Prefill is the batch write, decode is the serial consumer &#x2014; naming the two phases is the unlock.</em></p>
-  <p><em>Previous: <a href="day-15-multi-model-routing-strategies.html">Day 15 &#x2014; Multi-Model Routing Strategies &#x2194;</a></em></p>
-  <p><em>Next: <a href="day-17-llm-observability-what-actually-matters.html">Day 17 &#x2014; LLM Observability: What Actually Matters &#x2192;</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html">Experience 15 &#x2014; Cross-Tier Query Latency: Hot Redis, Cold Ceph</a> &#x2014; the same tier-boundary intuition in storage systems.</em></p>
+  <p><em>Day 17 of 150 &#x2014; Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems. Schema is the infrastructure decision that outlasts every implementation choice.</em></p>
+  <p><em>Previous: <a href="day-16-the-mental-model-llm-infra-click.html">Day 16 &#x2014; The Mental Model That Made LLM Infra Click &#x2194;</a></em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html">Experience 16 &#x2014; Building in Public: The Blog Post That Outlives LinkedIn</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-2-continuous-batching-vllm.html">
+    <a href="day-16-the-mental-model-llm-infra-click.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 2 &#x2014; Continuous Batching in vLLM (gold reference for batching deep-dive)
+      Day 16 &#x2014; The Mental Model That Made LLM Infra Click
     </a>
     <a href="day-14-ebpf-for-ai-infrastructure.html">
       <span class="footnote-arrow">&#x2197;</span>
@@ -404,22 +359,22 @@ flowchart TB
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#prefill">Phase 1: Prefill</a></li>
-      <li><a href="#decode">Phase 2: Decode</a></li>
-      <li><a href="#kvcache">The KV cache</a></li>
-      <li><a href="#batching">Continuous batching</a></li>
-      <li><a href="#lensai">LensAI: two-phase latency</a></li>
+      <li><a href="#the-cardinality-lesson">The cardinality lesson</a></li>
+      <li><a href="#what-the-platforms-capture">What platforms capture</a></li>
+      <li><a href="#what-actually-matters">What actually matters</a></li>
+      <li><a href="#fields-to-add-now">4 fields to add now</a></li>
+      <li><a href="#ebpf-gap">The eBPF gap</a></li>
       <li><a href="#takeaway">Takeaway</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+16+%E2%80%94+The+Mental+Model+That+Made+LLM+Infra+Click&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+17+%E2%80%94+LLM+Observability%3A+What+Actually+Matters&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
