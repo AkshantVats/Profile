@@ -20,6 +20,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/blog-diagrams.css">
 <style>
 :root{
   --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
@@ -29,6 +30,7 @@
   --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
   --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
   --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --code-bg:#f6f6f4;
   --layout-max:1080px;--read:680px;
 }
 html[data-theme="dark"]{
@@ -37,6 +39,7 @@ html[data-theme="dark"]{
   --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
   --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
   --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+  --code-bg:#141413;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -143,8 +146,6 @@ html[data-theme="dark"] .prose pre code{color:#d8d8d4}
 html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
 html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
 html[data-theme="dark"] .prose em{color:var(--sub)}
-.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
-.prose .mermaid svg{max-width:100%;height:auto}
 .series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
 .series-footer p{margin-bottom:.75em}
 .series-footer em{font-style:italic;color:var(--muted)}
@@ -305,7 +306,7 @@ flowchart LR
     MID2["model_id + tenant_id\nlatency + tokens + cost"]
   end
   subgraph sdk["SDK layer (Arize/Langfuse)"]
-    FULL["Full conversation\n8–16KB/event"]
+    FULL["Full conversation\n8-16KB/event"]
     PROMPT["prompt_text + response\ntool spans + evals"]
   end
   META --> INFRA["Infrastructure SLOs\nCost attribution\nAnomaly detection"]
@@ -402,14 +403,8 @@ flowchart LR
 <script>
 (function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-(function(){
-  var dark = document.documentElement.getAttribute("data-theme") === "dark";
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
-})();
-</script>
+<script src="../../assets/blog-diagrams.js"></script>
 <script src="../../series-nav-dynamic.js"></script>
 </body>
 </html>
