@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 18 — Quantization and Model Optimization | AI Learning Series</title>
+<meta name="description" content="GPTQ vs AWQ vs bitsandbytes — how to pick the right quantization method like a codec picks compression. Quantization is a deployment flag, not a training concern: the infra team owns the cost-latency-quality matrix.">
+<meta property="og:title" content="Day 18 — Quantization and Model Optimization">
+<meta property="og:description" content="GPTQ for throughput, AWQ for reasoning quality, bitsandbytes for iteration speed — and why the right choice depends on your target GPU, not just the benchmark table.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-quantization-model-optimization.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-quantization-model-optimization.png">
+<meta property="article:published_time" content="2026-06-04">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &#xB7; Day 18 of 150</span>
+    <span class="tag">Quantization</span>
+    <span class="tag">GPTQ</span>
+    <span class="tag">AWQ</span>
+    <span class="tag">bitsandbytes</span>
+    <span class="tag">Model Optimization</span>
+    <span class="tag">LensAI</span>
+  </div>
+  <h1 class="post-title">Day 18 &#x2014; Quantization and Model Optimization</h1>
+  <p class="post-subtitle">GPTQ vs AWQ vs bitsandbytes &#x2014; pick variants like a codec picks compression</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">June 4, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">14 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &#xB7; Day 18 of 150</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-18-quantization-model-optimization.png" alt="Cover: Day 18 — Quantization and Model Optimization" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>I spent the first week of this series treating quantization as a model researcher&#x2019;s problem. Then I realized it shows up in Kubernetes manifests as GPU memory limits.</p>
+
+<p>The YAML diff between a 7B model deployment and a quantized 7B deployment is one line: the instance class. A 7B model in FP16 needs 16 GB of VRAM. In GPTQ INT4 it needs roughly 5 GB. That gap is an A100 vs. an A10G &#x2014; a 60% reduction in GPU cost &#x2014; and the decision that enables it is made in a deployment config, not in a research notebook.</p>
+
+<p><strong>Quantization is a deployment flag, not a training concern.</strong> The infra team owns the cost-latency-quality matrix. The choice between GPTQ, AWQ, and bitsandbytes is less like choosing a research technique and more like choosing a compression codec for a message queue: you set the parameters at deploy time, you benchmark the tradeoff, and you ship the config.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">4&times;</span><span class="stat-label">memory reduction FP32&#x2192;INT8</span></div>
+  <div class="stat-cell"><span class="stat-num">&lt;2%</span><span class="stat-label">quality loss GPTQ/AWQ INT4</span></div>
+  <div class="stat-cell"><span class="stat-num">60%</span><span class="stat-label">GPU cost reduction at INT4</span></div>
+  <div class="stat-cell"><span class="stat-num">5 GB</span><span class="stat-label">VRAM for 7B model at INT4</span></div>
+</div>
+
+<h2 id="what-it-is">What quantization actually is</h2>
+
+<p>A neural network&#x2019;s weights are floating-point numbers. A typical 7B-parameter model in FP32 takes roughly 28 GB of memory. Most GPU instances cap at 24 GB. That gap &#x2014; between the model&#x2019;s ideal precision and the GPU&#x2019;s physical capacity &#x2014; is the practical problem quantization solves.</p>
+
+<p>Quantization maps high-precision numbers (FP32, BF16) to lower-precision formats (INT8, INT4). FP32 to INT8 is a 4x memory reduction. FP32 to INT4 is an 8x reduction. The mapping introduces approximation error &#x2014; how much error, and where it concentrates, is the entire science of the field.</p>
+
+<p>Think of a high-resolution photograph. FP32 is the RAW file: every pixel&#x2019;s value stored exactly. INT8 is JPEG at quality 80 &#x2014; perceptually identical to most viewers, 10x smaller on disk. INT4 is JPEG at quality 30 &#x2014; noticeably blocky if you look closely, but usable for a thumbnail. Which level you pick depends on whether you&#x2019;re printing a billboard or sending a thumbnail &#x2014; and which compression algorithm you use determines how bad the artifacts are at the same file size.</p>
+
+<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The accuracy drop is not linear with precision reduction. Going from FP32 to INT8 often costs less than 1% on benchmark tasks. Going from INT8 to INT4 naively can cost 5&#x2013;15%, but smart quantization algorithms (GPTQ, AWQ) bring that INT4 drop to under 2%. The algorithm matters more than the bit width.</div>
+
+<h2 id="three-approaches">The three approaches &#x2014; overview</h2>
+
+<p>GPTQ (Frantar et al. 2022) is post-training quantization (PTQ). You quantize after the model is fully trained using a small calibration dataset. Compute-intensive to quantize &#x2014; typically 20 minutes per 7B parameter model on a single A100 &#x2014; but the quantized model loads and serves fast. It&#x2019;s a one-time expensive compression step.</p>
+
+<p>AWQ (Lin et al. 2023) is also PTQ, but uses activation statistics to prioritize which weights matter most. A small fraction of weights &#x2014; roughly 1% &#x2014; are &#x201C;salient&#x201D;: they correspond to large activation values. AWQ preserves precision on salient weights and aggressively quantizes the rest. It&#x2019;s typically faster to quantize than GPTQ and often produces better quality on reasoning tasks like code generation and mathematics.</p>
+
+<p>bitsandbytes quantizes dynamically during the forward pass. Pass <code>load_in_8bit=True</code> or <code>load_in_4bit=True</code> to <code>from_pretrained()</code> and the model loads quantized with zero offline cost. The tradeoff is inference speed: dequantization happens on the critical path, making it 20&#x2013;40% slower than GPTQ or AWQ for the same model. Its primary production use case is fine-tuning with QLoRA, not batch inference throughput.</p>
+
+<p>Think of three video compression strategies. GPTQ is pre-encoding your library in H.265: expensive upfront, fastest playback. AWQ is adaptive H.265 encoding that preserves detail in the scenes viewers spend most time on. bitsandbytes is real-time transcoding: flexible, zero setup, but burns more compute per stream.</p>
+
+<h2 id="gptq">GPTQ: post-training quantization via OBQ</h2>
+
+<p>GPTQ is based on Optimal Brain Quantization (OBQ). When you quantize one weight, you introduce error. You can compensate by adjusting remaining unquantized weights using second-order information &#x2014; specifically the Hessian of the loss. GPTQ approximates this efficiently for transformer layers by processing column blocks sequentially.</p>
+
+<p>In practice: run the model forward on a small calibration dataset (128&#x2013;512 samples), collect activation statistics, then quantize layer by layer. The output is INT4 weight matrices plus per-group scaling factors in FP16 that add roughly 3% overhead. Those scaling factors are the dequantization constants &#x2014; the map from INT4 back to the weight&#x2019;s original range.</p>
+
+<p>Think of how a studio engineer sets EQ for a room. They play a reference track that represents the room&#x2019;s acoustic characteristics, then tune the EQ settings to the room. GPTQ&#x2019;s calibration dataset is the reference track. The model is the room. You&#x2019;re tuning the compression to the signal you actually serve.</p>
+
+<div class="attr-box team"><div class="attr-label">Infra implications</div>GPTQ quantization is a one-time offline job. A 7B model takes roughly 20 minutes on a single A100 at INT4; a 70B model takes about 3 hours. The quantized model is a separate artifact &#x2014; version it separately from the FP16 checkpoint. Inference requires a CUDA kernel for INT4 weight storage with FP16 accumulation: <code>auto-gptq</code> and <code>exllamav2</code> provide these.</div>
+
+<p>GPTQ is the right choice when you need maximum inference throughput and have time for an offline quantization job. The inference overhead of GPTQ INT4 vs FP16 is near zero on memory-bandwidth-constrained GPUs like the A100 and H100 because you&#x2019;re spending less time moving data off the GPU than you save in VRAM reduction.</p>
+
+<h2 id="awq">AWQ: activation-aware weight quantization</h2>
+
+<p>AWQ starts from the same insight as GPTQ &#x2014; not all weights are equally important &#x2014; but arrives at a different conclusion. Instead of using second-order Hessian information, AWQ uses activation statistics directly. The weights that correspond to large activation values in the forward pass are the ones where quantization error costs the most quality. Scale those salient weights up before quantization (reducing their relative error), then scale them back down at inference. The scaling factors are absorbed into quantization constants.</p>
+
+<p>AWQ typically produces better perplexity than GPTQ at the same bit width on reasoning tasks. The gap is most visible at INT4 and in model families with heavy activation spikes like Llama-2 style architectures. AWQ quantization is also 2&#x2013;4x faster than GPTQ for the same model size because it skips the layer-by-layer OBQ optimization step.</p>
+
+<p>Think of a piano tuner who prioritizes the middle octaves because that&#x2019;s where most sheet music lives. GPTQ tunes all strings equally. AWQ listens to the repertoire first, then tunes the strings that get played most. Both produce a tuned piano; AWQ&#x2019;s piano sounds better on the music you actually play.</p>
+
+<div class="attr-box mine"><div class="attr-label">When AWQ beats GPTQ</div>Reasoning tasks: HumanEval, MATH benchmarks &#x2014; AWQ wins by 1&#x2013;3 perplexity points at INT4. Quantization time is 2&#x2013;4x faster. AWQ-quantized models are slightly larger than GPTQ equivalents due to scaling factor storage, but the quality-per-bit is better for workloads that require logical reasoning.</div>
+
+<h2 id="bitsandbytes">bitsandbytes: runtime quantization</h2>
+
+<p>bitsandbytes quantizes weights dynamically during the forward pass. No offline calibration job, no separate artifact, no special toolchain &#x2014; pass <code>load_in_4bit=True</code> to <code>from_pretrained()</code> and the model loads in NF4 (Normal Float 4-bit) format. NF4 is a non-uniform quantization grid designed specifically for the normally distributed weight values that transformers have. It packs more information into 4 bits than a standard INT4 grid by allocating more precision to the center of the weight distribution.</p>
+
+<p>The primary production use case for bitsandbytes is fine-tuning via QLoRA. You load the base model quantized via bitsandbytes 4-bit, keeping the base weights frozen, and add trainable LoRA adapters in full precision on top. The base model&#x2019;s VRAM cost drops 8x; only the adapter parameters need full precision. This turns a 70B fine-tuning job from a 4×A100 job into a 1×A100 job.</p>
+
+<p>A portable Bluetooth speaker vs. a home theater system. bitsandbytes is the Bluetooth speaker: works anywhere, zero setup, not the right answer for audiophile quality. GPTQ and AWQ are the home theater: requires installation, optimized for the space it lives in. Neither is wrong; they serve different use cases.</p>
+
+<h2 id="decision-matrix">The decision matrix</h2>
+
+<p>Three variables determine the right choice: time-to-deploy, inference throughput, and accuracy retention. Each method optimizes for a different combination of them.</p>
+
+<p>If you&#x2019;re iterating, fine-tuning, or haven&#x2019;t committed to a model: bitsandbytes. Zero offline cost, any model in one line of config. Accept the throughput hit in exchange for iteration speed.</p>
+
+<p>If you&#x2019;re deploying to production and throughput matters most: GPTQ. Best tokens per second at INT4, dedicated inference kernels, good quality with calibration. Pay the 20-minute offline job once, amortize it over months of serving.</p>
+
+<p>If you&#x2019;re deploying to production and reasoning accuracy matters more than peak throughput: AWQ. Same memory footprint as GPTQ at INT4, better benchmark quality on code and math. Quantization job is faster too.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    Q["Need to quantize\na model?"]
+    Q -->|"iterating /\nfine-tuning"| BNB["bitsandbytes\nNF4 or INT8\nzero offline cost"]
+    Q -->|"production\ndeployment"| PROD["Production path"]
+    PROD -->|"reasoning tasks\ncode / math"| AWQ["AWQ\nbetter accuracy\nfaster offline job"]
+    PROD -->|"throughput\nfirst"| GPTQ["GPTQ\nbest tokens/sec\nINT4 kernels"]
+    AWQ --> BENCH["Benchmark on\ntarget GPU"]
+    GPTQ --> BENCH
+    BENCH -->|"meets SLA"| SHIP["Ship quantized artifact\n+ version tag"]
+    BENCH -->|"misses SLA"| MIX["Try mixed precision:\nINT4 body +\nFP16 attn layers"]
+    MIX --> BENCH
+</pre>
+
+<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The right choice also depends on the GPU. INT4 with bitsandbytes on an A10G is slower than FP16 &#x2014; dequantization overhead outweighs memory savings on that GPU generation. GPTQ&#x2019;s INT4 kernels are optimized for RTX 4090, A100, and H100, where memory bandwidth is the bottleneck, not compute. Benchmark on your target GPU before committing to a method.</div>
+
+<h2 id="algorithm-comparison">Algorithm comparison at a glance</h2>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    subgraph fp16 ["FP16 Baseline"]
+        FP["FP16\n16 GB (7B model)\nbaseline quality\nhigh GPU cost"]
+    end
+    subgraph ptq ["Post-Training Quantization"]
+        GPTQ_N["GPTQ INT4\n~5 GB · fast inference\ngood quality\n20-min offline job"]
+        AWQ_N["AWQ INT4\n~5.5 GB · fast inference\nbest reasoning quality\n5-10 min offline job"]
+    end
+    subgraph rt ["Runtime Quantization"]
+        BNB_N["bitsandbytes NF4\n~5 GB · slower inference\ngood quality\nzero offline job"]
+    end
+
+    FP -->|"quantize offline"| GPTQ_N
+    FP -->|"quantize offline"| AWQ_N
+    FP -->|"runtime flag"| BNB_N
+</pre>
+
+<h2 id="infra-implications">Infra implications: what this looks like in a manifest</h2>
+
+<p>A quantized model needs less GPU memory. Llama-3 8B in FP16 uses roughly 16 GB. In GPTQ INT4 it uses about 5 GB. That creates two choices: fit the model on a cheaper GPU class (A10G 24 GB instead of A100 40 GB, roughly 60% cost reduction), or fit three replicas on the same A100 for higher throughput per dollar.</p>
+
+<p>The deployment manifest changes only at the instance class level. <code>resources.limits.nvidia.com/gpu: 1</code> stays unchanged. The finance impact is enabled by an infra decision made in the model serving config &#x2014; not in the training pipeline.</p>
+
+<p>Model serving frameworks like vLLM and TGI accept a <code>--quantization</code> flag: <code>--quantization gptq</code> or <code>--quantization awq</code>. The serving framework handles kernel selection. The engineer sets the flag, versions the artifact with a tag like <code>llama3-8b-gptq-int4-g128</code> (g128 = group size 128, a quantization parameter that trades quality against memory overhead), and deploys.</p>
+
+<p>Think of choosing a compression level in nginx: <code>gzip_comp_level 6</code> vs. <code>9</code>. The server doesn&#x2019;t know about the original content &#x2014; it just applies compression at serve time. <code>--quantization gptq</code> is the same: the inference server applies the kernel at load time, the model is pre-quantized, the flag says which kernel to use. The engineer sets the flag; the framework handles everything else.</p>
+
+<p>Quantization is a cost lever that lives in the deployment config. Learn to pull it, and you own a 2&#x2013;5x cost reduction on GPU spend without changing a line of model code.</p>
+
+<h2 id="bridge">Bridge to Day 18 code</h2>
+
+<p>Today&#x2019;s ebpf-llm-tracer work adds a WAL and rate limiter to the Go consumer. There&#x2019;s a direct parallel: the WAL decides which events are too important to drop, and the rate limiter decides which new events to shed under pressure.</p>
+
+<p>In the quantization world, the calibration dataset plays the WAL role &#x2014; it decides which weights are too important to aggressively quantize. The decision matrix is the rate limiter: under GPU memory pressure, you shed precision from less important weights first and preserve it on the salient ones. AWQ names the salient weights explicitly. GPTQ discovers them via Hessian approximation. bitsandbytes doesn&#x2019;t differentiate at all &#x2014; which is exactly the trade you make when you choose iteration speed over production quality.</p>
+
+<p>The shared instinct across both: know what you can afford to lose before pressure hits, not during it. The calibration step and the bucket capacity are both exercises in deciding the loss tolerance in advance, so the system can handle degraded conditions without making ad-hoc decisions under load.</p>
+
+<div class="series-footer">
+  <p><em>Day 18 of 150 &#x2014; Quantization and Model Optimization. Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Previous: <a href="day-17-llm-observability-what-actually-matters.html">Day 17 &#x2014; LLM Observability: What Actually Matters</a></em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html">Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-17-llm-observability-what-actually-matters.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 17 &#x2014; LLM Observability: What Actually Matters
+    </a>
+    <a href="day-16-the-mental-model-llm-infra-click.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 16 &#x2014; The Mental Model That Made LLM Infra Click
+    </a>
+    <a href="day-6-quantization-vs-compression-tradeoffs.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 6 &#x2014; Quantization vs Compression Tradeoffs (earlier framing)
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#what-it-is">What quantization is</a></li>
+      <li><a href="#three-approaches">Three approaches</a></li>
+      <li><a href="#gptq">GPTQ</a></li>
+      <li><a href="#awq">AWQ</a></li>
+      <li><a href="#bitsandbytes">bitsandbytes</a></li>
+      <li><a href="#decision-matrix">Decision matrix</a></li>
+      <li><a href="#algorithm-comparison">Algorithm comparison</a></li>
+      <li><a href="#infra-implications">Infra implications</a></li>
+      <li><a href="#bridge">Bridge to Day 18 code</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+18+%E2%80%94+Quantization+and+Model+Optimization&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
