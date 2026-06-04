@@ -7,6 +7,12 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-18-quantization-model-optimization.html",
+          "kicker": "AI Learning · Day 18 of 150",
+          "title": "Day 18 — Quantization and Model Optimization",
+          "desc": "GPTQ vs AWQ vs bitsandbytes — pick variants like a codec picks compression. Quantization is a deployment flag owned by the infra team: the cost-latency-quality matrix, the decision matrix by GPU target, and why the algorithm matters more than the bit width."
+        },
+        {
           "href": "blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html",
           "kicker": "Day 17 of 150",
           "title": "Day 17 — LLM Observability: What Actually Matters",
