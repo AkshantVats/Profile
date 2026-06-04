@@ -117,6 +117,12 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-18-supplier-rate-limiting.html",
+          "kicker": "Experience · Day 18 of 150",
+          "title": "Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram",
+          "desc": "70,000 active suppliers, 250k+ SKU updates each, one ingestion boundary — per-supplier Redis token bucket, durable queue drop policy, and the WAL instinct at the HTTP boundary from Wayfair's pricing platform."
+        },
+        {
           "href": "blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html",
           "kicker": "Experience 16 of N",
           "title": "Building in Public — The Blog Post That Outlives LinkedIn",
