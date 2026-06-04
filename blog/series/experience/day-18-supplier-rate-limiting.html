@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram | Experience Series</title>
+<meta name="description" content="Wayfair had 70,000 active suppliers hammering a single ingestion boundary. The textbook diagram has one box labeled 'API Gateway'. Production had a distributed Redis bucket per supplier, a durable queue for drops, and a circuit breaker keyed on downstream latency — not bucket state.">
+<meta property="og:title" content="Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram">
+<meta property="og:description" content="Per-supplier token buckets in Redis, drop policy as a product decision, and the WAL instinct at the HTTP boundary — what I wish the textbook showed.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-supplier-rate-limiting.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-supplier-rate-limiting.png">
+<meta property="article:published_time" content="2026-06-04">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'← '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">Experience &#xB7; Day 18 of 150</span>
+    <span class="tag">Rate Limiting</span>
+    <span class="tag">Token Bucket</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Supplier Platform</span>
+    <span class="tag">Distributed Systems</span>
+  </div>
+  <h1 class="post-title">Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram</h1>
+  <p class="post-subtitle">Wayfair &#xB7; UCMS &#xB7; gst-acc-promotions &#xB7; supplier token bucket in production</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">June 4, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">12 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Experience &#xB7; Day 18 of 150</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-18-supplier-rate-limiting.png" alt="Cover: Day 18 — Rate Limiting at the Supplier Boundary" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>The first time I saw gst-acc-promotions fall over, the on-call alert said &#x201C;p99 latency spike&#x201D; &#x2014; it didn&#x2019;t say &#x201C;14 suppliers sent simultaneous batch updates.&#x201D; Those are not the same statement. One describes a symptom. The other names the cause and, if you&#x2019;ve thought it through, also tells you the fix.</p>
+
+<p>The textbook diagram for rate limiting is a single box labeled &#x201C;API Gateway&#x201D; with an arrow flowing through a token bucket. At Wayfair, the actual problem was nothing like that box. It was 70,000 active suppliers, each with their own peak pattern, hammering a single ingestion boundary at 250,000+ SKU updates per supplier in near real-time &#x2014; and the &#x201C;gateway&#x201D; that needed a rate limiter wasn&#x2019;t a gateway at all.</p>
+
+<p><strong>Rate limiting at production scale is a topology decision before it is a bucket decision.</strong> The parameters follow from the system layout. Until you&#x2019;ve drawn the full graph of who calls what at what rate, the bucket config is guesswork.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">70K</span><span class="stat-label">active suppliers</span></div>
+  <div class="stat-cell"><span class="stat-num">250K+</span><span class="stat-label">SKU updates each</span></div>
+  <div class="stat-cell"><span class="stat-num">4.5&times;</span><span class="stat-label">PAS CORE spike factor</span></div>
+  <div class="stat-cell"><span class="stat-num">0.56s</span><span class="stat-label">gst-acc-promotions p50</span></div>
+</div>
+
+<h2 id="topology">The system topology — where the pressure concentrates</h2>
+
+<p>Before a line of rate-limiting code can be written correctly, you have to understand what you&#x2019;re protecting. At Wayfair&#x2019;s pricing platform, the ingestion path for supplier updates ran through UCMS (ucms-partner-home), the Supplier Core, which scaled from 10 to 35 pods via HPA. From there, promotion events passed to gst-acc-promotions &#x2014; 12 pods, Python FastAPI, 0.56 second average latency, averaging 0.9 RPS but latency-sensitive because it sat upstream of two heavy compute layers.</p>
+
+<p>Those downstream layers were the real constraint. SPCS, the Supplier Cost Service, ran at roughly 2,800 QPS average and peaked near 4,200 QPS &#x2014; a Bigtable-backed cost calculator that suppliers&#x2019; updates fed into. PAS CORE, the price adjustment layer, averaged 3,414 RPS but spiked to 15,263 RPS. That 4.5x spike factor is the number that makes naive rate limiting fail: a single token bucket sized for average load gets blown through in seconds at peak.</p>
+
+<div class="attr-box team"><div class="attr-label">Team scope — Wayfair</div>UCMS and gst-acc-promotions were owned by the Supplier Cost and Promotions team. SPCS and PAS CORE were separate team surfaces. Rate limiting at the gst-acc-promotions ingestion boundary was a team decision; the downstream teams defined their own capacity limits that we had to respect.</div>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    SUP["70k Suppliers\n250k+ SKU updates each"]
+    UCMS["UCMS\n10-35 pods HPA\nFastAPI ~1.7 RPS avg"]
+    GST["gst-acc-promotions\n12 pods · 0.56s p50\nFastAPI ~0.9 RPS avg"]
+    SPCS["SPCS Bigtable\n2800 avg / 4200 peak QPS"]
+    PAS["PAS CORE\n3414 avg / 15263 peak RPS\n3.1s avg latency"]
+
+    SUP -->|"price + promo updates"| UCMS
+    UCMS -->|"promotion events"| GST
+    GST -->|"cost lookups"| SPCS
+    GST -->|"price compute"| PAS
+</pre>
+
+<p>The topology tells you where the pressure concentrates before you write a line of rate-limiting code. If you know PAS CORE spikes to 15,263 RPS, you know that&#x2019;s the sustained throughput constraint the rate limiter must respect &#x2014; not the 3,414 RPS average. Sizing to average is how you get paged at 2am.</p>
+
+<h2 id="supplier-boundary">The supplier boundary concept</h2>
+
+<p>A &#x201C;supplier boundary&#x201D; is not a network boundary. It&#x2019;s a trust and capacity boundary &#x2014; each supplier has contractually different update volumes, different peak hours, and different SLAs with Wayfair. A furniture supplier&#x2019;s SKU updates cluster around catalog season; a home goods supplier spikes at holiday drops. The peaks don&#x2019;t align.</p>
+
+<p>The naive implementation we started with was one shared rate limiter for all supplier traffic at the gst-acc-promotions ingestion path. This failed the first time a top-10 supplier by SKU count did a full catalog upload. Their batch consumed the entire shared bucket, and every other supplier hitting the endpoint during that window got 429s regardless of their own volume. We&#x2019;d built fairness theater, not fairness.</p>
+
+<p>Think of a highway toll plaza. One toll booth for 70,000 cars fails. Separate lanes per vehicle class &#x2014; trucks, cars, motorcycles &#x2014; each with its own throughput, is how real highways work. The supplier boundary is the lane assignment. Once you name the right boundary, the bucket granularity writes itself.</p>
+
+<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The per-supplier key wasn&#x2019;t just the supplier ID from the request. It was a composite key of <code>(supplier_id, product_type)</code> because the same supplier sending furniture updates vs. rug updates hit different downstream services &#x2014; SPCS vs. PAS CORE &#x2014; with totally different cost profiles.</div>
+
+<h2 id="design-decisions">Token bucket design decisions</h2>
+
+<p>Token bucket over leaky bucket because suppliers send bursts &#x2014; 250,000 SKU updates in near real-time &#x2014; followed by silence for hours. Leaky bucket smooths at the cost of dropping the burst even when the system has headroom from the idle period. Token bucket absorbs the burst if the bucket was full. The algorithm should match the traffic shape.</p>
+
+<p>Bucket capacity was sized to the 90th-percentile burst for each supplier tier: top-10, mid-tier, and long-tail suppliers got different initial capacities. The refill rate was tied to downstream sustained throughput &#x2014; the constraint was PAS CORE&#x2019;s 15,263 peak RPS, not the supplier&#x2019;s daily SKU count. A bucket that refills faster than the downstream can absorb is just a deferred queue.</p>
+
+<p>The first version had single-node bucket state: each of the 10&#x2013;35 UCMS pods held its own bucket per supplier. With 35 pods, a supplier could hit all of them and effectively claim 35x their nominal capacity. Redis atomic counters per supplier with a sliding window fixed this. One shared ledger meant the bucket was actually enforced. The Redis key TTL was set to 24 hours of inactivity: if a supplier is quiet for a day, they start fresh on next activity. Penalizing suppliers for idle periods was wrong.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> Accepting: bucket has tokens
+    Accepting --> Accepting: token consumed / event processed
+    Accepting --> Queued: bucket empty / event durable-queued
+    Queued --> Accepting: bucket refilled / queue drained
+    Accepting --> CircuitOpen: ">3 bucket misses in 60s"
+    CircuitOpen --> Accepting: 5-min delay + bucket reset
+</pre>
+
+<p>Token buckets in distributed systems always need a shared backing store. The algorithm is the easy part. The concurrency model is where production diverges from the whiteboard.</p>
+
+<h2 id="drop-policy">Drop policy &#x2014; the product decision inside the engineering decision</h2>
+
+<p>The obvious answer when a bucket is empty is to drop the request and return 429. Simple, correct for stateless APIs. Wrong for this use case. A supplier&#x2019;s SKU update is not idempotent from the supplier&#x2019;s perspective. If gst-acc-promotions drops a price update with a 429, the supplier&#x2019;s system may not retry &#x2014; and Wayfair loses price accuracy on 250,000+ product pages until the next full batch run.</p>
+
+<p>The correct response was to queue the update with a position marker. The bucket controls the ingest <em>rate</em>, but the update must not be lost. This is the same instinct as a write-ahead log: before you tell the caller &#x201C;I got it,&#x201D; you persist their intent somewhere that survives a restart. We used Cloud Tasks for smaller updates and GCS objects for large batch uploads. The bucket was the door policy; the queue was the receipt.</p>
+
+<p>A circuit breaker was layered on top. When a supplier hit the bucket limit more than three times in sixty seconds, the circuit opened and their updates were queued with a five-minute delay before retry. This separated &#x201C;burst but legitimate&#x201D; from &#x201C;runaway retry loop.&#x201D; PAS CORE&#x2019;s 3.1 second average latency was the downstream signal that opened the circuit &#x2014; not just the token bucket state.</p>
+
+<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The circuit breaker needed its own state, separate from the token bucket. Mixing them into one data structure made the logic unreadable and the tests brittle. Two clean primitives &#x2014; bucket and breaker &#x2014; made the code easier to reason about, even at the cost of an extra Redis key per supplier circuit.</div>
+
+<p>Drop policy is a product decision dressed as an engineering decision. The 429 vs. queue-and-drain question is really: &#x201C;How much do we trust suppliers to retry, and what is the cost of a missed price update?&#x201D; Get the product team in the room before you write the response code.</p>
+
+<h2 id="durability">The durability lesson &#x2014; WAL instinct at the HTTP boundary</h2>
+
+<p>At gst-acc-promotions, queued updates when the bucket was empty did not go to in-memory storage. A pod restart while holding 50,000 in-memory queued updates was a silent data loss event: price data stale by hours, support tickets from product pages showing wrong prices. The fix was the same whether you&#x2019;re at Wayfair or writing a Go consumer for an eBPF tracer: append to a durable medium before you acknowledge.</p>
+
+<p>The WAL pattern at the HTTP boundary means: before you tell the supplier&#x2019;s system &#x201C;I accepted your update,&#x201D; write it to a durable queue. Cloud Tasks in this case, or a WAL segment file in today&#x2019;s ebpf-llm-tracer code &#x2014; the medium changes, but the invariant doesn&#x2019;t. Durability is not a feature you bolt on when you see the first incident. It&#x2019;s the first question you answer when designing any ingestion path.</p>
+
+<p>Think of a restaurant&#x2019;s order ticket system. The waiter doesn&#x2019;t tell the kitchen to start cooking until the ticket is pinned to the board. If the waiter trips and forgets the verbal order, the pinned ticket is still there. That ticket is the WAL. The kitchen never receives an unrecorded order.</p>
+
+<div class="attr-box team"><div class="attr-label">Pattern — shared across systems</div>This same instinct appeared at Delivery Hero&#x2019;s order ingestion path: SQS as the durable append layer before the map-matching consumer processed events. The technology differs per company but the design question is identical: where is the durable boundary, and who owns the receipt?</div>
+
+<h2 id="numbers">Numbers and scale in context</h2>
+
+<p>When SPCS was at 4,200 QPS &#x2014; its peak &#x2014; a single misfiring supplier could add 300 QPS of unintended load from retry storms. At 2,800 QPS average, that 300 is barely visible. At 4,200 it&#x2019;s a 7% additional load spike that lands on a system already running near limit. The bucket didn&#x2019;t need to be infinitely precise; it needed to be conservative enough that one supplier&#x2019;s burst didn&#x2019;t push a neighbor past their SLO.</p>
+
+<p>The 20,000+ suppliers on the Global Pricing and Promotion Engine meant that even low-volume suppliers contributed to aggregate load at scale. A long-tail supplier sending 100 updates per day is trivial alone. Ten thousand of them sending simultaneously during a flash sale is not. The rate limiter had to account for correlated bursts, not just individual supplier capacity.</p>
+
+<p>Price propagation across the platform had been reduced from hours to sub-seconds after Wayfair&#x2019;s event-driven rewrite of the pricing pipeline. That achievement made the durability requirement sharper, not looser: if a batch update arrives during a zone incident and pods restart, you can&#x2019;t propagate what you didn&#x2019;t persist.</p>
+
+<h2 id="retrospective">What I&#x2019;d do differently</h2>
+
+<p>Instrument the token bucket fill level as a metric, not just the drop rate. Knowing a supplier is at 80% bucket utilization before they hit the limit is a leading indicator. The drop count is lagging. By the time you see drops, the damage to the caller&#x2019;s experience is already done.</p>
+
+<p>Test the distributed bucket under network partition between pods and Redis before production. We found a race condition in staging that unit tests missed because they mocked Redis. The test that catches distributed concurrency bugs is an integration test with a real Redis instance under artificial latency injection &#x2014; not a mock.</p>
+
+<p>Write the drop policy spec before the token bucket spec. The bucket parameters flow from the drop policy decision, not the other way around. &#x201C;What do we do when the bucket is empty?&#x201D; is the senior-engineer question. &#x201C;What should the capacity be?&#x201D; comes after. The order of design matters as much as the design itself.</p>
+
+<h2 id="bridge">Bridge to Day 18 code</h2>
+
+<p>Today&#x2019;s ebpf-llm-tracer work is a smaller-scale version of the same problem. When Kafka backpressures, the Go consumer must choose: queue indefinitely (OOM risk), drop silently (data loss), or shed new events through a rate limiter while persisting in-flight events to a WAL. The answer is the same one I arrived at in gst-acc-promotions: rate-limit new arrivals, never lose what&#x2019;s already accepted.</p>
+
+<p>The WAL is the receipt. The token bucket is the door policy. Both are necessary; neither alone is sufficient. The WAL without the rate limiter fills your disk under sustained backpressure. The rate limiter without the WAL drops data you&#x2019;ve already accepted. Together they give you at-least-once delivery with bounded resource usage under any Kafka latency condition.</p>
+
+<p>The WAL I&#x2019;m writing in ebpf-llm-tracer today is the same instinct &#x2014; never tell the upstream &#x201C;I got it&#x201D; until you&#x2019;ve written it somewhere it can survive a crash. The technology stack changes. The design question stays the same across every ingestion path I&#x2019;ve built.</p>
+
+<div class="series-footer">
+  <p><em>Experience &#xB7; Day 18 of 150 &#x2014; Staff engineer with 7.5 years building distributed systems, writing about decisions and their consequences in public.</em></p>
+  <p><em>Previous: <a href="building-in-public-blog-post-that-outlives-linkedin.html">Day 17 &#x2014; Building in Public &#x2014; The Blog Post That Outlives LinkedIn</a></em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html">Day 18 &#x2014; Quantization and Model Optimization</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Supplier APIs and Token Buckets &#x2014; Wayfair&#x2019;s Real Circuit Breaker
+    </a>
+    <a href="delphi-aletheia-feed-sub-second-price-visibility.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Delphi to Aletheia &#x2014; Sub-Second Price Visibility at Wayfair
+    </a>
+    <a href="order-sqs-route-consumers-delivery-hero.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Order SQS to Route Consumers &#x2014; Delivery Hero Durability Pattern
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="experience"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#topology">System topology</a></li>
+      <li><a href="#supplier-boundary">The supplier boundary</a></li>
+      <li><a href="#design-decisions">Token bucket design</a></li>
+      <li><a href="#drop-policy">Drop policy</a></li>
+      <li><a href="#durability">Durability lesson</a></li>
+      <li><a href="#numbers">Numbers in context</a></li>
+      <li><a href="#retrospective">What I&#x2019;d do differently</a></li>
+      <li><a href="#bridge">Bridge to Day 18 code</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+18+%E2%80%94+Rate+Limiting+at+the+Supplier+Boundary&url=https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
