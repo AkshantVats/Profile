@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram | Experience Series</title>
-<meta name="description" content="Wayfair had 70,000 active suppliers hammering a single ingestion boundary. The textbook diagram has one box labeled 'API Gateway'. Production had a distributed Redis bucket per supplier, a durable queue for drops, and a circuit breaker keyed on downstream latency — not bucket state.">
-<meta property="og:title" content="Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram">
-<meta property="og:description" content="Per-supplier token buckets in Redis, drop policy as a product decision, and the WAL instinct at the HTTP boundary — what I wish the textbook showed.">
+<title>Day 19 — Kafka + Redis Tiering — Query Latency by Temperature | Experience Series</title>
+<meta name="description" content="WhiteFalcon at Agoda used Redis for hot-tier reads and Ceph/S3 for cold storage — but the interesting problem was query latency by data temperature and why most SLOs lie by hiding cold-tier misses behind hot-tier hits.">
+<meta property="og:title" content="Day 19 — Kafka + Redis Tiering — Query Latency by Temperature">
+<meta property="og:description" content="How Agoda's WhiteFalcon TSDB made hot-tier Redis reads and cold-tier Parquet queries transparent to the caller — and why the SLO was wrong until we measured by temperature.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-supplier-rate-limiting.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-kafka-redis-tiering-query-latency.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-18-supplier-rate-limiting.png">
-<meta property="article:published_time" content="2026-06-04">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-kafka-redis-tiering-query-latency.png">
+<meta property="article:published_time" content="2026-06-05">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,108 +185,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &#xB7; Day 18 of 150</span>
-    <span class="tag">Rate Limiting</span>
-    <span class="tag">Token Bucket</span>
-    <span class="tag">Wayfair</span>
-    <span class="tag">Supplier Platform</span>
+    <span class="tag accent">Experience &#xB7; Day 19 of 150</span>
+    <span class="tag">Redis</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Storage Tiering</span>
     <span class="tag">Distributed Systems</span>
   </div>
-  <h1 class="post-title">Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram</h1>
-  <p class="post-subtitle">Wayfair &#xB7; UCMS &#xB7; gst-acc-promotions &#xB7; supplier token bucket in production</p>
+  <h1 class="post-title">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature</h1>
+  <p class="post-subtitle">Agoda &#xB7; decoupling hot reads from cold storage in WhiteFalcon TSDB</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 4, 2026</span>
+    <span class="meta-item">June 5, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">13 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &#xB7; Day 18 of 150</span>
+    <span class="meta-item">Experience &#xB7; Day 19 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-18-supplier-rate-limiting.png" alt="Cover: Day 18 — Rate Limiting at the Supplier Boundary" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-19-kafka-redis-tiering-query-latency.png" alt="Cover: Day 19 — Kafka + Redis Tiering — Query Latency by Temperature" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The first time I saw gst-acc-promotions fall over, the on-call alert said &#x201C;p99 latency spike&#x201D; &#x2014; it didn&#x2019;t say &#x201C;14 suppliers sent simultaneous batch updates.&#x201D; Those are not the same statement. One describes a symptom. The other names the cause and, if you&#x2019;ve thought it through, also tells you the fix.</p>
+<p>The SLO said p99 query latency under 50ms. It was technically passing every week. But it was lying in a way that took me two months to name precisely: the 50ms SLO measured the average p99 across all queries, and the hot tier served more than 90% of them.</p>
 
-<p>The textbook diagram for rate limiting is a single box labeled &#x201C;API Gateway&#x201D; with an arrow flowing through a token bucket. At Wayfair, the actual problem was nothing like that box. It was 70,000 active suppliers, each with their own peak pattern, hammering a single ingestion boundary at 250,000+ SKU updates per supplier in near real-time &#x2014; and the &#x201C;gateway&#x201D; that needed a rate limiter wasn&#x2019;t a gateway at all.</p>
+<p>The cold-tier queries &#x2014; which regularly landed at 800ms or above &#x2014; were being averaged away by the hot tier&#x2019;s sub-10ms responses. An SLO that averages across storage temperatures is not one SLO. It&#x2019;s three SLOs collapsed into one number.</p>
 
-<p><strong>Rate limiting at production scale is a topology decision before it is a bucket decision.</strong> The parameters follow from the system layout. Until you&#x2019;ve drawn the full graph of who calls what at what rate, the bucket config is guesswork.</p>
+<p>The fix turned out to be an instrumentation change before it was an infrastructure change. Once we could see latency by tier, the picture was clear. Until then, the dashboard said everything was fine.</p>
+
+<p><strong>Tiered storage systems have three distinct query classes: hot, cold, and cross-tier.</strong> Each has a different latency budget and a different failure mode. Treating them as one is how you build a monitoring system that lies to you.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">70K</span><span class="stat-label">active suppliers</span></div>
-  <div class="stat-cell"><span class="stat-num">250K+</span><span class="stat-label">SKU updates each</span></div>
-  <div class="stat-cell"><span class="stat-num">4.5&times;</span><span class="stat-label">PAS CORE spike factor</span></div>
-  <div class="stat-cell"><span class="stat-num">0.56s</span><span class="stat-label">gst-acc-promotions p50</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events / day</span></div>
+  <div class="stat-cell"><span class="stat-num">3&#x2013;7d</span><span class="stat-label">hot tier retention</span></div>
+  <div class="stat-cell"><span class="stat-num">&lt;10ms</span><span class="stat-label">hot-tier p99</span></div>
+  <div class="stat-cell"><span class="stat-num">800ms+</span><span class="stat-label">cold-tier p99</span></div>
 </div>
 
-<h2 id="topology">The system topology — where the pressure concentrates</h2>
+<h2 id="whitfalcon-tiers">WhiteFalcon&#x2019;s storage tiers</h2>
 
-<p>Before a line of rate-limiting code can be written correctly, you have to understand what you&#x2019;re protecting. At Wayfair&#x2019;s pricing platform, the ingestion path for supplier updates ran through UCMS (ucms-partner-home), the Supplier Core, which scaled from 10 to 35 pods via HPA. From there, promotion events passed to gst-acc-promotions &#x2014; 12 pods, Python FastAPI, 0.56 second average latency, averaging 0.9 RPS but latency-sensitive because it sat upstream of two heavy compute layers.</p>
+<p>WhiteFalcon &#x2014; Agoda&#x2019;s in-house TSDB &#x2014; was built around Kafka as the ingest backbone. Rust consumers drained the Kafka topic, writing time-bucketed state to Redis for the hot tier and flushing completed windows to Ceph-backed S3 as Parquet files for the cold tier. The Agoda team published their own write-ups on the architecture; I contributed to the query engine extension that makes cross-tier queries correct.</p>
 
-<p>Those downstream layers were the real constraint. SPCS, the Supplier Cost Service, ran at roughly 2,800 QPS average and peaked near 4,200 QPS &#x2014; a Bigtable-backed cost calculator that suppliers&#x2019; updates fed into. PAS CORE, the price adjustment layer, averaged 3,414 RPS but spiked to 15,263 RPS. That 4.5x spike factor is the number that makes naive rate limiting fail: a single token bucket sized for average load gets blown through in seconds at peak.</p>
+<div class="attr-box team"><div class="attr-label">Team scope &#x2014; Agoda</div>The Redis hot tier, Ceph/S3 cold tier, Kafka pipeline, and Rust consumer design were built by the Agoda team. Akshant contributed to the cross-tier Scala query engine extension and added k8s cardinality dimension — not the tier storage implementation itself.</div>
 
-<div class="attr-box team"><div class="attr-label">Team scope — Wayfair</div>UCMS and gst-acc-promotions were owned by the Supplier Cost and Promotions team. SPCS and PAS CORE were separate team surfaces. Rate limiting at the gst-acc-promotions ingestion boundary was a team decision; the downstream teams defined their own capacity limits that we had to respect.</div>
+<p>The hot tier held the last 3&#x2013;7 days of data at per-hour granularity. At 1.5T events per day, that&#x2019;s roughly 4.5&#x2013;10.5T events in Redis at any given time. Each time bucket was a Redis key with a compacted histogram structure.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    SUP["70k Suppliers\n250k+ SKU updates each"]
-    UCMS["UCMS\n10-35 pods HPA\nFastAPI ~1.7 RPS avg"]
-    GST["gst-acc-promotions\n12 pods · 0.56s p50\nFastAPI ~0.9 RPS avg"]
-    SPCS["SPCS Bigtable\n2800 avg / 4200 peak QPS"]
-    PAS["PAS CORE\n3414 avg / 15263 peak RPS\n3.1s avg latency"]
-
-    SUP -->|"price + promo updates"| UCMS
-    UCMS -->|"promotion events"| GST
-    GST -->|"cost lookups"| SPCS
-    GST -->|"price compute"| PAS
-</pre>
-
-<p>The topology tells you where the pressure concentrates before you write a line of rate-limiting code. If you know PAS CORE spikes to 15,263 RPS, you know that&#x2019;s the sustained throughput constraint the rate limiter must respect &#x2014; not the 3,414 RPS average. Sizing to average is how you get paged at 2am.</p>
-
-<h2 id="supplier-boundary">The supplier boundary concept</h2>
-
-<p>A &#x201C;supplier boundary&#x201D; is not a network boundary. It&#x2019;s a trust and capacity boundary &#x2014; each supplier has contractually different update volumes, different peak hours, and different SLAs with Wayfair. A furniture supplier&#x2019;s SKU updates cluster around catalog season; a home goods supplier spikes at holiday drops. The peaks don&#x2019;t align.</p>
-
-<p>The naive implementation we started with was one shared rate limiter for all supplier traffic at the gst-acc-promotions ingestion path. This failed the first time a top-10 supplier by SKU count did a full catalog upload. Their batch consumed the entire shared bucket, and every other supplier hitting the endpoint during that window got 429s regardless of their own volume. We&#x2019;d built fairness theater, not fairness.</p>
-
-<p>Think of a highway toll plaza. One toll booth for 70,000 cars fails. Separate lanes per vehicle class &#x2014; trucks, cars, motorcycles &#x2014; each with its own throughput, is how real highways work. The supplier boundary is the lane assignment. Once you name the right boundary, the bucket granularity writes itself.</p>
-
-<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The per-supplier key wasn&#x2019;t just the supplier ID from the request. It was a composite key of <code>(supplier_id, product_type)</code> because the same supplier sending furniture updates vs. rug updates hit different downstream services &#x2014; SPCS vs. PAS CORE &#x2014; with totally different cost profiles.</div>
-
-<h2 id="design-decisions">Token bucket design decisions</h2>
-
-<p>Token bucket over leaky bucket because suppliers send bursts &#x2014; 250,000 SKU updates in near real-time &#x2014; followed by silence for hours. Leaky bucket smooths at the cost of dropping the burst even when the system has headroom from the idle period. Token bucket absorbs the burst if the bucket was full. The algorithm should match the traffic shape.</p>
-
-<p>Bucket capacity was sized to the 90th-percentile burst for each supplier tier: top-10, mid-tier, and long-tail suppliers got different initial capacities. The refill rate was tied to downstream sustained throughput &#x2014; the constraint was PAS CORE&#x2019;s 15,263 peak RPS, not the supplier&#x2019;s daily SKU count. A bucket that refills faster than the downstream can absorb is just a deferred queue.</p>
-
-<p>The first version had single-node bucket state: each of the 10&#x2013;35 UCMS pods held its own bucket per supplier. With 35 pods, a supplier could hit all of them and effectively claim 35x their nominal capacity. Redis atomic counters per supplier with a sliding window fixed this. One shared ledger meant the bucket was actually enforced. The Redis key TTL was set to 24 hours of inactivity: if a supplier is quiet for a day, they start fresh on next activity. Penalizing suppliers for idle periods was wrong.</p>
+<p>When a bucket&#x2019;s retention window closed, a background job flushed it to Parquet on Ceph/S3 with datetime partitioning. Compaction then merged hourly files into 3-hour, then daily chunks.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -305,84 +259,168 @@ flowchart TD
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-stateDiagram-v2
-    [*] --> Accepting: bucket has tokens
-    Accepting --> Accepting: token consumed / event processed
-    Accepting --> Queued: bucket empty / event durable-queued
-    Queued --> Accepting: bucket refilled / queue drained
-    Accepting --> CircuitOpen: ">3 bucket misses in 60s"
-    CircuitOpen --> Accepting: 5-min delay + bucket reset
+flowchart LR
+    K["Kafka\n1.5T events/day"]
+    R["Rust consumers"]
+    H["Redis hot tier\n3-7 days, hourly buckets"]
+    C["Ceph / S3\nParquet cold tier"]
+    Q["Scala query engine"]
+    G["Grafana"]
+
+    K --> R
+    R --> H
+    H -->|"window flush"| C
+    Q -->|"hot reads"| H
+    Q -->|"cold reads"| C
+    G --> Q
 </pre>
 
-<p>Token buckets in distributed systems always need a shared backing store. The algorithm is the easy part. The concurrency model is where production diverges from the whiteboard.</p>
+<p>The latency gap between tiers was not a bug in the design &#x2014; it was a deliberate tradeoff. Redis gave sub-10ms reads for the queries Grafana dashboards hit every 30 seconds. Parquet on Ceph gave cost-efficient cold storage for data older than the hot window.</p>
 
-<h2 id="drop-policy">Drop policy &#x2014; the product decision inside the engineering decision</h2>
+<p>The problem was that nobody had defined &#x201C;how much higher&#x201D; latency was acceptable for cold queries, or tracked it separately from hot reads.</p>
 
-<p>The obvious answer when a bucket is empty is to drop the request and return 429. Simple, correct for stateless APIs. Wrong for this use case. A supplier&#x2019;s SKU update is not idempotent from the supplier&#x2019;s perspective. If gst-acc-promotions drops a price update with a 429, the supplier&#x2019;s system may not retry &#x2014; and Wayfair loses price accuracy on 250,000+ product pages until the next full batch run.</p>
+<h2 id="the-slo-lie">Why the SLO was lying</h2>
 
-<p>The correct response was to queue the update with a position marker. The bucket controls the ingest <em>rate</em>, but the update must not be lost. This is the same instinct as a write-ahead log: before you tell the caller &#x201C;I got it,&#x201D; you persist their intent somewhere that survives a restart. We used Cloud Tasks for smaller updates and GCS objects for large batch uploads. The bucket was the door policy; the queue was the receipt.</p>
+<p>A production Grafana dashboard typically queries the last 1&#x2013;3 hours of data. At Agoda&#x2019;s query volume, that meant more than 90% of all queries landed entirely within the Redis hot tier. The p99 across all queries was dominated by these fast reads.</p>
 
-<p>A circuit breaker was layered on top. When a supplier hit the bucket limit more than three times in sixty seconds, the circuit opened and their updates were queued with a five-minute delay before retry. This separated &#x201C;burst but legitimate&#x201D; from &#x201C;runaway retry loop.&#x201D; PAS CORE&#x2019;s 3.1 second average latency was the downstream signal that opened the circuit &#x2014; not just the token bucket state.</p>
+<p>An analyst running a query for the last 30 days of model latency data &#x2014; the kind that requires cross-tier or pure cold-tier access &#x2014; was in the remaining 10%. Their 800ms experience was invisible in the aggregate SLO.</p>
 
-<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The circuit breaker needed its own state, separate from the token bucket. Mixing them into one data structure made the logic unreadable and the tests brittle. Two clean primitives &#x2014; bucket and breaker &#x2014; made the code easier to reason about, even at the cost of an extra Redis key per supplier circuit.</div>
+<div class="pullquote"><p>An SLO that averages across storage temperatures is not an SLO. It is a weighted average that privileges the fast tier.</p></div>
 
-<p>Drop policy is a product decision dressed as an engineering decision. The 429 vs. queue-and-drain question is really: &#x201C;How much do we trust suppliers to retry, and what is the cost of a missed price update?&#x201D; Get the product team in the room before you write the response code.</p>
+<p>Think of a hotel review score that averages the penthouse suite and the budget rooms together. The overall score looks fine because 80% of guests stay in decent mid-range rooms. The 10% who booked the budget floor based on the aggregate score are misled.</p>
 
-<h2 id="durability">The durability lesson &#x2014; WAL instinct at the HTTP boundary</h2>
+<p>The right metric is separate ratings by room category. Storage tiering needs the same approach.</p>
 
-<p>At gst-acc-promotions, queued updates when the bucket was empty did not go to in-memory storage. A pod restart while holding 50,000 in-memory queued updates was a silent data loss event: price data stale by hours, support tickets from product pages showing wrong prices. The fix was the same whether you&#x2019;re at Wayfair or writing a Go consumer for an eBPF tracer: append to a durable medium before you acknowledge.</p>
+<p>The instrumentation change was to label every query at execution time with its tier: <code>tier=hot</code> for pure Redis reads, <code>tier=cold</code> for pure Parquet reads, and <code>tier=cross</code> for time ranges spanning both. Once we had that label, three separate p99 metrics replaced the single aggregate.</p>
 
-<p>The WAL pattern at the HTTP boundary means: before you tell the supplier&#x2019;s system &#x201C;I accepted your update,&#x201D; write it to a durable queue. Cloud Tasks in this case, or a WAL segment file in today&#x2019;s ebpf-llm-tracer code &#x2014; the medium changes, but the invariant doesn&#x2019;t. Durability is not a feature you bolt on when you see the first incident. It&#x2019;s the first question you answer when designing any ingestion path.</p>
+<p>The cold p99 immediately showed 750&#x2013;900ms. The cross-tier p99 showed 400&#x2013;600ms. The hot p99 confirmed sub-10ms &#x2014; the only number that had been visible in the old aggregate.</p>
 
-<p>Think of a restaurant&#x2019;s order ticket system. The waiter doesn&#x2019;t tell the kitchen to start cooking until the ticket is pinned to the board. If the waiter trips and forgets the verbal order, the pinned ticket is still there. That ticket is the WAL. The kitchen never receives an unrecorded order.</p>
+<div class="attr-box mine"><div class="attr-label">What I contributed</div>Adding tier labels to Scala query engine spans was part of the cross-tier query work. The histogram bucket merge for cross-tier correctness is covered in depth in <a href="when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>. Here I&#x2019;m focusing on the SLO design problem that the tier labels solved.</div>
 
-<div class="attr-box team"><div class="attr-label">Pattern — shared across systems</div>This same instinct appeared at Delivery Hero&#x2019;s order ingestion path: SQS as the durable append layer before the map-matching consumer processed events. The technology differs per company but the design question is identical: where is the durable boundary, and who owns the receipt?</div>
+<h2 id="kafka-flush-timing">Kafka flush timing and the tier boundary</h2>
 
-<h2 id="numbers">Numbers and scale in context</h2>
+<p>The tier boundary was not a hard cutoff at a calendar timestamp. It was defined by when the Rust consumer had flushed a time bucket from Redis to Ceph/S3. That flush happened asynchronously, triggered by a combination of window close time and a background compaction job.</p>
 
-<p>When SPCS was at 4,200 QPS &#x2014; its peak &#x2014; a single misfiring supplier could add 300 QPS of unintended load from retry storms. At 2,800 QPS average, that 300 is barely visible. At 4,200 it&#x2019;s a 7% additional load spike that lands on a system already running near limit. The bucket didn&#x2019;t need to be infinitely precise; it needed to be conservative enough that one supplier&#x2019;s burst didn&#x2019;t push a neighbor past their SLO.</p>
+<p>In practice, data from two hours ago was almost always in Redis. Data from three days ago was almost always in Parquet. Data from 12&#x2013;24 hours ago was in an uncertain state depending on flush lag.</p>
 
-<p>The 20,000+ suppliers on the Global Pricing and Promotion Engine meant that even low-volume suppliers contributed to aggregate load at scale. A long-tail supplier sending 100 updates per day is trivial alone. Ten thousand of them sending simultaneously during a flash sale is not. The rate limiter had to account for correlated bursts, not just individual supplier capacity.</p>
+<p>This uncertainty meant the query engine could not determine tier membership from the timestamp alone. It had to probe Redis first, then fall back to Parquet if the bucket was not present. For the hot path this was fine &#x2014; one Redis <code>GET</code> and done.</p>
 
-<p>Price propagation across the platform had been reduced from hours to sub-seconds after Wayfair&#x2019;s event-driven rewrite of the pricing pipeline. That achievement made the durability requirement sharper, not looser: if a batch update arrives during a zone incident and pods restart, you can&#x2019;t propagate what you didn&#x2019;t persist.</p>
+<p>For the cold path it meant two network hops: Redis miss, then Parquet fetch. The cross-tier path was a Redis hit for recent buckets and a Parquet fetch for older ones, with the histogram merge step on top.</p>
 
-<h2 id="retrospective">What I&#x2019;d do differently</h2>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+sequenceDiagram
+    participant G as Grafana
+    participant Q as Scala query engine
+    participant R as Redis hot tier
+    participant P as Parquet / Ceph
 
-<p>Instrument the token bucket fill level as a metric, not just the drop rate. Knowing a supplier is at 80% bucket utilization before they hit the limit is a leading indicator. The drop count is lagging. By the time you see drops, the damage to the caller&#x2019;s experience is already done.</p>
+    G->>Q: query(metric, last_1h)
+    Q->>R: GET bucket[t-1h..now]
+    R-->>Q: hit — histogram data
+    Q-->>G: result (~5ms)
 
-<p>Test the distributed bucket under network partition between pods and Redis before production. We found a race condition in staging that unit tests missed because they mocked Redis. The test that catches distributed concurrency bugs is an integration test with a real Redis instance under artificial latency injection &#x2014; not a mock.</p>
+    G->>Q: query(metric, last_30d)
+    Q->>R: GET bucket[t-30d..t-7d]
+    R-->>Q: miss
+    Q->>P: scan parquet[t-30d..t-7d]
+    P-->>Q: histogram files
+    Q->>R: GET bucket[t-7d..now]
+    R-->>Q: hit
+    Q->>Q: merge histograms
+    Q-->>G: result (~600ms)
+</pre>
 
-<p>Write the drop policy spec before the token bucket spec. The bucket parameters flow from the drop policy decision, not the other way around. &#x201C;What do we do when the bucket is empty?&#x201D; is the senior-engineer question. &#x201C;What should the capacity be?&#x201D; comes after. The order of design matters as much as the design itself.</p>
+<p>The two-hop penalty for cold misses explained the 400&#x2013;600ms cross-tier latency &#x2014; the Redis miss itself is cheap, but the Parquet scan on Ceph added the bulk of the latency. For pure cold queries beyond the hot window, the Parquet scan was the entire read path, and Ceph&#x2019;s NVMe-backed latency still landed at 700ms+ for large date ranges. Columnar formats optimize for scan throughput, not point-query latency.</p>
 
-<h2 id="bridge">Bridge to Day 18 code</h2>
+<h2 id="query-class-slos">Designing separate SLOs by query class</h2>
 
-<p>Today&#x2019;s ebpf-llm-tracer work is a smaller-scale version of the same problem. When Kafka backpressures, the Go consumer must choose: queue indefinitely (OOM risk), drop silently (data loss), or shed new events through a rate limiter while persisting in-flight events to a WAL. The answer is the same one I arrived at in gst-acc-promotions: rate-limit new arrivals, never lose what&#x2019;s already accepted.</p>
+<p>Once we had the three-tier labeling in place, separate SLO targets were the natural next step. Hot-tier queries at sub-10ms p99 were achievable because Redis is purpose-built for low-latency reads. Cold-tier queries at 800ms p99 were acceptable for historical analysis workloads.</p>
 
-<p>The WAL is the receipt. The token bucket is the door policy. Both are necessary; neither alone is sufficient. The WAL without the rate limiter fills your disk under sustained backpressure. The rate limiter without the WAL drops data you&#x2019;ve already accepted. Together they give you at-least-once delivery with bounded resource usage under any Kafka latency condition.</p>
+<p>The cross-tier class was the one that needed work. At 400&#x2013;600ms, it was slow enough to degrade dashboards that happened to span the hot/cold boundary.</p>
 
-<p>The WAL I&#x2019;m writing in ebpf-llm-tracer today is the same instinct &#x2014; never tell the upstream &#x201C;I got it&#x201D; until you&#x2019;ve written it somewhere it can survive a crash. The technology stack changes. The design question stays the same across every ingestion path I&#x2019;ve built.</p>
+<table>
+<thead><tr><th>Query class</th><th>Tier path</th><th>p99 observed</th><th>SLO target</th></tr></thead>
+<tbody>
+<tr><td><code>tier=hot</code></td><td>Redis only</td><td>&lt;10ms</td><td>50ms</td></tr>
+<tr><td><code>tier=cross</code></td><td>Redis + Parquet merge</td><td>400&#x2013;600ms</td><td>1s</td></tr>
+<tr><td><code>tier=cold</code></td><td>Parquet only</td><td>750&#x2013;900ms</td><td>5s</td></tr>
+</tbody>
+</table>
+
+<p>The cold-tier SLO at 5 seconds was not a performance aspiration &#x2014; it was an honest statement about what Parquet scans on Ceph could deliver for large time ranges. The cross-tier target at 1 second was more aggressive because that class included dashboard queries at the hot/cold boundary, and users expected dashboard latency closer to hot-tier behavior. Communicating those targets to Grafana dashboard authors changed how they wrote queries: date pickers that defaulted to &#x201C;last 30 days&#x201D; were updated to &#x201C;last 7 days&#x201D; as the default, reducing inadvertent cold-tier hits.</p>
+
+<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The biggest impact of publishing separate SLOs was on the people who write dashboards, not the people who operate the storage layer. Engineers writing Grafana dashboards stopped defaulting to 30-day views once they saw the 800ms cold-tier number. A latency-aware default range is free performance &#x2014; no infrastructure change required.</div>
+
+<h2 id="kafka-backpressure">Kafka ingest rate and hot-tier memory pressure</h2>
+
+<p>At 1.5T events per day, the Kafka ingest rate averaged around 17 million events per second at peak. The Rust consumer was the component that determined hot-tier freshness. If the consumer fell behind Kafka, recent data would not be available in Redis and hot-tier queries would miss.</p>
+
+<p>A consumer lag alert was the most important SLI for hot-tier read freshness &#x2014; not a query latency alert.</p>
+
+<p>Redis memory pressure was managed by the time-bucket retention window. When a bucket window closed, it was eligible for flush to Ceph. If the flush was delayed &#x2014; say, a compaction job was running and the Ceph write path was slow &#x2014; the bucket stayed in Redis beyond its nominal retention, consuming memory.</p>
+
+<p>The system had a hard eviction path: if Redis was within 10% of the memory limit, the oldest unflushed buckets were force-evicted regardless of flush status. This was a data loss path, not a graceful degradation path.</p>
+
+<p>The cold-tier query latency and hot-tier memory pressure were coupled through the flush pipeline. A slow Ceph write path caused Redis to grow, which triggered force eviction, which caused cold-tier misses for data evicted before flushing.</p>
+
+<p>Monitoring Kafka consumer lag, Ceph write latency, and Redis memory as a trio &#x2014; not individually &#x2014; was the operational lesson. Any one degrading alone was manageable. Two degrading simultaneously was a data loss scenario.</p>
+
+<h2 id="demo-parallel">The staging discipline parallel</h2>
+
+<p>Day 19&#x2019;s ebpf-llm-tracer demo harness proves the tracer without production API keys &#x2014; a mock LLM server stands in for OpenAI, and the eBPF sidecar captures calls from a demo app without any SDK changes. The staging discipline is the same one Agoda applied to load testing WhiteFalcon before new query types went live: you don&#x2019;t test correctness against production data, you build a mock that has the same shape and validate the behavior against that first.</p>
+
+<p>For WhiteFalcon, the equivalent of the mock server was a synthetic event generator that produced known histogram distributions at known rates &#x2014; so the query engine&#x2019;s merge output could be verified against ground truth before any real production traffic hit the cross-tier path. For the demo harness, the mock LLM server produces known token counts and model IDs so the eBPF parser and mapper output can be validated end-to-end without a real API call.</p>
+
+<p>The pattern is the same: isolate the system under test from production dependencies, validate the behavior with a mock that preserves the structural properties of the real thing, and only then route real traffic through it.</p>
+
+<h2 id="retrospective">What I&#x2019;d instrument differently</h2>
+
+<p>The tier label on queries should have been there from day one, not added after two months of a misleading composite SLO. The cost of adding it retroactively &#x2014; finding every query emission point in the Scala engine, adding the label, redeploying, and backfilling the dashboard &#x2014; was significantly higher than wiring it in at the start.</p>
+
+<p>Latency classification by storage tier is not a nice-to-have. It is the minimum instrumentation for a tiered storage system.</p>
+
+<p>Track Kafka consumer lag as a hot-tier freshness SLI, not just an operational alert. If the consumer falls 10 minutes behind, the hot tier&#x2019;s &#x201C;last 3&#x2013;7 days&#x201D; effectively becomes &#x201C;last 3&#x2013;7 days minus the lag window.&#x201D; Users querying the last 30 minutes get stale data without any visible signal unless you surface lag as a dashboard metric, not just a PagerDuty trigger.</p>
+
+<p>The cross-tier merge optimization was the right investment. Every millisecond saved in the histogram bucket merge &#x2014; loading bucket counts, summing, re-computing the quantile &#x2014; reduced p99 for the most visible query class. The hot/cold per-tier latencies were determined by Redis and Ceph hardware, respectively.</p>
+
+<p>The merge step was the only part of the cross-tier path fully in software. That made it the only part with an engineering lever worth pulling.</p>
 
 <div class="series-footer">
-  <p><em>Experience &#xB7; Day 18 of 150 &#x2014; Staff engineer with 7.5 years building distributed systems, writing about decisions and their consequences in public.</em></p>
-  <p><em>Previous: <a href="building-in-public-blog-post-that-outlives-linkedin.html">Day 17 &#x2014; Building in Public &#x2014; The Blog Post That Outlives LinkedIn</a></em></p>
-  <p><em>Next: <a href="day-19-kafka-redis-tiering-query-latency.html">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature &#x2192;</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html">Day 18 &#x2014; Quantization and Model Optimization</a></em></p>
+  <p><em>Experience &#xB7; Day 19 of 150 &#x2014; Staff engineer with 7.5 years building distributed systems, writing about decisions and their consequences in public.</em></p>
+  <p><em>Previous: <a href="day-18-supplier-rate-limiting.html">Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram</a></em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html">Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+    <a href="when-percentiles-lie-cross-tier-queries.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Supplier APIs and Token Buckets &#x2014; Wayfair&#x2019;s Real Circuit Breaker
+      When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB &#x2014; histogram merge correctness
     </a>
-    <a href="delphi-aletheia-feed-sub-second-price-visibility.html">
+    <a href="building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Delphi to Aletheia &#x2014; Sub-Second Price Visibility at Wayfair
+      1.5T events/day &#x2014; what I worked on at Agoda &#x2014; full system overview
     </a>
-    <a href="order-sqs-route-consumers-delivery-hero.html">
+    <a href="cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Order SQS to Route Consumers &#x2014; Delivery Hero Durability Pattern
+      Cardinality Is the Silent Killer &#x2014; RoaringBitmap indexing at WhiteFalcon
     </a>
   </div>
 </div>
@@ -396,24 +434,23 @@ stateDiagram-v2
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#topology">System topology</a></li>
-      <li><a href="#supplier-boundary">The supplier boundary</a></li>
-      <li><a href="#design-decisions">Token bucket design</a></li>
-      <li><a href="#drop-policy">Drop policy</a></li>
-      <li><a href="#durability">Durability lesson</a></li>
-      <li><a href="#numbers">Numbers in context</a></li>
-      <li><a href="#retrospective">What I&#x2019;d do differently</a></li>
-      <li><a href="#bridge">Bridge to Day 18 code</a></li>
+      <li><a href="#whitfalcon-tiers">WhiteFalcon storage tiers</a></li>
+      <li><a href="#the-slo-lie">Why the SLO was lying</a></li>
+      <li><a href="#kafka-flush-timing">Kafka flush timing</a></li>
+      <li><a href="#query-class-slos">SLOs by query class</a></li>
+      <li><a href="#kafka-backpressure">Kafka ingest + memory pressure</a></li>
+      <li><a href="#demo-parallel">Staging discipline parallel</a></li>
+      <li><a href="#retrospective">What I&#x2019;d instrument differently</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+18+%E2%80%94+Rate+Limiting+at+the+Supplier+Boundary&url=https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+19+%E2%80%94+Kafka+%2B+Redis+Tiering+%E2%80%94+Query+Latency+by+Temperature&url=https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
