@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 19 — Agent Infrastructure — Tools, Memory, Loops | AI Learning Series</title>
-<meta name="description" content="Production agents need queues, idempotency, and traces — the same primitives your streaming stack already has. Tool calling is RPC with hallucination risk; agent loops are event-driven pipelines with a model replacing the business logic.">
-<meta property="og:title" content="Day 19 — Agent Infrastructure — Tools, Memory, Loops">
-<meta property="og:description" content="Building agents from a distributed-systems lens: tool calling as RPC, memory as a tiered cache, loops as durable queues. Why your streaming infra already handles the hard parts.">
+<title>Day 20 — Prompt Engineering as Infra Optimization | AI Learning Series</title>
+<meta name="description" content="Prompt cache and prefix reuse in dollars per million requests. At 1M req/day, structured prefix reuse saves over $100k/month. The math your PM will actually read.">
+<meta property="og:title" content="Day 20 — Prompt Engineering as Infra Optimization">
+<meta property="og:description" content="Prompt caching is a cost engineering decision at scale. Calculate the savings at 1M req/day — then treat your system prompt like a configuration file with a cache hit rate.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-agent-infrastructure-tools-memory-loops.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-20-prompt-engineering-infra-optimization.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-agent-infrastructure-tools-memory-loops.png">
-<meta property="article:published_time" content="2026-06-05">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-20-prompt-engineering-infra-optimization.png">
+<meta property="article:published_time" content="2026-06-07">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,114 +185,93 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &#xB7; Day 19 of 150</span>
-    <span class="tag">Agent Infrastructure</span>
-    <span class="tag">Tool Calling</span>
-    <span class="tag">Memory</span>
-    <span class="tag">Agent Loops</span>
+    <span class="tag accent">AI Learning &#xB7; Day 20 of 150</span>
+    <span class="tag">Prompt Engineering</span>
+    <span class="tag">Prompt Caching</span>
+    <span class="tag">Cost Optimization</span>
+    <span class="tag">LLM Infrastructure</span>
     <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops</h1>
-  <p class="post-subtitle">Production agents need queues, idempotency, and traces &#x2014; the same primitives your streaming stack already has</p>
+  <h1 class="post-title">Day 20 &#x2014; Prompt Engineering as Infra Optimization</h1>
+  <p class="post-subtitle">Prompt cache and prefix reuse in dollars per million requests &#x2014; the math your PM will actually read</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 5, 2026</span>
+    <span class="meta-item">June 7, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
+    <span class="meta-item">14 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &#xB7; Day 19 of 150</span>
+    <span class="meta-item">AI Learning &#xB7; Day 20 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-19-agent-infrastructure-tools-memory-loops.png" alt="Cover: Day 19 — Agent Infrastructure — Tools, Memory, Loops" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-20-prompt-engineering-infra-optimization.png" alt="Cover: Day 20 — Prompt Engineering as Infra Optimization" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Tool calling is RPC with hallucination risk. Your streaming stack already handles worse RPC fan-out every day. The infrastructure problem of running a production agent is not a new category &#x2014; it is the same distributed systems problem dressed in a different API: durable execution, idempotent side effects, and observability over a loop that runs for seconds or minutes instead of milliseconds.</p>
+<p>At 1,000 requests per day, prompt engineering is a craft question. At 1 million requests per day, it is a cost engineering decision worth $100,000 a month or more. The framing changes not because the techniques are different, but because the stakes are high enough to justify treating your system prompt like infrastructure &#x2014; versioned, reviewed, monitored, and optimized with the same discipline you bring to a Kafka partition key strategy.</p>
 
-<p>What makes agents distinct is that the &#x201C;business logic&#x201D; &#x2014; the part that decides which tool to call and what to do with the result &#x2014; is a language model call, not deterministic code. A model call has latency measured in seconds, output that varies by temperature and sampling, and the possibility of generating a tool name that doesn&#x2019;t exist. The infra answer is the same one you&#x2019;d apply to any non-deterministic long-running process: make it observable, make side effects idempotent, and make failures retryable without restarting from scratch.</p>
+<p>What I didn&#x2019;t expect when I first dug into this is how much the &#x201C;engineering&#x201D; part is already solved. Prompt caching is not a clever trick &#x2014; it&#x2019;s a KV cache lookup keyed on a prefix hash. Every model provider that offers it has built the same mechanism underneath: hash the shared prefix, store the computed KV pairs, serve them for a fraction of the original compute cost. Your job is to structure the prompt so the expensive static part is always at the front.</p>
 
-<p><strong>Agent infrastructure is distributed systems infrastructure with a model on the hot path.</strong> The model is a slow, non-deterministic RPC call you can&#x2019;t directly debug. Your existing queues, caches, and traces are the right answer.</p>
+<p><strong>Prompt engineering at scale is prefix management.</strong> Put the static content first, the variable content last, and let the cache do the rest.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1&#x2013;60s</span><span class="stat-label">agent loop latency</span></div>
-  <div class="stat-cell"><span class="stat-num">10x+</span><span class="stat-label">LLM calls per task</span></div>
-  <div class="stat-cell"><span class="stat-num">N+1</span><span class="stat-label">tool calls per loop step</span></div>
-  <div class="stat-cell"><span class="stat-num">∞</span><span class="stat-label">loop bound without circuit breaker</span></div>
+  <div class="stat-cell"><span class="stat-num">70%</span><span class="stat-label">cost reduction with caching</span></div>
+  <div class="stat-cell"><span class="stat-num">$139k</span><span class="stat-label">monthly savings at 1M req/day</span></div>
+  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">cached read cost (Anthropic)</span></div>
+  <div class="stat-cell"><span class="stat-num">5 min</span><span class="stat-label">cache TTL (Claude)</span></div>
 </div>
 
-<h2 id="tool-calling">Tool calling as RPC</h2>
+<p><em>Note: pricing figures are from mid-2026. LLM pricing changes frequently &#x2014; verify current rates before building financial models.</em></p>
 
-<p>A tool call from a model&#x2019;s perspective is: &#x201C;I need the result of function X with argument Y before I can continue my reasoning.&#x201D; From the infrastructure perspective, it is a synchronous RPC call made by the agent loop on behalf of the model. The model generates a JSON object with the function name and arguments; the agent loop executes the function and returns the result as a new message in the conversation.</p>
+<h2 id="what-caching-is">What prompt caching is (and isn&#x2019;t)</h2>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy — tool call as RPC</div>A single agent step is a map-reduce job with one reducer. The model generates the <code>map</code> instructions (which tools to call with which arguments). Your tool executor is the <code>map</code> layer. The model call with all results is the <code>reduce</code>. Unlike real map-reduce, the output of the reduce step is another set of map instructions.</div>
+<p>Prompt caching works on the shared prefix: the portion of the input that is identical across requests. A system prompt describing an AI assistant&#x2019;s behavior, a set of reference documents, or a library of few-shot examples &#x2014; any of these can be cached if they appear at the start of every request and don&#x2019;t change between requests.</p>
 
-<p>The hallucination risk in tool calling is specific: the model may generate a tool name that is not in the schema, or generate arguments that fail validation. A well-designed tool layer validates the schema before executing anything. The validator is the first circuit breaker &#x2014; a malformed tool call fails fast, before any side-effecting execution occurs.</p>
+<p>Think of it like a printer where the first 20 pages are always the same legal boilerplate. Without caching, you typeset all 20 pages every time you print. With caching, you typeset them once, keep the typeset plates in a drawer, and pull them out for each new document. The variable part &#x2014; the actual letter, the unique content &#x2014; still gets typeset fresh each time.</p>
 
-<p>Parallel tool calls matter for latency. If a model generates three tool calls in one step, executing them sequentially adds their latencies in series. Executing them concurrently cuts latency to the slowest tool.</p>
+<p>Anthropic&#x2019;s implementation reads cached tokens at 10% of the normal input rate, with a 125% surcharge on the first write (the &#x201C;plate typesetting&#x201D; step). The cache TTL is 5 minutes by default &#x2014; if 5 minutes pass without a cache hit, the prefix is evicted and must be rewritten on the next request. OpenAI&#x2019;s implementation discounts input tokens by 50% for prefixes longer than 1,024 tokens, with automatic caching and no explicit write step.</p>
 
-<p>The agent framework decides whether to execute in parallel; the underlying tool execution is standard async HTTP or function dispatch. Your existing connection pooling and timeout policies apply directly.</p>
+<div class="attr-box mine"><div class="attr-label">DS analogy &#x2014; prompt prefix as CDN edge cache</div>The prompt prefix is a static asset. A CDN caches static content at the edge after the first request; subsequent requests for the same asset serve from cache without hitting the origin. Prompt caching does the same: the model compute (origin) is bypassed for cached prefixes; only the variable user query (the &#x201C;personalized&#x201D; content) requires fresh processing. The cache key is a hash of the prefix bytes, exactly like a CDN cache key on a URL path.</div>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-sequenceDiagram
-    participant U as User
-    participant L as Agent loop
-    participant M as LLM
-    participant T as Tool executor
+<p>What the cache does <em>not</em> cover: output tokens are always generated fresh. The cache only affects input processing &#x2014; the KV attention computation over the prefix. Every new response is a full generative pass.</p>
 
-    U->>L: task
-    L->>M: messages + tool schema
-    M-->>L: tool_call[search, calc]
-    par concurrent execution
-        L->>T: search(query)
-        L->>T: calc(expression)
-    end
-    T-->>L: results
-    L->>M: messages + results
-    M-->>L: final answer
-    L-->>U: response
-</pre>
+<h2 id="dollar-math">Dollar math at 1M requests per day</h2>
 
-<p>Tool execution is where your existing observability pays off immediately. Each tool call should emit a span: tool name, arguments (redacted if sensitive), latency, success/failure, and the token budget consumed by the result. Agents that make 10 tool calls per task generate 10 spans of tool latency data that are more actionable than the aggregate LLM call latency alone.</p>
+<p>Let&#x2019;s make this concrete. Assume you&#x2019;re running a customer-facing AI assistant on Claude. The system prompt is 2,000 tokens (persona, behavior rules, safety guidelines). The user query is 200 tokens on average. Using mid-2026 Claude Sonnet pricing ($3.00 per million input tokens), the baseline cost without any caching is:</p>
 
-<h2 id="memory">Memory as a tiered cache</h2>
+<pre><code>Per request:  (2,000 + 200 tokens) × $3.00 / 1,000,000 = $0.0066
+At 1M req/day: $0.0066 × 1,000,000 = $6,600/day → $198,000/month</code></pre>
 
-<p>Agent memory has three tiers that map exactly onto storage tiering: in-context (hot), retrieval (warm), and persistent (cold). In-context memory is the conversation history the model sees on every call &#x2014; bounded by the context window, measured in tokens, sub-millisecond access.</p>
+<p>Now enable prompt caching on the 2,000-token system prompt with a 90% cache hit rate. The 10% of requests that miss cache pay the full $0.006 for the system prompt plus a 125% write surcharge on that first write. The 90% that hit cache pay just 10% of the system prompt cost:</p>
 
-<p>Retrieval memory is a vector store lookup at each step &#x2014; tens of milliseconds, semantically filtered. Persistent memory is a structured store that survives agent restarts &#x2014; the equivalent of a database, with full latency of a network call.</p>
+<pre><code>Cache hit  (90%): 2,000 tokens × $0.30/M + 200 tokens × $3.00/M = $0.00066
+Cache miss (10%): 2,000 tokens × $3.00/M × 1.25 + 200 tokens × $3.00/M = $0.00810
+Blended:          0.9 × $0.00066 + 0.1 × $0.00810 = $0.00141/request
+At 1M req/day:    $0.00141 × 1,000,000 = $1,410/day → ~$42,300/month</code></pre>
 
-<p>The in-context tier is the only one that directly affects model quality. What the model sees is what it reasons about. Retrieval and persistent memory are only useful when their output enters the context.</p>
+<p>The gap: $198,000/month versus $42,300/month. That&#x2019;s $155,700/month in savings from a prefix ordering change and two lines of API config. At 5 engineers with full-loaded cost of $30k/month each, this is equivalent to 5 engineering-months freed per month.</p>
 
-<p>The management problem is: what to keep in context versus what to retrieve on demand.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">$198k</span><span class="stat-label">without caching/month</span></div>
+  <div class="stat-cell"><span class="stat-num">$42k</span><span class="stat-label">with caching/month</span></div>
+  <div class="stat-cell"><span class="stat-num">~78%</span><span class="stat-label">cost reduction</span></div>
+  <div class="stat-cell"><span class="stat-num">1 day</span><span class="stat-label">engineering to implement</span></div>
+</div>
 
-<p>Think of a restaurant order pad. The server&#x2019;s working memory (in-context) is what they hold at the table. The printed menu is retrieval memory &#x2014; consulted when needed. The kitchen order log is persistent &#x2014; survives across shifts.</p>
+<p>The numbers scale linearly with token counts. A 10,000-token system prompt (tool definitions, reference documents, examples) amplifies the savings proportionally. That&#x2019;s the slide your PM will actually read.</p>
 
-<p>A server memorizing the full menu makes errors. One looking up every item mid-conversation is slow. The right operating point is between those extremes.</p>
+<h2 id="prefix-reuse">Prefix reuse: structuring prompts for cache hits</h2>
+
+<p>The single rule for maximum cache efficiency is: static content first, variable content last. Any departure from this order breaks the cache hit. If the user ID appears in the middle of the system prompt, the prefix hash changes with every user, and you get 0% cache hits on the system prompt portion that follows it.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -312,87 +291,141 @@ sequenceDiagram
   }
 }}%%
 flowchart LR
-    CT["In-context\n&lt;1ms, token-bounded"]
-    VS["Vector store\n10-50ms, semantic"]
-    DB["Persistent store\n50-200ms, structured"]
-    LM["LLM call"]
+  A["System prompt\nstatic persona + rules"]
+  B["Reference docs\nstatic knowledge"]
+  C["Few-shot examples\nstatic demonstrations"]
+  D["User query\nvariable per request"]
 
-    CT -->|"always present"| LM
-    VS -->|"retrieve on demand"| CT
-    DB -->|"query by key"| CT
+  A -->|"cacheable prefix"| B
+  B -->|"cacheable prefix"| C
+  C -->|"cache boundary"| D
 </pre>
 
-<p>Context window management is the hot-tier equivalent of Redis bucket eviction. When the context approaches the token limit, old messages get truncated or summarized. The model never sees what was truncated.</p>
+<p>The Anthropic API accepts a <code>cache_control</code> marker on the last content block you want cached. Everything before that marker is treated as the cacheable prefix. A minimal implementation looks like this:</p>
 
-<p>A critical fact from step 3 that was truncated by step 8 is the agent equivalent of a Redis key force-evicted before flush &#x2014; gone from the reasoning path. The agent may hallucinate what it no longer remembers.</p>
+<pre><code>import anthropic
 
-<p>The mitigation is the same as in tiered storage: before evicting, persist to the next tier. Summarize long conversations into a compressed state that fits in context. Treat context eviction as a deliberate flush, not a silent discard.</p>
+client = anthropic.Anthropic()
 
-<h2 id="loops">Agent loops and durable execution</h2>
+response = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT,  # 2,000 tokens of static config
+            "cache_control": {"type": "ephemeral"}  # mark as cacheable prefix
+        }
+    ],
+    messages=[
+        {"role": "user", "content": user_query}  # variable per request
+    ]
+)</code></pre>
 
-<p>An agent loop is: call model &#x2192; execute tools &#x2192; check termination condition &#x2192; repeat. The termination condition is the hard part. A model that never generates a &#x201C;done&#x201D; signal will loop forever.</p>
+<p>The <code>"ephemeral"</code> cache type means the provider caches it for the TTL window (5 minutes for Claude). The response object includes <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code> usage fields &#x2014; those are the counters to put in your Prometheus metrics.</p>
 
-<p>Every production agent loop needs a maximum step count and a wall-clock budget, checked at each iteration before the model call.</p>
+<p>A subtle gotcha: conversation history breaks the cache if you include it in the system prompt or prepend it to the cacheable block. Multi-turn conversations should keep the system prompt truly static and append history as user/assistant message pairs after the cache boundary. The static prefix gets cached; the growing history does not.</p>
 
-<div class="attr-box mine"><div class="attr-label">What caught me off guard</div>The hardest loop failure is not infinite iteration &#x2014; a step counter catches that. It&#x2019;s idempotency: a tool that creates a resource (database row, Stripe charge, email send) called twice in a retry loop creates the resource twice. Idempotency keys at the tool layer are not optional. They are the difference between a retryable agent and a dangerous one.</div>
+<h2 id="compression">Beyond caching: prompt compression</h2>
 
-<p>Durable execution means: if the agent process crashes mid-loop, it resumes from the last committed step rather than starting over. The mechanism is a WAL for agent state &#x2014; the same design as ebpf-llm-tracer&#x2019;s consumer WAL.</p>
+<p>Caching reduces the cost of static tokens. Compression reduces the number of tokens in the first place. Both techniques compound: fewer tokens in the prefix means cheaper cache writes and faster cache reads.</p>
 
-<p>Before executing a tool, write the call intent to durable storage. After receiving the result, write it. On restart, replay from the last written result.</p>
+<p>The 80/20 rule for prompt compression: 20% of the tokens in a typical system prompt carry 80% of the behavioral signal. The remaining 80% is hedging language, redundant rephrasing, and prose connective tissue that the model doesn&#x2019;t need. A 40-token prose instruction like "Always respond in a professional and friendly manner, avoiding technical jargon that the user might not understand" compresses to a 12-token structured instruction: "Tone: professional, friendly. Avoid jargon."</p>
 
-<p>Without durable execution, a crash at step 7 of a 10-step agent means re-executing steps 1&#x2013;6 with all their side effects. With durable execution, it means re-reading steps 1&#x2013;6 from the log and continuing from step 7. The difference matters in proportion to the cost of the tools being called: a web search is cheap to retry, a database mutation or API call with a fee is not.</p>
-
-<h2 id="observability">Observability for agent loops</h2>
-
-<p>A single agent task generates a trace with a variable number of spans. The root span is the task; child spans are model calls and tool executions. The depth is variable because the number of loop iterations is not known in advance.</p>
-
-<p>Standard distributed tracing handles this well &#x2014; the trace is a tree of spans with parent-child relationships. The root span&#x2019;s duration covers the entire task.</p>
-
-<p>Three metrics matter most for agent health: step count per task (watches for runaway loops), token consumption per step (watches for context bloat), and tool error rate (watches for schema drift between model output and tool definitions). Step count is the agent equivalent of Kafka consumer lag &#x2014; a leading indicator that something upstream is not terminating as expected.</p>
+<p>Compression doesn&#x2019;t mean destroying nuance. It means treating the system prompt like a configuration file rather than a memo &#x2014; structured keys with concise values, not flowing explanations written for human readers. The model reads your instructions as token sequences, not prose. The prose is for you.</p>
 
 <table>
-<thead><tr><th>Signal</th><th>What it watches</th><th>Action threshold</th></tr></thead>
+<thead><tr><th>Instruction format</th><th>Tokens</th><th>Behavioral signal</th></tr></thead>
 <tbody>
-<tr><td>Step count / task</td><td>Runaway loops, non-terminating models</td><td>Circuit break at N steps</td></tr>
-<tr><td>Tokens / step</td><td>Context bloat, verbosity drift</td><td>Alert at 80% context window</td></tr>
-<tr><td>Tool error rate</td><td>Schema drift, hallucinated tool names</td><td>Alert above 5%</td></tr>
-<tr><td>Task latency p99</td><td>End-to-end regression</td><td>Canary on deploy</td></tr>
+<tr><td>Prose: "Always respond in a professional and friendly manner..."</td><td>40</td><td>Same</td></tr>
+<tr><td>Structured: "Tone: professional, friendly. Avoid jargon."</td><td>12</td><td>Same</td></tr>
+<tr><td>Prose: "If the user asks about pricing, always tell them to..."</td><td>35</td><td>Same</td></tr>
+<tr><td>Structured: "Pricing queries: redirect to sales@company.com"</td><td>9</td><td>Same</td></tr>
 </tbody>
 </table>
 
-<p>Tracing tool calls with eBPF &#x2014; which is what LensAI does &#x2014; gives you the tool latency data without requiring instrumentation in the agent framework itself. An agent making HTTP calls to external APIs has those calls visible in the eBPF trace, even if the agent framework has no built-in observability. The zero-SDK instrumentation is particularly valuable for agents that use third-party frameworks where adding spans manually is impractical.</p>
+<p>The compressibility limit is real. Below a certain density, structured instructions lose nuance that matters &#x2014; "be empathetic" compresses poorly because the model needs examples of what empathy looks like in context. Know when prose earns its tokens.</p>
+
+<h2 id="volume-threshold">The request volume threshold</h2>
+
+<p>Prompt caching has a real implementation cost: restructuring prompts, adding cache markers, monitoring cache hit rates. That investment only makes sense above a certain request volume. Below the threshold, the engineering time costs more than the token savings.</p>
+
+<p>Here is the rough breakeven analysis I use. Assume one engineer-day to implement caching (restructure prompt, add markers, add monitoring). At $30k/month fully-loaded engineer cost, one day is $1,364. The savings per day from caching a 2,000-token system prompt at 90% hit rate: roughly $4.75/day per 1,000 requests/day of volume. The breakeven day count is: $1,364 ÷ ($4.75 × daily_req_volume_in_thousands).</p>
+
+<pre><code>At 1k req/day:   breakeven in 287 days — not worth it
+At 10k req/day:  breakeven in 28 days — marginal
+At 100k req/day: breakeven in 3 days — do it now
+At 1M req/day:   breakeven in &lt;1 day — do it before launch</code></pre>
+
+<p>The crossover point is roughly 10,000–50,000 requests per day. Below that, focus on correctness and reliability. Above that, treat caching as a standard infrastructure decision, not an optimization.</p>
+
+<h2 id="infra-mental-model">The infra engineer&#x2019;s mental model</h2>
+
+<p>The most useful mental shift is treating the prompt as a configuration file, not a document. Configuration files get versioned, reviewed in PRs, and rolled back when they cause regressions. They get tested against a golden set of inputs before deployment. They have owners who are paged if they change unexpectedly.</p>
+
+<p>The Prometheus metric to add is <code>llm_prompt_cache_hit_rate</code>, computed as <code>cache_read_input_tokens / (cache_read_input_tokens + cache_creation_input_tokens)</code>. A sudden drop in hit rate means something changed in the prefix &#x2014; a new feature flag wrote a user-specific string into the static section, or a dependency injected dynamic content at the wrong position. That alert fires before the invoice arrives.</p>
+
+<p>Context budgeting is the third lever after caching and compression. Set a maximum token budget per request type &#x2014; a customer query gets 4k tokens context window, a document summarization task gets 32k. Enforce the budget at the application layer before the API call. A context budget that grows unchecked is a cost anomaly that compounds with every additional feature that adds to the prompt.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  P["Prompt version control\ngit + PR review"]
+  M["Cache hit rate metric\nPrometheus alert"]
+  B["Context budget policy\nmax tokens per type"]
+  T["Token cost dashboard\nper feature, per tenant"]
+
+  P --> M
+  M --> B
+  B --> T
+</pre>
+
+<p>Together these four practices &#x2014; prefix ordering, caching markers, compression, and monitoring &#x2014; form a prompt infrastructure layer. It is not glamorous work. But neither is connection pooling, and nobody ships without it.</p>
 
 <h2 id="lensai-connection">The LensAI connection</h2>
 
-<p>The demo harness from Day 19&#x2019;s code shows the tracer working against a mock LLM server &#x2014; a single-step inference call. An agent making 10 LLM calls per task generates 10 traced HTTP events in the eBPF ring buffer.</p>
+<p>The <code>llm_prompt_cache_hit_rate</code> metric requires knowing how many tokens were served from cache versus recomputed. That data lives in the API response&#x2019;s usage fields &#x2014; but only if you capture it. An eBPF tracer that intercepts the full HTTP response body gives you those usage fields from every request across every service, without requiring each team to instrument their own API client.</p>
 
-<p>The <code>InferenceEvent</code> schema captures <code>latency_ms</code>, <code>prompt_tokens</code>, and <code>completion_tokens</code> per call. Multiply across steps and you have per-task token cost and latency breakdown without any agent-framework changes.</p>
+<p>Today&#x2019;s code PR &#x2014; the ebpf-llm-tracer README overhaul &#x2014; makes the comparison explicit in the buyer&#x2019;s guide table. The &#x201C;token-level visibility&#x201D; row shows that eBPF extraction of <code>prompt_tokens</code> and <code>completion_tokens</code> works without SDK changes. That same extraction path includes <code>cache_creation_input_tokens</code> and <code>cache_read_input_tokens</code> when the response includes them &#x2014; the parser reads the full usage object, not just the top-level token counts.</p>
 
-<p>The eBPF overhead at 12 &#xB5;s per parse+map operation is negligible relative to agent task latency of 1&#x2013;60 seconds. The probe does not slow the agent. What it gives you is the full HTTP trace of every LLM call the agent made, labeled by model and tenant, in the same Kafka topic that feeds your existing ClickHouse dashboards.</p>
-
-<p>Agents that make 10 HTTP calls per user request are the use case where the zero-SDK approach is most valuable. You cannot add spans to every third-party framework your agents call into. The eBPF sidecar captures the full call graph regardless of how the agent is implemented.</p>
+<p>The README is the buyer&#x2019;s guide for the observability tool. This post is the CFO&#x2019;s guide for why the metric it surfaces &#x2014; cache hit rate per tenant &#x2014; is worth tracking. Both arguments are the same at root: measure the signal that controls cost, not the signal that&#x2019;s easiest to capture.</p>
 
 <div class="series-footer">
-  <p><em>Day 19 of 150 &#x2014; Agent Infrastructure. Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
-  <p><em>Previous: <a href="day-18-quantization-model-optimization.html">Day 18 &#x2014; Quantization and Model Optimization &#x2014; GPTQ vs AWQ vs bitsandbytes</a></em></p>
-  <p><em>Next: <a href="day-20-prompt-engineering-infra-optimization.html">Day 20 &#x2014; Prompt Engineering as Infra Optimization &#x2014; prompt cache math at 1M req/day</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature</a></em></p>
+  <p><em>Day 20 of 150 &#x2014; Prompt Engineering as Infra Optimization. Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Previous: <a href="day-19-agent-infrastructure-tools-memory-loops.html">Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops</a></em></p>
+  <p><em>Next: Day 21 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html">Day 20 &#x2014; Route Consumer Lag &#x2014; Why CPU-Based HPA Failed at Lunch Rush</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-18-quantization-model-optimization.html">
+    <a href="day-19-agent-infrastructure-tools-memory-loops.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 18 &#x2014; Quantization and Model Optimization &#x2014; GPTQ vs AWQ vs bitsandbytes
-    </a>
-    <a href="day-8-rag-as-infra-pipeline.html">
-      <span class="footnote-arrow">&#x2197;</span>
-      Day 8 &#x2014; RAG as Infra Pipeline &#x2014; the retrieval tier before the context tier
+      Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops &#x2014; the infrastructure layer agents run on
     </a>
     <a href="day-7-prompt-caching-infrastructure-layer.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 7 &#x2014; Prompt Caching as Infrastructure Layer &#x2014; KV cache across requests
+      Day 7 &#x2014; Prompt Caching as Infrastructure Layer &#x2014; KV cache mechanics across requests
+    </a>
+    <a href="day-15-multi-model-routing-strategies.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 15 &#x2014; Multi-Model Routing Strategies &#x2014; cost-aware routing as the other cost lever
     </a>
   </div>
 </div>
@@ -406,21 +439,23 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#tool-calling">Tool calling as RPC</a></li>
-      <li><a href="#memory">Memory as tiered cache</a></li>
-      <li><a href="#loops">Agent loops</a></li>
-      <li><a href="#observability">Observability</a></li>
+      <li><a href="#what-caching-is">What prompt caching is</a></li>
+      <li><a href="#dollar-math">Dollar math at 1M req/day</a></li>
+      <li><a href="#prefix-reuse">Prefix reuse</a></li>
+      <li><a href="#compression">Prompt compression</a></li>
+      <li><a href="#volume-threshold">Request volume threshold</a></li>
+      <li><a href="#infra-mental-model">Infra engineer's mental model</a></li>
       <li><a href="#lensai-connection">LensAI connection</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+19+%E2%80%94+Agent+Infrastructure+%E2%80%94+Tools%2C+Memory%2C+Loops&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+20+%E2%80%94+Prompt+Engineering+as+Infra+Optimization&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
