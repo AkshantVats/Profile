@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 19 — Kafka + Redis Tiering — Query Latency by Temperature | Experience Series</title>
-<meta name="description" content="WhiteFalcon at Agoda used Redis for hot-tier reads and Ceph/S3 for cold storage — but the interesting problem was query latency by data temperature and why most SLOs lie by hiding cold-tier misses behind hot-tier hits.">
-<meta property="og:title" content="Day 19 — Kafka + Redis Tiering — Query Latency by Temperature">
-<meta property="og:description" content="How Agoda's WhiteFalcon TSDB made hot-tier Redis reads and cold-tier Parquet queries transparent to the caller — and why the SLO was wrong until we measured by temperature.">
+<title>Day 20 — Route Consumer Lag — Why CPU-Based HPA Failed at Lunch Rush | Experience Series</title>
+<meta name="description" content="CPU was 30% while 18,000 messages queued. The dashboard said the system was healthy. Riders had stale ETAs for 4–8 minutes before the on-call alert fired. This is the story of the wrong scale signal, KEDA, and what I'd instrument from day one.">
+<meta property="og:title" content="Day 20 — Route Consumer Lag — Why CPU-Based HPA Failed at Lunch Rush">
+<meta property="og:description" content="CPU-based HPA measured infrastructure comfort, not user experience. The right metric was queue depth — the number of riders waiting for an updated ETA.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-kafka-redis-tiering-query-latency.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-20-route-consumer-lag-keda.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-19-kafka-redis-tiering-query-latency.png">
-<meta property="article:published_time" content="2026-06-05">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-20-route-consumer-lag-keda.png">
+<meta property="article:published_time" content="2026-06-07">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,62 +185,58 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &#xB7; Day 19 of 150</span>
-    <span class="tag">Redis</span>
-    <span class="tag">Kafka</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">Storage Tiering</span>
+    <span class="tag accent">Experience &#xB7; Day 20 of 150</span>
+    <span class="tag">KEDA</span>
+    <span class="tag">SQS Consumer</span>
+    <span class="tag">Delivery Hero</span>
+    <span class="tag">Autoscaling</span>
     <span class="tag">Distributed Systems</span>
   </div>
-  <h1 class="post-title">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature</h1>
-  <p class="post-subtitle">Agoda &#xB7; decoupling hot reads from cold storage in WhiteFalcon TSDB</p>
+  <h1 class="post-title">Day 20 &#x2014; Route Consumer Lag &#x2014; Why CPU-Based HPA Failed at Lunch Rush</h1>
+  <p class="post-subtitle">Delivery Hero &#xB7; Route Consumers &#xB7; Order SQS depth as the scale signal</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 5, 2026</span>
+    <span class="meta-item">June 7, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">13 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &#xB7; Day 19 of 150</span>
+    <span class="meta-item">Experience &#xB7; Day 20 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-19-kafka-redis-tiering-query-latency.png" alt="Cover: Day 19 — Kafka + Redis Tiering — Query Latency by Temperature" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-20-route-consumer-lag-keda.png" alt="Cover: Day 20 — Route Consumer Lag — Why CPU-Based HPA Failed at Lunch Rush" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The SLO said p99 query latency under 50ms. It was technically passing every week. But it was lying in a way that took me two months to name precisely: the 50ms SLO measured the average p99 across all queries, and the hot tier served more than 90% of them.</p>
+<p>I was on-call the afternoon our Route Consumers fell three orders of magnitude behind the Order SQS queue. The Kubernetes HPA dashboard showed eight pods running at 30% CPU. Everything looked green. What the dashboard wasn&#x2019;t telling me was that 18,000 messages had piled up in the queue, and riders across the platform were showing ETAs that were 4&#x2013;8 minutes stale. Customers were getting phone calls from confused riders asking why the app wasn&#x2019;t updating. The system wasn&#x2019;t misbehaving &#x2014; it was operating exactly as configured. The configuration was just measuring the wrong thing.</p>
 
-<p>The cold-tier queries &#x2014; which regularly landed at 800ms or above &#x2014; were being averaged away by the hot tier&#x2019;s sub-10ms responses. An SLO that averages across storage temperatures is not one SLO. It&#x2019;s three SLOs collapsed into one number.</p>
+<p>CPU-based HPA is the default autoscaling option on EKS, and for stateless request-response services it is often the right choice. Route Consumers are not that. They are I/O-bound queue workers: each goroutine spends most of its cycle waiting on a 20-second SQS long-poll and a 20&#x2013;80ms OSRM HTTP call. CPU during that wait time is near zero. A scale signal that measures CPU is measuring how hard the pods are working, not whether the work is keeping up with demand. Those are two completely different questions.</p>
 
-<p>The fix turned out to be an instrumentation change before it was an infrastructure change. Once we could see latency by tier, the picture was clear. Until then, the dashboard said everything was fine.</p>
+<p><strong>The right scale signal for a queue consumer is always the queue depth &#x2014; the number of unprocessed messages waiting.</strong> Everything I learned from the lunch-rush incident traces back to that single sentence.</p>
 
-<p><strong>Tiered storage systems have three distinct query classes: hot, cold, and cross-tier.</strong> Each has a different latency budget and a different failure mode. Treating them as one is how you build a monitoring system that lies to you.</p>
+<h2 id="system-overview">The system at lunch rush</h2>
+
+<p>Route Consumers are an EKS deployment at Delivery Hero&#x2019;s logistics platform. They poll the Order SQS queue for lifecycle events: <code>PLACED</code>, <code>PICKED UP</code>, <code>RIDER ENQUE</code>, and <code>RIDER PICKED UP</code>. For each consumed event, the consumer fires an HTTP call to OSRM &#x2014; the Open Source Routing Machine &#x2014; to get a map-matched route: a polyline, distance, and route revision number. That Route object is what powers the rider ETA display in the customer app.</p>
+
+<p>The work per event was straightforward in sequence but expensive in wall time: poll SQS with up to 20 seconds of long-poll timeout, parse the message, call OSRM (20&#x2013;80ms), assemble and persist the Route object. CPU consumed per event was roughly 15ms out of a 100&#x2013;200ms total cycle. The remaining 85&#x2013;90% of each goroutine&#x2019;s time was blocked, waiting on external I/O.</p>
+
+<div class="attr-box mine"><div class="attr-label">My scope — Delivery Hero</div>I was on the Route Consumer team for the logistics platform. The KEDA migration, OSRM caching, and consumer lag instrumentation described here were changes I drove. The underlying OSRM cluster and Order SQS pipeline were maintained by a separate team.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events / day</span></div>
-  <div class="stat-cell"><span class="stat-num">3&#x2013;7d</span><span class="stat-label">hot tier retention</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;10ms</span><span class="stat-label">hot-tier p99</span></div>
-  <div class="stat-cell"><span class="stat-num">800ms+</span><span class="stat-label">cold-tier p99</span></div>
+  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
+  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">route updates/sec peak</span></div>
+  <div class="stat-cell"><span class="stat-num">10k+</span><span class="stat-label">concurrent requests</span></div>
+  <div class="stat-cell"><span class="stat-num">~30%</span><span class="stat-label">CPU during lag spike</span></div>
 </div>
-
-<h2 id="whitfalcon-tiers">WhiteFalcon&#x2019;s storage tiers</h2>
-
-<p>WhiteFalcon &#x2014; Agoda&#x2019;s in-house TSDB &#x2014; was built around Kafka as the ingest backbone. Rust consumers drained the Kafka topic, writing time-bucketed state to Redis for the hot tier and flushing completed windows to Ceph-backed S3 as Parquet files for the cold tier. The Agoda team published their own write-ups on the architecture; I contributed to the query engine extension that makes cross-tier queries correct.</p>
-
-<div class="attr-box team"><div class="attr-label">Team scope &#x2014; Agoda</div>The Redis hot tier, Ceph/S3 cold tier, Kafka pipeline, and Rust consumer design were built by the Agoda team. Akshant contributed to the cross-tier Scala query engine extension and added k8s cardinality dimension — not the tier storage implementation itself.</div>
-
-<p>The hot tier held the last 3&#x2013;7 days of data at per-hour granularity. At 1.5T events per day, that&#x2019;s roughly 4.5&#x2013;10.5T events in Redis at any given time. Each time bucket was a Redis key with a compacted histogram structure.</p>
-
-<p>When a bucket&#x2019;s retention window closed, a background job flushed it to Parquet on Ceph/S3 with datetime partitioning. Compaction then merged hourly files into 3-hour, then daily chunks.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -260,52 +256,38 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-    K["Kafka\n1.5T events/day"]
-    R["Rust consumers"]
-    H["Redis hot tier\n3-7 days, hourly buckets"]
-    C["Ceph / S3\nParquet cold tier"]
-    Q["Scala query engine"]
-    G["Grafana"]
+  OS["Order Service"]
+  SQS["Order SQS\nPLACED · PICKED UP · ENQUE"]
+  RC["Route Consumers\nEKS · 4-8 pods"]
+  OSRM["OSRM cluster\nmap-matching"]
+  ROUTE["Route object\npolyline + ETA"]
+  UI["UI · rider ETA"]
 
-    K --> R
-    R --> H
-    H -->|"window flush"| C
-    Q -->|"hot reads"| H
-    Q -->|"cold reads"| C
-    G --> Q
+  OS --> SQS
+  SQS --> RC
+  RC --> OSRM
+  OSRM --> RC
+  RC --> ROUTE
+  ROUTE --> UI
 </pre>
 
-<p>The latency gap between tiers was not a bug in the design &#x2014; it was a deliberate tradeoff. Redis gave sub-10ms reads for the queries Grafana dashboards hit every 30 seconds. Parquet on Ceph gave cost-efficient cold storage for data older than the hot window.</p>
+<p>The topology is clean on paper. Order Service produces events, Route Consumers drain the queue, OSRM computes the route, the Route object feeds the UI. The failure mode is invisible until you ask: what happens when the queue produces faster than consumers can drain? The answer is that the queue grows, ETAs stale, and CPU stays flat because the goroutines are mostly blocked waiting on the very I/O that&#x2019;s falling behind. The signal for user experience degradation never shows up in the CPU chart.</p>
 
-<p>The problem was that nobody had defined &#x201C;how much higher&#x201D; latency was acceptable for cold queries, or tracked it separately from hot reads.</p>
+<h2 id="what-lag-looks-like">What consumer lag actually looks like</h2>
 
-<h2 id="the-slo-lie">Why the SLO was lying</h2>
+<p>SQS lag is measured through the <code>ApproximateNumberOfMessages</code> metric &#x2014; the visible queue depth. Unlike Kafka, SQS has no per-consumer offset tracking; there is no monotonic counter you can diff against a committed position. You get a snapshot: this many messages are visible right now, waiting to be received. CloudWatch updates this metric approximately every 60 seconds.</p>
 
-<p>A production Grafana dashboard typically queries the last 1&#x2013;3 hours of data. At Agoda&#x2019;s query volume, that meant more than 90% of all queries landed entirely within the Redis hot tier. The p99 across all queries was dominated by these fast reads.</p>
+<p>During the lunch-rush incident, the queue grew from around 200 messages to roughly 18,000 in six minutes. By the time CloudWatch reflected the full depth, four to five minutes of the spike had already elapsed before our on-call alert fired. Rider ETAs were stale by an estimated 4&#x2013;8 minutes. The on-call alert was set to trigger at 5,000 messages &#x2014; which it eventually did &#x2014; but the damage to user experience was already done by the time the threshold was crossed.</p>
 
-<p>An analyst running a query for the last 30 days of model latency data &#x2014; the kind that requires cross-tier or pure cold-tier access &#x2014; was in the remaining 10%. Their 800ms experience was invisible in the aggregate SLO.</p>
+<p>Think of it this way: measuring restaurant wait time by counting kitchen staff tells you nothing about the line of customers at the door. The kitchen workers&#x2019; activity rate (CPU) is not what customers experience. The queue of waiting customers (SQS depth) is. When you alert on the wrong signal, you learn about the problem after your users already have. The right signal is always the one that tracks what users directly experience &#x2014; and for a queue consumer, that is the depth of the queue.</p>
 
-<div class="pullquote"><p>An SLO that averages across storage temperatures is not an SLO. It is a weighted average that privileges the fast tier.</p></div>
+<h2 id="wrong-signal">Why CPU was the wrong signal</h2>
 
-<p>Think of a hotel review score that averages the penthouse suite and the budget rooms together. The overall score looks fine because 80% of guests stay in decent mid-range rooms. The 10% who booked the budget floor based on the aggregate score are misled.</p>
+<p>CPU-based HPA works well for request-response services where each request is CPU-bound: a computation, a serialization, a tight loop. The autoscaler&#x2019;s logic is sound for that case &#x2014; more requests means more CPU, add more pods. Route Consumers violated every assumption in that model.</p>
 
-<p>The right metric is separate ratings by room category. Storage tiering needs the same approach.</p>
+<p>With eight pods and four goroutine workers per pod, the consumer had 32 concurrent OSRM requests in flight at any moment. At 5,000 events per second arriving on the queue, 32 concurrent workers represent a 156-to-one backlog ratio &#x2014; 156 incoming events for every one the consumer can pick up in a single worker slot. CPU never saw this. Each goroutine was spending ~85% of its time blocked on SQS long-poll or OSRM HTTP, so CPU across all 8 pods averaged ~30% even while the queue grew from 200 to 18,000.</p>
 
-<p>The instrumentation change was to label every query at execution time with its tier: <code>tier=hot</code> for pure Redis reads, <code>tier=cold</code> for pure Parquet reads, and <code>tier=cross</code> for time ranges spanning both. Once we had that label, three separate p99 metrics replaced the single aggregate.</p>
-
-<p>The cold p99 immediately showed 750&#x2013;900ms. The cross-tier p99 showed 400&#x2013;600ms. The hot p99 confirmed sub-10ms &#x2014; the only number that had been visible in the old aggregate.</p>
-
-<div class="attr-box mine"><div class="attr-label">What I contributed</div>Adding tier labels to Scala query engine spans was part of the cross-tier query work. The histogram bucket merge for cross-tier correctness is covered in depth in <a href="when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>. Here I&#x2019;m focusing on the SLO design problem that the tier labels solved.</div>
-
-<h2 id="kafka-flush-timing">Kafka flush timing and the tier boundary</h2>
-
-<p>The tier boundary was not a hard cutoff at a calendar timestamp. It was defined by when the Rust consumer had flushed a time bucket from Redis to Ceph/S3. That flush happened asynchronously, triggered by a combination of window close time and a background compaction job.</p>
-
-<p>In practice, data from two hours ago was almost always in Redis. Data from three days ago was almost always in Parquet. Data from 12&#x2013;24 hours ago was in an uncertain state depending on flush lag.</p>
-
-<p>This uncertainty meant the query engine could not determine tier membership from the timestamp alone. It had to probe Redis first, then fall back to Parquet if the bucket was not present. For the hot path this was fine &#x2014; one Redis <code>GET</code> and done.</p>
-
-<p>For the cold path it meant two network hops: Redis miss, then Parquet fetch. The cross-tier path was a Redis hit for recent buckets and a Parquet fetch for older ones, with the histogram merge step on top.</p>
+<div class="pullquote"><p>CPU measured infrastructure comfort, not user experience. The right metric was queue depth — the number of riders waiting for an updated ETA.</p></div>
 
 <pre class="mermaid">
 %%{init: {
@@ -324,104 +306,99 @@ flowchart LR
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-sequenceDiagram
-    participant G as Grafana
-    participant Q as Scala query engine
-    participant R as Redis hot tier
-    participant P as Parquet / Ceph
+flowchart TD
+  A["30% CPU\n8 pods stay"]
+  B["18k queue depth\nno scale signal"]
+  C["4-8 min stale ETAs"]
 
-    G->>Q: query(metric, last_1h)
-    Q->>R: GET bucket[t-1h..now]
-    R-->>Q: hit — histogram data
-    Q-->>G: result (~5ms)
+  A2["Queue depth &gt; 500\nKEDA trigger"]
+  B2["Scale: 4 &rarr; 32 pods"]
+  C2["Lag clears in ~2 min"]
 
-    G->>Q: query(metric, last_30d)
-    Q->>R: GET bucket[t-30d..t-7d]
-    R-->>Q: miss
-    Q->>P: scan parquet[t-30d..t-7d]
-    P-->>Q: histogram files
-    Q->>R: GET bucket[t-7d..now]
-    R-->>Q: hit
-    Q->>Q: merge histograms
-    Q-->>G: result (~600ms)
+  subgraph OLD ["CPU-based HPA — what happened"]
+    A --> B --> C
+  end
+  subgraph NEW ["KEDA queue-depth — after fix"]
+    A2 --> B2 --> C2
+  end
 </pre>
 
-<p>The two-hop penalty for cold misses explained the 400&#x2013;600ms cross-tier latency &#x2014; the Redis miss itself is cheap, but the Parquet scan on Ceph added the bulk of the latency. For pure cold queries beyond the hot window, the Parquet scan was the entire read path, and Ceph&#x2019;s NVMe-backed latency still landed at 700ms+ for large date ranges. Columnar formats optimize for scan throughput, not point-query latency.</p>
+<p>The CPU-based HPA model and the KEDA queue-depth model produce identical pod counts during normal operation. They diverge catastrophically at the exact moment you need them most &#x2014; during a lunch-rush surge when the queue outpaces consumers. Measuring the signal users experience, rather than the signal that&#x2019;s easiest to instrument, is the design decision that separates a system that degrades gracefully from one that silently fails.</p>
 
-<h2 id="query-class-slos">Designing separate SLOs by query class</h2>
+<h2 id="keda-fix">The fix: KEDA + queue-depth HPA</h2>
 
-<p>Once we had the three-tier labeling in place, separate SLO targets were the natural next step. Hot-tier queries at sub-10ms p99 were achievable because Redis is purpose-built for low-latency reads. Cold-tier queries at 800ms p99 were acceptable for historical analysis workloads.</p>
+<p>KEDA &#x2014; the Kubernetes Event-Driven Autoscaler &#x2014; extends HPA with external metrics sources. It runs as a controller in the cluster, polls external systems like SQS, Kafka, or Redis, and creates a standard Kubernetes HPA object targeting a custom metric instead of CPU or memory. For SQS, it queries <code>ApproximateNumberOfMessages</code> via the CloudWatch API and scales the deployment to keep queue depth per replica below a target threshold.</p>
 
-<p>The cross-tier class was the one that needed work. At 400&#x2013;600ms, it was slow enough to degrade dashboards that happened to span the hot/cold boundary.</p>
+<p>The ScaledObject configuration for Route Consumers looked like this:</p>
 
-<table>
-<thead><tr><th>Query class</th><th>Tier path</th><th>p99 observed</th><th>SLO target</th></tr></thead>
-<tbody>
-<tr><td><code>tier=hot</code></td><td>Redis only</td><td>&lt;10ms</td><td>50ms</td></tr>
-<tr><td><code>tier=cross</code></td><td>Redis + Parquet merge</td><td>400&#x2013;600ms</td><td>1s</td></tr>
-<tr><td><code>tier=cold</code></td><td>Parquet only</td><td>750&#x2013;900ms</td><td>5s</td></tr>
-</tbody>
-</table>
+<pre><code>apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: route-consumer-scaledobject
+spec:
+  scaleTargetRef:
+    name: route-consumer
+  minReplicaCount: 4
+  maxReplicaCount: 32
+  cooldownPeriod: 120
+  triggers:
+    - type: aws-sqs-queue
+      metadata:
+        queueURL: &lt;Order SQS URL&gt;
+        targetQueueLength: "500"
+        awsRegion: eu-west-1</code></pre>
 
-<p>The cold-tier SLO at 5 seconds was not a performance aspiration &#x2014; it was an honest statement about what Parquet scans on Ceph could deliver for large time ranges. The cross-tier target at 1 second was more aggressive because that class included dashboard queries at the hot/cold boundary, and users expected dashboard latency closer to hot-tier behavior. Communicating those targets to Grafana dashboard authors changed how they wrote queries: date pickers that defaulted to &#x201C;last 30 days&#x201D; were updated to &#x201C;last 7 days&#x201D; as the default, reducing inadvertent cold-tier hits.</p>
+<p>The <code>targetQueueLength: "500"</code> means KEDA targets 500 messages per replica. At 18,000 messages queued, the desired replica count becomes 18,000 / 500 = 36, clamped to the 32-pod maximum. The scale-up happens in seconds, not minutes. There is one non-obvious migration caveat: KEDA creates its own HPA object for the deployment. A Kubernetes deployment cannot be targeted by two HPA objects simultaneously &#x2014; the controllers will fight each other. The existing CPU-based HPA had to be deleted before the ScaledObject was applied.</p>
 
-<div class="attr-box mine"><div class="attr-label">What I didn&#x2019;t expect</div>The biggest impact of publishing separate SLOs was on the people who write dashboards, not the people who operate the storage layer. Engineers writing Grafana dashboards stopped defaulting to 30-day views once they saw the 800ms cold-tier number. A latency-aware default range is free performance &#x2014; no infrastructure change required.</div>
+<p>We scheduled the migration window at 6am IST, 90 minutes before breakfast peak, to minimize exposure. The deletion and reapply took under three minutes. After migration, the first lunch rush hit and the consumer scaled from 4 pods to 28 pods in under 60 seconds. Queue depth peaked at ~1,200 messages and cleared in roughly two minutes. Before the fix, we were clearing peaks of 18,000 in 25&#x2013;35 minutes or not at all. The right signal &#x2014; queue depth &#x2014; gave the autoscaler the information it needed to act before user experience degraded.</p>
 
-<h2 id="kafka-backpressure">Kafka ingest rate and hot-tier memory pressure</h2>
+<h2 id="osrm-bottleneck">OSRM as the second bottleneck</h2>
 
-<p>At 1.5T events per day, the Kafka ingest rate averaged around 17 million events per second at peak. The Rust consumer was the component that determined hot-tier freshness. If the consumer fell behind Kafka, recent data would not be available in Redis and hot-tier queries would miss.</p>
+<p>After deploying the KEDA ScaledObject, the consumer scaled to 32 pods at peak. Thirty-two pods times four goroutine workers per pod equals 128 concurrent OSRM requests hitting the cluster simultaneously &#x2014; four times the previous steady-state load. OSRM P99 latency, which sat around 80ms at baseline, climbed to an estimated 340ms under this load. The queue cleared, which was the primary win, but OSRM became the new bottleneck. We had fixed the scale signal without checking downstream capacity first.</p>
 
-<p>A consumer lag alert was the most important SLI for hot-tier read freshness &#x2014; not a query latency alert.</p>
+<p>The fix had two parts. First, we requested two additional OSRM replicas from the team that maintained the cluster. Second, I added an in-process LRU cache to the Route Consumer itself, keyed on <code>(origin_cell, destination_cell)</code> pairs quantized to H3 hexagonal grid cells. During lunch rush, pickup hotspots in a city cluster tightly &#x2014; the same restaurant areas generate dozens of route requests to nearly identical origin-destination pairs within minutes of each other. The cache hit rate during lunch was approximately 18%, reducing OSRM RPS by roughly one-fifth. Combined with the additional replicas, P99 came back to an estimated 120ms &#x2014; above the 80ms baseline, but well within acceptable range.</p>
 
-<p>Redis memory pressure was managed by the time-bucket retention window. When a bucket window closed, it was eligible for flush to Ceph. If the flush was delayed &#x2014; say, a compaction job was running and the Ceph write path was slow &#x2014; the bucket stayed in Redis beyond its nominal retention, consuming memory.</p>
+<p>Scaling a highway works until the exit ramp backs up. Adding lanes to the highway is the right first step; it just does not help if the exit ramp has its own congestion limit. The lesson is not to avoid scaling &#x2014; it is to map the downstream capacity before deciding the scale ceiling. Work backwards from what the downstream can absorb, not from what the consumer feels comfortable requesting.</p>
 
-<p>The system had a hard eviction path: if Redis was within 10% of the memory limit, the oldest unflushed buckets were force-evicted regardless of flush status. This was a data loss path, not a graceful degradation path.</p>
+<h2 id="lessons">What I&#x2019;d do differently</h2>
 
-<p>The cold-tier query latency and hot-tier memory pressure were coupled through the flush pipeline. A slow Ceph write path caused Redis to grow, which triggered force eviction, which caused cold-tier misses for data evicted before flushing.</p>
+<p>I would instrument queue depth as a Prometheus metric from the consumer&#x2019;s first deployment, not after an incident. The <code>sqs_approximate_number_of_messages</code> CloudWatch metric is one API call away from becoming a Prometheus gauge; there is no engineering complexity, only the discipline to treat it as a first-class operational signal before you need it.</p>
 
-<p>Monitoring Kafka consumer lag, Ceph write latency, and Redis memory as a trio &#x2014; not individually &#x2014; was the operational lesson. Any one degrading alone was manageable. Two degrading simultaneously was a data loss scenario.</p>
+<p>I would design the scale target before choosing the pod count. The calculation is: what is OSRM&#x2019;s max concurrent request capacity? Divide that by workers per pod to get the safe maximum replica count. Work backwards from the downstream limit, set <code>maxReplicaCount</code> conservatively, then validate with a load test at that ceiling. If we had done this before deploying KEDA, we would have requested the two additional OSRM replicas before the first scaled lunch rush, not after.</p>
 
-<h2 id="demo-parallel">The staging discipline parallel</h2>
+<p>I would decouple the SQS polling goroutines from the OSRM request workers into two separate goroutine pools connected by a buffered channel. The 20-second SQS long-poll and the 20&#x2013;80ms OSRM call have entirely different latency profiles and backpressure characteristics. When they run in the same goroutine, OSRM latency spikes cause the SQS poller to back off, which means the queue drains more slowly precisely when it is deepest. Separate pools let each layer apply backpressure independently without blocking the other.</p>
 
-<p>Day 19&#x2019;s ebpf-llm-tracer demo harness proves the tracer without production API keys &#x2014; a mock LLM server stands in for OpenAI, and the eBPF sidecar captures calls from a demo app without any SDK changes. The staging discipline is the same one Agoda applied to load testing WhiteFalcon before new query types went live: you don&#x2019;t test correctness against production data, you build a mock that has the same shape and validate the behavior against that first.</p>
+<p>I would add consumer lag to the morning operational email as a trend line, not just as a threshold alert. A 7-day trend of lunch-peak queue depth would have shown the growing pattern weeks before the 18,000-message incident. By the time an alert fires, you are already in the incident. The trend is the signal that lets you act before the threshold is crossed.</p>
 
-<p>For WhiteFalcon, the equivalent of the mock server was a synthetic event generator that produced known histogram distributions at known rates &#x2014; so the query engine&#x2019;s merge output could be verified against ground truth before any real production traffic hit the cross-tier path. For the demo harness, the mock LLM server produces known token counts and model IDs so the eBPF parser and mapper output can be validated end-to-end without a real API call.</p>
+<h2 id="lensai-connection">The connection to Day 20 code</h2>
 
-<p>The pattern is the same: isolate the system under test from production dependencies, validate the behavior with a mock that preserves the structural properties of the real thing, and only then route real traffic through it.</p>
+<p>Today&#x2019;s ebpf-llm-tracer work includes a README comparison table that argues for kernel-level eBPF interception over SDK instrumentation. The argument is that SDK tracing measures what the application thinks it is doing, while eBPF interception measures what the kernel actually observes. Those two things diverge under load, under misconfiguration, and under failure &#x2014; exactly when the measurement matters most. The Route Consumer incident makes the same argument in a different domain: CPU measures what the infrastructure thinks it is doing; queue depth measures what users are actually experiencing.</p>
 
-<h2 id="retrospective">What I&#x2019;d instrument differently</h2>
+<p>The KEDA ScaledObject and the eBPF README comparison table share a common design principle &#x2014; instrument the signal closest to the user outcome, not the signal closest to the infrastructure component. For an LLM inference system, that means intercepting token flow at the kernel boundary, not at the SDK call site. For a queue consumer, that means measuring queue depth, not pod CPU. The right signal is not always the easy signal; it is the one that tells you what you need to know before the user notices.</p>
 
-<p>The tier label on queries should have been there from day one, not added after two months of a misleading composite SLO. The cost of adding it retroactively &#x2014; finding every query emission point in the Scala engine, adding the label, redeploying, and backfilling the dashboard &#x2014; was significantly higher than wiring it in at the start.</p>
-
-<p>Latency classification by storage tier is not a nice-to-have. It is the minimum instrumentation for a tiered storage system.</p>
-
-<p>Track Kafka consumer lag as a hot-tier freshness SLI, not just an operational alert. If the consumer falls 10 minutes behind, the hot tier&#x2019;s &#x201C;last 3&#x2013;7 days&#x201D; effectively becomes &#x201C;last 3&#x2013;7 days minus the lag window.&#x201D; Users querying the last 30 minutes get stale data without any visible signal unless you surface lag as a dashboard metric, not just a PagerDuty trigger.</p>
-
-<p>The cross-tier merge optimization was the right investment. Every millisecond saved in the histogram bucket merge &#x2014; loading bucket counts, summing, re-computing the quantile &#x2014; reduced p99 for the most visible query class. The hot/cold per-tier latencies were determined by Redis and Ceph hardware, respectively.</p>
-
-<p>The merge step was the only part of the cross-tier path fully in software. That made it the only part with an engineering lever worth pulling.</p>
+<p>Both decisions require the same discipline: resist the default instrumentation path, ask what metric tracks user experience most directly, and instrument that first. The default path &#x2014; CPU for HPA, SDK for LLM tracing &#x2014; is the path of least resistance and the path most likely to leave you reading a green dashboard while something important quietly falls behind.</p>
 
 <div class="series-footer">
-  <p><em>Experience &#xB7; Day 19 of 150 &#x2014; Staff engineer with 7.5 years building distributed systems, writing about decisions and their consequences in public.</em></p>
-  <p><em>Previous: <a href="day-18-supplier-rate-limiting.html">Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram</a></em></p>
-  <p><em>Next: <a href="day-20-route-consumer-lag-keda.html">Day 20 &#x2014; Route Consumer Lag &#x2014; Why CPU-Based HPA Failed at Lunch Rush</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html">Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops</a></em></p>
+  <p><em>Experience &#xB7; Day 20 of 150 &#x2014; Route Consumer autoscaling at Delivery Hero. Staff engineer working on AI infrastructure and distributed systems.</em></p>
+  <p><em>Previous: <a href="day-19-kafka-redis-tiering-query-latency.html">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature</a></em></p>
+  <p><em>Next: Day 21 coming soon</em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html">Day 20 &#x2014; Prompt Engineering as Infra Optimization</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="when-percentiles-lie-cross-tier-queries.html">
+    <a href="day-19-kafka-redis-tiering-query-latency.html">
       <span class="footnote-arrow">&#x2197;</span>
-      When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB &#x2014; histogram merge correctness
+      Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature
     </a>
-    <a href="building-tsdb-at-agoda.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/order-sqs-route-consumers-delivery-hero.html">
       <span class="footnote-arrow">&#x2197;</span>
-      1.5T events/day &#x2014; what I worked on at Agoda &#x2014; full system overview
+      Order SQS &#x2192; Route Consumers: Decoupling Map-Match from Status Updates
     </a>
-    <a href="cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
+    <a href="day-18-supplier-rate-limiting.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Cardinality Is the Silent Killer &#x2014; RoaringBitmap indexing at WhiteFalcon
+      Day 18 &#x2014; Rate Limiting at the Supplier Boundary &#x2014; Not the Textbook Diagram
     </a>
   </div>
 </div>
@@ -435,23 +412,23 @@ sequenceDiagram
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#whitfalcon-tiers">WhiteFalcon storage tiers</a></li>
-      <li><a href="#the-slo-lie">Why the SLO was lying</a></li>
-      <li><a href="#kafka-flush-timing">Kafka flush timing</a></li>
-      <li><a href="#query-class-slos">SLOs by query class</a></li>
-      <li><a href="#kafka-backpressure">Kafka ingest + memory pressure</a></li>
-      <li><a href="#demo-parallel">Staging discipline parallel</a></li>
-      <li><a href="#retrospective">What I&#x2019;d instrument differently</a></li>
+      <li><a href="#system-overview">The system at lunch rush</a></li>
+      <li><a href="#what-lag-looks-like">What consumer lag looks like</a></li>
+      <li><a href="#wrong-signal">Why CPU was the wrong signal</a></li>
+      <li><a href="#keda-fix">The fix: KEDA + queue depth</a></li>
+      <li><a href="#osrm-bottleneck">OSRM as second bottleneck</a></li>
+      <li><a href="#lessons">What I&#x2019;d do differently</a></li>
+      <li><a href="#lensai-connection">Day 20 code connection</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+19+%E2%80%94+Kafka+%2B+Redis+Tiering+%E2%80%94+Query+Latency+by+Temperature&url=https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+20+%E2%80%94+Route+Consumer+Lag+%E2%80%94+Why+CPU-Based+HPA+Failed+at+Lunch+Rush&url=https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>

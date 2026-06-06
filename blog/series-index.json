@@ -7,6 +7,16 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html",
+          "title": "Day 20 \u2014 Prompt Engineering as Infra Optimization",
+          "subtitle": "Prompt cache and prefix reuse in dollars per million requests",
+          "date": "2026-06-07",
+          "slug": "day-20-prompt-engineering-infra-optimization",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html",
+          "coverImage": "blog/assets/covers/day-20-prompt-engineering-infra-optimization.png"
+        },
+        {
           "href": "blog/series/ai-learning/day-18-quantization-model-optimization.html",
           "kicker": "AI Learning \u00b7 Day 18 of 150",
           "title": "Day 18 \u2014 Quantization and Model Optimization",
@@ -128,6 +138,16 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-20-route-consumer-lag-keda.html",
+          "title": "Day 20 \u2014 Route Consumer Lag \u2014 Why CPU-Based HPA Failed at Lunch Rush",
+          "subtitle": "Delivery Hero \u00b7 Route Consumers \u00b7 Order SQS depth as the scale signal",
+          "date": "2026-06-07",
+          "slug": "day-20-route-consumer-lag-keda",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html",
+          "coverImage": "blog/assets/covers/day-20-route-consumer-lag-keda.png"
+        },
         {
           "href": "blog/series/experience/day-18-supplier-rate-limiting.html",
           "kicker": "Experience \u00b7 Day 18 of 150",
