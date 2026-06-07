@@ -54,7 +54,7 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .nl:hover{color:var(--green)}
 .nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
 .nb:hover{color:var(--text)}
-.nb::before{content:'← '}
+.nb::before{content:'\2190 '}
 .post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
 .post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
 .tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
@@ -229,7 +229,7 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <p>The work per event was straightforward in sequence but expensive in wall time: poll SQS with up to 20 seconds of long-poll timeout, parse the message, call OSRM (20&#x2013;80ms), assemble and persist the Route object. CPU consumed per event was roughly 15ms out of a 100&#x2013;200ms total cycle. The remaining 85&#x2013;90% of each goroutine&#x2019;s time was blocked, waiting on external I/O.</p>
 
-<div class="attr-box mine"><div class="attr-label">My scope — Delivery Hero</div>I was on the Route Consumer team for the logistics platform. The KEDA migration, OSRM caching, and consumer lag instrumentation described here were changes I drove. The underlying OSRM cluster and Order SQS pipeline were maintained by a separate team.</div>
+<div class="attr-box mine"><div class="attr-label">My scope &#x2014; Delivery Hero</div>I was on the Route Consumer team for the logistics platform. The KEDA migration, OSRM caching, and consumer lag instrumentation described here were changes I drove. The underlying OSRM cluster and Order SQS pipeline were maintained by a separate team.</div>
 
 <div class="stat-callout">
   <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
@@ -287,7 +287,7 @@ flowchart LR
 
 <p>With eight pods and four goroutine workers per pod, the consumer had 32 concurrent OSRM requests in flight at any moment. At 5,000 events per second arriving on the queue, 32 concurrent workers represent a 156-to-one backlog ratio &#x2014; 156 incoming events for every one the consumer can pick up in a single worker slot. CPU never saw this. Each goroutine was spending ~85% of its time blocked on SQS long-poll or OSRM HTTP, so CPU across all 8 pods averaged ~30% even while the queue grew from 200 to 18,000.</p>
 
-<div class="pullquote"><p>CPU measured infrastructure comfort, not user experience. The right metric was queue depth — the number of riders waiting for an updated ETA.</p></div>
+<div class="pullquote"><p>CPU measured infrastructure comfort, not user experience. The right metric was queue depth &#x2014; the number of riders waiting for an updated ETA.</p></div>
 
 <pre class="mermaid">
 %%{init: {
@@ -381,7 +381,7 @@ spec:
 <div class="series-footer">
   <p><em>Experience &#xB7; Day 20 of 150 &#x2014; Route Consumer autoscaling at Delivery Hero. Staff engineer working on AI infrastructure and distributed systems.</em></p>
   <p><em>Previous: <a href="day-19-kafka-redis-tiering-query-latency.html">Day 19 &#x2014; Kafka + Redis Tiering &#x2014; Query Latency by Temperature</a></em></p>
-  <p><em>Next: Day 21 coming soon</em></p>
+  <p><em>Next: <a href="day-21-launchdarkly-build-vs-buy-flagd.html">Day 21 &#x2014; LaunchDarkly Money &#x2014; Why We Build flagd Ourselves</a></em></p>
   <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html">Day 20 &#x2014; Prompt Engineering as Infra Optimization</a></em></p>
 </div>
 
