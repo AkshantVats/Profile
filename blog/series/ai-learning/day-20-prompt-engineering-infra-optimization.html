@@ -54,7 +54,7 @@ html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
 .nl:hover{color:var(--green)}
 .nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
 .nb:hover{color:var(--text)}
-.nb::before{content:'← '}
+.nb::before{content:'\2190 '}
 .post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
 .post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
 .tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
@@ -350,14 +350,14 @@ response = client.messages.create(
 
 <p>Prompt caching has a real implementation cost: restructuring prompts, adding cache markers, monitoring cache hit rates. That investment only makes sense above a certain request volume. Below the threshold, the engineering time costs more than the token savings.</p>
 
-<p>Here is the rough breakeven analysis I use. Assume one engineer-day to implement caching (restructure prompt, add markers, add monitoring). At $30k/month fully-loaded engineer cost, one day is $1,364. The savings per day from caching a 2,000-token system prompt at 90% hit rate: roughly $4.75/day per 1,000 requests/day of volume. The breakeven day count is: $1,364 ÷ ($4.75 × daily_req_volume_in_thousands).</p>
+<p>Here is the rough breakeven analysis I use. Assume one engineer-day to implement caching (restructure prompt, add markers, add monitoring). At $30k/month fully-loaded engineer cost, one day is $1,364. The savings per day from caching a 2,000-token system prompt at 90% hit rate: roughly $4.75/day per 1,000 requests/day of volume. The breakeven day count is: $1,364 &#xF7; ($4.75 &#xD7; daily_req_volume_in_thousands).</p>
 
 <pre><code>At 1k req/day:   breakeven in 287 days — not worth it
 At 10k req/day:  breakeven in 28 days — marginal
 At 100k req/day: breakeven in 3 days — do it now
 At 1M req/day:   breakeven in &lt;1 day — do it before launch</code></pre>
 
-<p>The crossover point is roughly 10,000–50,000 requests per day. Below that, focus on correctness and reliability. Above that, treat caching as a standard infrastructure decision, not an optimization.</p>
+<p>The crossover point is roughly 10,000&#x2013;50,000 requests per day. Below that, focus on correctness and reliability. Above that, treat caching as a standard infrastructure decision, not an optimization.</p>
 
 <h2 id="infra-mental-model">The infra engineer&#x2019;s mental model</h2>
 
@@ -408,7 +408,7 @@ flowchart LR
 <div class="series-footer">
   <p><em>Day 20 of 150 &#x2014; Prompt Engineering as Infra Optimization. Staff engineer learning LLM infrastructure from first principles while building AI inference observability systems.</em></p>
   <p><em>Previous: <a href="day-19-agent-infrastructure-tools-memory-loops.html">Day 19 &#x2014; Agent Infrastructure &#x2014; Tools, Memory, Loops</a></em></p>
-  <p><em>Next: Day 21 coming soon</em></p>
+  <p><em>Next: <a href="day-21-production-reliability-llm-apis.html">Day 21 &#x2014; Production Reliability for LLM APIs</a></em></p>
   <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html">Day 20 &#x2014; Route Consumer Lag &#x2014; Why CPU-Based HPA Failed at Lunch Rush</a></em></p>
 </div>
 
