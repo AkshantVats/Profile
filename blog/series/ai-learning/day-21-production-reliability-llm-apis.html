@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 21 &#x2014; Production Reliability for LLM APIs | AI Learning Series</title>
+<meta name="description" content="Map every provider error code to retry, circuit break, fallback, or fail loud. Rate limits, streaming disconnects, and provider outages — the four-bucket classification framework a distributed systems engineer needs.">
+<meta property="og:title" content="Day 21 &#x2014; Production Reliability for LLM APIs">
+<meta property="og:description" content="Rate limits, provider outages, streaming disconnects — mapped to retry, circuit break, fallback, or fail loud. The classification is the precondition for every other reliability decision.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-21-production-reliability-llm-apis.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-21-production-reliability-llm-apis.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-21-production-reliability-llm-apis.png">
+<meta property="article:published_time" content="2026-06-09">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'\2190 '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &#xB7; Day 21 of 150</span>
+    <span class="tag">LLM Infrastructure</span>
+    <span class="tag">Circuit Breaker</span>
+    <span class="tag">Rate Limiting</span>
+    <span class="tag">Production Reliability</span>
+    <span class="tag">LensAI</span>
+  </div>
+  <h1 class="post-title">Day 21 &#x2014; Production Reliability for LLM APIs</h1>
+  <p class="post-subtitle">Rate limits, provider outages, streaming disconnects &#x2014; mapped to patterns you know</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">June 9, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">15 min read</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &#xB7; Day 21 of 150</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+<figure class="post-cover">
+  <img src="../../assets/covers/day-21-production-reliability-llm-apis.png" alt="Cover: Day 21 — Production Reliability for LLM APIs" width="1200" height="630" loading="eager">
+</figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>I&#x2019;ve spent years designing retry logic, circuit breakers, and fallback paths for distributed systems. The first time I wired up a production LLM API, I expected the same engineering vocabulary. What I found is that providers speak the same language &#x2014; but the consequences of getting the classification wrong are different from anything in a standard HTTP service.</p>
+
+<p>In a standard microservices mesh, you classify responses into three buckets: retry on 5xx, don&#x2019;t retry on 4xx, circuit break on sustained failure. LLM providers add a fourth category that traditional HTTP services don&#x2019;t have: <strong>fail loud</strong>. The request is fundamentally unsound, and retrying or falling back won&#x2019;t help. The user must fix their prompt.</p>
+
+<p>Getting the classification wrong doesn&#x2019;t just affect the current request. A retry loop on a <code>context_length_exceeded</code> error will exhaust your entire rate limit budget retrying a request that will fail every time. The classification is the precondition for every other reliability decision you make.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &#x2014; the post office with four counters</div>Think of LLM providers as post offices with four counters. The retry counter is temporarily closed &#x2014; come back in 30 seconds. The circuit break counter is the building with a power outage &#x2014; stop sending for five minutes. The fallback counter is the express window &#x2014; slower service, but open. The fail loud counter is the one where you&#x2019;ve brought an oversized package &#x2014; no counter can help; you need to repack it first.</div>
+
+<h2 id="classification">The error classification framework</h2>
+
+<p>Every LLM provider error maps to exactly one of four responses: <strong>retry</strong>, <strong>circuit break</strong>, <strong>fallback</strong>, or <strong>fail loud</strong>. The mapping requires reading the <code>error.type</code> field in the response body, not just the HTTP status code. An HTTP 400 covers both &#x201C;your prompt is too long&#x201D; (fail loud) and &#x201C;your JSON is malformed&#x201D; (fail loud, different fix). An HTTP 503 covers both &#x201C;we&#x2019;re overloaded&#x201D; (retry) and &#x201C;we&#x2019;re doing maintenance&#x201D; (circuit break for longer).</p>
+
+<p>Retry means the request is valid and the system is temporarily unavailable. Circuit break means the provider is experiencing a sustained outage &#x2014; stop sending requests for a defined window. Fallback means the primary provider is unavailable but a secondary can serve the request. Fail loud means the request itself is broken; no amount of retrying or rerouting will fix it.</p>
+
+<p>What I didn&#x2019;t expect: the boundary between &#x201C;retry&#x201D; and &#x201C;circuit break&#x201D; is time-based, not error-based. The same 429 means &#x201C;retry&#x201D; if it&#x2019;s a one-off and &#x201C;circuit break&#x201D; if it&#x2019;s happened 10 times in 60 seconds. You need a sliding window counter per provider endpoint to make this distinction correctly &#x2014; the error code alone is never enough.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    ERR["Provider Error
+received"]
+    CLS["Read error.type
+field"]
+    RATE["rate_limit_error
+429"]
+    SRV["server_error
+overloaded_error"]
+    NET["502 504
+connection refused"]
+    CTX["context_length_exceeded
+content_filter auth_error"]
+    RETRY["RETRY
+backoff + jitter"]
+    CB["CIRCUIT BREAK
+open breaker"]
+    FB["FALLBACK
+switch provider"]
+    LOUD["FAIL LOUD
+return to caller"]
+
+    ERR --> CLS
+    CLS --> RATE --> RETRY
+    CLS --> SRV -->|"under 3 attempts"| RETRY
+    SRV -->|"3 or more"| CB
+    CLS --> NET --> CB
+    CB -->|"multi-region?"| FB
+    CLS --> CTX --> LOUD
+</pre>
+
+<h2 id="rate-limits">Rate limit errors (429): the retry class</h2>
+
+<p>Provider rate limits come in two flavors: requests per minute (RPM) and tokens per minute (TPM). RPM limits fire when you send too many requests regardless of size. TPM limits fire when the aggregate tokens in your requests exceeds the tier cap. Both return 429, but the mitigation is different.</p>
+
+<p>For RPM limits: use exponential backoff with jitter. If the provider returns a <code>Retry-After</code> header, read it &#x2014; don&#x2019;t hardcode a backoff. For TPM limits: estimate tokens per request before sending using <code>len(prompt) / 4</code> as a rough chars-to-tokens ratio for English, and track running consumption in a leaky bucket with 10% headroom. After 100 requests, rounding errors compound to 5&#x2013;8%; the headroom absorbs this drift before you hit a limit mid-batch.</p>
+
+<p>Think of your electricity provider&#x2019;s soft cap: they don&#x2019;t cut your power the instant you exceed your plan limit, they let you run briefly over, then throttle. LLM TPM limits work the same way &#x2014; you get brief bursts above the cap, then a 429 tells you to slow down. Rate limit retries require both a backoff strategy and a token budget model; one without the other either wastes time or exhausts your quota.</p>
+
+<h2 id="outages">Provider outages: the circuit break class</h2>
+
+<p>A circuit breaker exists for one reason: to stop amplifying a provider&#x2019;s problem into your own. When a provider is experiencing a sustained outage, each retry you send is a request that will fail, occupy a connection slot, and delay your caller. The circuit breaker cuts this amplification loop before it becomes a cascade.</p>
+
+<p>Three states: <strong>closed</strong> (normal operation), <strong>open</strong> (failure threshold crossed &#x2014; all requests fail fast without hitting the provider), <strong>half-open</strong> (probe state &#x2014; send one request to check recovery). Threshold configuration for LLM providers: open after 5 consecutive 5xx errors or a 50% failure rate over a 60-second rolling window. Wait 30 seconds in open state before moving to half-open. Require 2 consecutive successes to close.</p>
+
+<p>What I didn&#x2019;t expect: half-open state is where most implementations get hurt. The probe fires one request. If that request hits a still-degraded provider and takes 30 seconds to time out, the probe blocks the state machine for 30 seconds. The fix: the half-open probe must use an aggressive timeout &#x2014; 3 seconds, not 30 &#x2014; because a healthy provider responds fast. Circuit breaking is not a retry with a longer delay; it is a different state machine that requires its own timeout, threshold, and probe logic.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> Open : 5 consecutive 5xx or 50 pct fail/60s
+    Open --> HalfOpen : wait 30s
+    HalfOpen --> Closed : 2 consecutive successes
+    HalfOpen --> Open : probe fails or 3s timeout
+</pre>
+
+<h2 id="streaming">Streaming disconnects: the reconnect class</h2>
+
+<p>Most modern LLM APIs return responses as server-sent events: a stream of delta chunks. The stream can disconnect mid-response for transport reasons entirely unrelated to the provider&#x2019;s health &#x2014; a network timeout, a TCP RST, a load balancer timeout. A mid-stream disconnect is not a provider error; it is a transport error.</p>
+
+<p>Most LLM providers don&#x2019;t support resume-from-offset. If the stream disconnects mid-response, you must restart the full request &#x2014; expensive for long-generation tasks like 2,000-token code generation. The mitigation is to checkpoint the partial response: as each delta arrives, append to an in-memory buffer. On disconnect, the partial buffer is the recoverable state; deliver it if the caller accepts partial responses, restart the full request only if they require completeness.</p>
+
+<p>Recording a phone call where the line drops halfway through: you can&#x2019;t resume from the dropout, you have to call back. But if you took notes during the call, you know what was said and can start the second call from where the first left off. Streaming checkpoints are your notes &#x2014; the partial response is valuable data, not an error to discard. Streaming disconnects require a distinct handling path from request failures.</p>
+
+<h2 id="decision-table">The decision table: error code to action</h2>
+
+<p>The <code>error.type</code> field, not the HTTP status code, is the definitive signal. Provider error taxonomy is also not standardized: OpenAI and Anthropic use similar structures (<code>error.type</code>, <code>error.message</code>) but different type strings. A production-grade LLM client needs a normalization layer that maps provider-specific error codes to your own internal taxonomy before the retry&#x2F;circuit-break&#x2F;fallback decision logic runs.</p>
+
+<table>
+<thead>
+<tr><th>Error / Signal</th><th>HTTP</th><th>error.type</th><th>Action</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Rate limit (RPM/TPM)</td><td>429</td><td><code>rate_limit_error</code></td><td>RETRY</td><td>Use Retry-After if present</td></tr>
+<tr><td>Provider overloaded</td><td>529 / 503</td><td><code>overloaded_error</code></td><td>RETRY &#x2192; CB</td><td>Max 3 retries before circuit break</td></tr>
+<tr><td>Server error</td><td>500</td><td><code>server_error</code></td><td>RETRY &#x2192; CB</td><td>Single retry; escalate if persistent</td></tr>
+<tr><td>Bad gateway / timeout</td><td>502 / 504</td><td>&#x2014;</td><td>CB immediately</td><td>Infrastructure issue, not transient</td></tr>
+<tr><td>Context length exceeded</td><td>400</td><td><code>context_length_exceeded</code></td><td>FAIL LOUD</td><td>Shorten prompt; do not retry</td></tr>
+<tr><td>Invalid API key</td><td>401</td><td><code>authentication_error</code></td><td>FAIL LOUD</td><td>Alert ops immediately</td></tr>
+<tr><td>Content policy violation</td><td>400</td><td><code>content_filter</code></td><td>FAIL LOUD</td><td>Request is permanently refused</td></tr>
+<tr><td>Model not found</td><td>404</td><td><code>not_found_error</code></td><td>FAIL LOUD</td><td>Wrong model ID; check config</td></tr>
+<tr><td>Malformed request</td><td>400</td><td><code>invalid_request_error</code></td><td>FAIL LOUD</td><td>Bug in request construction</td></tr>
+<tr><td>Streaming disconnect</td><td>&#x2014;</td><td>(transport)</td><td>CHECKPOINT + restart</td><td>Deliver partial if caller accepts</td></tr>
+<tr><td>Provider offline (multi-region)</td><td>&#x2014;</td><td>(conn refused)</td><td>FALLBACK</td><td>Switch to backup endpoint</td></tr>
+</tbody>
+</table>
+
+<p>What I didn&#x2019;t expect: provider error taxonomy is not standardized across providers. A production-grade LLM client library needs a normalization layer that maps provider-specific error codes to your own internal error taxonomy before any decision logic runs. Without this layer, your circuit breaker conditions are written in provider-specific strings &#x2014; which change when providers update their APIs.</p>
+
+<h2 id="minimal-layer">Putting it together: a minimal reliability layer</h2>
+
+<p>The reliability layer has three components that run in sequence. Before sending: token budget check (do I have TPM headroom?), then circuit breaker state check (is the provider marked degraded?). After receiving the response: error classifier (which of the four buckets?). The classifier runs before any retry logic &#x2014; fail-loud errors must exit immediately.</p>
+
+<p>After classification: retry schedules a re-attempt with backoff; circuit break events increment the breaker counter; fallback switches the provider; fail loud propagates the error to the caller with a structured message. Every request through the reliability layer should emit a tracing span with: <code>provider</code>, <code>model</code>, <code>error_class</code>, <code>attempt_number</code>, <code>token_count_estimate</code>. Without this tracing contract, debugging reliability incidents in production is guesswork.</p>
+
+<p>Think of a mail sorting room with four chutes. The value is the sorter, not the individual chutes &#x2014; nothing bypasses the sorter. The reliability layer&#x2019;s value is not the retry logic itself; it is the upfront classification that prevents the wrong logic from running on the wrong error. Getting this ordering right is what separates a reliability layer that improves stability from one that amplifies failures.</p>
+
+<div class="series-footer">
+  <p><em>Day 21 of 150 &#x2014; Production Reliability for LLM APIs. Staff engineer learning AI infrastructure from first principles while building AI inference observability systems.</em></p>
+  <p><em>Previous: <a href="day-20-prompt-engineering-infra-optimization.html">Day 20 &#x2014; Prompt Engineering as Infra Optimization</a></em></p>
+  <p><em>Next: Day 22 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html">Day 21 &#x2014; LaunchDarkly Money &#x2014; Why We Build flagd Ourselves</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-20-prompt-engineering-infra-optimization.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 20 &#x2014; Prompt Engineering as Infra Optimization &#x2014; the cost lever that caching unlocks
+    </a>
+    <a href="day-15-multi-model-routing-strategies.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 15 &#x2014; Multi-Model Routing Strategies &#x2014; fallback routing as a cost-quality tradeoff
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Experience Day 21 &#x2014; LaunchDarkly Money &#x2014; the flag that routes to each model version
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#classification">Error classification framework</a></li>
+      <li><a href="#rate-limits">Rate limit errors (429)</a></li>
+      <li><a href="#outages">Provider outages</a></li>
+      <li><a href="#streaming">Streaming disconnects</a></li>
+      <li><a href="#decision-table">Error code to action</a></li>
+      <li><a href="#minimal-layer">Minimal reliability layer</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-21-production-reliability-llm-apis.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+21+%E2%80%94+Production+Reliability+for+LLM+APIs&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-21-production-reliability-llm-apis.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
