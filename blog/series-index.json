@@ -7,6 +7,16 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-22-feature-flags-model-rollouts.html",
+          "title": "Day 22 — Feature Flags for Model Rollouts",
+          "subtitle": "Deterministic hashing, audit logs, and the four-step canary sequence",
+          "date": "2026-06-09",
+          "slug": "day-22-feature-flags-model-rollouts",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-22-feature-flags-model-rollouts.html",
+          "coverImage": "blog/assets/covers/day-22-feature-flags-model-rollouts.png"
+        },
+        {
           "href": "blog/series/ai-learning/day-21-production-reliability-llm-apis.html",
           "title": "Day 21 \u2014 Production Reliability for LLM APIs",
           "subtitle": "Four-bucket error classification: retry, circuit break, fallback, fail loud",
