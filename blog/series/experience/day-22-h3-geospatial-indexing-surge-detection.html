@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 21 — LaunchDarkly Money — Why We Build flagd Ourselves | Experience Series</title>
-<meta name="description" content="At 1k RPS, LaunchDarkly's per-evaluation pricing becomes a budget line item. Here's the DH real-time config propagation pattern that became distributed-flagd — and why build vs. buy depends on whether evaluation is on your critical path.">
-<meta property="og:title" content="Day 21 — LaunchDarkly Money — Why We Build flagd Ourselves">
-<meta property="og:description" content="Platform economics, control plane vs data plane, and the etcd + gRPC streaming pattern I first used at Delivery Hero for real-time config propagation.">
+<title>Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales | Experience Series</title>
+<meta name="description" content="At 5k+ route updates/sec, bounding box zone assignment silently misclassifies riders at every grid boundary. Here&rsquo;s the H3 hexagonal indexing migration at Delivery Hero that turned inconsistent surge multipliers into deterministic O(1) lookups.">
+<meta property="og:title" content="Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales">
+<meta property="og:description" content="Delivery Hero surge detection: why rectangular geo zones fail silently at lunch rush, and how H3 cell assignment made pricing consistent across 1M+ daily orders.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-21-launchdarkly-build-vs-buy-flagd.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-22-h3-geospatial-indexing-surge-detection.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-21-launchdarkly-build-vs-buy-flagd.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-22-h3-geospatial-indexing-surge-detection.png">
 <meta property="article:published_time" content="2026-06-09">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,15 +185,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 21 of 150</span>
-    <span class="tag">Feature Flags</span>
-    <span class="tag">Build vs Buy</span>
+    <span class="tag accent">Experience &middot; Day 22 of 150</span>
+    <span class="tag">Geospatial</span>
+    <span class="tag">H3</span>
     <span class="tag">Delivery Hero</span>
-    <span class="tag">Platform Engineering</span>
-    <span class="tag">etcd</span>
+    <span class="tag">Surge Detection</span>
+    <span class="tag">Backend Engineering</span>
   </div>
-  <h1 class="post-title">Day 21 &mdash; LaunchDarkly Money &mdash; Why We Build flagd Ourselves</h1>
-  <p class="post-subtitle">Platform economics &middot; control plane vs data plane &middot; the DH real-time config bridge</p>
+  <h1 class="post-title">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</h1>
+  <p class="post-subtitle">Delivery Hero &middot; surge detection &middot; why naive geo fails at 5k+ events per second</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
@@ -202,108 +202,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">June 9, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">14 min read</span>
+    <span class="meta-item">13 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 21 of 150</span>
+    <span class="meta-item">Experience &middot; Day 22 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-21-launchdarkly-build-vs-buy-flagd.png" alt="Cover: Day 21 — LaunchDarkly Money — Why We Build flagd Ourselves" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-22-h3-geospatial-indexing-surge-detection.png" alt="Cover: Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The number that changed how I think about SaaS tooling wasn&rsquo;t in an incident post-mortem &mdash; it was in a quarterly infrastructure cost review, in a row labeled &ldquo;Feature Flag Evaluations.&rdquo; The number wasn&rsquo;t large in absolute terms. It was large relative to what the service was doing: evaluating a single flag per request, in a service that handled 1,000 requests per second around the clock.</p>
+<p>I first noticed the problem during a weekday lunch rush. Surge multipliers were applying inconsistently across orders that were physically two blocks apart &mdash; one restaurant cluster was seeing a 1.8x multiplier while another 400 meters away was seeing 1.0x, even though both were packed with riders waiting. The underlying cause was not a bug in the surge calculation itself. It was a bounding box boundary sitting directly through a high-density restaurant zone, splitting the same physical demand signal into two different indexing cells that never compared notes.</p>
 
-<p>That is 2.6 billion monthly active context evaluations. At enterprise pricing, this becomes a budget line item that competes with engineering headcount &mdash; not for the value it delivers, but for the volume it touches.</p>
+<p>At 1M+ daily orders and 5k+ real-time route updates per second flowing through the Route Service on AWS EKS, that kind of boundary artifact is not a minor annoyance. It compounds. Every inconsistency in zone assignment means your surge multiplier is applied to some orders in a demand cluster but not others &mdash; the pricing surface becomes jagged in a way that neither engineers nor customers can predict.</p>
 
-<p>For AI inference specifically, the problem compounds. Every LLM request needs to know which model version to route to before the request can be sent. The flag evaluation is on the critical path &mdash; a network round-trip to a SaaS flag service adds latency you cannot absorb at inference time.</p>
+<p>That was the day I stopped treating geospatial indexing as an infrastructure detail and started treating it as a first-class product problem.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the toll road GPS</div>Imagine paying a toll every time your GPS checks which route to take. At one check per trip, the toll is irrelevant. At 1,000 checks per second, the toll collector&rsquo;s queue becomes the bottleneck, and the GPS defeats its own purpose. A feature flag system that costs a network round-trip per evaluation has the same problem on a high-frequency request path.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the hexagonal bolt head</div>A bounding box around an irregular neighborhood is like trying to fit a hexagonal bolt head with a square wrench. The wrench opens wide enough to grip the bolt, but it touches only four of the six faces &mdash; torque transfers unevenly, and the bolt strips before it tightens. The tool is not wrong in principle; it&rsquo;s wrong for the shape it&rsquo;s being asked to hold.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2.6B</span><span class="stat-label">MACs/month at 1k RPS</span></div>
-  <div class="stat-cell"><span class="stat-num">~100ns</span><span class="stat-label">in-process eval latency</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;50ms</span><span class="stat-label">flag change propagation target</span></div>
-  <div class="stat-cell"><span class="stat-num">&asymp;0</span><span class="stat-label">marginal cost vs existing etcd</span></div>
+  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
+  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">route updates/sec</span></div>
+  <div class="stat-cell"><span class="stat-num">0.74 km&sup2;</span><span class="stat-label">H3 res-8 cell area</span></div>
+  <div class="stat-cell"><span class="stat-num">O(1)</span><span class="stat-label">zone lookup after H3</span></div>
 </div>
 
-<h2 id="config-propagation">What real-time config propagation looks like at scale</h2>
+<h2 id="dh-scale">What geospatial indexing looks like at Delivery Hero scale</h2>
 
-<p>At Delivery Hero, the routing plane &mdash; Route Service and Route Consumers running on AWS EKS &mdash; handled 1M+ daily orders with the Route Consumers processing 5k+ real-time route updates per second and 10k+ concurrent requests at peak. The routing plane needed to react to dynamic configuration without pod restarts. These were values that adjusted routing behavior in response to demand signals, and they needed to propagate to all running pods within seconds of a change.</p>
+<p>Every rider location event travels from the rider&rsquo;s device to an Order SQS queue, picked up by Route Consumers running on AWS EKS, matched through OSRM, and assembled into a Route object that flows back to the UI. At 5k+ route updates per second across the platform, each Route Consumer is continuously ingesting lat/lon pairs and deciding what zone each coordinate belongs to. That zone assignment drives everything downstream: surge pricing, rider dispatch priority, and demand forecasting.</p>
 
-<p>During one deploy, a config update reached 40% of pods before the other 60% saw it. For a brief window &mdash; a matter of seconds &mdash; the routing plane applied two different parameter values to simultaneous requests from the same zone. The fix wasn&rsquo;t faster propagation; it was atomic broadcast: all pods see the change in the same event loop tick, or none do.</p>
+<p>The naive approach is to define zones as rectangles on a map &mdash; bounding boxes with a min/max lat and a min/max lon. A bounding box query checks whether a coordinate falls within those four boundaries. It works fine at low throughput, and it&rsquo;s the first thing any engineer reaches for because the mental model maps directly to how we think about maps: north/south/east/west rectangles, like drawing boxes on graph paper.</p>
 
-<p>Think of updating a price on a shelf while customers are already filling their carts. If only some shelves update, the shelf price and the checkout price disagree for a window. Config propagation with a non-atomic rollout has the same inconsistency window. Real-time config propagation isn&rsquo;t a new problem; what&rsquo;s new is that it&rsquo;s now on the hot path for every LLM inference request, which raises the bar from &ldquo;nice to have&rdquo; to &ldquo;must be sub-millisecond.&rdquo;</p>
+<p>What I didn&rsquo;t expect was how quickly rectangular geometry starts lying to you once your zones have irregular shapes and your event rate climbs past a few thousand per second. At 5k+ events per second, a percentage point of misassignment is hundreds of zone errors per second &mdash; and those errors compound directly into pricing decisions that customers see in real time.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    CLI["flagd CLI\noperator writes"]
-    SRV["flagd Server\ngRPC + watch fan-out"]
-    ETCD["etcd cluster\nflag store + audit log"]
-    C1["Edge Client A\nLensAI ingest"]
-    C2["Edge Client B\nLensAI router"]
-    C3["Edge Client C\nany service"]
+<h2 id="bbox-breaks">Why bounding boxes break</h2>
 
-    CLI -->|"SetFlag RPC"| SRV
-    SRV -->|"Txn: flag + audit"| ETCD
-    ETCD -->|"Watch event"| SRV
-    SRV -->|"gRPC stream delta"| C1
-    SRV -->|"gRPC stream delta"| C2
-    SRV -->|"gRPC stream delta"| C3
-</pre>
+<p>The first failure mode is unequal adjacency. In a rectangular grid, corner cells touch adjacent cells at a single point &mdash; one pixel of shared geometry. Edge-adjacent cells share a full side. When a rider is near a corner, the system has to decide which of four possible zones owns that coordinate, and a point-in-polygon test on a bounding box gives you a technically correct answer that is practically wrong. A rider standing at the intersection of four surge zones should belong to the zone with the highest local demand density &mdash; but a bounding box query returns whichever rectangle the coordinate falls inside, based purely on boundary lines.</p>
 
-<h2 id="launchdarkly-pricing">Why LaunchDarkly&rsquo;s pricing breaks for infrastructure services</h2>
+<p>The second failure mode is query cost. A bounding box zone lookup requires a range scan on two dimensions: latitude between min_lat and max_lat, and longitude between min_lon and max_lon. Without a spatial index, that is O(N) per query against the zone table. At 5k events per second, an unindexed bounding box scan turns into 5,000 full table scans per second. Even with an R-tree, you are doing two-dimensional range intersection math on every event, which does not vectorize cleanly on the compute shapes available in EKS pods.</p>
 
-<p>LaunchDarkly prices on monthly active contexts (MACs) &mdash; each unique evaluation context in production counts. For a marketing A/B test, MACs are a reasonable proxy for value: more unique users evaluated means more potential conversion. For an infrastructure service evaluating &ldquo;which model version&rdquo; on every request, MACs are the wrong unit entirely.</p>
+<p>The third failure mode is hotspot amplification. A bounding box cell that covers a high-density restaurant cluster receives a disproportionate fraction of all events &mdash; not because the zone is larger, but because the rectangular boundary captures more restaurants than a same-area hexagonal cell would. The hotspot is an artifact of grid geometry, not actual demand. That makes it extremely difficult to distinguish genuine surge from indexing noise.</p>
 
-<p>At 1,000 requests per second, you accumulate 2.6 billion MACs per month. That isn&rsquo;t 2.6 billion customers &mdash; it is 2.6 billion individual evaluations of a single routing flag. The fundamental mismatch: LaunchDarkly was designed for product teams making per-user decisions, not infrastructure teams making per-request routing decisions at continuous high volume.</p>
-
-<p>Imagine renting a storage unit priced per door-open rather than by size. At one opening per quarter (quarterly campaign flags), the pricing model is fine. At a thousand openings per day (per-request model routing), you&rsquo;d buy the unit outright. A self-hosted flag system changes the cost model to a one-time engineering investment; the marginal cost of running flagd on an etcd cluster you already operate for Kubernetes is close to zero. Before choosing a SaaS tool, price it at the traffic level it will actually operate at &mdash; not your current traffic, but the ceiling of the system it will instrument.</p>
-
-<h2 id="propagation-problem">The propagation problem: why etcd + gRPC streaming</h2>
-
-<p>Three requirements shaped the technical choice. Flag changes must propagate to all running pods in under 50ms. Flag evaluation must be in-process &mdash; no network call on the hot path. Every flag change must be durably logged before any pod sees the new value, with the audit entry and flag mutation written atomically.</p>
-
-<p>Polling fails the first requirement without absurd load. Database watches like PostgreSQL LISTEN/NOTIFY fail the third &mdash; neither guarantees atomic commit of the audit entry alongside the flag value. etcd&rsquo;s <code>Txn</code> primitive gives you atomicity: flag mutation and audit entry commit together or neither does. etcd&rsquo;s <code>Watch</code> gives you propagation: any write to the <code>/flags/</code> prefix fires a watch event to all flagd server replicas immediately.</p>
-
-<p>gRPC streaming satisfies the second requirement. On connect, the client receives a full flag SNAPSHOT and stores it in-process. Subsequent flag changes arrive as DELTA messages over the open stream. Flag evaluation is a local hash-map read &mdash; roughly 100ns, no serialization, no network. The propagation mechanism determines both your flag change latency and your audit guarantees; they are not independent design decisions.</p>
-
-<h2 id="ai-rollout-flags">AI model rollout flags: what boolean flags don&rsquo;t give you</h2>
-
-<p>Standard boolean flags are binary: all traffic sees model A, then all traffic sees model B. For AI model version changes, this is dangerous. A new model may underperform on a specific request type that appears in only 5% of traffic &mdash; you won&rsquo;t know until you&rsquo;re already at 100% rollout.</p>
-
-<p>Percentage rollout flags send 10% of requests to <code>gpt-4o</code> and 90% to <code>gpt-3.5-turbo</code> simultaneously. Deterministic hashing on <code>request_id</code> (FNV-1a) ensures the same request always hits the same model &mdash; critical for multi-turn conversations where model context must remain consistent across turns. Standard product flags use <code>user_id</code> as the stable key; for LLM routing, the stable entity is the conversation, not the user.</p>
-
-<p>Think of adjusting a dimmer switch rather than flipping a toggle. Boolean flags are binary &mdash; on or off. Percentage rollout flags let you hold at 10% brightness for an hour, verify the room temperature (model quality metrics), and increase slowly. The <code>evaluation_count_snapshot</code> in the audit log is a timestamp burned into each dimmer position &mdash; you can always reconstruct exactly how many requests experienced each brightness level, and attribute cost changes to specific flag mutations. For AI model version changes, the flag type matters as much as the flag system.</p>
-
-<h2 id="dh-bridge">The DH bridge: same problem, different payload</h2>
-
-<p>At Delivery Hero, the Route Service needed dynamic config values propagated to all EKS pods within seconds. The technical requirement was identical to what distributed-flagd solves: consistent store, watch-based propagation, atomic broadcast to all running instances. The payload was a config value that adjusted routing behavior during peak demand; in distributed-flagd, the payload is a model version weight distribution. The propagation infrastructure is the same.</p>
-
-<p>This pattern &mdash; consistent store, watch mechanism, in-process cache &mdash; recurs throughout distributed systems engineering. Service discovery uses it (etcd + client-side DNS cache). Config management uses it (etcd + Envoy xDS). AI model routing flags use it now. The implementation details differ; the architecture is the same.</p>
-
-<p>The hardest conversation about building distributed-flagd wasn&rsquo;t the technical design &mdash; it was explaining to stakeholders why spending two engineering days on something that &ldquo;already exists&rdquo; made sense. The SaaS product and the infrastructure primitive look similar on a feature matrix; they are different things in production. Build when the off-the-shelf product and your operational requirements diverge at the mechanism level, not just in features.</p>
+<div class="attr-box team"><div class="attr-label">What I didn&rsquo;t expect</div>The failure is silent. The system assigns every event to a zone &mdash; it never throws an error. You only discover the misassignment when surge multipliers stop making intuitive sense and you start correlating zone event rates with a map layer. The hotspot problem is also self-reinforcing: once a cell gets more events, it triggers surge faster, which changes rider behavior, which sends more events to that cell.</div>
 
 <pre class="mermaid">
 %%{init: {
@@ -323,53 +268,105 @@ flowchart TD
   }
 }}%%
 flowchart TD
-    Q1["Is evaluation\non critical path?"]
-    Q2["Does pricing scale\nwith traffic volume?"]
-    Q3["Do semantics match\nyour use case?"]
-    BUY["Buy SaaS\nLaunchDarkly etc."]
-    BUILD["Build self-hosted\ndistributed-flagd"]
-
-    Q1 -->|"No"| BUY
-    Q1 -->|"Yes hot path"| Q2
-    Q2 -->|"No flat pricing"| Q3
-    Q2 -->|"Yes per-eval"| BUILD
-    Q3 -->|"Yes boolean flags"| BUY
-    Q3 -->|"No percent + audit"| BUILD
+    A["Rider lat/lon event"] --> B{"Indexing approach"}
+    B --> C["Bounding box scan"]
+    B --> D["H3 cell hash"]
+    C --> E["2D range query"]
+    E --> F["Ambiguous boundary result"]
+    D --> G["64-bit integer ID"]
+    G --> H["O(1) counter lookup"]
 </pre>
+
+<h2 id="h3-hex">H3: hexagonal indexing</h2>
+
+<p>H3 is Uber&rsquo;s open-source hierarchical hexagonal geospatial index. It tessellates the entire surface of the earth into hexagonal cells at 16 resolution levels. At resolution 7, each cell covers roughly 5.16 km&sup2;. At resolution 8, it is 0.74 km&sup2;. At resolution 9, it drops to 0.105 km&sup2;. For a food delivery surge zone in a dense urban area, resolution 8 is usually the right fit &mdash; large enough to capture a meaningful restaurant cluster, small enough that a single cell does not cross neighborhood boundaries.</p>
+
+<p>The key geometric property is uniform adjacency. Every H3 hexagon has exactly six neighbors, and every neighbor shares a full edge &mdash; not a corner point. The center of any hexagon is equidistant from the center of each of its six neighbors. There are no corner-adjacency artifacts, no ambiguous boundary cases where a point technically touches four zones at once. A lat/lon coordinate maps to exactly one H3 cell at any given resolution, and that mapping is a pure mathematical function of the coordinate &mdash; no range scan, no polygon-in-polygon test.</p>
+
+<p>That 64-bit integer ID is what changes the operational profile entirely. Zone assignment becomes a hash lookup in a flat map, not a spatial range query. At 5k events per second, the Route Consumer calls <code>latLngToCell(lat, lon, resolution=8)</code> &mdash; a single function call &mdash; and then does an O(1) increment on a counter keyed by that integer. The difference between a Route Consumer pod that runs comfortably at 70% CPU and one that saturates is this one function call replacing a two-dimensional range scan.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; hexagonal floor tiles</div>Replacing bounding boxes with H3 cells is like replacing square floor tiles with hexagonal ones in a hallway with irregular walls. Square tiles leave awkward triangular gaps near any non-right-angle edge &mdash; every tile meeting the wall needs a different cut. Hexagonal tiles fit irregular boundaries more cleanly because six-sided shapes can approximate any curve without wasted gaps.</div>
+
+<h2 id="surge-detection">Surge detection with H3</h2>
+
+<p>The flow is straightforward once H3 is in place. Each rider location event arrives at a Route Consumer. The consumer calls <code>latLngToCell(lat, lon, resolution=8)</code> and gets back a 64-bit cell ID. It then increments an in-memory counter for that cell ID in a fixed 60-second sliding window. When the counter for a cell crosses a configured threshold &mdash; event rate exceeding 1.5x the rolling baseline for that cell &mdash; the consumer flags that cell as surge and writes the surge state to a shared cache keyed by cell ID.</p>
+
+<p>Order Service reads that surge cache when pricing an order. It calls <code>latLngToCell</code> on the order&rsquo;s pickup location, gets the same 64-bit integer, and looks up whether that cell is currently flagged as surge. Because H3 cell assignment is deterministic &mdash; same lat/lon always returns the same integer &mdash; every order from the same physical location sees the same surge state. Two orders placed 30 seconds apart from the same restaurant get the same multiplier if the cell state hasn&rsquo;t changed. The pricing surface is consistent with the actual spatial demand signal, not with where you drew a rectangle on a map.</p>
+
+<p>The surge multiplier itself is not a service &mdash; it is a config value. A cell&rsquo;s surge state is a boolean flag plus a multiplier scalar stored in the cache. The Route Consumer writes it; the Order Service reads it. There is no separate surge service mediating the two &mdash; the shared H3 cell ID is the handshake. At 10k+ concurrent requests, that eliminates a synchronous service call from the hot path of order pricing: one cache read, keyed by a 64-bit integer, and done.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["Rider location event"] --> B["Route Consumer EKS"]
+    B --> C["latLngToCell res=8"]
+    C --> D["Cell event counter"]
+    D --> E{"Rate &gt; 1.5x baseline?"}
+    E -->|"Yes"| F["Write surge state cache"]
+    E -->|"No"| G["No-op"]
+    F --> H["Order Service reads cache"]
+</pre>
+
+<h2 id="bridge">The bridge: sticky assignment and model flags</h2>
+
+<p>The H3 insight is not specific to geospatial systems. It is an instance of a broader pattern: deterministic partitioning by a stable identity key. H3 takes a lat/lon pair and maps it to a stable integer. <code>flagd</code>&rsquo;s percentage rollout evaluation takes a request identifier &mdash; a user ID or session ID &mdash; and hashes it with FNV-1a to produce a stable bucket number between 0 and 9,999. Both operations share the same invariant: given the same input, you always get the same output, regardless of when you call the function or how many times before.</p>
+
+<p>That invariant is what makes consistent assignment possible at scale. In H3, same rider location means same surge zone, so every order from the same pickup point sees the same multiplier during a given time window. In <code>flagd</code>, same user ID means same bucket means same feature flag variant, so the same user always gets the same model version across every pod in the fleet. There is no session state, no sticky session routing, no coordination between pods. The hash function is the entire consistency mechanism.</p>
+
+<p>When I first read the <code>flagd</code> evaluator source for percentage rollout, I recognized the pattern immediately &mdash; not from distributed systems theory, but from the H3 work at Delivery Hero. The problems look completely different on the surface: one is about geography, one is about A/B testing model versions. The solution structure is identical: deterministic partitioning by a stable key, with no coordination required between the components that consume the result.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; zip code on the envelope</div>Both H3 and FNV-1a hashing are like a post office sorting machine that uses the zip code already printed on the envelope. The machine does not need to look up the recipient&rsquo;s address, consult a routing database, or ask another machine for help. The zip code &mdash; a compact, deterministic encoding of location &mdash; is already there. The sorting decision is O(1) and consistent, every time, for every envelope with the same zip code.</div>
 
 <h2 id="different">What I&rsquo;d do differently</h2>
 
-<p>Build the percentage rollout evaluator before the propagation layer. The evaluator is the core value &mdash; deterministic hashing, variant selection, and unit test coverage. The propagation layer (etcd + gRPC streaming) is well-trodden infrastructure. Proving evaluation semantics with unit tests first would have saved two redesigns of the variant selection algorithm.</p>
+<p>I&rsquo;d choose the H3 resolution in a product meeting before writing any code. The resolution is a product parameter, not an engineering parameter. It encodes an opinion about what constitutes a surge zone &mdash; how large an area should share the same pricing signal. Every week I spent tuning resolution in isolation was a week I was optimizing for the wrong objective function. The first conversation should have been: &ldquo;How large should a surge zone be, and why?&rdquo; The implementation follows directly from the answer.</p>
 
-<p>Size the etcd audit log retention from day one. Unbounded audit keys mean the keyspace grows forever; a 90-day TTL with an etcd lease should be built into the initial schema, not retrofitted. Add a dry-run mode to the flagd CLI so operators can see what would change &mdash; how many evaluation contexts would be affected &mdash; before committing a weight change on a high-traffic flag.</p>
+<p>I&rsquo;d also instrument cell-level event rates from day one, before any surge logic is deployed. The most useful debugging tool we had was a real-time dashboard showing event rate per H3 cell mapped back to a geo layer. That dashboard took three days to build after the indexing migration. It should have been the first thing committed &mdash; the change in indexing scheme is only as trustworthy as your ability to observe its behavior on live traffic.</p>
 
-<p>Plan the migration from any existing flag system early. Dual-write &mdash; sending flag changes to both systems simultaneously and comparing evaluation results in shadow mode &mdash; is the only safe migration path for a service evaluating flags on 1k+ RPS. The shadow period is what gives you confidence to cut over; skipping it is the operational debt that surfaces at the worst moment. The propagation architecture is table stakes; the operational tooling is what makes the system trustworthy.</p>
+<p>Finally, I&rsquo;d document the resolution decision as an architecture decision record the day it is made. Six months after the migration, a new team member asked why we used resolution 8 instead of resolution 7. No one could answer from memory. The reasoning &mdash; that 0.74 km&sup2; matches the average restaurant catchment area in our high-density markets &mdash; existed only in someone&rsquo;s head and a Slack thread from eight months prior. A two-paragraph ADR on the day of the decision would have cost five minutes and saved an hour of archaeology.</p>
 
-<h2 id="code-bridge">Bridge to Day 21 code</h2>
-
-<p>Today&rsquo;s distributed-flagd DESIGN.md is the specification document for what the DH routing team called &ldquo;the config propagation service&rdquo; &mdash; described at the time as &ldquo;just etcd,&rdquo; but actually a set of operational contracts that take a day to document precisely. The AI Learning post covers the same reliability instinct from a different angle: mapping LLM provider error codes to the correct recovery action. Both posts are about the same underlying discipline &mdash; knowing exactly what your system does when a value changes, and having the audit trail to prove it.</p>
+<div class="attr-box team"><div class="attr-label">The hard part</div>The hardest migration step was not the code change &mdash; it was getting agreement on how to handle the transition period when some Route Consumers were still running bounding box logic and others had switched to H3. A mixed fleet means two different surge states for the same physical location, applied inconsistently depending on which pod processed the event. We had to do a hard cutover with a feature flag, not a gradual rollout, because gradual rollout here meant intentional pricing inconsistency.</div>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 21 of 150 &mdash; LaunchDarkly cost analysis and the distributed-flagd design. Staff engineer working on AI infrastructure and distributed systems.</em></p>
-  <p><em>Previous: <a href="day-20-route-consumer-lag-keda.html">Day 20 &mdash; Route Consumer Lag &mdash; Why CPU-Based HPA Failed at Lunch Rush</a></em></p>
-  <p><em>Next: <a href="day-22-h3-geospatial-indexing-surge-detection.html">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-21-production-reliability-llm-apis.html">Day 21 &mdash; Production Reliability for LLM APIs</a></em></p>
+  <p><em>Experience &middot; Day 22 of 150 &mdash; H3 hexagonal indexing and surge detection at Delivery Hero. Staff engineer working on AI infrastructure and distributed systems.</em></p>
+  <p><em>Previous: <a href="day-21-launchdarkly-build-vs-buy-flagd.html">Day 21 &mdash; LaunchDarkly Money &mdash; Why We Build flagd Ourselves</a></em></p>
+  <p><em>Next: Day 23 coming soon</em></p>
+  <p><em>Sibling (AI Learning): Day 22 &mdash; Feature Flags for Model Rollouts (publishing today)</em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-20-route-consumer-lag-keda.html">
+    <a href="day-21-launchdarkly-build-vs-buy-flagd.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 20 &mdash; Route Consumer Lag &mdash; Why CPU-Based HPA Failed at Lunch Rush
+      Day 21 &mdash; LaunchDarkly Money &mdash; Why We Build flagd Ourselves
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/order-sqs-route-consumers-delivery-hero.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Order SQS &rarr; Route Consumers: Decoupling Map-Match from Status Updates
+      Five Thousand Geo-Events Per Second &mdash; Shape of the Stream
     </a>
-    <a href="https://github.com/AkshantVats/distributed-flagd">
+    <a href="https://h3geo.org/">
       <span class="footnote-arrow">&#x2197;</span>
-      distributed-flagd &mdash; Day 21 code: Go scaffold + DESIGN.md
+      H3: Uber&rsquo;s Hexagonal Hierarchical Spatial Index
+    </a>
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/44">
+      <span class="footnote-arrow">&#x2197;</span>
+      distributed-flagd Day 22 code: HTTP CRUD + fan-out streaming
     </a>
   </div>
 </div>
@@ -383,23 +380,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#config-propagation">Real-time config propagation</a></li>
-      <li><a href="#launchdarkly-pricing">LaunchDarkly pricing breaks</a></li>
-      <li><a href="#propagation-problem">etcd + gRPC streaming</a></li>
-      <li><a href="#ai-rollout-flags">AI model rollout flags</a></li>
-      <li><a href="#dh-bridge">The DH bridge</a></li>
+      <li><a href="#dh-scale">DH scale context</a></li>
+      <li><a href="#bbox-breaks">Why bounding boxes break</a></li>
+      <li><a href="#h3-hex">H3 hexagonal indexing</a></li>
+      <li><a href="#surge-detection">Surge detection pipeline</a></li>
+      <li><a href="#bridge">Sticky assignment bridge</a></li>
       <li><a href="#different">What I&rsquo;d do differently</a></li>
-      <li><a href="#code-bridge">Day 21 code bridge</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+21+%E2%80%94+LaunchDarkly+Money+%E2%80%94+Why+We+Build+flagd+Ourselves&url=https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+22+%E2%80%94+H3+vs+Bounding+Boxes+%E2%80%94+Geospatial+Indexing+That+Scales&url=https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
