@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales | Experience Series</title>
-<meta name="description" content="At 5k+ route updates/sec, bounding box zone assignment silently misclassifies riders at every grid boundary. Here&rsquo;s the H3 hexagonal indexing migration at Delivery Hero that turned inconsistent surge multipliers into deterministic O(1) lookups.">
-<meta property="og:title" content="Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales">
-<meta property="og:description" content="Delivery Hero surge detection: why rectangular geo zones fail silently at lunch rush, and how H3 cell assignment made pricing consistent across 1M+ daily orders.">
+<title>Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure | Experience Series</title>
+<meta name="description" content="At 5k+ route updates per second, OSRM stops being a routing library and becomes a resource allocation problem. The route recompute budget, OSRM warm-up, and why queue depth is the only signal that matters at Delivery Hero scale.">
+<meta property="og:title" content="Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure">
+<meta property="og:description" content="Delivery Hero · route recompute budget · why ETA at scale is a capacity planning problem, not a routing algorithm problem.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-22-h3-geospatial-indexing-surge-detection.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-22-h3-geospatial-indexing-surge-detection.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
 <meta property="article:published_time" content="2026-06-09">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,15 +185,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 22 of 150</span>
-    <span class="tag">Geospatial</span>
-    <span class="tag">H3</span>
+    <span class="tag accent">Experience &middot; Day 23 of 150</span>
+    <span class="tag">OSRM</span>
     <span class="tag">Delivery Hero</span>
-    <span class="tag">Surge Detection</span>
-    <span class="tag">Backend Engineering</span>
+    <span class="tag">Route Recompute</span>
+    <span class="tag">ETA</span>
+    <span class="tag">EKS</span>
   </div>
-  <h1 class="post-title">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</h1>
-  <p class="post-subtitle">Delivery Hero &middot; surge detection &middot; why naive geo fails at 5k+ events per second</p>
+  <h1 class="post-title">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</h1>
+  <p class="post-subtitle">Delivery Hero &middot; route recompute budget &middot; why ETA at scale is a capacity problem, not an algorithm problem</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
@@ -202,53 +202,59 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">June 9, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
+    <span class="meta-item">14 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 22 of 150</span>
+    <span class="meta-item">Experience &middot; Day 23 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-22-h3-geospatial-indexing-surge-detection.png" alt="Cover: Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-23-osrm-5000-events-eta-infrastructure.png" alt="Cover: Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I first noticed the problem during a weekday lunch rush. Surge multipliers were applying inconsistently across orders that were physically two blocks apart &mdash; one restaurant cluster was seeing a 1.8x multiplier while another 400 meters away was seeing 1.0x, even though both were packed with riders waiting. The underlying cause was not a bug in the surge calculation itself. It was a bounding box boundary sitting directly through a high-density restaurant zone, splitting the same physical demand signal into two different indexing cells that never compared notes.</p>
+<p>The first time I really understood what 5k+ route updates per second meant, I was looking at a queue depth graph during the dinner rush. The Route Consumer lag was climbing. The Route Consumers themselves were healthy &mdash; CPU normal, memory normal, pod count scaled to the autoscaler ceiling.</p>
 
-<p>At 1M+ daily orders and 5k+ real-time route updates per second flowing through the Route Service on AWS EKS, that kind of boundary artifact is not a minor annoyance. It compounds. Every inconsistency in zone assignment means your surge multiplier is applied to some orders in a demand cluster but not others &mdash; the pricing surface becomes jagged in a way that neither engineers nor customers can predict.</p>
+<p>OSRM response times were creeping up. Not errors. Not timeouts. Just a subtle, compounding slowdown that turned a 120ms average route computation into a 380ms average over forty minutes.</p>
 
-<p>That was the day I stopped treating geospatial indexing as an infrastructure detail and started treating it as a first-class product problem.</p>
+<p>The number that mattered was not the OSRM response time. It was the ratio of route update events arriving in Order SQS to the rate at which OSRM could compute fresh routes. At 5k+ events per second arriving and a ceiling on computations per pod, you are always making a resource allocation decision. The question is whether you made it explicitly or whether the queue decided for you.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the hexagonal bolt head</div>A bounding box around an irregular neighborhood is like trying to fit a hexagonal bolt head with a square wrench. The wrench opens wide enough to grip the bolt, but it touches only four of the six faces &mdash; torque transfers unevenly, and the bolt strips before it tightens. The tool is not wrong in principle; it&rsquo;s wrong for the shape it&rsquo;s being asked to hold.</div>
+<p>This post is about the route recompute budget &mdash; the explicit decision about what percentage of incoming rider location events deserve a fresh OSRM computation, which deserve a cached route, and which can be dropped without anyone noticing.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the assembly line speed limit</div>An OSRM cluster is like a machining station on an assembly line. Parts arrive faster than the station can process them. You have three choices: slow down the line (reject events), add stations (scale OSRM pods), or let some parts skip machining (cache hit). The throughput ceiling of OSRM machining is a physical constant at a given pod count. Pretending it isn&rsquo;t is how queues grow.</div>
 
 <div class="stat-callout">
   <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
   <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">route updates/sec</span></div>
-  <div class="stat-cell"><span class="stat-num">0.74 km&sup2;</span><span class="stat-label">H3 res-8 cell area</span></div>
-  <div class="stat-cell"><span class="stat-num">O(1)</span><span class="stat-label">zone lookup after H3</span></div>
+  <div class="stat-cell"><span class="stat-num">10k+</span><span class="stat-label">concurrent requests at peak</span></div>
+  <div class="stat-cell"><span class="stat-num">~300ms</span><span class="stat-label">acceptable ETA staleness</span></div>
 </div>
 
-<h2 id="dh-scale">What geospatial indexing looks like at Delivery Hero scale</h2>
+<h2 id="osrm-as-infrastructure">OSRM as infrastructure, not as a library</h2>
 
-<p>Every rider location event travels from the rider&rsquo;s device to an Order SQS queue, picked up by Route Consumers running on AWS EKS, matched through OSRM, and assembled into a Route object that flows back to the UI. At 5k+ route updates per second across the platform, each Route Consumer is continuously ingesting lat/lon pairs and deciding what zone each coordinate belongs to. That zone assignment drives everything downstream: surge pricing, rider dispatch priority, and demand forecasting.</p>
+<p>OSRM (Open Source Routing Machine) is a routing engine. You give it a start coordinate, an end coordinate, and optional waypoints, and it returns a polyline route, a distance estimate, and a duration estimate. At low traffic, it feels like a library call.</p>
 
-<p>The naive approach is to define zones as rectangles on a map &mdash; bounding boxes with a min/max lat and a min/max lon. A bounding box query checks whether a coordinate falls within those four boundaries. It works fine at low throughput, and it&rsquo;s the first thing any engineer reaches for because the mental model maps directly to how we think about maps: north/south/east/west rectangles, like drawing boxes on graph paper.</p>
+<p>At 5k+ events per second feeding Route Consumers on AWS EKS, it is not a library call. It is a stateful service with its own capacity curve &mdash; a throughput ceiling you have to model and respect.</p>
 
-<p>What I didn&rsquo;t expect was how quickly rectangular geometry starts lying to you once your zones have irregular shapes and your event rate climbs past a few thousand per second. At 5k+ events per second, a percentage point of misassignment is hundreds of zone errors per second &mdash; and those errors compound directly into pricing decisions that customers see in real time.</p>
+<p>The Delivery Hero team ran OSRM as a clustered service &mdash; multiple OSRM pods each loading the full road network graph into memory. The graph load was the first surprise for me: each OSRM pod loaded its map data into RAM on startup, which meant a pod restart was not a ten-second operation. It was a several-minute operation while the graph loaded. Rolling restarts during a traffic spike were something to plan carefully, not something to trigger casually.</p>
 
-<h2 id="bbox-breaks">Why bounding boxes break</h2>
+<p>The second characteristic I hadn&rsquo;t internalized was that OSRM throughput was roughly constant per pod regardless of the complexity of the route. A 500-meter route and a 15-kilometer route took roughly similar computation time because Dijkstra&rsquo;s precomputed contraction hierarchies amortized the graph traversal. This meant capacity planning was simpler &mdash; you could estimate queries per second per pod with reasonable confidence &mdash; but it also meant the only lever for throughput was pod count, not route simplification.</p>
 
-<p>The first failure mode is unequal adjacency. In a rectangular grid, corner cells touch adjacent cells at a single point &mdash; one pixel of shared geometry. Edge-adjacent cells share a full side. When a rider is near a corner, the system has to decide which of four possible zones owns that coordinate, and a point-in-polygon test on a bounding box gives you a technically correct answer that is practically wrong. A rider standing at the intersection of four surge zones should belong to the zone with the highest local demand density &mdash; but a bounding box query returns whichever rectangle the coordinate falls inside, based purely on boundary lines.</p>
+<div class="attr-box team"><div class="attr-label">What the Delivery Hero team built</div>The Route Service, Route Consumers, and OSRM cluster architecture were built by the Delivery Hero logistics platform team. I worked on the consumer layer &mdash; specifically autoscaling Route Consumers based on Order SQS queue depth, and the KEDA integration that replaced CPU-based HPA. The observations about OSRM characteristics come from working with this system daily, not from building the OSRM cluster itself.</div>
 
-<p>The second failure mode is query cost. A bounding box zone lookup requires a range scan on two dimensions: latitude between min_lat and max_lat, and longitude between min_lon and max_lon. Without a spatial index, that is O(N) per query against the zone table. At 5k events per second, an unindexed bounding box scan turns into 5,000 full table scans per second. Even with an R-tree, you are doing two-dimensional range intersection math on every event, which does not vectorize cleanly on the compute shapes available in EKS pods.</p>
+<h2 id="recompute-budget">The route recompute budget</h2>
 
-<p>The third failure mode is hotspot amplification. A bounding box cell that covers a high-density restaurant cluster receives a disproportionate fraction of all events &mdash; not because the zone is larger, but because the rectangular boundary captures more restaurants than a same-area hexagonal cell would. The hotspot is an artifact of grid geometry, not actual demand. That makes it extremely difficult to distinguish genuine surge from indexing noise.</p>
+<p>Not every rider location event that arrives in Order SQS needs a fresh OSRM computation. A rider who has moved 3 meters since the last location update does not need a route recomputation &mdash; the existing route is still accurate. A rider who has deviated significantly from the last computed route does need a fresh computation. A rider in transit on a confirmed route who is making progress needs a periodic update, but not on every event.</p>
 
-<div class="attr-box team"><div class="attr-label">What I didn&rsquo;t expect</div>The failure is silent. The system assigns every event to a zone &mdash; it never throws an error. You only discover the misassignment when surge multipliers stop making intuitive sense and you start correlating zone event rates with a map layer. The hotspot problem is also self-reinforcing: once a cell gets more events, it triggers surge faster, which changes rider behavior, which sends more events to that cell.</div>
+<p>The recompute budget is the explicit policy that governs this. It is not a technical constraint &mdash; it is a product decision expressed as an infrastructure parameter. At Delivery Hero, the relevant signals were: distance since last recompute, whether the rider had deviated from the last computed polyline, and whether the order state had changed.</p>
+
+<p>The Route Consumers evaluated these signals on each event and decided whether to call OSRM or return the cached route. The policy was encoded in the consumer logic, not in OSRM itself.</p>
+
+<p>The practical effect was a significant reduction in OSRM load during steady-state transit. A rider moving in a straight line on a confirmed route would trigger a fresh computation roughly every 30 seconds rather than on every 1-second location update. During the dinner rush, that multiplication factor was the difference between OSRM being a capacity bottleneck and OSRM having headroom for the events that actually needed fresh routes.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -268,105 +274,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    A["Rider lat/lon event"] --> B{"Indexing approach"}
-    B --> C["Bounding box scan"]
-    B --> D["H3 cell hash"]
-    C --> E["2D range query"]
-    E --> F["Ambiguous boundary result"]
-    D --> G["64-bit integer ID"]
-    G --> H["O(1) counter lookup"]
+    A["Order SQS Event\nrider location update"] --> B{"Recompute\ndecision"}
+    B -- "distance &gt; threshold\nOR deviation detected\nOR order state change" --> C["OSRM\nfresh route"]
+    B -- "steady-state transit\nrecent compute exists" --> D["Cache\nexisting route"]
+    C --> E["Route object\nupdated"]
+    D --> E
 </pre>
 
-<h2 id="h3-hex">H3: hexagonal indexing</h2>
+<h2 id="queue-depth-as-the-signal">Queue depth as the only signal that matters</h2>
 
-<p>H3 is Uber&rsquo;s open-source hierarchical hexagonal geospatial index. It tessellates the entire surface of the earth into hexagonal cells at 16 resolution levels. At resolution 7, each cell covers roughly 5.16 km&sup2;. At resolution 8, it is 0.74 km&sup2;. At resolution 9, it drops to 0.105 km&sup2;. For a food delivery surge zone in a dense urban area, resolution 8 is usually the right fit &mdash; large enough to capture a meaningful restaurant cluster, small enough that a single cell does not cross neighborhood boundaries.</p>
+<p>When I joined the team, Route Consumers were scaled by a CPU-based HPA with a 60% target. When CPU crossed 60%, Kubernetes added pods; when it dropped, pods were removed. This is the standard playbook.</p>
 
-<p>The key geometric property is uniform adjacency. Every H3 hexagon has exactly six neighbors, and every neighbor shares a full edge &mdash; not a corner point. The center of any hexagon is equidistant from the center of each of its six neighbors. There are no corner-adjacency artifacts, no ambiguous boundary cases where a point technically touches four zones at once. A lat/lon coordinate maps to exactly one H3 cell at any given resolution, and that mapping is a pure mathematical function of the coordinate &mdash; no range scan, no polygon-in-polygon test.</p>
+<p>It is wrong for queue-consuming workloads in an important way: CPU does not measure the backlog. A consumer can sit at 15% CPU while the queue grows, because the work arriving is CPU-cheap but volume-heavy.</p>
 
-<p>That 64-bit integer ID is what changes the operational profile entirely. Zone assignment becomes a hash lookup in a flat map, not a spatial range query. At 5k events per second, the Route Consumer calls <code>latLngToCell(lat, lon, resolution=8)</code> &mdash; a single function call &mdash; and then does an O(1) increment on a counter keyed by that integer. The difference between a Route Consumer pod that runs comfortably at 70% CPU and one that saturates is this one function call replacing a two-dimensional range scan.</p>
+<p>The KEDA integration I worked on replaced CPU with <code>sqs_approximate_number_of_messages_visible</code> &mdash; the SQS queue depth metric &mdash; as the primary scaling signal for Route Consumers. The target was a queue depth of 500 messages. When depth crossed 500, KEDA triggered additional Route Consumer pods. When depth dropped below 500, pods were removed with a stabilization window of 5 minutes to prevent flapping during the natural valley between lunch and dinner rush.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; hexagonal floor tiles</div>Replacing bounding boxes with H3 cells is like replacing square floor tiles with hexagonal ones in a hallway with irregular walls. Square tiles leave awkward triangular gaps near any non-right-angle edge &mdash; every tile meeting the wall needs a different cut. Hexagonal tiles fit irregular boundaries more cleanly because six-sided shapes can approximate any curve without wasted gaps.</div>
+<p>The result was a scaling curve that actually tracked demand. During the dinner rush, pods scaled up 2&ndash;3 minutes before CPU would have detected the load &mdash; because queue depth reflects incoming rate, and incoming rate climbs before the processing work climbs. That 2&ndash;3 minute head start was the difference between the queue peaking at 500 messages and the queue peaking at 40,000 messages and taking 20 minutes to drain.</p>
 
-<h2 id="surge-detection">Surge detection with H3</h2>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; traffic light timing</div>A traffic light that changes based on how long cars have been waiting is lag-compensated &mdash; it responds to current queue depth, not to the arrival rate 30 seconds ago. CPU-based HPA is the traffic light that looks at how busy the intersection was a minute ago. Queue-depth HPA is the traffic light that looks at how long the line currently is.</div>
 
-<p>The flow is straightforward once H3 is in place. Each rider location event arrives at a Route Consumer. The consumer calls <code>latLngToCell(lat, lon, resolution=8)</code> and gets back a 64-bit cell ID. It then increments an in-memory counter for that cell ID in a fixed 60-second sliding window. When the counter for a cell crosses a configured threshold &mdash; event rate exceeding 1.5x the rolling baseline for that cell &mdash; the consumer flags that cell as surge and writes the surge state to a shared cache keyed by cell ID.</p>
+<h2 id="osrm-restarts">OSRM rolling restarts and the warm-up problem</h2>
 
-<p>Order Service reads that surge cache when pricing an order. It calls <code>latLngToCell</code> on the order&rsquo;s pickup location, gets the same 64-bit integer, and looks up whether that cell is currently flagged as surge. Because H3 cell assignment is deterministic &mdash; same lat/lon always returns the same integer &mdash; every order from the same physical location sees the same surge state. Two orders placed 30 seconds apart from the same restaurant get the same multiplier if the cell state hasn&rsquo;t changed. The pricing surface is consistent with the actual spatial demand signal, not with where you drew a rectangle on a map.</p>
+<p>Map data updates were infrequent &mdash; once every few days for city-level changes, occasionally more frequently for major road changes. Each map update required loading new graph data, which meant restarting OSRM pods. The Delivery Hero team scheduled these updates during low-traffic windows, but &ldquo;low traffic&rdquo; at a platform serving 1M+ daily orders is still meaningful traffic.</p>
 
-<p>The surge multiplier itself is not a service &mdash; it is a config value. A cell&rsquo;s surge state is a boolean flag plus a multiplier scalar stored in the cache. The Route Consumer writes it; the Order Service reads it. There is no separate surge service mediating the two &mdash; the shared H3 cell ID is the handshake. At 10k+ concurrent requests, that eliminates a synchronous service call from the hot path of order pricing: one cache read, keyed by a 64-bit integer, and done.</p>
+<p>The pattern that worked was a rolling restart with extended readiness probes. Before a new OSRM pod accepted traffic, it had to pass a readiness probe that actually tested route computation &mdash; not just that the HTTP server was responding, but that a test query returned a valid route within a latency threshold. This prevented a partially-loaded OSRM pod from receiving production traffic while the graph was still loading. The trade-off was a longer update window, but the alternative &mdash; serving slow or incomplete routes during graph load &mdash; affected order ETAs directly.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-    A["Rider location event"] --> B["Route Consumer EKS"]
-    B --> C["latLngToCell res=8"]
-    C --> D["Cell event counter"]
-    D --> E{"Rate &gt; 1.5x baseline?"}
-    E -->|"Yes"| F["Write surge state cache"]
-    E -->|"No"| G["No-op"]
-    F --> H["Order Service reads cache"]
-</pre>
+<p>The subtler problem was hot-pod load distribution. Immediately after a rolling restart, the pods that had been up longest had warm request caches and the new pods had cold caches. Load balancers distribute traffic evenly, but the new pods were slower until their caches warmed. This wasn&rsquo;t catastrophic, but during a restart that coincided with a traffic ramp it was visible in P99 latency for 5&ndash;10 minutes.</p>
 
-<h2 id="bridge">The bridge: sticky assignment and model flags</h2>
+<h2 id="what-i-learned">What I took from this system</h2>
 
-<p>The H3 insight is not specific to geospatial systems. It is an instance of a broader pattern: deterministic partitioning by a stable identity key. H3 takes a lat/lon pair and maps it to a stable integer. <code>flagd</code>&rsquo;s percentage rollout evaluation takes a request identifier &mdash; a user ID or session ID &mdash; and hashes it with FNV-1a to produce a stable bucket number between 0 and 9,999. Both operations share the same invariant: given the same input, you always get the same output, regardless of when you call the function or how many times before.</p>
+<p>The most transferable insight from working on Route Consumers is that the right metric for a queue consumer is not the consumer&rsquo;s internal health &mdash; CPU, memory, error rate &mdash; but the queue&rsquo;s external health: depth and age of the oldest message. Internal health metrics tell you the consumer is alive. Queue metrics tell you whether the consumer is keeping up with the work.</p>
 
-<p>That invariant is what makes consistent assignment possible at scale. In H3, same rider location means same surge zone, so every order from the same pickup point sees the same multiplier during a given time window. In <code>flagd</code>, same user ID means same bucket means same feature flag variant, so the same user always gets the same model version across every pod in the fleet. There is no session state, no sticky session routing, no coordination between pods. The hash function is the entire consistency mechanism.</p>
+<p>OSRM as a downstream dependency taught me to think about dependency throughput ceilings as infrastructure constraints to be modeled, not as library performance to be optimized away. When a dependency has a physical throughput ceiling, you need a budget for how you spend calls against that ceiling. The recompute budget was our explicit statement of that policy. Without it, the dinner rush decided the policy for us, and the policy the dinner rush chose was &ldquo;compute every event until OSRM falls over.&rdquo;</p>
 
-<p>When I first read the <code>flagd</code> evaluator source for percentage rollout, I recognized the pattern immediately &mdash; not from distributed systems theory, but from the H3 work at Delivery Hero. The problems look completely different on the surface: one is about geography, one is about A/B testing model versions. The solution structure is identical: deterministic partitioning by a stable key, with no coordination required between the components that consume the result.</p>
-
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; zip code on the envelope</div>Both H3 and FNV-1a hashing are like a post office sorting machine that uses the zip code already printed on the envelope. The machine does not need to look up the recipient&rsquo;s address, consult a routing database, or ask another machine for help. The zip code &mdash; a compact, deterministic encoding of location &mdash; is already there. The sorting decision is O(1) and consistent, every time, for every envelope with the same zip code.</div>
-
-<h2 id="different">What I&rsquo;d do differently</h2>
-
-<p>I&rsquo;d choose the H3 resolution in a product meeting before writing any code. The resolution is a product parameter, not an engineering parameter. It encodes an opinion about what constitutes a surge zone &mdash; how large an area should share the same pricing signal. Every week I spent tuning resolution in isolation was a week I was optimizing for the wrong objective function. The first conversation should have been: &ldquo;How large should a surge zone be, and why?&rdquo; The implementation follows directly from the answer.</p>
-
-<p>I&rsquo;d also instrument cell-level event rates from day one, before any surge logic is deployed. The most useful debugging tool we had was a real-time dashboard showing event rate per H3 cell mapped back to a geo layer. That dashboard took three days to build after the indexing migration. It should have been the first thing committed &mdash; the change in indexing scheme is only as trustworthy as your ability to observe its behavior on live traffic.</p>
-
-<p>Finally, I&rsquo;d document the resolution decision as an architecture decision record the day it is made. Six months after the migration, a new team member asked why we used resolution 8 instead of resolution 7. No one could answer from memory. The reasoning &mdash; that 0.74 km&sup2; matches the average restaurant catchment area in our high-density markets &mdash; existed only in someone&rsquo;s head and a Slack thread from eight months prior. A two-paragraph ADR on the day of the decision would have cost five minutes and saved an hour of archaeology.</p>
-
-<div class="attr-box team"><div class="attr-label">The hard part</div>The hardest migration step was not the code change &mdash; it was getting agreement on how to handle the transition period when some Route Consumers were still running bounding box logic and others had switched to H3. A mixed fleet means two different surge states for the same physical location, applied inconsistently depending on which pod processed the event. We had to do a hard cutover with a feature flag, not a gradual rollout, because gradual rollout here meant intentional pricing inconsistency.</div>
+<p>The same pattern applies to model inference in LLM systems. A flagd sidecar with a /evaluate endpoint has a latency budget. The ingestion service calling it has a circuit breaker for the same reason the Route Consumers had a recompute budget: when the dependency is a shared resource with a throughput ceiling, you protect it explicitly rather than letting load decide for you.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 22 of 150 &mdash; H3 hexagonal indexing and surge detection at Delivery Hero. Staff engineer working on AI infrastructure and distributed systems.</em></p>
-  <p><em>Previous: <a href="day-21-launchdarkly-build-vs-buy-flagd.html">Day 21 &mdash; LaunchDarkly Money &mdash; Why We Build flagd Ourselves</a></em></p>
-  <p><em>Next: <a href="day-23-osrm-5000-events-eta-infrastructure.html">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-22-feature-flags-model-rollouts.html">Day 22 &mdash; Feature Flags for Model Rollouts</a></em></p>
+  <p><em>Experience &middot; Day 23 of 150 &mdash; OSRM at 5000 Events/sec. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-22-h3-geospatial-indexing-surge-detection.html">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</a></em></p>
+  <p><em>Next: Day 24 coming soon</em></p>
+  <p><em>Sibling (AI Learning): Day 23 &mdash; Evaluations as Event Streams (publishing shortly)</em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-21-launchdarkly-build-vs-buy-flagd.html">
+    <a href="day-22-h3-geospatial-indexing-surge-detection.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 21 &mdash; LaunchDarkly Money &mdash; Why We Build flagd Ourselves
+      Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
+    <a href="day-20-route-consumer-lag-keda.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Five Thousand Geo-Events Per Second &mdash; Shape of the Stream
+      Day 20 &mdash; Route Consumer Lag &mdash; Why CPU-Based HPA Failed at Lunch Rush
     </a>
-    <a href="https://h3geo.org/">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/45">
       <span class="footnote-arrow">&#x2197;</span>
-      H3: Uber&rsquo;s Hexagonal Hierarchical Spatial Index
-    </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/44">
-      <span class="footnote-arrow">&#x2197;</span>
-      distributed-flagd Day 22 code: HTTP CRUD + fan-out streaming
+      Day 23 code: distributed-flagd model evaluator + resolved_model_id (PR #45)
     </a>
   </div>
 </div>
@@ -380,22 +343,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#dh-scale">DH scale context</a></li>
-      <li><a href="#bbox-breaks">Why bounding boxes break</a></li>
-      <li><a href="#h3-hex">H3 hexagonal indexing</a></li>
-      <li><a href="#surge-detection">Surge detection pipeline</a></li>
-      <li><a href="#bridge">Sticky assignment bridge</a></li>
-      <li><a href="#different">What I&rsquo;d do differently</a></li>
+      <li><a href="#osrm-as-infrastructure">OSRM as infrastructure</a></li>
+      <li><a href="#recompute-budget">Route recompute budget</a></li>
+      <li><a href="#queue-depth-as-the-signal">Queue depth signal</a></li>
+      <li><a href="#osrm-restarts">Rolling restarts</a></li>
+      <li><a href="#what-i-learned">What I took from this</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+22+%E2%80%94+H3+vs+Bounding+Boxes+%E2%80%94+Geospatial+Indexing+That+Scales&url=https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+23+%E2%80%94+OSRM+at+5000+Events%2Fsec&url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
