@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure | Experience Series</title>
-<meta name="description" content="At 5k+ route updates per second, OSRM stops being a routing library and becomes a resource allocation problem. The route recompute budget, OSRM warm-up, and why queue depth is the only signal that matters at Delivery Hero scale.">
-<meta property="og:title" content="Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure">
-<meta property="og:description" content="Delivery Hero · route recompute budget · why ETA at scale is a capacity planning problem, not a routing algorithm problem.">
+<title>Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth | Experience Series</title>
+<meta name="description" content="Wayfair PAS analytics: why BigQuery streaming inserts fail under burst pricing runs, how slot exhaustion taught me to stop treating 'real-time' analytics as a given, and what pas-analytics Pub/Sub taught me about building the distributed-flagd audit topic.">
+<meta property="og:title" content="Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth">
+<meta property="og:description" content="Wayfair · PAS analytics · pas-analytics Pub/Sub — when slot exhaustion makes 'real-time' analytics unreliable and batch is the honest answer.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-bigquery-streaming-batch-burst-truth.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
-<meta property="article:published_time" content="2026-06-09">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-bigquery-streaming-batch-burst-truth.png">
+<meta property="article:published_time" content="2026-06-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,76 +185,66 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 23 of 150</span>
-    <span class="tag">OSRM</span>
-    <span class="tag">Delivery Hero</span>
-    <span class="tag">Route Recompute</span>
-    <span class="tag">ETA</span>
-    <span class="tag">EKS</span>
+    <span class="tag accent">Experience &middot; Day 24 of 150</span>
+    <span class="tag">BigQuery</span>
+    <span class="tag">Pub/Sub</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Analytics</span>
+    <span class="tag">Streaming</span>
   </div>
-  <h1 class="post-title">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</h1>
-  <p class="post-subtitle">Delivery Hero &middot; route recompute budget &middot; why ETA at scale is a capacity problem, not an algorithm problem</p>
+  <h1 class="post-title">Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth</h1>
+  <p class="post-subtitle">Wayfair &middot; PAS analytics &middot; pas-analytics Pub/Sub &mdash; what slot exhaustion taught me about trusting &ldquo;real-time&rdquo; analytics</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 9, 2026</span>
+    <span class="meta-item">June 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">14 min read</span>
+    <span class="meta-item">13 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 23 of 150</span>
+    <span class="meta-item">Experience &middot; Day 24 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-23-osrm-5000-events-eta-infrastructure.png" alt="Cover: Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-24-bigquery-streaming-batch-burst-truth.png" alt="Cover: Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The first time I really understood what 5k+ route updates per second meant, I was looking at a queue depth graph during the dinner rush. The Route Consumer lag was climbing. The Route Consumers themselves were healthy &mdash; CPU normal, memory normal, pod count scaled to the autoscaler ceiling.</p>
+<p>I first noticed the gap in a weekly business review. The pricing indices dashboard &mdash; built on BigQuery over the <code>pas-analytics</code> Pub/Sub pipeline &mdash; was showing numbers that lagged reality by thirty minutes. Not missing data, just old data. Everything downstream of PAS Core was technically fine. The events had arrived in Pub/Sub. BigQuery could see them. The dashboard just could not see them yet.</p>
 
-<p>OSRM response times were creeping up. Not errors. Not timeouts. Just a subtle, compounding slowdown that turned a 120ms average route computation into a 380ms average over forty minutes.</p>
+<p>The cause was a full-catalog pricing run. Pilgrim had kicked off a sweep, Delphi had processed millions of price updates, and PAS Core had published a corresponding burst of analytics events to <code>pas-analytics</code>. The streaming insert path into BigQuery had hit its slot quota. Under normal load the streaming path was invisible &mdash; events appeared in BigQuery seconds after being published. Under the burst of a full-catalog run, the streaming path silently degraded to batch behavior while the dashboard continued showing a &ldquo;real-time&rdquo; data freshness indicator.</p>
 
-<p>The number that mattered was not the OSRM response time. It was the ratio of route update events arriving in Order SQS to the rate at which OSRM could compute fresh routes. At 5k+ events per second arriving and a ceiling on computations per pod, you are always making a resource allocation decision. The question is whether you made it explicitly or whether the queue decided for you.</p>
+<p>This post is about the difference between streaming and batch in BigQuery when your traffic profile is not flat &mdash; and why treating &ldquo;real-time analytics&rdquo; as a given is a mistake that only reveals itself during burst.</p>
 
-<p>This post is about the route recompute budget &mdash; the explicit decision about what percentage of incoming rider location events deserve a fresh OSRM computation, which deserve a cached route, and which can be dropped without anyone noticing.</p>
-
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the assembly line speed limit</div>An OSRM cluster is like a machining station on an assembly line. Parts arrive faster than the station can process them. You have three choices: slow down the line (reject events), add stations (scale OSRM pods), or let some parts skip machining (cache hit). The throughput ceiling of OSRM machining is a physical constant at a given pod count. Pretending it isn&rsquo;t is how queues grow.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the restaurant ticket window</div>A restaurant kitchen handles steady dinner service comfortably: each ticket arrives, the line handles it, plates go out in five minutes. Then a tour bus pulls in and drops off sixty tickets at once. The kitchen can&rsquo;t cook sixty meals in parallel. Plates queue up. The &ldquo;estimated wait: 5 minutes&rdquo; sign on the door is still technically true &mdash; it just no longer applies. BigQuery streaming inserts under burst are the kitchen. The slot quota is the number of stoves.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
-  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">route updates/sec</span></div>
-  <div class="stat-cell"><span class="stat-num">10k+</span><span class="stat-label">concurrent requests at peak</span></div>
-  <div class="stat-cell"><span class="stat-num">~300ms</span><span class="stat-label">acceptable ETA staleness</span></div>
+  <div class="stat-cell"><span class="stat-num">~3,414</span><span class="stat-label">PAS RPS avg</span></div>
+  <div class="stat-cell"><span class="stat-num">~15,263</span><span class="stat-label">PAS RPS peak</span></div>
+  <div class="stat-cell"><span class="stat-num">295M+</span><span class="stat-label">daily PAS requests</span></div>
+  <div class="stat-cell"><span class="stat-num">600s</span><span class="stat-label">Datastream freshness</span></div>
 </div>
 
-<h2 id="osrm-as-infrastructure">OSRM as infrastructure, not as a library</h2>
+<h2 id="the-streaming-assumption">The streaming insert assumption</h2>
 
-<p>OSRM (Open Source Routing Machine) is a routing engine. You give it a start coordinate, an end coordinate, and optional waypoints, and it returns a polyline route, a distance estimate, and a duration estimate. At low traffic, it feels like a library call.</p>
+<p>BigQuery streaming inserts are exactly what they sound like: you write a row, it appears in query results within seconds. The Pub/Sub to BigQuery pipeline using streaming inserts feels like a distributed log with a SQL query layer on top. For moderate, predictable traffic, it works like that.</p>
 
-<p>At 5k+ events per second feeding Route Consumers on AWS EKS, it is not a library call. It is a stateful service with its own capacity curve &mdash; a throughput ceiling you have to model and respect.</p>
+<p>The assumption buried inside streaming inserts is that your slot allocation can absorb the insert rate. BigQuery slots are the unit of compute capacity for processing data &mdash; for inserts, for queries, for the internal machinery that makes data queryable after it arrives. Slots are pooled across all operations in a project. A pricing run that triggers millions of Dataflow batch jobs, hundreds of ad-hoc analyst queries, and a burst of streaming inserts simultaneously is not the use case the dashboard team was modeling when they built the freshness indicator.</p>
 
-<p>The Delivery Hero team ran OSRM as a clustered service &mdash; multiple OSRM pods each loading the full road network graph into memory. The graph load was the first surprise for me: each OSRM pod loaded its map data into RAM on startup, which meant a pod restart was not a ten-second operation. It was a several-minute operation while the graph loaded. Rolling restarts during a traffic spike were something to plan carefully, not something to trigger casually.</p>
+<p>The PAS analytics pipeline published events to <code>pas-analytics</code> Pub/Sub in Avro format after every price adjustment operation. During normal operation &mdash; ~3,414 RPS on PAS Core &mdash; the streaming insert rate was well within quota. During a full-catalog Pilgrim run, PAS Core hit ~15,263 RPS and the analytics event rate followed. The streaming insert path was not designed for 4.5x burst; the slot allocation was sized for normal operation.</p>
 
-<p>The second characteristic I hadn&rsquo;t internalized was that OSRM throughput was roughly constant per pod regardless of the complexity of the route. A 500-meter route and a 15-kilometer route took roughly similar computation time because Dijkstra&rsquo;s precomputed contraction hierarchies amortized the graph traversal. This meant capacity planning was simpler &mdash; you could estimate queries per second per pod with reasonable confidence &mdash; but it also meant the only lever for throughput was pod count, not route simplification.</p>
+<h2 id="what-happens-at-burst">What happens when slots exhaust</h2>
 
-<div class="attr-box team"><div class="attr-label">What the Delivery Hero team built</div>The Route Service, Route Consumers, and OSRM cluster architecture were built by the Delivery Hero logistics platform team. I worked on the consumer layer &mdash; specifically autoscaling Route Consumers based on Order SQS queue depth, and the KEDA integration that replaced CPU-based HPA. The observations about OSRM characteristics come from working with this system daily, not from building the OSRM cluster itself.</div>
+<p>BigQuery does not fail gracefully when streaming inserts hit slot pressure. The insert operation returns success &mdash; the row is accepted into an unprocessed buffer &mdash; but the row does not appear in query results until the buffer flushes. The buffer flushes when slots become available. During a pricing run with simultaneous Dataflow pipelines consuming most of the project&rsquo;s slots, that flush could be delayed by twenty to forty minutes.</p>
 
-<h2 id="recompute-budget">The route recompute budget</h2>
-
-<p>Not every rider location event that arrives in Order SQS needs a fresh OSRM computation. A rider who has moved 3 meters since the last location update does not need a route recomputation &mdash; the existing route is still accurate. A rider who has deviated significantly from the last computed route does need a fresh computation. A rider in transit on a confirmed route who is making progress needs a periodic update, but not on every event.</p>
-
-<p>The recompute budget is the explicit policy that governs this. It is not a technical constraint &mdash; it is a product decision expressed as an infrastructure parameter. At Delivery Hero, the relevant signals were: distance since last recompute, whether the rider had deviated from the last computed polyline, and whether the order state had changed.</p>
-
-<p>The Route Consumers evaluated these signals on each event and decided whether to call OSRM or return the cached route. The policy was encoded in the consumer logic, not in OSRM itself.</p>
-
-<p>The practical effect was a significant reduction in OSRM load during steady-state transit. A rider moving in a straight line on a confirmed route would trigger a fresh computation roughly every 30 seconds rather than on every 1-second location update. During the dinner rush, that multiplication factor was the difference between OSRM being a capacity bottleneck and OSRM having headroom for the events that actually needed fresh routes.</p>
+<p>The dashboard saw a valid streaming insert response and showed the data freshness indicator as green. The data was not stale from the pipeline&rsquo;s perspective &mdash; it was sitting in BigQuery&rsquo;s internal buffer, successfully accepted, waiting for compute. From the business stakeholder&rsquo;s perspective, the dashboard was lying about how current the pricing indices were.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -274,62 +264,72 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    A["Order SQS Event\nrider location update"] --> B{"Recompute\ndecision"}
-    B -- "distance &gt; threshold\nOR deviation detected\nOR order state change" --> C["OSRM\nfresh route"]
-    B -- "steady-state transit\nrecent compute exists" --> D["Cache\nexisting route"]
-    C --> E["Route object\nupdated"]
-    D --> E
+    A["PAS Core\n~3.4k RPS avg\n~15k RPS burst"] --> B["pas-analytics\nPub/Sub (Avro)"]
+    B --> C{"Streaming inserts\nnormal load"}
+    B --> D{"Slot pressure\nburst load"}
+    C -- "slots available" --> E["BigQuery\nqueryable in &lt;10s"]
+    D -- "slots contended" --> F["BigQuery buffer\nflush delayed 20-40m"]
+    F --> G["Dashboard shows\nstale pricing indices"]
+    E --> H["Dashboard\ncurrent data"]
 </pre>
 
-<h2 id="queue-depth-as-the-signal">Queue depth as the only signal that matters</h2>
+<div class="attr-box team"><div class="attr-label">What the Wayfair PAS team built</div>The <code>pas-analytics</code> Pub/Sub pipeline, the Dataflow pipelines running GBQ-to-CloudSQL and GBQ-to-Bigtable, and the BigQuery dataset schema were built and owned by the PAS engineering team. I worked on monitoring the pipeline&rsquo;s health during pricing runs, identifying the slot exhaustion pattern through Datadog traces and BigQuery INFORMATION_SCHEMA queries, and the recommendation to classify analytics writes by urgency. The slot allocation and quota decisions were infrastructure team scope, not PAS team scope.</div>
 
-<p>When I joined the team, Route Consumers were scaled by a CPU-based HPA with a 60% target. When CPU crossed 60%, Kubernetes added pods; when it dropped, pods were removed. This is the standard playbook.</p>
+<h2 id="the-slot-budget">The slot budget problem</h2>
 
-<p>It is wrong for queue-consuming workloads in an important way: CPU does not measure the backlog. A consumer can sit at 15% CPU while the queue grows, because the work arriving is CPU-cheap but volume-heavy.</p>
+<p>The underlying issue was not BigQuery&rsquo;s design &mdash; it was that the pricing platform had never explicitly modeled analytics write traffic as a resource class with its own slot budget. Dataflow batch pipelines were provisioned against estimated job sizes. Analyst queries had their own reservation. Streaming analytics inserts were assumed to be &ldquo;cheap&rdquo; relative to the batch jobs and were not allocated a dedicated reservation.</p>
 
-<p>The KEDA integration I worked on replaced CPU with <code>sqs_approximate_number_of_messages_visible</code> &mdash; the SQS queue depth metric &mdash; as the primary scaling signal for Route Consumers. The target was a queue depth of 500 messages. When depth crossed 500, KEDA triggered additional Route Consumer pods. When depth dropped below 500, pods were removed with a stabilization window of 5 minutes to prevent flapping during the natural valley between lunch and dinner rush.</p>
+<p>That assumption held during normal operation. It did not hold during a Pilgrim full-catalog run when Dataflow pipelines processing millions of rows, analyst teams running ad-hoc pricing queries, and the <code>pas-analytics</code> streaming inserts were all competing for the same shared slot pool simultaneously.</p>
 
-<p>The result was a scaling curve that actually tracked demand. During the dinner rush, pods scaled up 2&ndash;3 minutes before CPU would have detected the load &mdash; because queue depth reflects incoming rate, and incoming rate climbs before the processing work climbs. That 2&ndash;3 minute head start was the difference between the queue peaking at 500 messages and the queue peaking at 40,000 messages and taking 20 minutes to drain.</p>
+<p>The fix was not to switch entirely to batch. It was to separate the analytics write traffic into two urgency classes. Events that fed the WBR dashboard &mdash; the weekly business review numbers executives looked at &mdash; were written via a dedicated streaming reservation that was not shared with Dataflow batch jobs. Events that fed longer-running analysis had a 10-minute acceptable delay and used the Datastream path, which had an explicit <code>data_freshness</code> of 600s by design. The routing decision was made at publish time based on the event&rsquo;s destination topic tag.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; traffic light timing</div>A traffic light that changes based on how long cars have been waiting is lag-compensated &mdash; it responds to current queue depth, not to the arrival rate 30 seconds ago. CPU-based HPA is the traffic light that looks at how busy the intersection was a minute ago. Queue-depth HPA is the traffic light that looks at how long the line currently is.</div>
+<h2 id="batch-is-honest">Batch is not slow, it is honest</h2>
 
-<h2 id="osrm-restarts">OSRM rolling restarts and the warm-up problem</h2>
+<p>What I took from this is a preference for explicit latency contracts over implicit freshness claims. The Datastream path &mdash; PostgreSQL via Datastream into BigQuery with a 600-second data freshness &mdash; was designed around that contract. The schema for the source CloudSQL databases had explicit change-data-capture configuration. The Datastream connector documented the lag. Everyone who built dashboards on top of that path knew the latency.</p>
 
-<p>Map data updates were infrequent &mdash; once every few days for city-level changes, occasionally more frequently for major road changes. Each map update required loading new graph data, which meant restarting OSRM pods. The Delivery Hero team scheduled these updates during low-traffic windows, but &ldquo;low traffic&rdquo; at a platform serving 1M+ daily orders is still meaningful traffic.</p>
+<p>The streaming insert path was implicit about its latency under burst. The API returned 200 and callers assumed queryability. The mismatch between what the API promised and what the system delivered under slot pressure was invisible until someone noticed a number in a WBR that was thirty minutes stale.</p>
 
-<p>The pattern that worked was a rolling restart with extended readiness probes. Before a new OSRM pod accepted traffic, it had to pass a readiness probe that actually tested route computation &mdash; not just that the HTTP server was responding, but that a test query returned a valid route within a latency threshold. This prevented a partially-loaded OSRM pod from receiving production traffic while the graph was still loading. The trade-off was a longer update window, but the alternative &mdash; serving slow or incomplete routes during graph load &mdash; affected order ETAs directly.</p>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the post office vs the courier</div>A courier promises delivery in two hours. A courier under a city-wide mail surge promises delivery in two hours but actually delivers in six. The post office says &ldquo;up to three days&rdquo; and delivers in two &mdash; because its contract is honest about the worst case. Batch analytics is the post office. Streaming analytics under burst is the overpromising courier. The business stakeholders watching the WBR dashboard are the recipient waiting by the door.</div>
 
-<p>The subtler problem was hot-pod load distribution. Immediately after a rolling restart, the pods that had been up longest had warm request caches and the new pods had cold caches. Load balancers distribute traffic evenly, but the new pods were slower until their caches warmed. This wasn&rsquo;t catastrophic, but during a restart that coincided with a traffic ramp it was visible in P99 latency for 5&ndash;10 minutes.</p>
+<p>The batch path for the less time-sensitive analytics &mdash; the Dataflow pipelines processing millions of rows per pricing run &mdash; was not a limitation. It was an honest acknowledgment of what the system could sustain. The pipelines ran, they completed, the data appeared in BigQuery with a lag that was known and accounted for. Nothing broke. Nothing silently delayed. The latency was a parameter, not a surprise.</p>
+
+<h2 id="audit-kafka-and-flagd">The bridge: what this means for flag audit events</h2>
+
+<p>The <code>pas-analytics</code> Pub/Sub topic is what I think of when I look at the audit log in distributed-flagd. The flagd audit log is an append-only topic of flag change events &mdash; when a flag was created, updated, enabled, disabled, and by whom. Every flag evaluation that changes behavior produces a record in the audit log that is independent of etcd&rsquo;s current state.</p>
+
+<p>The lesson from <code>pas-analytics</code> is that the audit topic should be owned by the service, not by the consumer. PAS analytics worked reliably when the pipeline&rsquo;s slot allocation was controlled at the publisher level &mdash; when PAS Core decided which events went to which reservation. The flag audit log in distributed-flagd follows the same principle: the flagd service writes audit events unconditionally, and consumers (dashboards, compliance reports, replay tools) read from the log at their own pace.</p>
+
+<p>Append-only, replayable, owned by the publisher. The architecture that made <code>pas-analytics</code> reliable under burst is the same architecture that makes a feature flag audit log trustworthy. So that the compliance team can ask &ldquo;what was the model rollout percentage for tenant X at 14:32 UTC&rdquo; and get an answer, even if etcd has been compacted since.</p>
 
 <h2 id="what-i-learned">What I took from this system</h2>
 
-<p>The most transferable insight from working on Route Consumers is that the right metric for a queue consumer is not the consumer&rsquo;s internal health &mdash; CPU, memory, error rate &mdash; but the queue&rsquo;s external health: depth and age of the oldest message. Internal health metrics tell you the consumer is alive. Queue metrics tell you whether the consumer is keeping up with the work.</p>
+<p>The most durable lesson is that &ldquo;real-time&rdquo; is a latency class, not a binary. A system that delivers data within ten seconds under normal load and within forty minutes under burst is not a real-time system &mdash; it is a variable-latency system with a misleading label. Designing for the burst case means naming the worst-case latency in the SLA, allocating resources against that worst case, and making sure dashboards reflect actual freshness rather than last-write time.</p>
 
-<p>OSRM as a downstream dependency taught me to think about dependency throughput ceilings as infrastructure constraints to be modeled, not as library performance to be optimized away. When a dependency has a physical throughput ceiling, you need a budget for how you spend calls against that ceiling. The recompute budget was our explicit statement of that policy. Without it, the dinner rush decided the policy for us, and the policy the dinner rush chose was &ldquo;compute every event until OSRM falls over.&rdquo;</p>
+<p>The second lesson is about resource reservation. Shared slot pools are a reasonable default for a single team&rsquo;s workload. They become a footgun when multiple teams &mdash; Dataflow batch, analyst queries, streaming inserts &mdash; share the same pool without coordination. The pricing platform eventually moved to reservation-based slot allocation for the most latency-sensitive analytics writes. The move was not dramatic, but it made the WBR dashboard reliable by construction rather than by luck.</p>
 
-<p>The same pattern applies to model inference in LLM systems. A flagd sidecar with a /evaluate endpoint has a latency budget. The ingestion service calling it has a circuit breaker for the same reason the Route Consumers had a recompute budget: when the dependency is a shared resource with a throughput ceiling, you protect it explicitly rather than letting load decide for you.</p>
+<p>Building distributed-flagd, I keep coming back to the same question: what is the worst-case latency for this operation, and have I made it explicit? The CRD reconciler syncs to etcd &mdash; that sync has a latency. The audit log has a flush interval. The gRPC watch stream has reconnect latency. None of these are streaming-insert style hidden surprises, because each one is documented as a parameter with a known worst case. The PAS analytics incident is the reason I write that documentation first.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 23 of 150 &mdash; OSRM at 5000 Events/sec. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-22-h3-geospatial-indexing-surge-detection.html">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</a></em></p>
-  <p><em>Next: <a href="day-24-bigquery-streaming-batch-burst-truth.html">Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html">Day 23 &mdash; Evaluations as Event Streams</a></em></p>
+  <p><em>Experience &middot; Day 24 of 150 &mdash; BigQuery Streaming vs Batch. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-23-osrm-5000-events-eta-infrastructure.html">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</a></em></p>
+  <p><em>Next: Day 25 coming soon</em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html">Day 24 &mdash; GPU Scheduling as Resource Management</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="day-23-osrm-5000-events-eta-infrastructure.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure
+    </a>
     <a href="day-22-h3-geospatial-indexing-surge-detection.html">
       <span class="footnote-arrow">&#x2197;</span>
       Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales
     </a>
-    <a href="day-20-route-consumer-lag-keda.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/46">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 20 &mdash; Route Consumer Lag &mdash; Why CPU-Based HPA Failed at Lunch Rush
-    </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/45">
-      <span class="footnote-arrow">&#x2197;</span>
-      Day 23 code: distributed-flagd model evaluator + resolved_model_id (PR #45)
+      Day 24 code: distributed-flagd K8s CRD FlagDefinition + Helm chart (PR #46)
     </a>
   </div>
 </div>
@@ -343,21 +343,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#osrm-as-infrastructure">OSRM as infrastructure</a></li>
-      <li><a href="#recompute-budget">Route recompute budget</a></li>
-      <li><a href="#queue-depth-as-the-signal">Queue depth signal</a></li>
-      <li><a href="#osrm-restarts">Rolling restarts</a></li>
+      <li><a href="#the-streaming-assumption">Streaming insert assumption</a></li>
+      <li><a href="#what-happens-at-burst">What happens at burst</a></li>
+      <li><a href="#the-slot-budget">Slot budget problem</a></li>
+      <li><a href="#batch-is-honest">Batch is honest</a></li>
+      <li><a href="#audit-kafka-and-flagd">Bridge to flagd audit</a></li>
       <li><a href="#what-i-learned">What I took from this</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+23+%E2%80%94+OSRM+at+5000+Events%2Fsec&url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+24+%E2%80%94+BigQuery+Streaming+vs+Batch+%E2%80%94+Burst+Traffic+Truth&url=https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
