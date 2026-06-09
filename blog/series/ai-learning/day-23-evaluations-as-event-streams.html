@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure | Experience Series</title>
-<meta name="description" content="At 5k+ route updates per second, OSRM stops being a routing library and becomes a resource allocation problem. The route recompute budget, OSRM warm-up, and why queue depth is the only signal that matters at Delivery Hero scale.">
-<meta property="og:title" content="Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure">
-<meta property="og:description" content="Delivery Hero · route recompute budget · why ETA at scale is a capacity planning problem, not a routing algorithm problem.">
+<title>Day 23 — Evaluations as Event Streams | AI Learning Series</title>
+<meta name="description" content="LLM-as-judge output is just another event type — store it like you store metrics. How to treat evaluation as a continuous Kafka stream rather than a batch test suite, and wire eval scores into the same ClickHouse pipeline as inference events.">
+<meta property="og:title" content="Day 23 — Evaluations as Event Streams">
+<meta property="og:description" content="Eval harnesses are Kafka topics with scores. LLM-as-judge as a producer, eval event schema, and the ClickHouse join that surfaces cost-quality tradeoffs per model version.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-evaluations-as-event-streams.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-osrm-5000-events-eta-infrastructure.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-evaluations-as-event-streams.png">
 <meta property="article:published_time" content="2026-06-09">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,15 +185,15 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 23 of 150</span>
-    <span class="tag">OSRM</span>
-    <span class="tag">Delivery Hero</span>
-    <span class="tag">Route Recompute</span>
-    <span class="tag">ETA</span>
-    <span class="tag">EKS</span>
+    <span class="tag accent">AI Learning &middot; Day 23 of 150</span>
+    <span class="tag">LLM Evaluation</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">ClickHouse</span>
+    <span class="tag">LLM-as-Judge</span>
+    <span class="tag">Quality Metrics</span>
   </div>
-  <h1 class="post-title">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</h1>
-  <p class="post-subtitle">Delivery Hero &middot; route recompute budget &middot; why ETA at scale is a capacity problem, not an algorithm problem</p>
+  <h1 class="post-title">Day 23 &mdash; Evaluations as Event Streams</h1>
+  <p class="post-subtitle">Eval harnesses are Kafka topics with scores &mdash; LLM-as-judge as a producer, continuous quality signals, and the ClickHouse join that closes the cost-quality loop</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
@@ -202,59 +202,135 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     <div class="meta-divider"></div>
     <span class="meta-item">June 9, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">14 min read</span>
+    <span class="meta-item">13 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 23 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 23 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-23-osrm-5000-events-eta-infrastructure.png" alt="Cover: Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-23-evaluations-as-event-streams.png" alt="Cover: Day 23 — Evaluations as Event Streams" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The first time I really understood what 5k+ route updates per second meant, I was looking at a queue depth graph during the dinner rush. The Route Consumer lag was climbing. The Route Consumers themselves were healthy &mdash; CPU normal, memory normal, pod count scaled to the autoscaler ceiling.</p>
+<p>LLM-as-judge output is just another event type &mdash; store it like you store metrics. This sounds obvious until you look at how most teams actually instrument their eval pipelines: a batch script that runs every night, writes results to a spreadsheet, and fires a Slack alert if scores drop below a threshold. That is not an evaluation system. That is a cron job with a clipboard.</p>
 
-<p>OSRM response times were creeping up. Not errors. Not timeouts. Just a subtle, compounding slowdown that turned a 120ms average route computation into a 380ms average over forty minutes.</p>
+<p>The right mental model is the one I already use for infrastructure: evaluations are a continuous stream of scored events, emitted alongside production inference, partitioned by model version, and stored in the same ClickHouse table as inference cost. When that connection is in place, a cost anomaly query and a quality regression query share the same schema and the same pipeline. You don&rsquo;t investigate them separately &mdash; you run a single join.</p>
 
-<p>The number that mattered was not the OSRM response time. It was the ratio of route update events arriving in Order SQS to the rate at which OSRM could compute fresh routes. At 5k+ events per second arriving and a ceiling on computations per pod, you are always making a resource allocation decision. The question is whether you made it explicitly or whether the queue decided for you.</p>
+<p>This post walks through the eval event schema, LLM-as-judge as a Kafka producer, the ClickHouse aggregation that gives you a rolling quality score per model version, and the join that surfaces cost-quality tradeoff per flag state.</p>
 
-<p>This post is about the route recompute budget &mdash; the explicit decision about what percentage of incoming rider location events deserve a fresh OSRM computation, which deserve a cached route, and which can be dropped without anyone noticing.</p>
-
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the assembly line speed limit</div>An OSRM cluster is like a machining station on an assembly line. Parts arrive faster than the station can process them. You have three choices: slow down the line (reject events), add stations (scale OSRM pods), or let some parts skip machining (cache hit). The throughput ceiling of OSRM machining is a physical constant at a given pod count. Pretending it isn&rsquo;t is how queues grow.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; quality control station on the assembly line</div>A batch eval suite is like a quality inspection shift that runs at 2 AM: it samples products from the previous day&rsquo;s run and reports defect rates. Continuous eval is a sensor on the assembly line that scores every unit as it passes. The difference is not just temporal precision &mdash; it is observability. You can only catch the failure mode where quality degraded at 3 PM Tuesday if you were measuring at 3 PM Tuesday.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">daily orders</span></div>
-  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">route updates/sec</span></div>
-  <div class="stat-cell"><span class="stat-num">10k+</span><span class="stat-label">concurrent requests at peak</span></div>
-  <div class="stat-cell"><span class="stat-num">~300ms</span><span class="stat-label">acceptable ETA staleness</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">event schema</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">inference calls per eval</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">ClickHouse join</span></div>
+  <div class="stat-cell"><span class="stat-num">&lt;5min</span><span class="stat-label">quality window lag</span></div>
 </div>
 
-<h2 id="osrm-as-infrastructure">OSRM as infrastructure, not as a library</h2>
+<h2 id="batch-vs-continuous">Why batch eval suites miss what matters</h2>
 
-<p>OSRM (Open Source Routing Machine) is a routing engine. You give it a start coordinate, an end coordinate, and optional waypoints, and it returns a polyline route, a distance estimate, and a duration estimate. At low traffic, it feels like a library call.</p>
+<p>A batch eval suite runs over a curated sample of prompts with known good outputs. It is useful for pre-deploy regression testing &mdash; exactly the same use case as a unit test suite. But it has the same blind spot: it tests over the distribution you anticipated, not the distribution you got. Production traffic shifts. Users find edge cases your curated set doesn&rsquo;t cover. Model providers update their models with version bumps that change behavior on long-tail inputs first.</p>
 
-<p>At 5k+ events per second feeding Route Consumers on AWS EKS, it is not a library call. It is a stateful service with its own capacity curve &mdash; a throughput ceiling you have to model and respect.</p>
+<p>Distribution shift is invisible to batch eval. A model that scores 0.91 on your curated set and 0.73 on the long-tail inputs arriving in production on Wednesday afternoon looks fine in the nightly eval report. The nightly report uses last night&rsquo;s sample, not Wednesday&rsquo;s production inputs. A continuous eval stream sees Wednesday&rsquo;s traffic because it scores events as they happen.</p>
 
-<p>The Delivery Hero team ran OSRM as a clustered service &mdash; multiple OSRM pods each loading the full road network graph into memory. The graph load was the first surprise for me: each OSRM pod loaded its map data into RAM on startup, which meant a pod restart was not a ten-second operation. It was a several-minute operation while the graph loaded. Rolling restarts during a traffic spike were something to plan carefully, not something to trigger casually.</p>
+<p>The second failure mode is temporal blindness. A batch eval cannot tell you <em>when</em> quality changed. It can tell you that quality between Monday and Tuesday was 0.88 and quality between Tuesday and Wednesday was 0.74. The continuous stream can tell you it changed at 14:37 UTC when a flag weight advanced from 20% to 50%. That timestamp is what links the quality drop to the flag audit log entry.</p>
 
-<p>The second characteristic I hadn&rsquo;t internalized was that OSRM throughput was roughly constant per pod regardless of the complexity of the route. A 500-meter route and a 15-kilometer route took roughly similar computation time because Dijkstra&rsquo;s precomputed contraction hierarchies amortized the graph traversal. This meant capacity planning was simpler &mdash; you could estimate queries per second per pod with reasonable confidence &mdash; but it also meant the only lever for throughput was pod count, not route simplification.</p>
+<div class="attr-box team"><div class="attr-label">LLM-as-judge is a probability estimator, not a ground truth oracle</div>A judge model outputs a score that reflects its own training distribution&rsquo;s notion of &ldquo;good.&rdquo; It can be calibrated by comparing its scores against human labels on a validation set. Use it as a relative signal &mdash; version A scores higher than version B on this judge, at this confidence level &mdash; not as an absolute quality certificate. The signal is useful; the number is not ground truth.</div>
 
-<div class="attr-box team"><div class="attr-label">What the Delivery Hero team built</div>The Route Service, Route Consumers, and OSRM cluster architecture were built by the Delivery Hero logistics platform team. I worked on the consumer layer &mdash; specifically autoscaling Route Consumers based on Order SQS queue depth, and the KEDA integration that replaced CPU-based HPA. The observations about OSRM characteristics come from working with this system daily, not from building the OSRM cluster itself.</div>
+<h2 id="eval-event-schema">The eval event schema</h2>
 
-<h2 id="recompute-budget">The route recompute budget</h2>
+<p>An eval event is a scored record of one inference output assessed by a judge. The minimum viable schema has eight fields. <code>eval_run_id</code> ties the eval event back to the inference event that produced the output being scored. <code>model_id</code> and <code>resolved_model_id</code> mirror the inference event fields so you can join without going back to the inference table. <code>judge_model</code> is the fully-qualified model ID of the judge &mdash; important because different judge models give different score distributions.</p>
 
-<p>Not every rider location event that arrives in Order SQS needs a fresh OSRM computation. A rider who has moved 3 meters since the last location update does not need a route recomputation &mdash; the existing route is still accurate. A rider who has deviated significantly from the last computed route does need a fresh computation. A rider in transit on a confirmed route who is making progress needs a periodic update, but not on every event.</p>
+<p><code>prompt_hash</code> is a content hash of the input prompt, allowing you to group evaluations of the same prompt across different model versions. <code>score</code> is a float between 0 and 1 normalized from the judge&rsquo;s output. <code>latency_ms</code> is the end-to-end time of the eval call &mdash; because judge calls are inference calls and they have a cost. <code>timestamp</code> is event time, not ingest time.</p>
 
-<p>The recompute budget is the explicit policy that governs this. It is not a technical constraint &mdash; it is a product decision expressed as an infrastructure parameter. At Delivery Hero, the relevant signals were: distance since last recompute, whether the rider had deviated from the last computed polyline, and whether the order state had changed.</p>
+<pre><code>CREATE TABLE llm_eval_events (
+  eval_run_id      String,
+  inference_id     String,
+  model_id         String,
+  resolved_model_id String,
+  judge_model      String,
+  prompt_hash      String,
+  score            Float32,
+  latency_ms       UInt32,
+  timestamp        DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (resolved_model_id, timestamp)
+PARTITION BY toYYYYMMDD(timestamp);</code></pre>
 
-<p>The Route Consumers evaluated these signals on each event and decided whether to call OSRM or return the cached route. The policy was encoded in the consumer logic, not in OSRM itself.</p>
+<p>The partition key is date. The ordering key is <code>(resolved_model_id, timestamp)</code>, which makes the rolling quality score query &mdash; average score per model version over a sliding window &mdash; a sequential scan on a narrow key range. You are not doing a full-table scan; you are doing a sorted scan on the last N minutes of a single model version.</p>
 
-<p>The practical effect was a significant reduction in OSRM load during steady-state transit. A rider moving in a straight line on a confirmed route would trigger a fresh computation roughly every 30 seconds rather than on every 1-second location update. During the dinner rush, that multiplication factor was the difference between OSRM being a capacity bottleneck and OSRM having headroom for the events that actually needed fresh routes.</p>
+<h2 id="llm-as-judge">LLM-as-judge as a Kafka producer</h2>
+
+<p>The judge is an inference call. It takes the original prompt and the model&rsquo;s output and asks a judge model to rate the output on a 0&ndash;10 scale, which you normalize to 0&ndash;1. That normalization is the only post-processing step. Everything else is just another inference call and another Kafka produce.</p>
+
+<p>The partition key for the <code>llm-eval-events</code> topic is <code>model_id:tenant_id</code>. This keeps all eval events for the same model version on the same partition, which enables per-partition consumer lag monitoring as a quality latency signal. If the eval consumer for <code>gpt-4-turbo-2024-04-09:acme-corp</code> is lagging, quality scores for that model+tenant combination are stale. You detect this from Kafka consumer lag metrics before the ClickHouse query returns stale results.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["Production Inference"] --> B["inference_events\nKafka topic"]
+    B --> C["Eval Producer\nsidecar"]
+    C --> D["Judge Model\nAPI call"]
+    D --> E["llm-eval-events\nKafka topic"]
+    E --> F["ClickHouse\nllm_eval_events"]
+</pre>
+
+<h2 id="clickhouse-aggregation">ClickHouse: rolling quality score per model version</h2>
+
+<p>The canonical query is a rolling 1-hour average quality score grouped by <code>resolved_model_id</code>. With the ordering key on <code>(resolved_model_id, timestamp)</code>, this is a fast range scan. You run it every 5 minutes as a materialized view and expose it via Grafana. The panel shows a line per model version, and a drop in any line triggers an alert.</p>
+
+<pre><code>SELECT
+  resolved_model_id,
+  avg(score) AS quality_score_1h,
+  count()    AS eval_count,
+  avg(latency_ms) AS avg_judge_latency_ms
+FROM llm_eval_events
+WHERE timestamp >= now() - INTERVAL 1 HOUR
+GROUP BY resolved_model_id
+ORDER BY quality_score_1h ASC;</code></pre>
+
+<p>The ordering by <code>quality_score_1h ASC</code> puts the worst-performing model version at the top &mdash; the one that needs attention first. This is intentional. You are not building a leaderboard; you are building a triage queue.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; temperature probe in a greenhouse</div>A batch eval is like checking the greenhouse temperature at 9 AM and 5 PM. If you&rsquo;re only measuring twice a day, you miss the noon spike that killed the seedlings. A continuous rolling average is the thermostat readout &mdash; you know the temperature now, you know the trend, and you can act before the damage is done. The query is the readout; the materialized view is the thermostat.</div>
+
+<h2 id="cost-quality-join">The cost-quality join: closing the loop</h2>
+
+<p>The most important query in the eval pipeline is not the quality score in isolation. It is the join between <code>llm_eval_events</code>, <code>inference_events</code>, and the flag audit log. This join tells you: for each flag state (each pair of consecutive audit entries), what was the average quality score and the total cost? That is the cost-quality tradeoff per rollout stage.</p>
+
+<pre><code>SELECT
+  e.resolved_model_id,
+  avg(ev.score)             AS quality_score,
+  sum(i.cost_usd)           AS total_cost_usd,
+  count(i.event_id)         AS request_count
+FROM inference_events i
+JOIN llm_eval_events ev ON i.event_id = ev.inference_id
+WHERE i.timestamp BETWEEN {flag_changed_at_prev} AND {flag_changed_at_curr}
+GROUP BY e.resolved_model_id
+ORDER BY quality_score DESC;</code></pre>
+
+<p>The timestamp range comes from the flag audit log: two consecutive <code>changed_at</code> entries define a flag state interval. The query runs over that interval. The result is a row per model version showing what the quality-cost tradeoff actually was at that rollout percentage &mdash; not estimated before the rollout, but measured from production traffic.</p>
+
+<p>This is the data that drives the canary advance decision. At Step 3 (50% rollout), the advance condition is: quality score for <code>model-v2</code> within ±3% of <code>model-v1</code> AND cost delta accepted. Both inputs are now queryable from the same pipeline.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -274,62 +350,43 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    A["Order SQS Event\nrider location update"] --> B{"Recompute\ndecision"}
-    B -- "distance &gt; threshold\nOR deviation detected\nOR order state change" --> C["OSRM\nfresh route"]
-    B -- "steady-state transit\nrecent compute exists" --> D["Cache\nexisting route"]
-    C --> E["Route object\nupdated"]
-    D --> E
+    A["Flag Audit Log\nchanged_at timestamps"] --> B["Timestamp interval"]
+    B --> C["inference_events\nJOIN llm_eval_events"]
+    C --> D["Quality score\nper model version"]
+    C --> E["Cost per\nmodel version"]
+    D --> F["Advance decision\nfor canary stage"]
+    E --> F
 </pre>
 
-<h2 id="queue-depth-as-the-signal">Queue depth as the only signal that matters</h2>
+<h2 id="eval-sampling">Eval sampling rate and cost budget</h2>
 
-<p>When I joined the team, Route Consumers were scaled by a CPU-based HPA with a 60% target. When CPU crossed 60%, Kubernetes added pods; when it dropped, pods were removed. This is the standard playbook.</p>
+<p>You do not eval every request. At high traffic, running a judge model call on every inference event doubles your inference spend. The practical sampling rate is 5&ndash;10% of requests, stratified by <code>resolved_model_id</code> so both model versions get evaluated at the same rate. During a rollout, you may increase the sampling rate for the canary variant to build signal faster.</p>
 
-<p>It is wrong for queue-consuming workloads in an important way: CPU does not measure the backlog. A consumer can sit at 15% CPU while the queue grows, because the work arriving is CPU-cheap but volume-heavy.</p>
+<p>The sampling decision happens at the eval producer, not at the inference layer. The inference event is always written to Kafka. The eval producer reads from the inference events topic and writes to the eval events topic for the sampled fraction. This keeps the eval budget separate from the inference budget and lets you adjust the rate without touching the ingestion path.</p>
 
-<p>The KEDA integration I worked on replaced CPU with <code>sqs_approximate_number_of_messages_visible</code> &mdash; the SQS queue depth metric &mdash; as the primary scaling signal for Route Consumers. The target was a queue depth of 500 messages. When depth crossed 500, KEDA triggered additional Route Consumer pods. When depth dropped below 500, pods were removed with a stabilization window of 5 minutes to prevent flapping during the natural valley between lunch and dinner rush.</p>
-
-<p>The result was a scaling curve that actually tracked demand. During the dinner rush, pods scaled up 2&ndash;3 minutes before CPU would have detected the load &mdash; because queue depth reflects incoming rate, and incoming rate climbs before the processing work climbs. That 2&ndash;3 minute head start was the difference between the queue peaking at 500 messages and the queue peaking at 40,000 messages and taking 20 minutes to drain.</p>
-
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; traffic light timing</div>A traffic light that changes based on how long cars have been waiting is lag-compensated &mdash; it responds to current queue depth, not to the arrival rate 30 seconds ago. CPU-based HPA is the traffic light that looks at how busy the intersection was a minute ago. Queue-depth HPA is the traffic light that looks at how long the line currently is.</div>
-
-<h2 id="osrm-restarts">OSRM rolling restarts and the warm-up problem</h2>
-
-<p>Map data updates were infrequent &mdash; once every few days for city-level changes, occasionally more frequently for major road changes. Each map update required loading new graph data, which meant restarting OSRM pods. The Delivery Hero team scheduled these updates during low-traffic windows, but &ldquo;low traffic&rdquo; at a platform serving 1M+ daily orders is still meaningful traffic.</p>
-
-<p>The pattern that worked was a rolling restart with extended readiness probes. Before a new OSRM pod accepted traffic, it had to pass a readiness probe that actually tested route computation &mdash; not just that the HTTP server was responding, but that a test query returned a valid route within a latency threshold. This prevented a partially-loaded OSRM pod from receiving production traffic while the graph was still loading. The trade-off was a longer update window, but the alternative &mdash; serving slow or incomplete routes during graph load &mdash; affected order ETAs directly.</p>
-
-<p>The subtler problem was hot-pod load distribution. Immediately after a rolling restart, the pods that had been up longest had warm request caches and the new pods had cold caches. Load balancers distribute traffic evenly, but the new pods were slower until their caches warmed. This wasn&rsquo;t catastrophic, but during a restart that coincided with a traffic ramp it was visible in P99 latency for 5&ndash;10 minutes.</p>
-
-<h2 id="what-i-learned">What I took from this system</h2>
-
-<p>The most transferable insight from working on Route Consumers is that the right metric for a queue consumer is not the consumer&rsquo;s internal health &mdash; CPU, memory, error rate &mdash; but the queue&rsquo;s external health: depth and age of the oldest message. Internal health metrics tell you the consumer is alive. Queue metrics tell you whether the consumer is keeping up with the work.</p>
-
-<p>OSRM as a downstream dependency taught me to think about dependency throughput ceilings as infrastructure constraints to be modeled, not as library performance to be optimized away. When a dependency has a physical throughput ceiling, you need a budget for how you spend calls against that ceiling. The recompute budget was our explicit statement of that policy. Without it, the dinner rush decided the policy for us, and the policy the dinner rush chose was &ldquo;compute every event until OSRM falls over.&rdquo;</p>
-
-<p>The same pattern applies to model inference in LLM systems. A flagd sidecar with a /evaluate endpoint has a latency budget. The ingestion service calling it has a circuit breaker for the same reason the Route Consumers had a recompute budget: when the dependency is a shared resource with a throughput ceiling, you protect it explicitly rather than letting load decide for you.</p>
+<p>The eval call adds a judge model latency budget &mdash; typically 200&ndash;500ms for a GPT-4-class judge &mdash; that is separate from the production request latency. Users never wait for it. The eval pipeline is async and out-of-band, consuming from Kafka at the rate the judge can handle rather than at the rate production traffic arrives.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 23 of 150 &mdash; OSRM at 5000 Events/sec. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-22-h3-geospatial-indexing-surge-detection.html">Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales</a></em></p>
+  <p><em>Day 23 of 150 &mdash; Evaluations as Event Streams. Staff engineer working on AI infrastructure and distributed systems.</em></p>
+  <p><em>Previous: <a href="day-22-feature-flags-model-rollouts.html">Day 22 &mdash; Feature Flags for Model Rollouts</a></em></p>
   <p><em>Next: Day 24 coming soon</em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html">Day 23 &mdash; Evaluations as Event Streams</a></em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-22-h3-geospatial-indexing-surge-detection.html">
+    <a href="day-22-feature-flags-model-rollouts.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales
-    </a>
-    <a href="day-20-route-consumer-lag-keda.html">
-      <span class="footnote-arrow">&#x2197;</span>
-      Day 20 &mdash; Route Consumer Lag &mdash; Why CPU-Based HPA Failed at Lunch Rush
+      Day 22 &mdash; Feature Flags for Model Rollouts
     </a>
     <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/45">
       <span class="footnote-arrow">&#x2197;</span>
       Day 23 code: distributed-flagd model evaluator + resolved_model_id (PR #45)
+    </a>
+    <a href="https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/avg">
+      <span class="footnote-arrow">&#x2197;</span>
+      ClickHouse avg() aggregate documentation
     </a>
   </div>
 </div>
@@ -338,26 +395,27 @@ flowchart TD
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div id="series-nav-mount" data-series-slug="experience"></div>
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#osrm-as-infrastructure">OSRM as infrastructure</a></li>
-      <li><a href="#recompute-budget">Route recompute budget</a></li>
-      <li><a href="#queue-depth-as-the-signal">Queue depth signal</a></li>
-      <li><a href="#osrm-restarts">Rolling restarts</a></li>
-      <li><a href="#what-i-learned">What I took from this</a></li>
+      <li><a href="#batch-vs-continuous">Batch vs continuous eval</a></li>
+      <li><a href="#eval-event-schema">Eval event schema</a></li>
+      <li><a href="#llm-as-judge">LLM-as-judge as producer</a></li>
+      <li><a href="#clickhouse-aggregation">Rolling quality score</a></li>
+      <li><a href="#cost-quality-join">Cost-quality join</a></li>
+      <li><a href="#eval-sampling">Sampling rate</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+23+%E2%80%94+OSRM+at+5000+Events%2Fsec&url=https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+23+%E2%80%94+Evaluations+as+Event+Streams&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
