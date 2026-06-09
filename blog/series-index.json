@@ -7,6 +7,16 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-23-evaluations-as-event-streams.html",
+          "title": "Day 23 — Evaluations as Event Streams",
+          "subtitle": "LLM-as-judge as a Kafka producer, eval event schema, and the ClickHouse join that closes the cost-quality loop",
+          "date": "2026-06-09",
+          "slug": "day-23-evaluations-as-event-streams",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html",
+          "coverImage": "blog/assets/covers/day-23-evaluations-as-event-streams.png"
+        },
+        {
           "href": "blog/series/ai-learning/day-22-feature-flags-model-rollouts.html",
           "title": "Day 22 — Feature Flags for Model Rollouts",
           "subtitle": "Deterministic hashing, audit logs, and the four-step canary sequence",
