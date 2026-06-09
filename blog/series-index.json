@@ -159,6 +159,12 @@
           "kicker": "Day 19 of 150",
           "title": "Day 19 \u2014 Agent Infrastructure \u2014 Tools, Memory, Loops",
           "desc": "Tool calling as RPC with hallucination risk, agent memory as tiered cache, durable loops \u2014 distributed systems primitives for production agents."
+        },
+        {
+          "href": "blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html",
+          "kicker": "AI Learning \u00b7 Day 24 of 150",
+          "title": "Day 24 \u2014 GPU Scheduling as Resource Management",
+          "desc": "MIG, tensor parallelism, and Kubernetes extended resources \u2014 VRAM is finite, the scheduler needs to know it, and GPU topology is the distributed systems constraint that determines canary rollout cost accuracy."
         }
       ]
     },
