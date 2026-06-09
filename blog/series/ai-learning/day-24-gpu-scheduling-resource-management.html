@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 23 — Evaluations as Event Streams | AI Learning Series</title>
-<meta name="description" content="LLM-as-judge output is just another event type — store it like you store metrics. How to treat evaluation as a continuous Kafka stream rather than a batch test suite, and wire eval scores into the same ClickHouse pipeline as inference events.">
-<meta property="og:title" content="Day 23 — Evaluations as Event Streams">
-<meta property="og:description" content="Eval harnesses are Kafka topics with scores. LLM-as-judge as a producer, eval event schema, and the ClickHouse join that surfaces cost-quality tradeoffs per model version.">
+<title>Day 24 — GPU Scheduling as Resource Management | AI Learning Series</title>
+<meta name="description" content="MIG, tensor parallelism, and Kubernetes extended resources through a distributed systems lens. VRAM is finite, the scheduler needs to know it, and accurate cost attribution requires knowing which partition served which request.">
+<meta property="og:title" content="Day 24 — GPU Scheduling as Resource Management">
+<meta property="og:description" content="MIG partitions, tensor parallelism, Kubernetes nvidia.com/gpu extended resources — VRAM budget as the invariant that makes inference scheduling tractable.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-evaluations-as-event-streams.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-gpu-scheduling-resource-management.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-23-evaluations-as-event-streams.png">
-<meta property="article:published_time" content="2026-06-09">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-gpu-scheduling-resource-management.png">
+<meta property="article:published_time" content="2026-06-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,90 +185,68 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 23 of 150</span>
-    <span class="tag">LLM Evaluation</span>
-    <span class="tag">Kafka</span>
-    <span class="tag">ClickHouse</span>
-    <span class="tag">LLM-as-Judge</span>
-    <span class="tag">Quality Metrics</span>
+    <span class="tag accent">AI Learning &middot; Day 24 of 150</span>
+    <span class="tag">GPU Scheduling</span>
+    <span class="tag">MIG</span>
+    <span class="tag">Kubernetes</span>
+    <span class="tag">VRAM</span>
+    <span class="tag">Tensor Parallelism</span>
   </div>
-  <h1 class="post-title">Day 23 &mdash; Evaluations as Event Streams</h1>
-  <p class="post-subtitle">Eval harnesses are Kafka topics with scores &mdash; LLM-as-judge as a producer, continuous quality signals, and the ClickHouse join that closes the cost-quality loop</p>
+  <h1 class="post-title">Day 24 &mdash; GPU Scheduling as Resource Management</h1>
+  <p class="post-subtitle">MIG, tensor parallelism, Kubernetes extended resources &mdash; VRAM is finite and the scheduler needs to know it</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 9, 2026</span>
+    <span class="meta-item">June 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
+    <span class="meta-item">14 min read</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 23 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 24 of 150</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
 <figure class="post-cover">
-  <img src="../../assets/covers/day-23-evaluations-as-event-streams.png" alt="Cover: Day 23 — Evaluations as Event Streams" width="1200" height="630" loading="eager">
+  <img src="../../assets/covers/day-24-gpu-scheduling-resource-management.png" alt="Cover: Day 24 — GPU Scheduling as Resource Management" width="1200" height="630" loading="eager">
 </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>LLM-as-judge output is just another event type &mdash; store it like you store metrics. This sounds obvious until you look at how most teams actually instrument their eval pipelines: a batch script that runs every night, writes results to a spreadsheet, and fires a Slack alert if scores drop below a threshold. That is not an evaluation system. That is a cron job with a clipboard.</p>
+<p>The GPU scheduling problem looks exotic until you realize you have already solved it for CPU and memory. A GPU is a compute device with a fixed RAM budget &mdash; VRAM &mdash; and a fixed parallel execution capacity &mdash; streaming multiprocessors. A model that does not fit in VRAM cannot run. Two models that each claim the full VRAM cannot coexist. The question the scheduler must answer is the same question a Linux kernel answers for CPU processes: how do you multiplex finite compute and memory across competing workloads with isolation guarantees?</p>
 
-<p>The right mental model is the one I already use for infrastructure: evaluations are a continuous stream of scored events, emitted alongside production inference, partitioned by model version, and stored in the same ClickHouse table as inference cost. When that connection is in place, a cost anomaly query and a quality regression query share the same schema and the same pipeline. You don&rsquo;t investigate them separately &mdash; you run a single join.</p>
+<p>What makes the GPU case interesting is that the unit of work &mdash; a forward pass through a neural network &mdash; is not preemptible at low cost. You cannot interrupt a matrix multiplication halfway through and resume it on another device. The batch window, the KV cache, and the weight tensors are all in VRAM for the duration of the request. The scheduler has to know this, because Kubernetes&rsquo; default resource model does not.</p>
 
-<p>This post walks through the eval event schema, LLM-as-judge as a Kafka producer, the ClickHouse aggregation that gives you a rolling quality score per model version, and the join that surfaces cost-quality tradeoff per flag state.</p>
+<p>This post covers the three mechanisms that give you real control: MIG partitions (isolated VRAM slices), tensor parallelism (sharding a model across multiple GPUs), and Kubernetes extended resources (making VRAM a first-class scheduler input). The goal is to be able to reason about GPU placement decisions the same way I reason about pod resource requests.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; quality control station on the assembly line</div>A batch eval suite is like a quality inspection shift that runs at 2 AM: it samples products from the previous day&rsquo;s run and reports defect rates. Continuous eval is a sensor on the assembly line that scores every unit as it passes. The difference is not just temporal precision &mdash; it is observability. You can only catch the failure mode where quality degraded at 3 PM Tuesday if you were measuring at 3 PM Tuesday.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; parking garage floors</div>A GPU without MIG is a parking garage with one enormous floor: every car (model) parks on the same level, and a truck that fills the entire floor prevents any other car from entering. MIG divides the garage into separate floors with their own ramps and barriers &mdash; a 3GS MIG instance is one floor, a 7GS instance is the whole garage. Cars on different floors cannot collide, and a full floor does not affect the others. Kubernetes extended resources are the parking attendant who checks available floors before letting a car in.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">event schema</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">inference calls per eval</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">ClickHouse join</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;5min</span><span class="stat-label">quality window lag</span></div>
+  <div class="stat-cell"><span class="stat-num">80 GB</span><span class="stat-label">A100 SXM VRAM</span></div>
+  <div class="stat-cell"><span class="stat-num">7</span><span class="stat-label">MIG GI instances max</span></div>
+  <div class="stat-cell"><span class="stat-num">8</span><span class="stat-label">GPUs per DGX A100</span></div>
+  <div class="stat-cell"><span class="stat-num">NVLink</span><span class="stat-label">tensor parallel bus</span></div>
 </div>
 
-<h2 id="batch-vs-continuous">Why batch eval suites miss what matters</h2>
+<h2 id="why-vram-is-not-like-ram">Why VRAM is not like RAM</h2>
 
-<p>A batch eval suite runs over a curated sample of prompts with known good outputs. It is useful for pre-deploy regression testing &mdash; exactly the same use case as a unit test suite. But it has the same blind spot: it tests over the distribution you anticipated, not the distribution you got. Production traffic shifts. Users find edge cases your curated set doesn&rsquo;t cover. Model providers update their models with version bumps that change behavior on long-tail inputs first.</p>
+<p>RAM in a CPU system is addressed linearly and managed by the kernel memory allocator. If a process exceeds its allocation, the kernel pages it out to disk. The process slows down but continues running. VRAM has no paging equivalent in production inference. An OOM on a GPU during a forward pass kills the process immediately, or in the best case, forces a full model reload from CPU RAM into GPU memory &mdash; an operation that takes seconds, not milliseconds.</p>
 
-<p>Distribution shift is invisible to batch eval. A model that scores 0.91 on your curated set and 0.73 on the long-tail inputs arriving in production on Wednesday afternoon looks fine in the nightly eval report. The nightly report uses last night&rsquo;s sample, not Wednesday&rsquo;s production inputs. A continuous eval stream sees Wednesday&rsquo;s traffic because it scores events as they happen.</p>
+<p>The second difference is that VRAM fragmentation is not recoverable at runtime. A 40 GB model loaded into an 80 GB A100 leaves 40 GB free, but if you load a second 24 GB model and then unload the first, the freed 40 GB is contiguous, but only if the allocator is friendly. Real workloads allocate and release KV cache tensors for active requests, activation buffers during batching, and static weight tensors for multiple loaded models. The memory layout is not clean, and the only robust strategy is to pre-plan occupancy before loading models, not to react after OOMs.</p>
 
-<p>The second failure mode is temporal blindness. A batch eval cannot tell you <em>when</em> quality changed. It can tell you that quality between Monday and Tuesday was 0.88 and quality between Tuesday and Wednesday was 0.74. The continuous stream can tell you it changed at 14:37 UTC when a flag weight advanced from 20% to 50%. That timestamp is what links the quality drop to the flag audit log entry.</p>
+<p>This is why static VRAM budgeting &mdash; deciding at deployment time which models fit on which GPUs &mdash; is more reliable than dynamic allocation. It is less flexible, but it eliminates the entire class of failures caused by models failing to load under concurrent traffic.</p>
 
-<div class="attr-box team"><div class="attr-label">LLM-as-judge is a probability estimator, not a ground truth oracle</div>A judge model outputs a score that reflects its own training distribution&rsquo;s notion of &ldquo;good.&rdquo; It can be calibrated by comparing its scores against human labels on a validation set. Use it as a relative signal &mdash; version A scores higher than version B on this judge, at this confidence level &mdash; not as an absolute quality certificate. The signal is useful; the number is not ground truth.</div>
+<h2 id="mig-guaranteed-partitions">MIG: guaranteed partitions</h2>
 
-<h2 id="eval-event-schema">The eval event schema</h2>
+<p>Multi-Instance GPU (MIG) is NVIDIA&rsquo;s hardware-level partitioning for the A100 and H100. Each MIG instance is a separate GPU Instance (GI) with its own memory slice, its own compute slices (Streaming Multiprocessors assigned exclusively), and its own L2 cache partition. Two MIG instances on the same physical GPU cannot access each other&rsquo;s memory or starve each other&rsquo;s compute.</p>
 
-<p>An eval event is a scored record of one inference output assessed by a judge. The minimum viable schema has eight fields. <code>eval_run_id</code> ties the eval event back to the inference event that produced the output being scored. <code>model_id</code> and <code>resolved_model_id</code> mirror the inference event fields so you can join without going back to the inference table. <code>judge_model</code> is the fully-qualified model ID of the judge &mdash; important because different judge models give different score distributions.</p>
+<p>The available configurations on an A100 80GB are defined by NVIDIA and are not arbitrary. A 7GS (7 GPU Slices, full GPU) is the whole A100 undivided. A 3GS instance gets approximately 40 GB VRAM and 28 SMs. A 2GS instance gets roughly 20 GB and 14 SMs. You can combine instances that add up to the physical GPU &mdash; three 2GS instances plus one 1GS, or two 3GS instances, and so on. You cannot define a custom split.</p>
 
-<p><code>prompt_hash</code> is a content hash of the input prompt, allowing you to group evaluations of the same prompt across different model versions. <code>score</code> is a float between 0 and 1 normalized from the judge&rsquo;s output. <code>latency_ms</code> is the end-to-end time of the eval call &mdash; because judge calls are inference calls and they have a cost. <code>timestamp</code> is event time, not ingest time.</p>
-
-<pre><code>CREATE TABLE llm_eval_events (
-  eval_run_id      String,
-  inference_id     String,
-  model_id         String,
-  resolved_model_id String,
-  judge_model      String,
-  prompt_hash      String,
-  score            Float32,
-  latency_ms       UInt32,
-  timestamp        DateTime64(3)
-) ENGINE = MergeTree()
-ORDER BY (resolved_model_id, timestamp)
-PARTITION BY toYYYYMMDD(timestamp);</code></pre>
-
-<p>The partition key is date. The ordering key is <code>(resolved_model_id, timestamp)</code>, which makes the rolling quality score query &mdash; average score per model version over a sliding window &mdash; a sequential scan on a narrow key range. You are not doing a full-table scan; you are doing a sorted scan on the last N minutes of a single model version.</p>
-
-<h2 id="llm-as-judge">LLM-as-judge as a Kafka producer</h2>
-
-<p>The judge is an inference call. It takes the original prompt and the model&rsquo;s output and asks a judge model to rate the output on a 0&ndash;10 scale, which you normalize to 0&ndash;1. That normalization is the only post-processing step. Everything else is just another inference call and another Kafka produce.</p>
-
-<p>The partition key for the <code>llm-eval-events</code> topic is <code>model_id:tenant_id</code>. This keeps all eval events for the same model version on the same partition, which enables per-partition consumer lag monitoring as a quality latency signal. If the eval consumer for <code>gpt-4-turbo-2024-04-09:acme-corp</code> is lagging, quality scores for that model+tenant combination are stale. You detect this from Kafka consumer lag metrics before the ClickHouse query returns stale results.</p>
+<p>The practical effect is that a 13B parameter model that needs 26 GB VRAM at fp16 fits comfortably in a 3GS MIG instance. A 7B model at fp16 needing 14 GB fits in a 2GS instance. A 70B model at fp16 needing 140 GB spans two full A100s in tensor parallel mode, because no single MIG instance is large enough.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -288,105 +266,76 @@ PARTITION BY toYYYYMMDD(timestamp);</code></pre>
   }
 }}%%
 flowchart LR
-    A["Production Inference"] --> B["inference_events\nKafka topic"]
-    B --> C["Eval Producer\nsidecar"]
-    C --> D["Judge Model\nAPI call"]
-    D --> E["llm-eval-events\nKafka topic"]
-    E --> F["ClickHouse\nllm_eval_events"]
+    subgraph A100["A100 80GB"]
+      M1["3GS instance\n~40GB VRAM\nModel A 13B"]
+      M2["3GS instance\n~40GB VRAM\nModel B 13B"]
+    end
+    subgraph A100b["A100 80GB"]
+      M3["2GS instance\n~20GB VRAM\nModel C 7B"]
+      M4["2GS instance\n~20GB VRAM\nModel D 7B"]
+      M5["1GS instance\n~10GB VRAM\nRouter sidecar"]
+    end
+    R["Traffic\nRouter"] --> M1
+    R --> M2
+    R --> M3
+    R --> M4
 </pre>
 
-<h2 id="clickhouse-aggregation">ClickHouse: rolling quality score per model version</h2>
+<h2 id="tensor-parallelism">Tensor parallelism: sharded inference</h2>
 
-<p>The canonical query is a rolling 1-hour average quality score grouped by <code>resolved_model_id</code>. With the ordering key on <code>(resolved_model_id, timestamp)</code>, this is a fast range scan. You run it every 5 minutes as a materialized view and expose it via Grafana. The panel shows a line per model version, and a drop in any line triggers an alert.</p>
+<p>Tensor parallelism is the inference-time equivalent of horizontal partitioning in distributed databases. A single model too large for one GPU&rsquo;s VRAM is split across multiple GPUs, with each GPU holding a shard of the weight tensors. During the forward pass, each GPU computes its shard of the matrix multiply, then the results are aggregated via an all-reduce operation across the GPU group before passing to the next layer.</p>
 
-<pre><code>SELECT
-  resolved_model_id,
-  avg(score) AS quality_score_1h,
-  count()    AS eval_count,
-  avg(latency_ms) AS avg_judge_latency_ms
-FROM llm_eval_events
-WHERE timestamp >= now() - INTERVAL 1 HOUR
-GROUP BY resolved_model_id
-ORDER BY quality_score_1h ASC;</code></pre>
+<p>The coordination primitive is the all-reduce: every GPU in the tensor parallel group must exchange results at each transformer layer boundary. This requires a high-bandwidth, low-latency interconnect. On NVIDIA DGX systems, NVLink provides 600 GB/s bidirectional bandwidth between GPUs in the same node. Across nodes, InfiniBand is the standard. The rule of thumb is that tensor parallelism within a node over NVLink is efficient; across nodes it becomes communication-bound for large models.</p>
 
-<p>The ordering by <code>quality_score_1h ASC</code> puts the worst-performing model version at the top &mdash; the one that needs attention first. This is intentional. You are not building a leaderboard; you are building a triage queue.</p>
+<p>The practical split for a 70B model is tensor parallel degree 4 (four A100s, each holding 25% of the weight tensors) or degree 8 (a full DGX node). At degree 4 with 80 GB A100s, each GPU holds 35 GB of weights in fp16, leaving 45 GB for KV cache and activation buffers. The all-reduce at each layer adds 3&ndash;5 ms of latency, which is acceptable for time-to-first-token budgets above 50 ms but is a real cost at lower latency targets.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; temperature probe in a greenhouse</div>A batch eval is like checking the greenhouse temperature at 9 AM and 5 PM. If you&rsquo;re only measuring twice a day, you miss the noon spike that killed the seedlings. A continuous rolling average is the thermostat readout &mdash; you know the temperature now, you know the trend, and you can act before the damage is done. The query is the readout; the materialized view is the thermostat.</div>
+<h2 id="k8s-extended-resources">Kubernetes extended resources and the device plugin</h2>
 
-<h2 id="cost-quality-join">The cost-quality join: closing the loop</h2>
+<p>Kubernetes does not know about GPUs natively. It models compute resources as CPU millicores and memory bytes. A GPU is exposed to Kubernetes through a device plugin &mdash; a DaemonSet that runs on each GPU node, discovers the available GPU devices (or MIG instances), and advertises them as extended resources on the node.</p>
 
-<p>The most important query in the eval pipeline is not the quality score in isolation. It is the join between <code>llm_eval_events</code>, <code>inference_events</code>, and the flag audit log. This join tells you: for each flag state (each pair of consecutive audit entries), what was the average quality score and the total cost? That is the cost-quality tradeoff per rollout stage.</p>
+<p>NVIDIA&rsquo;s device plugin advertises <code>nvidia.com/gpu</code> extended resources for full GPUs, and <code>nvidia.com/mig-3g.40gb</code> (and similar) for specific MIG profiles. A pod that requests <code>nvidia.com/mig-3g.40gb: 1</code> in its resource spec is asking the Kubernetes scheduler to place it on a node that has that MIG profile available. The scheduler treats extended resources exactly like CPU and memory &mdash; it will not schedule the pod if no node has the requested resource available.</p>
 
-<pre><code>SELECT
-  e.resolved_model_id,
-  avg(ev.score)             AS quality_score,
-  sum(i.cost_usd)           AS total_cost_usd,
-  count(i.event_id)         AS request_count
-FROM inference_events i
-JOIN llm_eval_events ev ON i.event_id = ev.inference_id
-WHERE i.timestamp BETWEEN {flag_changed_at_prev} AND {flag_changed_at_curr}
-GROUP BY e.resolved_model_id
-ORDER BY quality_score DESC;</code></pre>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; connection pool limits</div>A database connection pool has a fixed size: 100 connections. A service that requests 10 connections at startup is telling the pool manager to reserve 10 slots. If every service requests 10 and the pool is 100, you can run exactly 10 service instances. The device plugin is the pool manager for GPU resources. Kubernetes resource requests are each service&rsquo;s claim against the pool. The scheduler refuses to start a pod that would exceed the pool, the same way a connection pool blocks if all slots are taken.</div>
 
-<p>The timestamp range comes from the flag audit log: two consecutive <code>changed_at</code> entries define a flag state interval. The query runs over that interval. The result is a row per model version showing what the quality-cost tradeoff actually was at that rollout percentage &mdash; not estimated before the rollout, but measured from production traffic.</p>
+<p>The gap in the default model is that <code>nvidia.com/gpu: 1</code> requests a full GPU but does not specify VRAM. A node with one A100 and a pod requesting <code>nvidia.com/gpu: 1</code> will be scheduled together, whether the pod needs 10 GB or 75 GB of VRAM. MIG profiles close this gap by making VRAM part of the resource name: requesting <code>nvidia.com/mig-3g.40gb</code> is requesting 40 GB of isolated VRAM, not just &ldquo;a GPU.&rdquo;</p>
 
-<p>This is the data that drives the canary advance decision. At Step 3 (50% rollout), the advance condition is: quality score for <code>model-v2</code> within ±3% of <code>model-v1</code> AND cost delta accepted. Both inputs are now queryable from the same pipeline.</p>
+<h2 id="cost-attribution">Scheduling for cost accuracy</h2>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    A["Flag Audit Log\nchanged_at timestamps"] --> B["Timestamp interval"]
-    B --> C["inference_events\nJOIN llm_eval_events"]
-    C --> D["Quality score\nper model version"]
-    C --> E["Cost per\nmodel version"]
-    D --> F["Advance decision\nfor canary stage"]
-    E --> F
-</pre>
+<p>The reason GPU resource scheduling matters for LensAI is cost attribution. LensAI tracks inference cost per request, per model version, and per tenant. If two models share a physical GPU without MIG, and one model runs 60% of the requests while the other runs 40%, attributing GPU cost is a best-effort estimate based on request count. If the two models run on separate MIG instances, cost attribution is exact: each MIG instance has a known VRAM allocation, a known SM allocation, and a known utilization metric.</p>
 
-<h2 id="eval-sampling">Eval sampling rate and cost budget</h2>
+<p>The distributed-flagd canary rollout from Day 24 demonstrates why this precision matters. When the flag weight advances from 10% gpt-4o to 50% gpt-4o, the GPU cost profile changes. If gpt-4o runs on a MIG 3GS instance and gpt-4o-mini runs on a MIG 2GS instance, the Grafana cost split panel shows not just request volume but actual GPU resource consumption per model version. The cost jump at the 50% transition is measurable, not inferred.</p>
 
-<p>You do not eval every request. At high traffic, running a judge model call on every inference event doubles your inference spend. The practical sampling rate is 5&ndash;10% of requests, stratified by <code>resolved_model_id</code> so both model versions get evaluated at the same rate. During a rollout, you may increase the sampling rate for the canary variant to build signal faster.</p>
+<p>The ingestion event schema already carries <code>resolved_model_id</code> from the Day 23 model evaluator. The next addition is <code>gpu_partition</code> &mdash; the MIG instance ID or full GPU ID that served the request, read from the container&rsquo;s device plugin allocation. With that field, cost-per-request becomes cost-per-VRAM-slice-per-request, which is the granularity you need to make economic canary rollout decisions rather than quality-only decisions.</p>
 
-<p>The sampling decision happens at the eval producer, not at the inference layer. The inference event is always written to Kafka. The eval producer reads from the inference events topic and writes to the eval events topic for the sampled fraction. This keeps the eval budget separate from the inference budget and lets you adjust the rate without touching the ingestion path.</p>
+<h2 id="what-this-means">What I took from this</h2>
 
-<p>The eval call adds a judge model latency budget &mdash; typically 200&ndash;500ms for a GPT-4-class judge &mdash; that is separate from the production request latency. Users never wait for it. The eval pipeline is async and out-of-band, consuming from Kafka at the rate the judge can handle rather than at the rate production traffic arrives.</p>
+<p>The clearest insight from reading about MIG and tensor parallelism is that GPU infrastructure forces you to make the same decisions you make in any multi-tenant distributed system: how do you carve finite shared resources into isolated, predictable allocations? MIG is the answer for single-GPU multi-tenancy. Tensor parallelism is the answer for models that exceed single-GPU capacity. Kubernetes extended resources are the scheduler integration that makes both visible to the control plane.</p>
+
+<p>What surprised me is how closely MIG mirrors CPU NUMA node affinity. A NUMA node pins processes to a CPU group with local memory bandwidth. A MIG instance pins a model to a compute group with local VRAM. The topology matters in both cases &mdash; a process that crosses NUMA boundaries pays a memory latency penalty, and a tensor parallel job that crosses NVLink boundaries pays a communication latency penalty. The hardware topology is a constraint the scheduler should respect, not paper over.</p>
+
+<p>For LensAI, the practical takeaway is that the observability pipeline needs a GPU topology dimension in the event schema. Not just which model, but which GPU, which MIG profile, and whether the request was served from a tensor parallel group. That dimension is what turns &ldquo;GPU costs went up&rdquo; into &ldquo;the gpt-4o workload is consuming a 3GS MIG instance at 94% utilization during peak, and we can either reduce the canary weight or provision another MIG instance.&rdquo; The first statement is an alert. The second is a decision.</p>
 
 <div class="series-footer">
-  <p><em>Day 23 of 150 &mdash; Evaluations as Event Streams. Staff engineer working on AI infrastructure and distributed systems.</em></p>
-  <p><em>Previous: <a href="day-22-feature-flags-model-rollouts.html">Day 22 &mdash; Feature Flags for Model Rollouts</a></em></p>
-  <p><em>Next: <a href="day-24-gpu-scheduling-resource-management.html">Day 24 &mdash; GPU Scheduling as Resource Management</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</a></em></p>
+  <p><em>Day 24 of 150 &mdash; GPU Scheduling as Resource Management. Staff engineer working on AI infrastructure and distributed systems.</em></p>
+  <p><em>Previous: <a href="day-23-evaluations-as-event-streams.html">Day 23 &mdash; Evaluations as Event Streams</a></em></p>
+  <p><em>Next: Day 25 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html">Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="day-23-evaluations-as-event-streams.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 23 &mdash; Evaluations as Event Streams
+    </a>
     <a href="day-22-feature-flags-model-rollouts.html">
       <span class="footnote-arrow">&#x2197;</span>
       Day 22 &mdash; Feature Flags for Model Rollouts
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/45">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/46">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 23 code: distributed-flagd model evaluator + resolved_model_id (PR #45)
-    </a>
-    <a href="https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/avg">
-      <span class="footnote-arrow">&#x2197;</span>
-      ClickHouse avg() aggregate documentation
+      Day 24 code: distributed-flagd K8s CRD FlagDefinition + Helm chart (PR #46)
     </a>
   </div>
 </div>
@@ -400,22 +349,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#batch-vs-continuous">Batch vs continuous eval</a></li>
-      <li><a href="#eval-event-schema">Eval event schema</a></li>
-      <li><a href="#llm-as-judge">LLM-as-judge as producer</a></li>
-      <li><a href="#clickhouse-aggregation">Rolling quality score</a></li>
-      <li><a href="#cost-quality-join">Cost-quality join</a></li>
-      <li><a href="#eval-sampling">Sampling rate</a></li>
+      <li><a href="#why-vram-is-not-like-ram">Why VRAM is not like RAM</a></li>
+      <li><a href="#mig-guaranteed-partitions">MIG: guaranteed partitions</a></li>
+      <li><a href="#tensor-parallelism">Tensor parallelism</a></li>
+      <li><a href="#k8s-extended-resources">Kubernetes extended resources</a></li>
+      <li><a href="#cost-attribution">Scheduling for cost accuracy</a></li>
+      <li><a href="#what-this-means">What I took from this</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+23+%E2%80%94+Evaluations+as+Event+Streams&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+24+%E2%80%94+GPU+Scheduling+as+Resource+Management&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
