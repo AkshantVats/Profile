@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth | Experience Series</title>
-<meta name="description" content="Wayfair PAS analytics: why BigQuery streaming inserts fail under burst pricing runs, how slot exhaustion taught me to stop treating 'real-time' analytics as a given, and what pas-analytics Pub/Sub taught me about building the distributed-flagd audit topic.">
-<meta property="og:title" content="Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth">
-<meta property="og:description" content="Wayfair · PAS analytics · pas-analytics Pub/Sub — when slot exhaustion makes 'real-time' analytics unreliable and batch is the honest answer.">
+<title>Day 25 — Cost Models for LLM Gateways | AI Learning Series</title>
+<meta name="description" content="Cache hit rate × cheaper model route × prompt cache — building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics, and why numbers must justify the architecture.">
+<meta property="og:title" content="Day 25 — Cost Models for LLM Gateways">
+<meta property="og:description" content="Cache hit rate × cheaper model route × prompt cache — the spreadsheet that justifies the repo. How inference economics drive LensAI's routing and observability design.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-bigquery-streaming-batch-burst-truth.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-cost-models-llm-gateways.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-24-bigquery-streaming-batch-burst-truth.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-cost-models-llm-gateways.png">
 <meta property="article:published_time" content="2026-06-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,66 +185,72 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 24 of 150</span>
-    <span class="tag">BigQuery</span>
-    <span class="tag">Pub/Sub</span>
-    <span class="tag">Wayfair</span>
-    <span class="tag">Analytics</span>
-    <span class="tag">Streaming</span>
+    <span class="tag accent">AI Learning &middot; Day 25 of 150</span>
+    <span class="tag">LLM Gateway</span>
+    <span class="tag">Cost Models</span>
+    <span class="tag">Prompt Cache</span>
+    <span class="tag">Model Routing</span>
+    <span class="tag">Inference</span>
   </div>
-  <h1 class="post-title">Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth</h1>
-  <p class="post-subtitle">Wayfair &middot; PAS analytics &middot; pas-analytics Pub/Sub &mdash; what slot exhaustion taught me about trusting &ldquo;real-time&rdquo; analytics</p>
+  <h1 class="post-title">Day 25 &mdash; Cost Models for LLM Gateways</h1>
+  <p class="post-subtitle">Cache hit rate &times; cheaper model route &times; prompt cache &mdash; the spreadsheet that justifies the repo</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &middot; Day 25 of 150</span>
+    <div class="meta-divider"></div>
     <span class="meta-item">June 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
-    <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 24 of 150</span>
+    <span class="meta-item">11 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
-<figure class="post-cover">
-  <img src="../../assets/covers/day-24-bigquery-streaming-batch-burst-truth.png" alt="Cover: Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth" width="1200" height="630" loading="eager">
-</figure>
+  <figure class="post-cover">
+    <img src="../../assets/covers/day-25-cost-models-llm-gateways.png" alt="Day 25 — Cost Models for LLM Gateways" width="1200" height="630" loading="lazy">
+  </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I first noticed the gap in a weekly business review. The pricing indices dashboard &mdash; built on BigQuery over the <code>pas-analytics</code> Pub/Sub pipeline &mdash; was showing numbers that lagged reality by thirty minutes. Not missing data, just old data. Everything downstream of PAS Core was technically fine. The events had arrived in Pub/Sub. BigQuery could see them. The dashboard just could not see them yet.</p>
+<p>The most common mistake I see in LLM infrastructure is building the routing layer before building the cost model. Teams deploy a gateway, route 100% of traffic to gpt-4o because it&rsquo;s the best model they tested, and receive the first monthly API bill with a mix of shock and regret. The cost per request is not a surprise &mdash; the prices are published. What surprises people is the volume &times; cost product at scale, and the realization that a 5&times; cheaper model would have served 80% of those requests equally well.</p>
 
-<p>The cause was a full-catalog pricing run. Pilgrim had kicked off a sweep, Delphi had processed millions of price updates, and PAS Core had published a corresponding burst of analytics events to <code>pas-analytics</code>. The streaming insert path into BigQuery had hit its slot quota. Under normal load the streaming path was invisible &mdash; events appeared in BigQuery seconds after being published. Under the burst of a full-catalog run, the streaming path silently degraded to batch behavior while the dashboard continued showing a &ldquo;real-time&rdquo; data freshness indicator.</p>
+<p>Build the spreadsheet before the Rust. The numbers justify the repo.</p>
 
-<p>This post is about the difference between streaming and batch in BigQuery when your traffic profile is not flat &mdash; and why treating &ldquo;real-time analytics&rdquo; as a given is a mistake that only reveals itself during burst.</p>
+<p>This post covers the three primary cost levers in an LLM gateway: prompt cache hit rate, model routing to cheaper variants, and prompt caching (prefix caching). Each lever is independently useful, but the maximum savings come from understanding how they compound. I&rsquo;ll also cover how LensAI&rsquo;s event schema is designed to measure each lever in production, because a cost model you cannot measure is a cost model you cannot optimize.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the restaurant ticket window</div>A restaurant kitchen handles steady dinner service comfortably: each ticket arrives, the line handles it, plates go out in five minutes. Then a tour bus pulls in and drops off sixty tickets at once. The kitchen can&rsquo;t cook sixty meals in parallel. Plates queue up. The &ldquo;estimated wait: 5 minutes&rdquo; sign on the door is still technically true &mdash; it just no longer applies. BigQuery streaming inserts under burst are the kitchen. The slot quota is the number of stoves.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the taxi dispatch board</div>A city&rsquo;s taxi dispatcher has three dials: which tier of car to send (economy vs executive), whether the passenger was a repeat caller with a known destination (faster dispatch), and whether to hold a car near a busy zone based on historical demand (cache warming). Each dial saves money independently. The dispatcher who turns all three at once and understands how they interact saves the most. An LLM gateway&rsquo;s cost levers work the same way: model tier, prompt cache, and routing rules are each a dial. The cost model is the dashboard that tells you where each dial is set and how much each position is costing.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">~3,414</span><span class="stat-label">PAS RPS avg</span></div>
-  <div class="stat-cell"><span class="stat-num">~15,263</span><span class="stat-label">PAS RPS peak</span></div>
-  <div class="stat-cell"><span class="stat-num">295M+</span><span class="stat-label">daily PAS requests</span></div>
-  <div class="stat-cell"><span class="stat-num">600s</span><span class="stat-label">Datastream freshness</span></div>
+  <div class="stat-cell"><span class="stat-num">~5&times;</span><span class="stat-label">gpt-4o vs mini cost ratio</span></div>
+  <div class="stat-cell"><span class="stat-num">~90%</span><span class="stat-label">prompt cache discount</span></div>
+  <div class="stat-cell"><span class="stat-num">50%+</span><span class="stat-label">typical cache hit rate</span></div>
+  <div class="stat-cell"><span class="stat-num">80%+</span><span class="stat-label">tasks mini handles well</span></div>
 </div>
 
-<h2 id="the-streaming-assumption">The streaming insert assumption</h2>
+<h2 id="the-cost-components">The three cost components</h2>
 
-<p>BigQuery streaming inserts are exactly what they sound like: you write a row, it appears in query results within seconds. The Pub/Sub to BigQuery pipeline using streaming inserts feels like a distributed log with a SQL query layer on top. For moderate, predictable traffic, it works like that.</p>
+<p>LLM API pricing has three line items that matter for a gateway operator: input tokens (the prompt), output tokens (the completion), and cached input tokens (input tokens served from a provider-side prompt cache). Output tokens are the most expensive &mdash; they require sequential generation from the model, one token at a time. Input tokens are cheaper per token but often dominate in volume because long system prompts and context windows dwarf the completion in many applications. Cached input tokens are dramatically cheaper: OpenAI charges roughly 10% of the normal input token price for tokens served from cache.</p>
 
-<p>The assumption buried inside streaming inserts is that your slot allocation can absorb the insert rate. BigQuery slots are the unit of compute capacity for processing data &mdash; for inserts, for queries, for the internal machinery that makes data queryable after it arrives. Slots are pooled across all operations in a project. A pricing run that triggers millions of Dataflow batch jobs, hundreds of ad-hoc analyst queries, and a burst of streaming inserts simultaneously is not the use case the dashboard team was modeling when they built the freshness indicator.</p>
+<p>The cost formula for a single request is:</p>
 
-<p>The PAS analytics pipeline published events to <code>pas-analytics</code> Pub/Sub in Avro format after every price adjustment operation. During normal operation &mdash; ~3,414 RPS on PAS Core &mdash; the streaming insert rate was well within quota. During a full-catalog Pilgrim run, PAS Core hit ~15,263 RPS and the analytics event rate followed. The streaming insert path was not designed for 4.5x burst; the slot allocation was sized for normal operation.</p>
+<pre><code>cost = (input_tokens - cached_tokens) * input_price
+     + cached_tokens * cache_price
+     + output_tokens * output_price</code></pre>
 
-<h2 id="what-happens-at-burst">What happens when slots exhaust</h2>
+<p>At scale, the dominant term depends on your application. A RAG (Retrieval-Augmented Generation) application with a large fixed system prompt, few retrieved documents, and a short user question will find that cached_tokens dominates the input. A code generation application with long context windows and long completions will find that output_tokens dominates. A structured extraction application with short outputs and no repeated prompt prefix will find that input_tokens dominates. Understanding which term dominates determines which lever to pull first.</p>
 
-<p>BigQuery does not fail gracefully when streaming inserts hit slot pressure. The insert operation returns success &mdash; the row is accepted into an unprocessed buffer &mdash; but the row does not appear in query results until the buffer flushes. The buffer flushes when slots become available. During a pricing run with simultaneous Dataflow pipelines consuming most of the project&rsquo;s slots, that flush could be delayed by twenty to forty minutes.</p>
+<h2 id="prompt-caching">Prompt caching: the 90% discount</h2>
 
-<p>The dashboard saw a valid streaming insert response and showed the data freshness indicator as green. The data was not stale from the pipeline&rsquo;s perspective &mdash; it was sitting in BigQuery&rsquo;s internal buffer, successfully accepted, waiting for compute. From the business stakeholder&rsquo;s perspective, the dashboard was lying about how current the pricing indices were.</p>
+<p>Prompt caching, also called prefix caching, is a provider-side optimization that detects when an input prompt shares a common prefix with a recent request and serves the KV cache from the previous computation rather than recomputing it. The first request pays full input token price to fill the cache. Subsequent requests with the same prefix pay the cache price, which is roughly 10% of the full price on OpenAI&rsquo;s API and free on Anthropic&rsquo;s API for Claude models.</p>
+
+<p>The cache key is the prompt prefix itself &mdash; the first N tokens of the input, where N is determined by the cache block size. For most providers, the cacheable prefix must be at least 1,024 tokens. Your system prompt, which might be 500&ndash;2,000 tokens of instructions and examples, is the primary candidate. If your system prompt is identical across all requests for a tenant, every request after the first pays only 10% of the system prompt&rsquo;s token cost.</p>
+
+<p>The catch is prefix order. The prompt must be structured so that the stable, long-lived content comes first and the variable content (the user&rsquo;s question, the retrieved documents) comes last. A gateway that appends retrieved context between the system prompt and the user question breaks the cache key on every request, because the cacheable prefix is now &ldquo;system prompt + these specific 3 documents&rdquo; rather than just &ldquo;system prompt.&rdquo; Structuring prompts for cache hit rate is an API design decision, not a performance tuning step.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -264,72 +270,77 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    A["PAS Core\n~3.4k RPS avg\n~15k RPS burst"] --> B["pas-analytics\nPub/Sub (Avro)"]
-    B --> C{"Streaming inserts\nnormal load"}
-    B --> D{"Slot pressure\nburst load"}
-    C -- "slots available" --> E["BigQuery\nqueryable in &lt;10s"]
-    D -- "slots contended" --> F["BigQuery buffer\nflush delayed 20-40m"]
-    F --> G["Dashboard shows\nstale pricing indices"]
-    E --> H["Dashboard\ncurrent data"]
+    A["Request: system prompt\n+ user question"] --> B{"Provider KV\ncache hit?"}
+    B -- "yes (same prefix)" --> C["Cache price\n~10% of input rate\n+ output tokens"]
+    B -- "no (new prefix)" --> D["Full input price\nfill cache\n+ output tokens"]
+    C --> E["Response"]
+    D --> F["Cache stored\nfor next request"]
+    F --> E
 </pre>
 
-<div class="attr-box team"><div class="attr-label">What the Wayfair PAS team built</div>The <code>pas-analytics</code> Pub/Sub pipeline, the Dataflow pipelines running GBQ-to-CloudSQL and GBQ-to-Bigtable, and the BigQuery dataset schema were built and owned by the PAS engineering team. I worked on monitoring the pipeline&rsquo;s health during pricing runs, identifying the slot exhaustion pattern through Datadog traces and BigQuery INFORMATION_SCHEMA queries, and the recommendation to classify analytics writes by urgency. The slot allocation and quota decisions were infrastructure team scope, not PAS team scope.</div>
+<h2 id="model-routing">Model routing: the 5&times; multiplier</h2>
 
-<h2 id="the-slot-budget">The slot budget problem</h2>
+<p>The second lever is routing requests to a cheaper model when the task does not require the most capable one. gpt-4o-mini costs roughly one-fifth of gpt-4o for both input and output tokens. For tasks like intent classification, entity extraction, summarization of short documents, and simple question-answering, gpt-4o-mini performs at parity with gpt-4o on most benchmarks. The cost difference per request is not 5&times; in favor of mini &mdash; it is 5&times; in favor of mini only when output quality is equivalent.</p>
 
-<p>The underlying issue was not BigQuery&rsquo;s design &mdash; it was that the pricing platform had never explicitly modeled analytics write traffic as a resource class with its own slot budget. Dataflow batch pipelines were provisioned against estimated job sizes. Analyst queries had their own reservation. Streaming analytics inserts were assumed to be &ldquo;cheap&rdquo; relative to the batch jobs and were not allocated a dedicated reservation.</p>
+<p>The routing decision is a quality gate, not a random split. A naive 50/50 split between gpt-4o and gpt-4o-mini reduces average cost by ~2.5&times; but sacrifices quality on the half of requests that needed gpt-4o. The right model for this split is distributed-flagd: the <code>model_route</code> flag carries a percentage weight for each model variant. Starting at 10% gpt-4o-mini and advancing the weight based on quality metrics (user satisfaction scores, downstream task performance, evaluation pass rates) is the safe path to capturing the 5&times; savings without degrading quality.</p>
 
-<p>That assumption held during normal operation. It did not hold during a Pilgrim full-catalog run when Dataflow pipelines processing millions of rows, analyst teams running ad-hoc pricing queries, and the <code>pas-analytics</code> streaming inserts were all competing for the same shared slot pool simultaneously.</p>
+<p>The flag weight is not the end of the routing logic &mdash; it is the starting point. A production router should also consider request characteristics. A request with a short system prompt, a simple instruction, and no RAG context is a strong candidate for gpt-4o-mini. A request with a long multi-document context and a complex synthesis task is a candidate for gpt-4o. Routing rules encoded as flag variants &mdash; &ldquo;if prompt length &lt; 2000 tokens, use gpt-4o-mini&rdquo; &mdash; reduce cost without a quality A/B test because the selection criterion correlates with task complexity.</p>
 
-<p>The fix was not to switch entirely to batch. It was to separate the analytics write traffic into two urgency classes. Events that fed the WBR dashboard &mdash; the weekly business review numbers executives looked at &mdash; were written via a dedicated streaming reservation that was not shared with Dataflow batch jobs. Events that fed longer-running analysis had a 10-minute acceptable delay and used the Datastream path, which had an explicit <code>data_freshness</code> of 600s by design. The routing decision was made at publish time based on the event&rsquo;s destination topic tag.</p>
+<h2 id="the-cost-model-spreadsheet">Building the cost model first</h2>
 
-<h2 id="batch-is-honest">Batch is not slow, it is honest</h2>
+<p>What I did before writing the LensAI ingestion schema was build a cost model spreadsheet. Not a fancy tool &mdash; a Google Sheet with five columns: model, input_price, output_price, cache_price, and cache_hit_rate. Then a simulation row per traffic shape: high-volume short prompts, low-volume long-context RAG, and medium-volume code generation. For each row, compute the expected monthly cost at 100k requests/day at three routing splits: 100% gpt-4o, 80/20 gpt-4o/mini, 50/50.</p>
 
-<p>What I took from this is a preference for explicit latency contracts over implicit freshness claims. The Datastream path &mdash; PostgreSQL via Datastream into BigQuery with a 600-second data freshness &mdash; was designed around that contract. The schema for the source CloudSQL databases had explicit change-data-capture configuration. The Datastream connector documented the lag. Everyone who built dashboards on top of that path knew the latency.</p>
+<table>
+  <thead>
+    <tr><th>Model</th><th>Input $/1M</th><th>Output $/1M</th><th>Cache $/1M</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>gpt-4o</td><td>$2.50</td><td>$10.00</td><td>$1.25</td></tr>
+    <tr><td>gpt-4o-mini</td><td>$0.15</td><td>$0.60</td><td>$0.075</td></tr>
+    <tr><td>claude-3-5-haiku</td><td>$0.80</td><td>$4.00</td><td>free</td></tr>
+    <tr><td>claude-3-7-sonnet</td><td>$3.00</td><td>$15.00</td><td>free</td></tr>
+  </tbody>
+</table>
 
-<p>The streaming insert path was implicit about its latency under burst. The API returned 200 and callers assumed queryability. The mismatch between what the API promised and what the system delivered under slot pressure was invisible until someone noticed a number in a WBR that was thirty minutes stale.</p>
+<p>The spreadsheet surfaced two non-obvious insights. First, the break-even point for prompt cache investment depends on your cache hit rate. At 20% cache hit rate, the savings from caching a 1,000-token system prompt at gpt-4o prices are $0.45 per 1M requests. At 80% cache hit rate, the savings are $1.80 per 1M requests. The 80% scenario requires designing your prompt structure for cache efficiency &mdash; that design decision has a measurable dollar value before you write a line of code. Second, the combination of gpt-4o-mini routing and 80% cache hit rate produces a cost reduction of roughly 4&times; compared to 100% gpt-4o with no caching. The two levers compound, not add.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the post office vs the courier</div>A courier promises delivery in two hours. A courier under a city-wide mail surge promises delivery in two hours but actually delivers in six. The post office says &ldquo;up to three days&rdquo; and delivers in two &mdash; because its contract is honest about the worst case. Batch analytics is the post office. Streaming analytics under burst is the overpromising courier. The business stakeholders watching the WBR dashboard are the recipient waiting by the door.</div>
+<h2 id="measuring-in-lensai">Measuring each lever in LensAI</h2>
 
-<p>The batch path for the less time-sensitive analytics &mdash; the Dataflow pipelines processing millions of rows per pricing run &mdash; was not a limitation. It was an honest acknowledgment of what the system could sustain. The pipelines ran, they completed, the data appeared in BigQuery with a lag that was known and accounted for. Nothing broke. Nothing silently delayed. The latency was a parameter, not a surprise.</p>
+<p>A cost model is only useful if you can measure it in production. LensAI&rsquo;s ingestion event schema carries four fields that map directly to the cost formula: <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>cached_tokens</code>, and <code>resolved_model_id</code>. The <code>cached_tokens</code> field is populated from the provider&rsquo;s usage response &mdash; most LLM APIs return cached token counts in the <code>usage</code> object alongside prompt and completion counts.</p>
 
-<h2 id="audit-kafka-and-flagd">The bridge: what this means for flag audit events</h2>
+<p>With those four fields, ClickHouse can compute the actual cost of every request: not an estimate, not a projection, but the exact dollar amount based on the per-model pricing table. The Grafana cost panel shows cost split by model variant, which is exactly what you need to evaluate whether advancing the gpt-4o-mini flag weight from 10% to 50% changes the weekly invoice. The BENCHMARKS in distributed-flagd&rsquo;s flag evaluation QPS are the complementary metric: they prove that the control-plane latency of evaluating the model routing flag adds at most 0.2 ms per request, which is invisible against the 200&ndash;2000 ms of LLM API latency.</p>
 
-<p>The <code>pas-analytics</code> Pub/Sub topic is what I think of when I look at the audit log in distributed-flagd. The flagd audit log is an append-only topic of flag change events &mdash; when a flag was created, updated, enabled, disabled, and by whom. Every flag evaluation that changes behavior produces a record in the audit log that is independent of etcd&rsquo;s current state.</p>
+<div class="attr-box mine"><div class="attr-label">Why QPS benchmarks justify the flag system</div>The distributed-flagd system evaluates flags on every inference request. At 50k requests per day and 0.2 ms per flag evaluation, the flag system costs 10 CPU seconds per day &mdash; completely negligible. The cost savings from routing 80% of traffic to gpt-4o-mini at correct quality could be $2,000&ndash;$5,000 per month at moderate scale. The flag system&rsquo;s QPS benchmark is the evidence that the control-plane overhead does not eat the savings from the data-plane optimization.</div>
 
-<p>The lesson from <code>pas-analytics</code> is that the audit topic should be owned by the service, not by the consumer. PAS analytics worked reliably when the pipeline&rsquo;s slot allocation was controlled at the publisher level &mdash; when PAS Core decided which events went to which reservation. The flag audit log in distributed-flagd follows the same principle: the flagd service writes audit events unconditionally, and consumers (dashboards, compliance reports, replay tools) read from the log at their own pace.</p>
+<p>The third field I want to add to the schema is <code>cache_creation_tokens</code> &mdash; the number of input tokens that were not cached and therefore filled the cache for subsequent requests. This field lets you compute the &ldquo;cache write tax&rdquo;: the first requester pays full price to fill the cache that subsequent requesters draw on. For high-QPS tenants with a stable system prompt, the cache write tax is amortized across thousands of requests and is negligible. For low-QPS tenants with a changing system prompt, the cache write tax is never amortized and caching provides no benefit. Routing these tenants to a non-cached path reduces their costs and frees provider-side cache entries for higher-QPS tenants.</p>
 
-<p>Append-only, replayable, owned by the publisher. The architecture that made <code>pas-analytics</code> reliable under burst is the same architecture that makes a feature flag audit log trustworthy. So that the compliance team can ask &ldquo;what was the model rollout percentage for tenant X at 14:32 UTC&rdquo; and get an answer, even if etcd has been compacted since.</p>
+<h2 id="what-the-numbers-show">What the numbers actually show</h2>
 
-<h2 id="what-i-learned">What I took from this system</h2>
+<p>I ran the cost model for LensAI&rsquo;s own usage &mdash; the API calls it makes for the evaluation pipeline, not for external tenants. At current scale (roughly 5,000 evaluation requests per day), 100% gpt-4o with no caching costs approximately $18/month. Adding prompt caching with an 80% hit rate on the system prompt brings it to $9/month. Routing 70% of evaluation requests to gpt-4o-mini brings it to $3/month. The combination brings it to $1.50/month. The engineering effort to get from $18 to $1.50 is: add a system prompt prefix that never changes (1 hour), add the <code>cached_tokens</code> field to the ingestion schema (30 minutes), and advance the model routing flag to 70% gpt-4o-mini based on evaluation quality scores (1 hour).</p>
 
-<p>The most durable lesson is that &ldquo;real-time&rdquo; is a latency class, not a binary. A system that delivers data within ten seconds under normal load and within forty minutes under burst is not a real-time system &mdash; it is a variable-latency system with a misleading label. Designing for the burst case means naming the worst-case latency in the SLA, allocating resources against that worst case, and making sure dashboards reflect actual freshness rather than last-write time.</p>
-
-<p>The second lesson is about resource reservation. Shared slot pools are a reasonable default for a single team&rsquo;s workload. They become a footgun when multiple teams &mdash; Dataflow batch, analyst queries, streaming inserts &mdash; share the same pool without coordination. The pricing platform eventually moved to reservation-based slot allocation for the most latency-sensitive analytics writes. The move was not dramatic, but it made the WBR dashboard reliable by construction rather than by luck.</p>
-
-<p>Building distributed-flagd, I keep coming back to the same question: what is the worst-case latency for this operation, and have I made it explicit? The CRD reconciler syncs to etcd &mdash; that sync has a latency. The audit log has a flush interval. The gRPC watch stream has reconnect latency. None of these are streaming-insert style hidden surprises, because each one is documented as a parameter with a known worst case. The PAS analytics incident is the reason I write that documentation first.</p>
+<p>The spreadsheet makes this calculation explicit before any code is written. The savings are not a post-hoc discovery &mdash; they are a pre-planned outcome. That is why I built the cost model before building the routing layer. Numbers justify the architecture; architecture without numbers is just convention.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 24 of 150 &mdash; BigQuery Streaming vs Batch. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-23-osrm-5000-events-eta-infrastructure.html">Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure</a></em></p>
-  <p><em>Next: <a href="day-25-redis-rate-limits-lua-race-conditions.html">Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html">Day 24 &mdash; GPU Scheduling as Resource Management</a></em></p>
+  <p><em>AI Learning &middot; Day 25 of 150 &mdash; Cost Models for LLM Gateways. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-24-gpu-scheduling-resource-management.html">Day 24 &mdash; GPU Scheduling as Resource Management</a></em></p>
+  <p><em>Next: Day 26 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html">Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-23-osrm-5000-events-eta-infrastructure.html">
+    <a href="day-24-gpu-scheduling-resource-management.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 23 &mdash; OSRM at 5000 Events/sec &mdash; When ETA Becomes Infrastructure
+      Day 24 &mdash; GPU Scheduling as Resource Management
     </a>
-    <a href="day-22-h3-geospatial-indexing-surge-detection.html">
+    <a href="day-23-evaluations-as-event-streams.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 22 &mdash; H3 vs Bounding Boxes &mdash; Geospatial Indexing That Scales
+      Day 23 &mdash; Evaluations as Event Streams
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/46">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/47">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 24 code: distributed-flagd K8s CRD FlagDefinition + Helm chart (PR #46)
+      Day 25 code: distributed-flagd Kafka audit log + flagctl kill-switch (PR #47)
     </a>
   </div>
 </div>
@@ -338,27 +349,27 @@ flowchart TD
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div id="series-nav-mount" data-series-slug="experience"></div>
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-streaming-assumption">Streaming insert assumption</a></li>
-      <li><a href="#what-happens-at-burst">What happens at burst</a></li>
-      <li><a href="#the-slot-budget">Slot budget problem</a></li>
-      <li><a href="#batch-is-honest">Batch is honest</a></li>
-      <li><a href="#audit-kafka-and-flagd">Bridge to flagd audit</a></li>
-      <li><a href="#what-i-learned">What I took from this</a></li>
+      <li><a href="#the-cost-components">Three cost components</a></li>
+      <li><a href="#prompt-caching">Prompt caching 90% discount</a></li>
+      <li><a href="#model-routing">Model routing 5&times; multiplier</a></li>
+      <li><a href="#the-cost-model-spreadsheet">Cost model spreadsheet</a></li>
+      <li><a href="#measuring-in-lensai">Measuring in LensAI</a></li>
+      <li><a href="#what-the-numbers-show">What the numbers show</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+24+%E2%80%94+BigQuery+Streaming+vs+Batch+%E2%80%94+Burst+Traffic+Truth&url=https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+25+%E2%80%94+Cost+Models+for+LLM+Gateways&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
