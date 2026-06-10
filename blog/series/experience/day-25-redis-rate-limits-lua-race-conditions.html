@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 25 — Distributed Redis Rate Limits — Lua Scripts and Race Conditions | Experience Series</title>
+<meta name="description" content="Wayfair pricing platform: why Redis INCR+EXPIRE fails under concurrent load, how Lua scripts fix the race condition atomically, and what a Black Friday near-miss taught me about distributed rate limiting.">
+<meta property="og:title" content="Day 25 — Distributed Redis Rate Limits — Lua Scripts and Race Conditions">
+<meta property="og:description" content="Wayfair · sliding window in production — the race condition that almost broke supplier pricing submissions on Black Friday, and why Lua is the right answer.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-redis-rate-limits-lua-race-conditions.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-redis-rate-limits-lua-race-conditions.png">
+<meta property="article:published_time" content="2026-06-10">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'\2190 '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">Experience &middot; Day 25 of 150</span>
+    <span class="tag">Redis</span>
+    <span class="tag">Lua</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Rate Limiting</span>
+    <span class="tag">Distributed Systems</span>
+  </div>
+  <h1 class="post-title">Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions</h1>
+  <p class="post-subtitle">Wayfair &middot; sliding window in production &mdash; the race condition that surfaces under concurrent load and why atomicity is non-negotiable</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">Experience &middot; Day 25 of 150</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">June 10, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">10 min read</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+  <figure class="post-cover">
+    <img src="../../assets/covers/day-25-redis-rate-limits-lua-race-conditions.png" alt="Distributed Redis Rate Limits — Lua Scripts and Race Conditions" width="1200" height="630" loading="lazy">
+  </figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>The bug that almost broke Wayfair&rsquo;s Black Friday supplier submissions was not in the business logic. It was in the rate limiter. More precisely, it was in the gap between two Redis commands that looked atomic but were not.</p>
+
+<p>The Pricing and Promotions Submission (PAS) system received supplier pricing submissions via <code>gst-acc-promotions</code> and routed them to the Supplier Price and Cost Service (SPCS). SPCS had a hard limit: no more than eight concurrent batch API calls per client, with each batch capped at 100 parts. Eight parallel calls at 100 parts each &mdash; 800 parts in-flight simultaneously &mdash; was the ceiling the API could handle before returning 429 errors. Exceeding that ceiling did not cause a graceful backoff. It caused failed submissions that required manual resubmission. During Black Friday, that meant supplier pricing corrections sitting in an error queue while the storefront was live.</p>
+
+<p>The rate limiter was the gatekeeper. It was wrong.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the club with a broken counter</div>Imagine a nightclub with a 100-person capacity. The bouncer counts people in on a clicker. Two bouncers working the door simultaneously both look at the counter, both see 99, both let someone in, and the club hits 101 before either counter updates. The clicker itself is the problem: reading and writing are two separate operations, and two bouncers doing them concurrently break the invariant. A distributed rate limiter running on multiple PAS service replicas has the same problem. The bouncer is your Redis <code>GET</code>. The clicker update is your Redis <code>SET</code>. They are not atomic.</div>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">8</span><span class="stat-label">max SPCS parallel calls</span></div>
+  <div class="stat-cell"><span class="stat-num">100</span><span class="stat-label">parts per batch</span></div>
+  <div class="stat-cell"><span class="stat-num">~15,263</span><span class="stat-label">PAS RPS peak</span></div>
+  <div class="stat-cell"><span class="stat-num">12</span><span class="stat-label">gst-acc-promotions pods</span></div>
+</div>
+
+<h2 id="the-naive-implementation">The naive implementation</h2>
+
+<p>The original rate limiter used the classic Redis counter pattern: <code>INCR</code> the key, check if the result exceeds the limit, call <code>EXPIRE</code> to set the TTL. Three commands. If the key did not exist, <code>INCR</code> would create it at 1. The logic read cleanly in a single replica context.</p>
+
+<pre><code># What the original rate limiter did
+count = redis.incr("rate:spcs:client-A")
+if count == 1:
+    redis.expire("rate:spcs:client-A", 1)  # 1-second window
+if count > 8:
+    raise RateLimitExceeded()</code></pre>
+
+<p>The problem appeared under the 12 pods of <code>gst-acc-promotions</code> processing submissions concurrently. Pod 3 and Pod 7 both receive supplier submissions at the same millisecond. Both call <code>INCR</code>. Both get back 1 &mdash; because their increments are processed sequentially by Redis and each starts from 0 on a fresh key. But between the <code>INCR</code> returning 1 and the <code>EXPIRE</code> being set, another pod increments to 2. The <code>EXPIRE</code> from Pod 3 then sets the TTL on a key that now has a value of 2. This is a minor version of the race. The more dangerous version is when a new window has just opened &mdash; the key expired, and now 12 pods simultaneously hit an <code>INCR</code> on a non-existent key in the same millisecond, all getting back 1, all believing they are the first in the window, and all proceeding to call SPCS concurrently.</p>
+
+<p>This is the thundering herd at window reset. Every pod reads the same expired-key state, every pod creates the counter at 1, and the SPCS rate limit is violated by a factor of 12 before any of the <code>EXPIRE</code> calls have even been sent.</p>
+
+<h2 id="why-lua-fixes-it">Why Lua fixes the race</h2>
+
+<p>Redis executes Lua scripts atomically. Not &ldquo;sort of atomically&rdquo; or &ldquo;usually atomically&rdquo; &mdash; the Redis documentation guarantees that no other client command runs while a Lua script is executing. This is the same guarantee a database gives for a stored procedure inside a transaction. The check-and-set that would be a race across two commands becomes a single, uninterruptible unit of work.</p>
+
+<pre><code>-- Sliding window token bucket via Redis Lua (atomic)
+local key     = "ratelimit:" .. KEYS[1]
+local now     = tonumber(ARGV[1])   -- current unix ms
+local rps     = tonumber(ARGV[2])   -- requests per second
+local burst   = tonumber(ARGV[3])   -- burst multiplier
+local cost    = tonumber(ARGV[4])   -- tokens this request costs
+
+local capacity = math.floor(rps * burst)
+
+local data       = redis.call("HMGET", key, "tokens", "last_refill")
+local tokens     = tonumber(data[1]) or capacity
+local last_refill = tonumber(data[2]) or now
+
+local elapsed_ms = now - last_refill
+local refilled   = (elapsed_ms / 1000.0) * rps
+local new_tokens = math.min(capacity, tokens + refilled)
+
+if new_tokens >= cost then
+  redis.call("HMSET", key, "tokens", new_tokens - cost, "last_refill", now)
+  redis.call("EXPIRE", key, 60)
+  return {1, math.floor(new_tokens - cost)}
+else
+  local needed   = cost - new_tokens
+  local retry_ms = math.ceil((needed / rps) * 1000)
+  return {0, retry_ms}
+end</code></pre>
+
+<p>Every field access, the arithmetic, the comparison, the conditional write &mdash; all happen inside the same atomic execution. There is no window between reading <code>tokens</code> and writing the decremented value where another pod can interfere. The 12 <code>gst-acc-promotions</code> pods can all call this script simultaneously. Redis will execute them one at a time. The first one to run gets the current token count. The second gets the count after the first deducted its cost. The limit holds.</p>
+
+<div class="attr-box team"><div class="attr-label">What the Wayfair PAS team owned</div>The SPCS integration, the batch partitioning logic, and the retry strategy were built and maintained by the PAS engineering team. The rate limiting layer &mdash; including the transition from the naive counter to the Lua-based token bucket &mdash; was part of the PAS backend infrastructure work I contributed to. The SPCS API limits (8 parallel calls, 100 parts per batch) are the upstream API&rsquo;s constraints; the rate limiter&rsquo;s job was to enforce them without exceeding them.</div>
+
+<h2 id="sliding-window-vs-fixed">Sliding window vs fixed window</h2>
+
+<p>The Lua script above implements a <strong>token bucket</strong>, which is a continuous sliding window: tokens refill at a constant rate proportional to elapsed time. This is different from a fixed window counter, which resets to zero at a fixed time boundary (every second, on the second). The fixed window has a well-known failure mode: two bursts, one at the end of window N and one at the start of window N+1, can both be within their individual window limits but together exceed 2&times; the intended rate over the boundary period.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["12 pods calling\nSPCS concurrently"] --> B["Redis Lua\ntoken bucket\n(atomic)"]
+    B --> C{"tokens\navailable?"}
+    C -- "yes" --> D["HMSET tokens-cost\nEXPIRE 60s\nreturn allowed"]
+    C -- "no" --> E["return retry_ms\n(no write)"]
+    D --> F["Call SPCS API\n≤8 concurrent"]
+    E --> G["Caller backoff\nretry after ms"]
+</pre>
+
+<p>For the SPCS integration, the token bucket was the right choice. SPCS did not reset its concurrency limit on a clock boundary &mdash; it enforced a hard ceiling on in-flight requests at any moment. A fixed window counter would allow the burst-at-boundary problem to hit exactly when Black Friday traffic was heaviest. The token bucket&rsquo;s continuous refill matched the continuous nature of SPCS&rsquo;s constraint.</p>
+
+<p>The burst multiplier in the Lua script is what made the distinction practical. Setting a burst multiplier of 1.0 gives you a strict rate limit with no headroom. Setting it to 1.5 allows the bucket to accumulate 1.5&times; the per-second capacity during a quiet period and spend it in a burst &mdash; useful for submission workflows that arrive in waves rather than at a constant rate. Supplier submissions do not arrive uniformly: they cluster at business hours, at promotion deadlines, and on Black Friday mornings. A small burst headroom meant the limiter absorbed natural traffic shape without false 429s while still protecting SPCS from sustained overload.</p>
+
+<h2 id="the-black-friday-near-miss">The Black Friday near-miss</h2>
+
+<p>What brought this to my attention was a staging load test that preceded Black Friday prep. We ran the supplier submission flow at 4&times; normal load &mdash; simulating the burst from 70,000 active suppliers submitting pricing updates simultaneously. The naive rate limiter let through more concurrent SPCS calls than intended. Not dramatically &mdash; the test environment SPCS mock did not reject requests &mdash; but the concurrency counters showed 11 or 12 simultaneous calls where 8 was the ceiling.</p>
+
+<p>The issue was the thundering herd. Every 1-second window boundary, the rate limiter key expired, and all 12 pods would attempt a new submission in the same millisecond. All 12 saw a zero counter. All 12 considered themselves within the limit. SPCS in production would have rejected 4 of those 12 with 429 errors, requiring manual resubmission.</p>
+
+<p>The Lua token bucket fixed it because there is no boundary reset. Tokens accumulate continuously, and the atomicity guarantee means only one pod can decrement the count at a time. Twelve simultaneous callers on the same Redis instance serialize through the script. The first 8 drain the available tokens. The remaining 4 receive a retry delay. No request is lost; it just waits for the correct retry interval before resubmitting.</p>
+
+<h2 id="the-flagctl-connection">The bridge: flagctl and the same atomicity guarantee</h2>
+
+<p>The <code>flagctl kill-switch</code> I built for distributed-flagd today relies on the same principle. A kill-switch must be atomic. If two operators simultaneously run <code>flagctl kill-switch model_route --model gpt-4o-mini</code> from different machines, the second write must not race the first into an inconsistent state. etcd&rsquo;s MVCC serializes concurrent writes the same way Redis serializes Lua scripts &mdash; one write at a time, with each write seeing the post-commit state of the previous one.</p>
+
+<p>The Redis Lua script and the etcd put are both instances of the same architectural pattern: a check-then-act that must be atomic. The rate limiter checks whether tokens are available before deducting them. The kill-switch checks the current flag value before overwriting it. In both cases, the &ldquo;check&rdquo; and &ldquo;act&rdquo; being non-atomic is not a theoretical concern &mdash; it is a Black Friday incident waiting to happen.</p>
+
+<p>The flagctl kill-switch is the pricing freeze switch we wished we had during that load test. One command. One write. All traffic to the safe model. No race window between reading current state and writing the new value.</p>
+
+<h2 id="what-i-took">What I took from this system</h2>
+
+<p>The lesson I keep returning to is that correctness under concurrency requires explicit serialization, not hoping that requests arrive at different times. The naive counter worked in development because a single developer&rsquo;s test runs did not hit the boundary race. It worked in staging under low load for the same reason. It failed the 4&times; load test because load testing is when you finally give the race condition the conditions it needs to manifest.</p>
+
+<p>The second lesson is that Redis atomicity via Lua is underused. Most engineers know about Redis transactions (<code>MULTI</code>/<code>EXEC</code>) for batching commands, but those are optimistic: if a watched key changes, the transaction fails and you retry. Lua scripts are stronger: they execute serially, no optimistic retry needed. For a rate limiter, where every failed check is a dropped request, optimistic retry is the wrong model. Lua&rsquo;s serial execution is the right model.</p>
+
+<p>The third lesson is about burst multiplier as a first-class parameter. The SPCS integration taught me that rate limits are not just about the steady state &mdash; they are about the traffic shape. Building the burst headroom into the limiter explicitly, as a tunable parameter, made the system honest about what it was allowing rather than hiding a fixed assumption inside the implementation.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the hospital triage desk</div>A hospital triage desk has one nurse who can assess one patient at a time. The form says &ldquo;fill this out, then hand it back.&rdquo; If 12 patients walk up simultaneously and all grab the same pen to write their name on the same form, the form ends up with 12 names scribbled over each other. You need the nurse to take the pen, assess one patient, return the pen, then take the next patient. The Redis Lua script is the nurse taking the pen. The atomicity guarantee is the physical fact that only one person holds the pen at a time.</div>
+
+<div class="series-footer">
+  <p><em>Experience &middot; Day 25 of 150 &mdash; Distributed Redis Rate Limits. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-24-bigquery-streaming-batch-burst-truth.html">Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth</a></em></p>
+  <p><em>Next: Day 26 coming soon</em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html">Day 25 &mdash; Cost Models for LLM Gateways</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-24-bigquery-streaming-batch-burst-truth.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 24 &mdash; BigQuery Streaming vs Batch &mdash; Burst Traffic Truth
+    </a>
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/47">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 25 code: distributed-flagd Kafka audit log + flagctl kill-switch (PR #47)
+    </a>
+    <a href="https://redis.io/docs/latest/develop/interact/programmability/eval-intro/">
+      <span class="footnote-arrow">&#x2197;</span>
+      Redis Scripting with Lua &mdash; atomicity guarantees
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="experience"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#the-naive-implementation">Naive implementation</a></li>
+      <li><a href="#why-lua-fixes-it">Why Lua fixes it</a></li>
+      <li><a href="#sliding-window-vs-fixed">Sliding vs fixed window</a></li>
+      <li><a href="#the-black-friday-near-miss">Black Friday near-miss</a></li>
+      <li><a href="#the-flagctl-connection">Bridge to flagctl</a></li>
+      <li><a href="#what-i-took">What I took from this</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+25+%E2%80%94+Distributed+Redis+Rate+Limits+%E2%80%94+Lua+Scripts+and+Race+Conditions&url=https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
