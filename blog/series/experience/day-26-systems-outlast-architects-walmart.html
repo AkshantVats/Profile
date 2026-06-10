@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 25 — Cost Models for LLM Gateways | AI Learning Series</title>
-<meta name="description" content="Cache hit rate × cheaper model route × prompt cache — building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics, and why numbers must justify the architecture.">
-<meta property="og:title" content="Day 25 — Cost Models for LLM Gateways">
-<meta property="og:description" content="Cache hit rate × cheaper model route × prompt cache — the spreadsheet that justifies the repo. How inference economics drive LensAI's routing and observability design.">
+<title>Day 26 — Systems That Outlast Their Architects — Walmart Lessons | Experience Series</title>
+<meta name="description" content="Walmart Labs WeIoT SmartBuildings: documentation, simplicity, and operability as engineering disciplines — the three properties that determine how much a system costs to maintain after the original author leaves.">
+<meta property="og:title" content="Day 26 — Systems That Outlast Their Architects — Walmart Lessons">
+<meta property="og:description" content="Walmart · 7M+ sensors · OTA firmware at scale — what the stateless coordinator and the HVAC operability chain taught me about writing for the team that inherits your system.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-cost-models-llm-gateways.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-26-systems-outlast-architects-walmart.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-25-cost-models-llm-gateways.png">
-<meta property="article:published_time" content="2026-06-10">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-26-systems-outlast-architects-walmart.png">
+<meta property="article:published_time" content="2026-06-11">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,24 +185,24 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 25 of 150</span>
-    <span class="tag">LLM Gateway</span>
-    <span class="tag">Cost Models</span>
-    <span class="tag">Prompt Cache</span>
-    <span class="tag">Model Routing</span>
-    <span class="tag">Inference</span>
+    <span class="tag accent">Experience &middot; Day 26 of 150</span>
+    <span class="tag">Walmart Labs</span>
+    <span class="tag">Documentation</span>
+    <span class="tag">Operability</span>
+    <span class="tag">OTA Firmware</span>
+    <span class="tag">Distributed Systems</span>
   </div>
-  <h1 class="post-title">Day 25 &mdash; Cost Models for LLM Gateways</h1>
-  <p class="post-subtitle">Cache hit rate &times; cheaper model route &times; prompt cache &mdash; the spreadsheet that justifies the repo</p>
+  <h1 class="post-title">Day 26 &mdash; Systems That Outlast Their Architects &mdash; Walmart Lessons</h1>
+  <p class="post-subtitle">Walmart Labs &middot; 7M+ sensors &middot; documentation, simplicity, and operability as the three engineering properties that determine maintenance cost after the original author leaves</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 25 of 150</span>
+    <span class="meta-item">Experience &middot; Day 26 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 10, 2026</span>
+    <span class="meta-item">June 11, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">11 min read</span>
   </div>
@@ -210,47 +210,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-25-cost-models-llm-gateways.png" alt="Day 25 — Cost Models for LLM Gateways" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-26-systems-outlast-architects-walmart.png" alt="Day 26 — Systems That Outlast Their Architects — Walmart Lessons" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The most common mistake I see in LLM infrastructure is building the routing layer before building the cost model. Teams deploy a gateway, route 100% of traffic to gpt-4o because it&rsquo;s the best model they tested, and receive the first monthly API bill with a mix of shock and regret. The cost per request is not a surprise &mdash; the prices are published. What surprises people is the volume &times; cost product at scale, and the realization that a 5&times; cheaper model would have served 80% of those requests equally well.</p>
+<p>Three months into my time at Walmart Labs, I was handed a subsystem responsible for coordinating OTA firmware updates across millions of edge devices in SmartBuildings facilities. The engineer who built it had left. The code was clean Go &mdash; idiomatic, well-tested, no obvious hacks.</p>
 
-<p>Build the spreadsheet before the Rust. The numbers justify the repo.</p>
+<p>But there was no document explaining why a particular retry envelope was 47 seconds, why device IDs were base58-encoded instead of UUID, or why the update manifest included a <code>build_epoch</code> field that nothing in the codebase appeared to read. I spent two full weeks figuring out decisions that would have taken fifteen minutes to read in a design doc.</p>
 
-<p>This post covers the three primary cost levers in an LLM gateway: prompt cache hit rate, model routing to cheaper variants, and prompt caching (prefix caching). Each lever is independently useful, but the maximum savings come from understanding how they compound. I&rsquo;ll also cover how LensAI&rsquo;s event schema is designed to measure each lever in production, because a cost model you cannot measure is a cost model you cannot optimize.</p>
+<p>That system, and the contrast with the ones that did have documentation, is what this post is about. Not documentation as a compliance checkbox &mdash; I&rsquo;ve written plenty of those and they&rsquo;re useless six months later. Documentation as a specific engineering practice that changes the cost of future maintenance in a measurable way.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the taxi dispatch board</div>A city&rsquo;s taxi dispatcher has three dials: which tier of car to send (economy vs executive), whether the passenger was a repeat caller with a known destination (faster dispatch), and whether to hold a car near a busy zone based on historical demand (cache warming). Each dial saves money independently. The dispatcher who turns all three at once and understands how they interact saves the most. An LLM gateway&rsquo;s cost levers work the same way: model tier, prompt cache, and routing rules are each a dial. The cost model is the dashboard that tells you where each dial is set and how much each position is costing.</div>
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the building with drywalled load-bearing walls</div>An undocumented system is like a building whose load-bearing walls have been drywalled over. The structure is sound. The previous owner knew exactly which walls were load-bearing and which were just partition. But to anyone arriving later, every wall looks the same &mdash; and every renovation starts with a risk assessment that shouldn&rsquo;t need to exist. The 47-second retry envelope is a drywalled load-bearing wall: you can&rsquo;t tell it&rsquo;s structural from the outside.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">~5&times;</span><span class="stat-label">gpt-4o vs mini cost ratio</span></div>
-  <div class="stat-cell"><span class="stat-num">~90%</span><span class="stat-label">prompt cache discount</span></div>
-  <div class="stat-cell"><span class="stat-num">50%+</span><span class="stat-label">typical cache hit rate</span></div>
-  <div class="stat-cell"><span class="stat-num">80%+</span><span class="stat-label">tasks mini handles well</span></div>
+  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">sensors, 50+ facilities</span></div>
+  <div class="stat-cell"><span class="stat-num">10M+</span><span class="stat-label">telemetry points/min</span></div>
+  <div class="stat-cell"><span class="stat-num">3 yrs</span><span class="stat-label">Aug 2018 – May 2021</span></div>
+  <div class="stat-cell"><span class="stat-num">2 wks</span><span class="stat-label">archaeology, one retry envelope</span></div>
 </div>
 
-<h2 id="the-cost-components">The three cost components</h2>
+<h2 id="the-cost-of-undocumented-systems">The cost of undocumented systems</h2>
 
-<p>LLM API pricing has three line items that matter for a gateway operator: input tokens (the prompt), output tokens (the completion), and cached input tokens (input tokens served from a provider-side prompt cache). Output tokens are the most expensive &mdash; they require sequential generation from the model, one token at a time. Input tokens are cheaper per token but often dominate in volume because long system prompts and context windows dwarf the completion in many applications. Cached input tokens are dramatically cheaper: OpenAI charges roughly 10% of the normal input token price for tokens served from cache.</p>
+<p>The cost of undocumented systems doesn&rsquo;t appear in sprint velocity. It appears in the third week after an engineer leaves, when their replacement spends four hours in a git blame trace trying to understand why a sensor heartbeat threshold is 90 seconds instead of 60. The code is correct. The test coverage is good. But the invariant &mdash; &ldquo;90 seconds because Azure IoT Hub device twin sync has a 75-second clock drift ceiling in the B1 tier&rdquo; &mdash; exists only in the original author&rsquo;s memory.</p>
 
-<p>The cost formula for a single request is:</p>
+<p>At Walmart Labs, I saw this pattern repeatedly in the WeIoT SmartBuildings platform. The ingestion layer on Azure IoT Hub processed tens of millions of telemetry points per minute from 7M+ sensors across 50+ global facilities. Systems built in the early days of the platform, when the team was three people and everyone held the full context in their heads, had no documentation of the decisions embedded in them. Systems built after a team growth event &mdash; when institutional memory was demonstrably fragile &mdash; had architectural decision records, runbooks, and clear comments on non-obvious invariants.</p>
 
-<pre><code>cost = (input_tokens - cached_tokens) * input_price
-     + cached_tokens * cache_price
-     + output_tokens * output_price</code></pre>
+<p>What I didn&rsquo;t expect was that the undocumented systems were not the badly engineered ones. They were often the most cleverly engineered &mdash; the ones where the original authors were confident enough in their work that they never felt the need to explain it. The more brilliant the implicit design, the more expensive the archaeology when the author leaves.</p>
 
-<p>At scale, the dominant term depends on your application. A RAG (Retrieval-Augmented Generation) application with a large fixed system prompt, few retrieved documents, and a short user question will find that cached_tokens dominates the input. A code generation application with long context windows and long completions will find that output_tokens dominates. A structured extraction application with short outputs and no repeated prompt prefix will find that input_tokens dominates. Understanding which term dominates determines which lever to pull first.</p>
+<p>The cost of not documenting a system is not paid by the engineer who built it. It&rsquo;s paid by every engineer who maintains it afterward, at a rate that compounds with every handoff.</p>
 
-<h2 id="prompt-caching">Prompt caching: the 90% discount</h2>
+<h2 id="what-documentation-prevents">What documentation actually prevents</h2>
 
-<p>Prompt caching, also called prefix caching, is a provider-side optimization that detects when an input prompt shares a common prefix with a recent request and serves the KV cache from the previous computation rather than recomputing it. The first request pays full input token price to fill the cache. Subsequent requests with the same prefix pay the cache price, which is roughly 10% of the full price on OpenAI&rsquo;s API and free on Anthropic&rsquo;s API for Claude models.</p>
+<p>The first failure mode documentation prevents is the wrong simplification. When a new engineer encounters an unfamiliar constraint, their default response is to simplify it &mdash; to bring it in line with their existing mental model. The 47-second retry envelope becomes 30 seconds because 30 is a round number. The simplification is invisible in testing and surfaces three months later as a pattern of intermittent device update failures on the B1 tier during peak hours. A one-sentence comment &mdash; &ldquo;47s: Azure IoT Hub device twin sync max drift on B1 tier is 75s; retry window must clear 60s plus 15s edge buffer&rdquo; &mdash; eliminates this entire failure path.</p>
 
-<p>The cache key is the prompt prefix itself &mdash; the first N tokens of the input, where N is determined by the cache block size. For most providers, the cacheable prefix must be at least 1,024 tokens. Your system prompt, which might be 500&ndash;2,000 tokens of instructions and examples, is the primary candidate. If your system prompt is identical across all requests for a tenant, every request after the first pays only 10% of the system prompt&rsquo;s token cost.</p>
+<p>The second failure mode is the protective cargo cult. When a system has no documentation, experienced engineers develop superstitions around it. &ldquo;We don&rsquo;t touch the manifest parser&rdquo; is not a technical decision &mdash; it&rsquo;s risk aversion encoded as policy. The manifest parser works, its tests pass, and no one knows why it&rsquo;s structured the way it is, so no one touches it even when touching it would be the right call. Documentation converts superstition into understanding.</p>
 
-<p>The catch is prefix order. The prompt must be structured so that the stable, long-lived content comes first and the variable content (the user&rsquo;s question, the retrieved documents) comes last. A gateway that appends retrieved context between the system prompt and the user question breaks the cache key on every request, because the cacheable prefix is now &ldquo;system prompt + these specific 3 documents&rdquo; rather than just &ldquo;system prompt.&rdquo; Structuring prompts for cache hit rate is an API design decision, not a performance tuning step.</p>
+<p>The third failure mode is the incident that takes twelve hours to diagnose because no one knows which configuration parameter controls the behavior in question. An on-call runbook that maps symptoms to configuration levers is not documentation for documentation&rsquo;s sake &mdash; it&rsquo;s a direct reduction in mean time to recovery. Documentation doesn&rsquo;t prevent technical failures; it prevents the three organizational failure modes that turn technical failures into extended outages and expensive handoffs.</p>
+
+<h2 id="simplicity-as-maintenance">Simplicity as a maintenance decision</h2>
+
+<p>The OTA firmware framework I worked on at Walmart Labs had one architectural property that made every maintenance operation cheaper: it was stateless on the coordinator side. Each firmware update sequence was described entirely in the update manifest, and each device held the full state of its own update process locally. The coordinator&rsquo;s job was to push manifests and receive acknowledgments &mdash; no distributed state, no multi-phase commit.</p>
+
+<p>This simplicity was not an accident. The team had tried a stateful coordinator first &mdash; one that tracked each device&rsquo;s update progress in a central database. It worked well in testing. It fell apart in production under intermittent network conditions, where the coordination database and the device&rsquo;s actual state would diverge. The fallback path for divergence was more complex than the original feature. The stateless redesign eliminated the divergence problem by eliminating the coordinator state that could diverge.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -270,77 +274,97 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    A["Request: system prompt\n+ user question"] --> B{"Provider KV\ncache hit?"}
-    B -- "yes (same prefix)" --> C["Cache price\n~10% of input rate\n+ output tokens"]
-    B -- "no (new prefix)" --> D["Full input price\nfill cache\n+ output tokens"]
-    C --> E["Response"]
-    D --> F["Cache stored\nfor next request"]
-    F --> E
+    A["Stateful coordinator"] --> B["Coordinator DB state"]
+    A --> C["Device local state"]
+    B --> D["State can diverge"]
+    D --> E["Reconciliation logic needed"]
+    F["Stateless coordinator"] --> G["Push manifest only"]
+    G --> H["Device is source of truth"]
+    H --> I["Self-healing on reconnect"]
 </pre>
 
-<h2 id="model-routing">Model routing: the 5&times; multiplier</h2>
+<p>What I didn&rsquo;t expect was how much the simpler design reduced the cognitive load on the on-call rotation. The stateful coordinator required on-call engineers to understand the state machine in the coordination database and the update state on the device and the protocol for reconciling them. The stateless design required on-call engineers to understand one thing: the device is always the source of truth for its own update state. Every on-call action flowed from that single invariant.</p>
 
-<p>The second lever is routing requests to a cheaper model when the task does not require the most capable one. gpt-4o-mini costs roughly one-fifth of gpt-4o for both input and output tokens. For tasks like intent classification, entity extraction, summarization of short documents, and simple question-answering, gpt-4o-mini performs at parity with gpt-4o on most benchmarks. The cost difference per request is not 5&times; in favor of mini &mdash; it is 5&times; in favor of mini only when output quality is equivalent.</p>
+<p>Simplicity is not the aesthetic preference of engineers who avoid complexity &mdash; it&rsquo;s a direct reduction in the operational surface area that on-call engineers must understand at 3am, and it compounds with every maintenance event over the lifetime of the system.</p>
 
-<p>The routing decision is a quality gate, not a random split. A naive 50/50 split between gpt-4o and gpt-4o-mini reduces average cost by ~2.5&times; but sacrifices quality on the half of requests that needed gpt-4o. The right model for this split is distributed-flagd: the <code>model_route</code> flag carries a percentage weight for each model variant. Starting at 10% gpt-4o-mini and advancing the weight based on quality metrics (user satisfaction scores, downstream task performance, evaluation pass rates) is the safe path to capturing the 5&times; savings without degrading quality.</p>
+<h2 id="operability-as-design">Operability as a first-class design constraint</h2>
 
-<p>The flag weight is not the end of the routing logic &mdash; it is the starting point. A production router should also consider request characteristics. A request with a short system prompt, a simple instruction, and no RAG context is a strong candidate for gpt-4o-mini. A request with a long multi-document context and a complex synthesis task is a candidate for gpt-4o. Routing rules encoded as flag variants &mdash; &ldquo;if prompt length &lt; 2000 tokens, use gpt-4o-mini&rdquo; &mdash; reduce cost without a quality A/B test because the selection criterion correlates with task complexity.</p>
+<p>The HVAC control loops in the SmartBuildings platform were the most operability-sensitive component I worked on. Each control loop read temperature and occupancy sensor data from Azure IoT Hub, compared it against a target state, and issued commands to HVAC actuators across 50+ global facilities via Azure Stream Analytics. A control loop that stopped working didn&rsquo;t produce an error message. It produced a building that was slightly too warm or too cold, which produced a facilities ticket three hours later.</p>
 
-<h2 id="the-cost-model-spreadsheet">Building the cost model first</h2>
+<p>The answer to &ldquo;which part of the stack failed?&rdquo; was determined entirely by whether the system was observable. Observable meant: every sensor ingestion event had a <code>facility_id</code>, <code>device_id</code>, and <code>ingested_at</code> timestamp in the data store, and every control command had a corresponding <code>issued_at</code> record. When a facilities ticket arrived, the first step was a query that joined ingestion events with command issuance events and found the gap. Without that observability, the debugging session was archaeology. With it, the debugging session was a ten-line query.</p>
 
-<p>What I did before writing the LensAI ingestion schema was build a cost model spreadsheet. Not a fancy tool &mdash; a Google Sheet with five columns: model, input_price, output_price, cache_price, and cache_hit_rate. Then a simulation row per traffic shape: high-volume short prompts, low-volume long-context RAG, and medium-volume code generation. For each row, compute the expected monthly cost at 100k requests/day at three routing splits: 100% gpt-4o, 80/20 gpt-4o/mini, 50/50.</p>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["Sensor telemetry event"] --> B["IoT Hub ingest"]
+    B --> C["facility_id + device_id"]
+    C --> D["Stream Analytics"]
+    D --> E["HVAC command issued"]
+    E --> F["issued_at recorded"]
+    F --> G["Join: ingest vs command"]
+    G --> H["Gap = failure point"]
+</pre>
 
-<table>
-  <thead>
-    <tr><th>Model</th><th>Input $/1M</th><th>Output $/1M</th><th>Cache $/1M</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>gpt-4o</td><td>$2.50</td><td>$10.00</td><td>$1.25</td></tr>
-    <tr><td>gpt-4o-mini</td><td>$0.15</td><td>$0.60</td><td>$0.075</td></tr>
-    <tr><td>claude-3-5-haiku</td><td>$0.80</td><td>$4.00</td><td>free</td></tr>
-    <tr><td>claude-3-7-sonnet</td><td>$3.00</td><td>$15.00</td><td>free</td></tr>
-  </tbody>
-</table>
+<div class="attr-box team"><div class="attr-label">What the Walmart Labs platform team owned</div>The HVAC control loops, sensor ingestion pipeline, and Azure Stream Analytics configuration were owned and operated by the WeIoT platform team. The observability model &mdash; defining the join query, the timestamp fields, and the diagnostic runbook &mdash; was part of the infrastructure work I contributed to during my time there. The scale numbers (7M+ sensors, 50+ facilities) are from my resume and describe the platform, not my individual contribution scope.</div>
 
-<p>The spreadsheet surfaced two non-obvious insights. First, the break-even point for prompt cache investment depends on your cache hit rate. At 20% cache hit rate, the savings from caching a 1,000-token system prompt at gpt-4o prices are $0.45 per 1M requests. At 80% cache hit rate, the savings are $1.80 per 1M requests. The 80% scenario requires designing your prompt structure for cache efficiency &mdash; that design decision has a measurable dollar value before you write a line of code. Second, the combination of gpt-4o-mini routing and 80% cache hit rate produces a cost reduction of roughly 4&times; compared to 100% gpt-4o with no caching. The two levers compound, not add.</p>
+<p>What I didn&rsquo;t expect was how much of the operability work was actually API design work. Operability required that every component expose its internal state via a consistent interface &mdash; not just logs, but queryable state. The moment two components used different timestamp formats, the join broke. Operability is downstream of API discipline.</p>
 
-<h2 id="measuring-in-lensai">Measuring each lever in LensAI</h2>
+<p>Operability is not an afterthought added during incident review &mdash; it&rsquo;s the API design decision that determines whether every future debugging session is a query or an archaeological dig.</p>
 
-<p>A cost model is only useful if you can measure it in production. LensAI&rsquo;s ingestion event schema carries four fields that map directly to the cost formula: <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>cached_tokens</code>, and <code>resolved_model_id</code>. The <code>cached_tokens</code> field is populated from the provider&rsquo;s usage response &mdash; most LLM APIs return cached token counts in the <code>usage</code> object alongside prompt and completion counts.</p>
+<h2 id="the-bridge">The bridge: writing for the team that inherits LensAI</h2>
 
-<p>With those four fields, ClickHouse can compute the actual cost of every request: not an estimate, not a projection, but the exact dollar amount based on the per-model pricing table. The Grafana cost panel shows cost split by model variant, which is exactly what you need to evaluate whether advancing the gpt-4o-mini flag weight from 10% to 50% changes the weekly invoice. The BENCHMARKS in distributed-flagd&rsquo;s flag evaluation QPS are the complementary metric: they prove that the control-plane latency of evaluating the model routing flag adds at most 0.2 ms per request, which is invisible against the 200&ndash;2000 ms of LLM API latency.</p>
+<p>When I write an OpenAPI spec for infra-ai-streaming&rsquo;s ingestion endpoint today, I&rsquo;m not writing documentation for myself. I know the API &mdash; I built it. I&rsquo;m writing it for the engineer who will be on-call for this system in eight months, who has never seen the codebase, and who needs to understand in thirty minutes what the ingestion contract is. The OpenAPI spec is the thing that makes that possible.</p>
 
-<div class="attr-box mine"><div class="attr-label">Why QPS benchmarks justify the flag system</div>The distributed-flagd system evaluates flags on every inference request. At 50k requests per day and 0.2 ms per flag evaluation, the flag system costs 10 CPU seconds per day &mdash; completely negligible. The cost savings from routing 80% of traffic to gpt-4o-mini at correct quality could be $2,000&ndash;$5,000 per month at moderate scale. The flag system&rsquo;s QPS benchmark is the evidence that the control-plane overhead does not eat the savings from the data-plane optimization.</div>
+<p>The SDK stub makes the same argument from a different angle. An SDK client generated from the OpenAPI spec is documentation that cannot lie &mdash; it&rsquo;s always in sync with the actual API contract because it&rsquo;s generated from the same spec. When I ship an SDK stub as part of a release, I&rsquo;m shipping a dependency that downstream teams can write tests against. Those tests will fail if I break the contract, which means contract breaks surface immediately, not weeks later when someone files a bug report.</p>
 
-<p>The third field I want to add to the schema is <code>cache_creation_tokens</code> &mdash; the number of input tokens that were not cached and therefore filled the cache for subsequent requests. This field lets you compute the &ldquo;cache write tax&rdquo;: the first requester pays full price to fill the cache that subsequent requesters draw on. For high-QPS tenants with a stable system prompt, the cache write tax is amortized across thousands of requests and is negligible. For low-QPS tenants with a changing system prompt, the cache write tax is never amortized and caching provides no benefit. Routing these tenants to a non-cached path reduces their costs and frees provider-side cache entries for higher-QPS tenants.</p>
+<p>What I didn&rsquo;t expect was how the discipline of writing an OpenAPI spec changed the API itself. The act of specifying an endpoint&rsquo;s request and response shapes clearly, in a format that would be reviewed and published, surfaced design inconsistencies that code review had missed. Three fields got renamed because their names were ambiguous when written down in plain English. One endpoint got split into two because the single endpoint was doing two logically distinct things. Documentation is not just record-keeping &mdash; it&rsquo;s a design review that happens in writing.</p>
 
-<h2 id="what-the-numbers-show">What the numbers actually show</h2>
+<p>Writing an OpenAPI spec and SDK stub for LensAI today is writing for the team that inherits this system &mdash; and the Walmart experience taught me that team will definitely exist.</p>
 
-<p>I ran the cost model for LensAI&rsquo;s own usage &mdash; the API calls it makes for the evaluation pipeline, not for external tenants. At current scale (roughly 5,000 evaluation requests per day), 100% gpt-4o with no caching costs approximately $18/month. Adding prompt caching with an 80% hit rate on the system prompt brings it to $9/month. Routing 70% of evaluation requests to gpt-4o-mini brings it to $3/month. The combination brings it to $1.50/month. The engineering effort to get from $18 to $1.50 is: add a system prompt prefix that never changes (1 hour), add the <code>cached_tokens</code> field to the ingestion schema (30 minutes), and advance the model routing flag to 70% gpt-4o-mini based on evaluation quality scores (1 hour).</p>
+<h2 id="what-id-do-differently">What I&rsquo;d do differently</h2>
 
-<p>The spreadsheet makes this calculation explicit before any code is written. The savings are not a post-hoc discovery &mdash; they are a pre-planned outcome. That is why I built the cost model before building the routing layer. Numbers justify the architecture; architecture without numbers is just convention.</p>
+<p>I&rsquo;d write the architecture decision record before writing any code. The ADR doesn&rsquo;t need to be long &mdash; a title, a context paragraph, a decision paragraph, and a consequences paragraph. Writing it before the code means you&rsquo;re committing to the design in writing before you&rsquo;re invested in it emotionally. The ADRs written after the code tend to rationalize the choice rather than reason through it.</p>
+
+<p>I&rsquo;d define the operability contract at the same time as the functional contract. Not after the feature is built &mdash; at the same time. &ldquo;This endpoint accepts these fields, returns this response, and writes these events to this log&rdquo; should be a single specification, not three separate documents created at three different points in the development cycle. The SmartBuildings platform took two engineering sprints to retrofit observability onto the HVAC control loops after the first facilities incident. Had the observability specification been part of the initial design, it would have been one sprint of incremental work.</p>
+
+<p>Finally, I&rsquo;d automate the documentation freshness check. A design doc that&rsquo;s six months out of date is worse than no design doc &mdash; it creates false confidence. The most effective mechanism I&rsquo;ve seen is contract tests that run in CI and fail if the implemented behavior diverges from the documented behavior. We adopted this pattern late at Walmart Labs and it prevented at least three similar incidents in the following year. Documentation, simplicity, and operability are cheaper the earlier they appear in the development process &mdash; and the Walmart experience gave me the specific cost data that makes that claim concrete rather than aspirational.</p>
 
 <div class="series-footer">
-  <p><em>AI Learning &middot; Day 25 of 150 &mdash; Cost Models for LLM Gateways. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-24-gpu-scheduling-resource-management.html">Day 24 &mdash; GPU Scheduling as Resource Management</a></em></p>
-  <p><em>Next: <a href="day-26-fine-tuning-rag-prompting-infra-cost.html">Day 26 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html">Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions</a></em></p>
+  <p><em>Experience &middot; Day 26 of 150 &mdash; Systems That Outlast Their Architects. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-25-redis-rate-limits-lua-race-conditions.html">Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions</a></em></p>
+  <p><em>Next: Day 27 coming soon</em></p>
+  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html">Day 26 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-24-gpu-scheduling-resource-management.html">
+    <a href="day-25-redis-rate-limits-lua-race-conditions.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 24 &mdash; GPU Scheduling as Resource Management
+      Day 25 &mdash; Distributed Redis Rate Limits &mdash; Lua Scripts and Race Conditions
     </a>
-    <a href="day-23-evaluations-as-event-streams.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/48">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 23 &mdash; Evaluations as Event Streams
+      Day 26 code: distributed-flagd BENCHMARKS.md + Platform README cross-links (PR #48)
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/47">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 25 code: distributed-flagd Kafka audit log + flagctl kill-switch (PR #47)
+      Day 26 AI Learning &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View
     </a>
   </div>
 </div>
@@ -349,27 +373,27 @@ flowchart TD
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+    <div id="series-nav-mount" data-series-slug="experience"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-cost-components">Three cost components</a></li>
-      <li><a href="#prompt-caching">Prompt caching 90% discount</a></li>
-      <li><a href="#model-routing">Model routing 5&times; multiplier</a></li>
-      <li><a href="#the-cost-model-spreadsheet">Cost model spreadsheet</a></li>
-      <li><a href="#measuring-in-lensai">Measuring in LensAI</a></li>
-      <li><a href="#what-the-numbers-show">What the numbers show</a></li>
+      <li><a href="#the-cost-of-undocumented-systems">Cost of undocumented systems</a></li>
+      <li><a href="#what-documentation-prevents">What documentation prevents</a></li>
+      <li><a href="#simplicity-as-maintenance">Simplicity as maintenance</a></li>
+      <li><a href="#operability-as-design">Operability as design</a></li>
+      <li><a href="#the-bridge">Bridge to LensAI</a></li>
+      <li><a href="#what-id-do-differently">What I&rsquo;d do differently</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+25+%E2%80%94+Cost+Models+for+LLM+Gateways&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+26+%E2%80%94+Systems+That+Outlast+Their+Architects&url=https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>

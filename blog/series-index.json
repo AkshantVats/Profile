@@ -171,6 +171,18 @@
           "kicker": "AI Learning \u00b7 Day 25 of 150",
           "title": "Day 25 \u2014 Cost Models for LLM Gateways",
           "desc": "Cache hit rate \u00d7 cheaper model route \u00d7 prompt cache \u2014 building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics to drive model routing decisions."
+        },
+        {
+          "href": "blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html",
+          "kicker": "AI Learning \u00b7 Day 26 of 150",
+          "title": "Day 26 \u2014 Fine-Tuning vs RAG vs Prompting \u2014 Infra Cost View",
+          "subtitle": "Staff engineers pick the cheapest path that meets SLO \u2014 not the coolest paper",
+          "date": "2026-06-11",
+          "slug": "day-26-fine-tuning-rag-prompting-infra-cost",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html",
+          "coverImage": "blog/assets/covers/day-26-fine-tuning-rag-prompting-infra-cost.png",
+          "desc": "Prompting costs zero infra, RAG adds a retrieval layer, fine-tuning adds GPU compute and retraining pipelines. Four-question decision framework, cost crossover at three traffic volumes, and ClickHouse cost attribution via resolved_model_id."
         }
       ]
     },
@@ -339,6 +351,18 @@
           "kicker": "Experience \u00b7 Day 25 of 150",
           "title": "Day 25 \u2014 Distributed Redis Rate Limits \u2014 Lua Scripts and Race Conditions",
           "desc": "Wayfair PAS: why Redis INCR+EXPIRE fails under concurrent load, how Lua scripts fix the race condition atomically, and what a Black Friday near-miss taught me about distributed rate limiting."
+        },
+        {
+          "href": "blog/series/experience/day-26-systems-outlast-architects-walmart.html",
+          "kicker": "Experience \u00b7 Day 26 of 150",
+          "title": "Day 26 \u2014 Systems That Outlast Their Architects \u2014 Walmart Lessons",
+          "subtitle": "What Walmart's IoT platform taught me about building for operators you'll never meet",
+          "date": "2026-06-11",
+          "slug": "day-26-systems-outlast-architects-walmart",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html",
+          "coverImage": "blog/assets/covers/day-26-systems-outlast-architects-walmart.png",
+          "desc": "Walmart Labs IoT platform: 7M+ sensors, 50+ facilities, 10M+ pts/min. Why undocumented systems cost more than the docs would have, what simplicity actually means as a maintenance decision, and how operability is a design constraint not a feature."
         }
       ]
     },
