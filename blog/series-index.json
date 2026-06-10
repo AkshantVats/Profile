@@ -165,6 +165,12 @@
           "kicker": "AI Learning \u00b7 Day 24 of 150",
           "title": "Day 24 \u2014 GPU Scheduling as Resource Management",
           "desc": "MIG, tensor parallelism, and Kubernetes extended resources \u2014 VRAM is finite, the scheduler needs to know it, and GPU topology is the distributed systems constraint that determines canary rollout cost accuracy."
+        },
+        {
+          "href": "blog/series/ai-learning/day-25-cost-models-llm-gateways.html",
+          "kicker": "AI Learning \u00b7 Day 25 of 150",
+          "title": "Day 25 \u2014 Cost Models for LLM Gateways",
+          "desc": "Cache hit rate \u00d7 cheaper model route \u00d7 prompt cache \u2014 building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics to drive model routing decisions."
         }
       ]
     },
@@ -327,6 +333,12 @@
           "kicker": "Experience \u00b7 Day 24 of 150",
           "title": "Day 24 \u2014 BigQuery Streaming vs Batch \u2014 Burst Traffic Truth",
           "desc": "Wayfair PAS analytics: slot exhaustion under burst pricing runs, why 'real-time' streaming inserts degrade silently, and what pas-analytics Pub/Sub taught me about building append-only audit logs."
+        },
+        {
+          "href": "blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html",
+          "kicker": "Experience \u00b7 Day 25 of 150",
+          "title": "Day 25 \u2014 Distributed Redis Rate Limits \u2014 Lua Scripts and Race Conditions",
+          "desc": "Wayfair PAS: why Redis INCR+EXPIRE fails under concurrent load, how Lua scripts fix the race condition atomically, and what a Black Friday near-miss taught me about distributed rate limiting."
         }
       ]
     },
