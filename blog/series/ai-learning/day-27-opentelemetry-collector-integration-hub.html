@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 26 — Fine-Tuning vs RAG vs Prompting — Infra Cost View | AI Learning Series</title>
-<meta name="description" content="Staff engineers pick the cheapest path that meets SLO — not the coolest paper. The real infrastructure cost comparison between prompting, RAG, and fine-tuning, and when each is the right choice.">
-<meta property="og:title" content="Day 26 — Fine-Tuning vs RAG vs Prompting — Infra Cost View">
-<meta property="og:description" content="Staff engineers pick the cheapest path that meets SLO. Infra cost breakdown: prompting costs zero, RAG adds retrieval infrastructure, fine-tuning adds GPU compute + storage. Decision framework and ClickHouse attribution.">
+<title>Day 27 — OpenTelemetry Collector as Integration Hub | AI Learning Series</title>
+<meta name="description" content="Collector processors are middleware — you've shipped worse middleware under more load. How OTel Collector's receivers, processors, and exporters power LensAI's inference observability pipeline.">
+<meta property="og:title" content="Day 27 — OpenTelemetry Collector as Integration Hub">
+<meta property="og:description" content="Exporters, processors, and why LensAI speaks OTel natively. The Collector is not a sidecar — it's the integration bus that replaces five vendor agents with a single YAML config.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-26-fine-tuning-rag-prompting-infra-cost.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-27-opentelemetry-collector-integration-hub.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-26-fine-tuning-rag-prompting-infra-cost.png">
-<meta property="article:published_time" content="2026-06-11">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-27-opentelemetry-collector-integration-hub.png">
+<meta property="article:published_time" content="2026-06-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,157 +185,110 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 26 of 150</span>
-    <span class="tag">Fine-Tuning</span>
-    <span class="tag">RAG</span>
-    <span class="tag">Prompting</span>
-    <span class="tag">Infra Cost</span>
-    <span class="tag">Model Selection</span>
+    <span class="tag accent">AI Learning &middot; Day 27 of 150</span>
+    <span class="tag">OpenTelemetry</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Collector</span>
+    <span class="tag">Pipelines</span>
+    <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 26 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View</h1>
-  <p class="post-subtitle">Staff engineers pick the cheapest path that meets SLO &mdash; not the coolest paper</p>
+  <h1 class="post-title">Day 27 &mdash; OpenTelemetry Collector as Integration Hub</h1>
+  <p class="post-subtitle">Exporters, processors, and why LensAI speaks OTel natively</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 26 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 27 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 11, 2026</span>
+    <span class="meta-item">June 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">13 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-26-fine-tuning-rag-prompting-infra-cost.png" alt="Day 26 — Fine-Tuning vs RAG vs Prompting — Infra Cost View" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-27-opentelemetry-collector-integration-hub.png" alt="Day 27 — OpenTelemetry Collector as Integration Hub" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Every six months there is a new paper arguing that fine-tuning beats RAG on some benchmark, followed immediately by a paper arguing the opposite. Neither paper includes an AWS bill. The conversation engineers actually need is not &ldquo;which technique is superior&rdquo; but &ldquo;what does each technique cost to operate at my traffic volume, and does it meet my quality SLO?&rdquo; Those are infrastructure questions, not research questions.</p>
+<p>Collector processors are middleware &mdash; you&rsquo;ve shipped worse middleware under more load. The OpenTelemetry Collector is a binary you run between your services and your observability backends. It receives telemetry in any of a dozen formats, transforms it, filters it, samples it, and routes it to one or more destinations.</p>
 
-<p>I learned this framing the hard way. At Walmart Labs, we evaluated whether to fine-tune an anomaly detection model for our IoT sensor pipeline or use a fixed retrieval strategy with a frozen base model. The fine-tuning team produced genuinely better F1 scores. The infra team produced a monthly GPU cost estimate that was four times the saving from the better F1 score. We went with retrieval. The cost spreadsheet was not a creative constraint &mdash; it was the decision.</p>
+<p>Every production observability system eventually re-invents this pipeline from scratch using homegrown code. The Collector is the version of that code that other people have already debugged at scale.</p>
 
-<p>This post builds the cost comparison from scratch. Prompting adds zero infrastructure. RAG adds a retrieval layer. Fine-tuning adds GPU compute, model storage, and a retraining pipeline. Each is justified at a different traffic volume and quality threshold. I&rsquo;ll connect this to LensAI&rsquo;s <code>resolved_model_id</code> field, which is how you measure which strategy is actually running in production and what it is costing you.</p>
+<p>I came to OTel through a frustrating experience. At Delivery Hero, we had four separate telemetry agents running on each Kubernetes node: one for metrics to Prometheus, one for traces to Jaeger, one for logs to Elasticsearch, and a custom shipper for our event bus. They consumed more CPU together than some of the business logic pods they were observing.</p>
 
-<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; the restaurant kitchen</div>A restaurant facing a new cuisine on the menu has three options. Train the existing chef from scratch on the new dishes (fine-tuning): high upfront cost, permanent capability uplift, expensive if the menu changes next month. Give the chef a binder of reference cards to consult during service (RAG): low upfront cost, requires a good indexing system, adds a few seconds to each dish. Hire a specialist chef who already knows the cuisine (a better base model with a richer prompt): you pay per hour, no training investment, but the specialist is expensive at volume. The cost/quality crossover between these three is the decision. The restaurant that defaults to training every chef on every new dish will eventually go bankrupt.</div>
+<p>Each agent had its own configuration syntax, its own failure mode, and its own on-call rotation. When OpenTelemetry&rsquo;s Collector reached production stability, it was immediately obvious that this was what we should have built &mdash; a single data plane for all signal types, configured in one YAML file, operated by one team.</p>
+
+<p>This post is about understanding the Collector&rsquo;s architecture: how receivers, processors, and exporters compose into pipelines, where the interesting engineering problems live, and why LensAI&rsquo;s ingestion layer emits OTLP natively rather than inventing a proprietary format. The goal is to be able to read a Collector config and understand what it is doing, not to memorize flags.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; airport baggage system</div>Think of the Collector as an airport baggage sorting facility. Receivers are the check-in desks: bags arrive from different airlines in different formats (carry-on tags, checked-bag barcodes, priority stickers). Processors are the conveyor belts and sorting machines: they read the tags, re-route bags with connecting flights, strip tags that are no longer valid, and merge carts heading to the same gate. Exporters are the departure gates: each bag ends up at exactly the gate (backend) it is supposed to, regardless of which desk it checked in at. The facility does not care what airline the bag came from. It only cares about routing it correctly to the right destination, without losing it.</div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">$0</span><span class="stat-label">infra added by prompting</span></div>
-  <div class="stat-cell"><span class="stat-num">~$200/mo</span><span class="stat-label">RAG vector store at 1M docs</span></div>
-  <div class="stat-cell"><span class="stat-num">~$800</span><span class="stat-label">one fine-tune run (7B model)</span></div>
-  <div class="stat-cell"><span class="stat-num">10&times;</span><span class="stat-label">fine-tune latency improvement</span></div>
+  <div class="stat-cell"><span class="stat-num">100+</span><span class="stat-label">contrib receivers &amp; exporters</span></div>
+  <div class="stat-cell"><span class="stat-num">&lt;5ms</span><span class="stat-label">p99 processor overhead</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">binary replaces 4+ agents</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">signal types: traces, metrics, logs</span></div>
 </div>
 
-<h2 id="prompting-zero-infra">Prompting: zero infra, max flexibility</h2>
+<h2 id="receivers-how-signal-enters">Receivers: how signal enters the pipeline</h2>
 
-<p>Prompting is the technique with no infrastructure footprint. You pay the per-token API rate, nothing more. The model is the same one you were already calling; you are just giving it richer instructions. For a surprising fraction of tasks &mdash; entity extraction, classification, summarization, translation &mdash; a well-crafted prompt on a capable base model meets the quality SLO without any additional machinery.</p>
+<p>A receiver listens for telemetry in a specific format and protocol, converts it to OTel&rsquo;s internal representation (pdata), and hands it to the processor chain. The two most important receivers for LensAI&rsquo;s use case are <code>otlpreceiver</code> (accepts OTLP gRPC and HTTP/protobuf from instrumented services) and <code>kafkareceiver</code> (consumes from a Kafka topic for event-driven ingest). A third, <code>prometheusreceiver</code>, scrapes Prometheus-format metric endpoints for anything that doesn&rsquo;t speak OTLP yet.</p>
 
-<p>The infrastructure cost of prompting is entirely in token economics. A prompt that provides ten few-shot examples to steer the model costs ten examples &times; their token length on every request. At 500 input tokens per request, 100k requests per day, and $2.50 per million input tokens on gpt-4o, that is $125/day. Add prompt caching (covered in Day 25) and the effective rate drops to roughly $12.50/day for the cached portion. Prompting&rsquo;s cost scales linearly with request volume; there are no fixed infrastructure costs.</p>
+<p>The receiver model has an important invariant: receivers are push or pull, not both. The OTLP receiver is push &mdash; services call it. The Prometheus receiver is pull &mdash; it calls services on a configured interval.</p>
 
-<p>The quality ceiling for prompting is real. Tasks that require knowledge the base model was never trained on &mdash; your internal API documentation, your company&rsquo;s product catalog, last week&rsquo;s incident reports &mdash; cannot be solved by prompting alone, because the information is not in the model&rsquo;s weights. That is the boundary condition where RAG becomes relevant.</p>
+<p>This distinction matters for firewall rules, service discovery configuration, and backpressure semantics. A pull receiver that cannot reach a target just misses a scrape and logs a warning. A push receiver that cannot process fast enough must signal backpressure to the sender &mdash; getting this wrong is how you create invisible data loss at the collection layer.</p>
 
-<h2 id="rag-the-retrieval-problem">RAG: when the knowledge is external</h2>
+<p>For LensAI, the ingestion service emits spans over OTLP gRPC. Each span carries inference event attributes: <code>resolved_model_id</code>, <code>tenant_id</code>, <code>prompt_tokens</code>, <code>completion_tokens</code>, <code>cached_tokens</code>, <code>flag_variant</code>, and latency. The Collector receives these spans and fans them out to ClickHouse (for cost queries) and Kafka (for downstream consumers like the evaluation pipeline).</p>
 
-<p>Retrieval-Augmented Generation (RAG) is the pattern of fetching relevant documents from an external store and injecting them into the prompt before calling the model. The model sees the retrieved context as part of its input and reasons over it as if it were always there. From the model&rsquo;s perspective, RAG is just a longer, better-informed prompt. From the infrastructure perspective, RAG is an entirely new system you now have to build and operate.</p>
+<p>The ingestion service does not know or care about either destination &mdash; it only knows about the Collector endpoint.</p>
 
-<p>The RAG infrastructure tax has four line items. First, a vector database: embedding every document and storing the vectors. Pinecone&rsquo;s hosted service costs roughly $70/month for 1M 1536-dimension vectors (OpenAI text-embedding-3-small format). Qdrant self-hosted on a $50/month VM is cheaper but requires your time. Second, an embedding call for every query at inference time: at $0.02 per million tokens and 100 tokens per query, that is $0.002 per 1000 queries, essentially free. Third, the retrieval operation itself: vector similarity search is fast (under 10ms at 1M scale) but adds one network round trip per request. Fourth, the latency tax: P99 latency for a retrieval-augmented request is the retrieval P99 plus the model P99, not the model P99 alone.</p>
+<h2 id="processors-transform-while-in-flight">Processors: transform while in flight</h2>
 
-<p>RAG also requires an indexing pipeline. Every time the knowledge base changes &mdash; new documents added, old documents updated &mdash; the vectors must be recomputed and the index updated. For a product catalog that changes daily, the incremental reindex is a background job you now own. For a static document set that never changes, the maintenance cost is near zero. The &ldquo;RAG is simpler than fine-tuning&rdquo; claim is true only when the knowledge base is mostly static.</p>
+<p>Processors are where the Collector earns its &ldquo;integration hub&rdquo; title. They run between receivers and exporters, and they can do anything to the signal: add attributes, remove attributes, sample, filter, batch, transform field values, or route to different pipelines based on attribute predicates. The processor chain is ordered and deterministic &mdash; processors run in the order they are declared in the pipeline, and each processor sees the output of the previous one.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    A["Task requires\nexternal knowledge?"] -- "no" --> B["Prompting\n$0 infra\nlinear token cost"]
-    A -- "yes" --> C["Knowledge base\nchanges frequently?"]
-    C -- "no" --> D["RAG\n$70-200/mo vector store\n+retrieval latency"]
-    C -- "yes" --> E["Fine-tune or\nperiodic retrain?"]
-    E -- "stable format\nnew data monthly" --> F["Fine-tune\n$800/run\n+serving infra"]
-    E -- "high churn\ndaily changes" --> D
-    B --> G["Cost model:\ntoken rate × volume"]
-    D --> G
-    F --> G
-</pre>
+<p>The three processors I reach for first are <code>batch</code>, <code>attributes</code>, and <code>filter</code>. The batch processor buffers spans before exporting, dramatically reducing the number of write RPCs to ClickHouse at the cost of a small latency increase (the timeout parameter, default 200ms). For LensAI at moderate traffic, batching reduces ClickHouse insert RPCs by 50&times; with no meaningful latency impact, since inference events are analyzed minutes to hours after they occur.</p>
 
-<h2 id="fine-tuning-when-nothing-else-works">Fine-tuning: when nothing else works</h2>
+<p>The attributes processor adds or modifies span attributes before export. I use it to inject <code>collector.host</code> (which node collected this span) and normalize <code>resolved_model_id</code> values that differ by casing between SDK versions. The filter processor drops spans that match a predicate &mdash; health check spans, internal heartbeats, or test traffic tagged with <code>env=ci</code>.</p>
 
-<p>Fine-tuning is the technique of updating a model&rsquo;s weights by training it on your domain-specific examples. The result is a model that has absorbed your patterns into its weights &mdash; it no longer needs them in the prompt, which means shorter prompts, lower latency, and sometimes better quality on narrow tasks. The tradeoff is that the training data must be prepared, the fine-tune run must be paid for, and the resulting model must be served and maintained.</p>
+<pre><code>processors:
+  batch:
+    timeout: 200ms
+    send_batch_size: 512
 
-<p>The cost of a single fine-tune run on OpenAI&rsquo;s API is approximately $8 per million training tokens for gpt-4o-mini. A dataset of 10,000 examples at 1,000 tokens each is 10M tokens, costing roughly $80. A larger dataset of 100k examples at the same length costs $800. These are one-time costs per run &mdash; but &ldquo;one-time&rdquo; is optimistic. A fine-tuned model trained on data from six months ago starts to drift as the world changes. Customer support models need retraining when products change. Code generation models need retraining when internal APIs evolve. The actual cost is the training cost amortized over the useful life of the model, which is often shorter than teams expect.</p>
+  attributes/normalize:
+    actions:
+      - key: resolved_model_id
+        action: convert
+        converted_type: string
+      - key: collector.host
+        action: insert
+        value: "${HOSTNAME}"
 
-<p>The serving cost is the more important number. A fine-tuned model requires dedicated hosting. OpenAI charges $0.0025 per 1K tokens for fine-tuned model inference on gpt-4o-mini, which is roughly double the base model rate. If the fine-tuning benefit is shorter prompts (eliminating few-shot examples), the per-token rate increase may be offset by lower token volume per request. Whether the math works out depends on your specific prompt structure &mdash; and most teams do not run this calculation before starting fine-tuning.</p>
+  filter/drop-ci:
+    spans:
+      exclude:
+        match_type: strict
+        attributes:
+          - key: deployment.environment
+            value: ci</code></pre>
 
-<h2 id="the-four-question-framework">The four-question decision framework</h2>
+<p>The most powerful and least understood processor is <code>transform</code>, which uses OTel Transformation Language (OTTL) to write arbitrary expressions over signal attributes. It can parse JSON from a string attribute into structured fields, compute derived metrics from existing ones, and conditionally set attributes based on other attributes.</p>
 
-<p>Before starting any fine-tuning project, I work through four questions in order. The answers determine which technique is justified.</p>
+<p>OTTL is a small expression language &mdash; not Turing-complete, but expressive enough for the field manipulation tasks that otherwise require a custom processor plugin. Knowing OTTL exists is the difference between writing a 200-line Go plugin and writing a 10-line config block.</p>
 
-<p><strong>Question 1: Does the task require knowledge that is not in the base model?</strong> If yes, RAG or fine-tuning. If no, prompting first. Most teams jump past this question and assume their task is hard because it feels domain-specific. Concrete test: write a zero-shot prompt and measure quality. You will be surprised how often gpt-4o-mini passes the bar with a well-crafted instruction.</p>
+<h2 id="exporters-routing-to-backends">Exporters: routing to backends</h2>
 
-<p><strong>Question 2: Is the missing knowledge static or frequently changing?</strong> If static, fine-tuning is viable. If it changes faster than you can retrain (weekly or faster), RAG is the only option that stays current. The fine-tuned model&rsquo;s knowledge is frozen at training time; the RAG index can be updated incrementally.</p>
+<p>Exporters translate OTel&rsquo;s internal pdata representation into the format expected by each backend and send it. The Collector contrib distribution ships over forty exporters: ClickHouse, Kafka, Prometheus remote write, Elasticsearch, Jaeger, Zipkin, Datadog, New Relic, and more. Each exporter runs its own retry loop with configurable backoff, its own send queue (to absorb backend slowdowns without blocking the processor chain), and its own telemetry metrics (so you can observe the Collector itself via its own pipeline).</p>
 
-<p><strong>Question 3: What is the monthly cost crossover between RAG and fine-tuning?</strong> RAG has a fixed infrastructure cost (vector store) plus a per-query retrieval cost. Fine-tuning has a periodic training cost plus a higher per-token serving cost. The crossover point depends on traffic volume. At low volume, RAG is cheaper because the fixed cost is amortized across fewer requests. At high volume, a well-tuned fine-tuned model with shorter prompts may win on per-request economics. Compute the crossover at your actual traffic volume before deciding.</p>
+<p>The ClickHouse exporter is the one LensAI uses most heavily. It bulk-inserts spans using the native ClickHouse protocol, with configurable LZ4 compression (a fast byte-level compression algorithm) and a TTL on the destination table. Every span attribute lands in a <code>Map(String, String)</code> column by default, but you can promote frequently queried attributes to top-level typed columns via the <code>attribute_mappings</code> block.</p>
 
-<p><strong>Question 4: Do you have enough labeled examples to fine-tune reliably?</strong> OpenAI recommends at least 50&ndash;100 examples to see any improvement, and several hundred to see consistent gains. If you have fewer than 100 labeled examples, fine-tuning is gambling. RAG or few-shot prompting is the right answer until you have enough data.</p>
-
-<h2 id="the-cost-numbers">The cost numbers at real traffic volumes</h2>
-
-<p>Let me make the comparison concrete at three traffic levels: 10k, 100k, and 1M requests per day. I am using a task that requires domain-specific knowledge: answering questions about an internal product catalog with 500k entries.</p>
-
-<table>
-  <thead>
-    <tr><th>Technique</th><th>10k req/day</th><th>100k req/day</th><th>1M req/day</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Prompting (few-shot)</td><td>$45/mo</td><td>$450/mo</td><td>$4,500/mo</td></tr>
-    <tr><td>RAG (Qdrant + gpt-4o-mini)</td><td>$120/mo</td><td>$250/mo</td><td>$1,800/mo</td></tr>
-    <tr><td>Fine-tune (gpt-4o-mini)</td><td>$95/mo + $80 run</td><td>$310/mo + $80 run</td><td>$2,200/mo + $80 run</td></tr>
-  </tbody>
-</table>
-
-<p>At 10k requests/day, prompting wins on cost but fails the knowledge requirement, so RAG is the practical choice despite the higher base cost. At 100k requests/day, the fixed RAG cost is amortized and RAG becomes competitive with fine-tuning. At 1M requests/day, RAG is cheapest because the short retrieved-context prompts are highly cache-friendly. Fine-tuning&rsquo;s advantage &mdash; shorter prompts without few-shot examples &mdash; appears only when the serving volume is high enough to amortize the per-run training cost and the prompt shortening outweighs the higher per-token serving rate.</p>
-
-<p>The latency story is different from the cost story. Fine-tuned models produce faster responses because shorter prompts mean less prefill compute. At 1M requests/day with a P99 SLO of 500ms, the prompting approach with ten few-shot examples at gpt-4o-mini rates costs more tokens per request than a fine-tuned model with no examples. If your SLO is the binding constraint rather than cost, fine-tuning may be justified even when RAG is cheaper.</p>
-
-<h2 id="cost-attribution-in-lensai">Cost attribution in LensAI via resolved_model_id</h2>
-
-<p>Knowing which technique is cheapest in theory is only half the problem. In production, you need to know which technique is actually running and what it is costing. This is where LensAI&rsquo;s event schema earns its keep. Every inference request that passes through the LensAI ingestion pipeline carries a <code>resolved_model_id</code> field: the actual model identifier used, not the model the caller requested.</p>
-
-<p>For a RAG-augmented request, <code>resolved_model_id</code> is <code>gpt-4o-mini</code> (the generation model), but the total cost also includes the embedding call that drove the retrieval. The schema captures this as a separate event with <code>operation: "embed"</code> and the same <code>request_id</code>. A ClickHouse query that joins on <code>request_id</code> and sums across all operation types gives the true cost per user request, not just the generation cost.</p>
-
-<pre><code>SELECT
-  resolved_model_id,
-  operation,
-  avg(prompt_tokens + completion_tokens)  AS avg_tokens,
-  count()                                  AS requests,
-  sum((prompt_tokens - cached_tokens) * input_price_per_token
-      + cached_tokens * cache_price_per_token
-      + completion_tokens * output_price_per_token) AS total_cost_usd
-FROM lensai.inference_events
-WHERE toDate(ts) = today()
-GROUP BY resolved_model_id, operation
-ORDER BY total_cost_usd DESC</code></pre>
-
-<p>If you are A/B testing RAG versus prompting via distributed-flagd&rsquo;s <code>retrieval_strategy</code> flag, the <code>flag_variant</code> field on the event lets you slice this query by variant. Day 26&rsquo;s benchmark work for distributed-flagd provides the flag evaluation QPS numbers that prove the flag system adds under 0.2ms to each request &mdash; invisible against the 200ms+ model latency.</p>
+<p>Promoting <code>resolved_model_id</code>, <code>tenant_id</code>, and <code>prompt_tokens</code> from the map to typed columns reduces ClickHouse query time by roughly 3&times; for the cost attribution queries that hit these fields in every WHERE clause.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -355,38 +308,118 @@ ORDER BY total_cost_usd DESC</code></pre>
   }
 }}%%
 flowchart LR
-    A["Inference request"] --> B["distributed-flagd\nretrieval_strategy flag"]
-    B -- "variant: rag" --> C["Embed query\n+ vector search\n+ inject context"]
-    B -- "variant: prompt" --> D["Few-shot prompt\nno retrieval"]
-    C --> E["LLM API call\nresolved_model_id logged"]
-    D --> E
-    E --> F["LensAI ingest\nprompt_tokens\ncached_tokens\nflag_variant"]
-    F --> G["ClickHouse\ncost by variant\nRAG vs prompt"]
+    A["LensAI ingestion\nOTLP gRPC"] --> R["OTLP Receiver"]
+    B["Kafka topic\ninference_events"] --> K["Kafka Receiver"]
+    R --> P1["batch processor\n200ms / 512 spans"]
+    K --> P1
+    P1 --> P2["attributes processor\nnormalize + enrich"]
+    P2 --> P3["filter processor\ndrop CI traffic"]
+    P3 --> E1["ClickHouse Exporter\nlensai.inference_events"]
+    P3 --> E2["Kafka Exporter\ndownstream consumers"]
+    P3 --> E3["Prometheus Exporter\nGrafana dashboards"]
 </pre>
 
-<p>The <code>flag_variant</code> + <code>resolved_model_id</code> combination gives you a cost ledger split by technique. You can see in real time whether the RAG variant is costing more per request than the prompting variant, and whether the quality delta (measured by downstream evaluation events in the same pipeline) justifies the extra cost. The infrastructure cost comparison that took a spreadsheet and two days of estimation pre-deployment now takes a single ClickHouse query post-deployment. That is the measurement loop that makes the cost framework actionable rather than theoretical.</p>
+<h2 id="pipeline-composition">Pipeline composition: connecting the pieces</h2>
+
+<p>A Collector pipeline is declared in YAML under <code>service.pipelines</code>. Each pipeline has a type (traces, metrics, or logs), a list of receivers, a list of processors (in order), and a list of exporters. A signal received on the receivers is passed through all processors in sequence, then fanned out to all exporters in parallel.</p>
+
+<p>You can declare multiple pipelines of the same type, and a receiver or exporter can appear in more than one pipeline.</p>
+
+<pre><code>service:
+  pipelines:
+    traces/inference:
+      receivers: [otlp, kafka]
+      processors: [batch, attributes/normalize, filter/drop-ci]
+      exporters: [clickhouse, kafka/downstream]
+
+    metrics/infra:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [prometheusremotewrite]</code></pre>
+
+<p>The separation of pipelines by signal type is not just organizational. Traces, metrics, and logs have different cardinality characteristics, different retention requirements, and different downstream consumers. A single pipeline that mixes traces and metrics would force every processor to handle both, which is logically confusing and operationally fragile.</p>
+
+<p>Keeping them separate means you can tune the batch processor independently for each signal type. Inference traces benefit from small batches and short timeouts for near-real-time ClickHouse queries, while infrastructure metrics can afford larger batches because Grafana dashboards refresh at 30-second intervals anyway.</p>
+
+<p>The Collector also supports connectors, which allow the output of one pipeline to feed the input of another. LensAI uses a connector to compute a <code>spanmetrics</code> summary from the traces pipeline &mdash; request rate, error rate, and latency histograms by <code>resolved_model_id</code> &mdash; and pipe those metrics into the metrics pipeline for Prometheus export. This means the Grafana dashboards show live per-model error rates without any additional instrumentation in the application code; the metrics are derived from the trace data the Collector already has.</p>
+
+<h2 id="why-lensai-speaks-otel-natively">Why LensAI speaks OTel natively</h2>
+
+<p>LensAI&rsquo;s ingestion service was designed from the start to emit OTLP rather than a custom event format. Every language SDK for OTLP already exists and is maintained by the OpenTelemetry community. The Collector&rsquo;s fan-out capability means LensAI can route inference events to any backend without touching application code.</p>
+
+<p>OTLP&rsquo;s structured attribute model maps naturally to LensAI&rsquo;s inference event schema &mdash; each span attribute is a named, typed field in the ClickHouse table.</p>
+
+<p>The alternative was to invent a proprietary event format, write a custom schema, and maintain a custom ingest server. At Delivery Hero, that custom ingest server started as fifty lines and grew to three thousand lines over eighteen months as we bolted on retry logic, dead-letter queues, schema validation, and multi-tenant routing &mdash; all things the OTel Collector provides for free.</p>
+
+<p>Proprietary formats are fine when you are the only consumer. The moment a second team wants the same data in a different shape, you are building a Collector from scratch anyway, just with a worse API surface.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    A["LensAI\nOTLP span emitted"] --> B["Collector\nreceive + process"]
+    B --> C["ClickHouse\ncost queries"]
+    B --> D["Kafka\nevaluation pipeline"]
+    B --> E["Prometheus\nGrafana dashboards"]
+    B --> F["spanmetrics connector\nper-model error rate"]
+    F --> E
+    C --> G["resolved_model_id\ncost attribution"]
+    D --> H["flag_variant\nA/B test results"]
+</pre>
+
+<p>Day 27&rsquo;s code work adds an OpenAPI spec and SDK client to distributed-flagd, and the integration between flagd and LensAI&rsquo;s ingestion layer depends on this OTel pipeline. When the ingestion service evaluates the <code>model-version</code> flag via distributed-flagd, the resolved variant is written as <code>flag_variant</code> on the OTLP span. The Collector routes that span to ClickHouse, where a single query shows the cost split between the <code>gpt-4o-mini</code> (90% traffic) and <code>gpt-4o</code> (10% canary) variants.</p>
+
+<p>No custom metrics code, no separate dashboard &mdash; the cost attribution flows directly from the flag evaluation through the OTel pipeline to the ClickHouse query. The infrastructure composes instead of accumulating.</p>
+
+<h2 id="operating-the-collector">Operating the Collector in production</h2>
+
+<p>The Collector emits its own telemetry on port 8888 (Prometheus format by default). The metrics that matter most are <code>otelcol_processor_batch_timeout_trigger_send</code> (how often batches flush on timeout vs. on size &mdash; timeout-driven flushing means you are batching efficiently), <code>otelcol_exporter_send_failed_requests</code> (the first sign of backend trouble), and <code>otelcol_receiver_refused_spans</code> (backpressure from the pipeline to the sender). Set alerts on the refused-spans metric before anything else &mdash; refused spans are silent data loss and the first symptom of a saturated Collector.</p>
+
+<p>Memory management is the Collector&rsquo;s sharp edge. The <code>memory_limiter</code> processor should always be the first processor in every pipeline. It checks available memory before accepting each batch and applies soft and hard limits: at the soft limit it begins refusing new data; at the hard limit it forces a GC cycle.</p>
+
+<p>Without this, a traffic spike can OOM-kill the Collector, taking its in-memory queue with it. The default soft limit is 80% of <code>GOMEMLIMIT</code>; the hard limit is 90%. These are sensible starting points, but measure the Collector&rsquo;s memory footprint at your peak traffic and set <code>GOMEMLIMIT</code> explicitly.</p>
+
+<p>An unconstrained Collector is a liability on a shared Kubernetes node. Container runtime defaults are not tuned for a process that holds unbounded in-flight telemetry.</p>
 
 <div class="series-footer">
-  <p><em>AI Learning &middot; Day 26 of 150 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-25-cost-models-llm-gateways.html">Day 25 &mdash; Cost Models for LLM Gateways</a></em></p>
-  <p><em>Next: <a href="day-27-opentelemetry-collector-integration-hub.html">Day 27 &mdash; OpenTelemetry Collector as Integration Hub</a></em></p>
-  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html">Day 26 &mdash; Systems That Outlast Their Architects &mdash; Walmart Lessons</a></em></p>
+  <p><em>AI Learning &middot; Day 27 of 150 &mdash; OpenTelemetry Collector as Integration Hub. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-26-fine-tuning-rag-prompting-infra-cost.html">Day 26 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View</a></em></p>
+  <p><em>Next: Day 28 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-27-redesign-wayfair-2026-eyes.html">Day 27 &mdash; What I&rsquo;d Redesign at Wayfair With 2026 Eyes</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-25-cost-models-llm-gateways.html">
+    <a href="day-26-fine-tuning-rag-prompting-infra-cost.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 25 &mdash; Cost Models for LLM Gateways
+      Day 26 &mdash; Fine-Tuning vs RAG vs Prompting &mdash; Infra Cost View
     </a>
-    <a href="day-24-gpu-scheduling-resource-management.html">
+    <a href="day-17-llm-observability-what-actually-matters.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 24 &mdash; GPU Scheduling as Resource Management
+      Day 17 &mdash; LLM Observability: What Actually Matters
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/48">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/51">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 26 code: distributed-flagd benchmarks + platform cross-links (PR #48)
+      Day 27 code: distributed-flagd OpenAPI spec + SDK client (PR #51)
+    </a>
+    <a href="https://opentelemetry.io/docs/collector/configuration/" target="_blank" rel="noopener">
+      <span class="footnote-arrow">&#x2197;</span>
+      OpenTelemetry Collector configuration reference
     </a>
   </div>
 </div>
@@ -400,22 +433,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#prompting-zero-infra">Prompting: zero infra</a></li>
-      <li><a href="#rag-the-retrieval-problem">RAG: retrieval problem</a></li>
-      <li><a href="#fine-tuning-when-nothing-else-works">Fine-tuning: when it works</a></li>
-      <li><a href="#the-four-question-framework">Four-question framework</a></li>
-      <li><a href="#the-cost-numbers">Cost numbers at scale</a></li>
-      <li><a href="#cost-attribution-in-lensai">Cost attribution in LensAI</a></li>
+      <li><a href="#receivers-how-signal-enters">Receivers: signal entry</a></li>
+      <li><a href="#processors-transform-while-in-flight">Processors: in-flight transforms</a></li>
+      <li><a href="#exporters-routing-to-backends">Exporters: routing to backends</a></li>
+      <li><a href="#pipeline-composition">Pipeline composition</a></li>
+      <li><a href="#why-lensai-speaks-otel-natively">Why LensAI speaks OTel</a></li>
+      <li><a href="#operating-the-collector">Operating in production</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+26+%E2%80%94+Fine-Tuning+vs+RAG+vs+Prompting+%E2%80%94+Infra+Cost+View&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+27+%E2%80%94+OpenTelemetry+Collector+as+Integration+Hub&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
