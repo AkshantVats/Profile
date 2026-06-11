@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 28 &mdash; Competitor Teardown: LensAI Positioning | AI Learning Series</title>
+<meta name="description" content="Name what you don't do yet — credibility beats feature laundry lists. Honest comparison of Datadog LLM Observability, Helicone, and Langfuse against LensAI's current state.">
+<meta property="og:title" content="Day 28 &mdash; Competitor Teardown: LensAI Positioning">
+<meta property="og:description" content="Datadog LLM Observability vs Helicone vs Langfuse — honest gaps, where each falls short, and where LensAI fits (and where it doesn't yet).">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-28-competitor-teardown-lensai-positioning.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-28-competitor-teardown-lensai-positioning.png">
+<meta property="article:published_time" content="2026-06-12">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'\2190 '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &middot; Day 28 of 150</span>
+    <span class="tag">LensAI</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Datadog</span>
+    <span class="tag">Helicone</span>
+    <span class="tag">Langfuse</span>
+  </div>
+  <h1 class="post-title">Day 28 &mdash; Competitor Teardown: LensAI Positioning</h1>
+  <p class="post-subtitle">Datadog LLM Observability vs Helicone vs Langfuse &mdash; honest gaps, and where LensAI fits</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &middot; Day 28 of 150</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">June 12, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">16 min read</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+  <figure class="post-cover">
+    <img src="../../assets/covers/day-28-competitor-teardown-lensai-positioning.png" alt="Day 28 — Competitor Teardown: LensAI Positioning" width="1200" height="630" loading="lazy">
+  </figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>Name what you don&rsquo;t do yet &mdash; credibility beats feature laundry lists. Every developer has read the feature matrix claiming a new tool does everything the existing tools do, but better. And every developer has clicked away from that page to read the GitHub issues and Hacker News comments where people describe what actually breaks. The credibility of an honest comparison &mdash; &ldquo;here&rsquo;s what Datadog does better than us, here&rsquo;s where we&rsquo;re ahead, here&rsquo;s what we&rsquo;re not attempting yet&rdquo; &mdash; is worth more than any feature checkbox. Engineers trust people who know where their work falls short.</p>
+
+<p>LensAI is three components running together: infra-ai-streaming for Rust-based ingest into ClickHouse, distributed-flagd for model version control, and ebpf-llm-tracer for kernel-level LLM request capture. Today&rsquo;s post is a genuine competitor teardown of Datadog LLM Observability, Helicone, and Langfuse &mdash; with the goal of understanding where LensAI fits, where it falls short today, and what it&rsquo;s built for that the others are not.</p>
+
+<div class="attr-box mine"><div class="attr-label">DS analogy &mdash; network monitoring layers</div>Choosing an LLM observability tool is like choosing what layer of the network stack to monitor. Datadog watches the application layer &mdash; rich, integrated, expensive. Helicone watches the API gateway layer &mdash; cheap proxy, minimal instrumentation. Langfuse watches the session layer &mdash; traces structured events you explicitly emit. LensAI watches the kernel &mdash; what actually ran, regardless of what the application code reported. Each tool sees a different slice of the same traffic. None sees all of it.</div>
+
+<h2 id="the-three-archetypes">The landscape: three archetypes</h2>
+
+<p>Datadog LLM Observability is the comprehensive platform approach: instrument everything through an agent, centralize telemetry in one place, integrated alerting, APM correlation, and cost attribution from a single SaaS product. The design philosophy is one tool for everything, one bill, one support relationship. The trade-off is vendor lock-in, pricing at scale, and an agent doing a lot of things you might not need.</p>
+
+<p>Helicone is the proxy approach: route your LLM API calls through Helicone&rsquo;s proxy, and it captures request/response pairs, token counts, latency, and cost without any code changes to your application. The design philosophy is zero instrumentation burden, immediate value. The trade-off is routing your API traffic through a third-party service, an added network hop, and visibility limited to the API layer.</p>
+
+<p>Langfuse is the structured tracing approach: you explicitly instrument your code with Langfuse&rsquo;s SDK, emit structured events (traces, spans, evaluations, prompts), and Langfuse aggregates them into a rich observability interface. The design philosophy is structured, semantic observability with evaluation workflows built in. The trade-off is instrumentation burden &mdash; the quality of your observability is directly proportional to the quality of your instrumentation. Understanding which archetype a tool belongs to determines which failures it can and cannot detect.</p>
+
+<h2 id="datadog-where-it-falls-short">Datadog LLM Observability: where it falls short</h2>
+
+<p>Datadog LLM Observability is well-engineered. It captures token counts, costs, latency, error rates, and traces from all major LLM providers through agent instrumentation. It integrates with existing Datadog APM traces, so you can correlate an LLM API call with the upstream request that triggered it. For teams already on Datadog, the integration story is compelling.</p>
+
+<p>The first gap is cost. Datadog pricing at LLM observability scale &mdash; millions of inference events per day &mdash; adds up quickly. LLM Observability is priced per ingested log byte, meaning high-volume production traffic can generate significant observability costs. An instrumentation layer costing a meaningful fraction of the inference cost it&rsquo;s monitoring is a structural tension most teams resolve by reducing instrumentation granularity.</p>
+
+<p>The second gap is kernel-level visibility. Datadog instruments at the application layer &mdash; it sees what your application code reports via the SDK. It does not see what happens at the syscall level. For ebpf-llm-tracer, which captures LLM API calls by tracing TLS socket operations at the kernel level, Datadog has no equivalent. If your application has a bug causing it to make more API calls than the SDK reports, Datadog will undercount. The eBPF layer cannot undercount &mdash; it sees every system call regardless of application-level behavior.</p>
+
+<p>The third gap is no self-hosted option. For teams with data residency requirements, cost constraints, or open-source preferences, Datadog LLM Observability is not an option regardless of its quality.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; dispatch GPS</div>Datadog LLM Observability is like a taxi dispatch system with GPS tracking. It knows where every taxi is, how long each trip took, how much it cost &mdash; because the taxi company&rsquo;s own dispatch system is the source of truth. But if the driver takes a detour not logged in dispatch, the GPS record is wrong. The eBPF tracer is the roadside traffic camera &mdash; it sees every vehicle that passes, logged in dispatch or not.</div>
+
+<p>Datadog LLM Observability is the right choice for teams already on Datadog needing immediate integrated observability &mdash; the gaps are real but only matter for specific use cases: kernel-level ground truth, data residency, or cost at very high inference volume.</p>
+
+<h2 id="helicone-right-tool-specific-job">Helicone: the right tool for a specific job</h2>
+
+<p>Helicone is the fastest path to LLM observability. Change your API base URL from <code>https://api.openai.com/v1</code> to <code>https://oai.helicone.ai/v1</code>, add a header, and you&rsquo;re capturing request/response pairs, token counts, latency, and cost attribution with zero code changes. For a prototype, an internal tool, or a team that needs immediate visibility and can accept a third-party proxy in the critical path, Helicone is genuinely excellent.</p>
+
+<p>The first limitation is the proxy dependency. Your LLM API calls route through Helicone&rsquo;s servers. If Helicone has an outage, your LLM calls fail unless you&rsquo;ve implemented fallback routing. The added network hop is small relative to LLM inference latency but non-zero and creates a new failure dependency in your critical path.</p>
+
+<p>The second limitation is provider coverage. Helicone supports the major commercial LLM APIs by acting as a reverse proxy. For self-hosted models &mdash; vLLM on your own GPUs, Ollama on-prem, custom inference servers &mdash; Helicone&rsquo;s proxy approach doesn&rsquo;t work without implementing a Helicone-compatible API shim. This is the gap infra-ai-streaming specifically addresses: it&rsquo;s designed to ingest from any inference endpoint, not just proxied commercial APIs.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; highway tollbooth</div>Helicone is a tollbooth on the highway. Every vehicle using the highway passes through the tollbooth, and the booth captures license plate, vehicle class, and timestamp. It works perfectly for the traffic that uses the highway. It doesn&rsquo;t capture traffic on side streets or vehicles that bypass the toll. The eBPF tracer is the aerial surveillance &mdash; it sees all surface vehicles regardless of which road they take.</div>
+
+<p>Helicone is the fastest path to commercial LLM API observability &mdash; and if that&rsquo;s your use case, you should use it rather than building a self-hosted alternative. The teams where Helicone falls short are specifically those with self-hosted inference or kernel-level visibility requirements.</p>
+
+<h2 id="langfuse-observability-as-product">Langfuse: observability as a product</h2>
+
+<p>Langfuse is the most powerful of the three for structured evaluation workflows &mdash; scoring LLM outputs, running A/B tests on prompts, comparing model versions on evaluation datasets, and building feedback loops from production traces into fine-tuning datasets. Its open-source self-hosted version is genuinely good, and its data model (traces, spans, generations, evaluations) is well-designed for complex multi-step LLM applications like RAG pipelines or agents.</p>
+
+<p>The first limitation is instrumentation burden. Langfuse requires explicit code instrumentation with its SDK. Every LLM call, every retrieval step, every intermediate result must be wrapped in a Langfuse trace. Teams with well-instrumented codebases get rich, queryable trace data. Teams that partially instrument get incomplete data that&rsquo;s harder to trust than no data.</p>
+
+<p>The second limitation is that Langfuse is not primarily an infrastructure observability tool. It is designed for prompt engineering, evaluation, and fine-tuning workflows. For infrastructure-level questions &mdash; Kafka consumer lag, ClickHouse query latency, ingest pipeline throughput &mdash; Langfuse has no answer. Those require an infrastructure observability layer, which is what infra-ai-streaming provides.</p>
+
+<p>What I didn&rsquo;t expect was how well Langfuse and LensAI complement each other rather than compete. Langfuse is excellent for the application layer &mdash; prompt versions, evaluation scores, trace structure. LensAI is the infrastructure layer &mdash; ingest pipeline, cost attribution, kernel-level ground truth. A team using both has observability from the kernel to the prompt and back.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; lab notebook</div>Langfuse is the lab notebook for an experiment. A well-kept lab notebook records every step, every measurement, every unexpected result. It&rsquo;s invaluable for understanding why an experiment worked or didn&rsquo;t. But the lab notebook only captures what the scientist chose to write down. A sensor attached to the equipment records what the equipment actually did. Langfuse is the lab notebook. LensAI&rsquo;s eBPF tracer is the equipment sensor.</div>
+
+<h2 id="where-lensai-fits">Where LensAI fits</h2>
+
+<p>LensAI&rsquo;s positioning is three things: kernel-level ground truth via eBPF, infrastructure-level cost attribution via ClickHouse and <code>resolved_model_id</code>, and model version control via distributed-flagd. Together they answer questions the other tools cannot.</p>
+
+<p>Kernel-level ground truth answers: &ldquo;what LLM API calls actually happened on this machine, regardless of what the application code reported?&rdquo; The eBPF tracer captures TLS socket operations at the syscall level, independently of any application instrumentation. It cannot be bypassed by code that skips the SDK, doesn&rsquo;t call the proxy, or runs in a subprocess the deployment tooling didn&rsquo;t know about.</p>
+
+<p>Infrastructure-level cost attribution answers: &ldquo;how much did we spend on LLM inference last month, broken down by model version, broken down by feature, in a queryable format I control?&rdquo; ClickHouse is the right storage layer for this &mdash; columnar, fast, cheap at large volumes, SQL-accessible. The <code>resolved_model_id</code> field connects a specific inference event to the exact model variant that processed it, including fine-tuned checkpoints. You own the data.</p>
+
+<p>Model version control answers: &ldquo;how do I roll out a new model version to 10% of traffic, verify cost and latency metrics, and roll back without a code deployment?&rdquo; This is distributed-flagd &mdash; a Go feature flag daemon with etcd backend, Kafka audit log, and gRPC streaming watch. The rollout percentage is a flag value. The kill-switch is a flag flip.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    A["Application layer"] --> B["Langfuse SDK\ntraces + evaluations"]
+    A --> C["Helicone proxy\nAPI gateway capture"]
+    A --> D["Datadog agent\nAPM + LLM plugin"]
+    E["Kernel + syscall layer"] --> F["LensAI eBPF tracer\nzero-SDK capture"]
+    F --> G["ClickHouse\ncost attribution"]
+    G --> H["flagd\nmodel version control"]
+    B --> I["Observability stores"]
+    C --> I
+    D --> I
+    H --> I
+</pre>
+
+<h2 id="what-lensai-doesnt-do-yet">What LensAI doesn&rsquo;t do yet</h2>
+
+<p>LensAI has no hosted SaaS offering. There is no sign-up page, no managed ClickHouse, no managed Grafana. For teams that want to be running in five minutes without an infrastructure team, Helicone or Datadog are better choices today. LensAI is for teams who want to own the stack.</p>
+
+<p>LensAI&rsquo;s eBPF tracer requires a Linux kernel with appropriate capabilities and kernel headers. It does not work on macOS or Windows. It does not work in environments where privileged Docker containers are not permitted without specific cluster configuration. This is a real limitation, not a temporary one &mdash; eBPF&rsquo;s kernel-level access is both its strength and its deployment constraint.</p>
+
+<p>LensAI has no prompt management interface. Langfuse&rsquo;s prompt registry, A/B testing of prompt versions, and human feedback collection workflows have no equivalent in LensAI. If prompt engineering and evaluation are the primary use cases, Langfuse is the right tool.</p>
+
+<p>Naming these gaps is not a weakness in the positioning. It is the engineering credibility that makes the positioning claims about what LensAI does do believable. An honest gap list is like the &ldquo;known issues&rdquo; section of a software release note. A release note without known issues is not more polished &mdash; it is less trustworthy. Engineers read the known issues section first.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">tools compared</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">LensAI gaps named</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">LensAI unique answers</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">SDK changes for eBPF</span></div>
+</div>
+
+<h2 id="the-positioning-statement">The positioning statement</h2>
+
+<p>LensAI is an open-source AI inference observability platform for teams who need kernel-level ground truth, self-hosted cost attribution, and model version control. It does not replace Datadog, Helicone, or Langfuse. It does the three things they don&rsquo;t do together: eBPF-based request capture that cannot be bypassed by application code, ClickHouse-backed cost attribution you own and query with SQL, and model rollout control that is a flag flip, not a code deployment.</p>
+
+<p>Who it&rsquo;s for: backend engineers building production LLM inference systems who want to own their observability stack, have data residency requirements, or need kernel-level accuracy for billing attribution. Who it&rsquo;s not for: teams who need a five-minute SaaS setup, teams on macOS-only infrastructure, or teams whose primary need is prompt engineering and evaluation workflows.</p>
+
+<p>The docker-compose quickstart built today is the credibility evidence the positioning claims require. Anyone can clone the repo, run <code>bash scripts/smoke.sh</code>, and verify that the three-component pipeline actually works end-to-end. A positioning claim backed by a runnable demo is different from one backed by an architecture diagram. The quickstart is the engineering proof of concept the honest positioning needs.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["eBPF tracer\nwhat happened"] --> D["ClickHouse\nwhat it cost"]
+    D --> E["flagd\nwho decided"]
+    E --> F["Grafana\ndashboard + alerts"]
+    F --> G["One smoke test\nverifies all three"]
+</pre>
+
+<div class="series-footer">
+  <p><em>AI Learning &middot; Day 28 of 150 &mdash; Competitor Teardown: LensAI Positioning. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-27-opentelemetry-collector-integration-hub.html">Day 27 &mdash; OpenTelemetry Collector as Integration Hub</a></em></p>
+  <p><em>Next: Day 29 coming soon</em></p>
+  <p><em>Sibling (Experience): <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html">Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-27-opentelemetry-collector-integration-hub.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 27 &mdash; OpenTelemetry Collector as Integration Hub
+    </a>
+    <a href="https://github.com/AkshantVats/lensai-integration/pull/1">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 28 code: lensai-integration unified docker-compose + smoke.sh (PR #1)
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 28 Experience &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#the-three-archetypes">Three archetypes</a></li>
+      <li><a href="#datadog-where-it-falls-short">Datadog: honest gaps</a></li>
+      <li><a href="#helicone-right-tool-specific-job">Helicone: specific job</a></li>
+      <li><a href="#langfuse-observability-as-product">Langfuse: as a product</a></li>
+      <li><a href="#where-lensai-fits">Where LensAI fits</a></li>
+      <li><a href="#what-lensai-doesnt-do-yet">What LensAI doesn&rsquo;t do yet</a></li>
+      <li><a href="#the-positioning-statement">Positioning statement</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+28+%E2%80%94+Competitor+Teardown%3A+LensAI+Positioning&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>
