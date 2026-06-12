@@ -130,6 +130,18 @@
           "desc": "Zero-SDK LLM HTTP tracing via eBPF."
         },
         {
+          "href": "blog/series/ai-learning/day-13-embeddings-as-dense-time-series-ids.html",
+          "kicker": "AI Learning \u00b7 Day 13 of N",
+          "title": "Day 13 \u2014 Embeddings as Dense Time-Series IDs",
+          "subtitle": "Operating the pipeline: freshness, model version migration, and SLOs for vector search",
+          "date": "2026-06-12",
+          "slug": "day-13-embeddings-as-dense-time-series-ids",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-13-embeddings-as-dense-time-series-ids.html",
+          "coverImage": "blog/assets/covers/day-13-embeddings-as-dense-time-series-ids.png",
+          "desc": "Embedding pipeline as event stream, model version migration as materialized-view rebuild, blue/green index cutover, and SLO design separating embed latency from ANN search latency."
+        },
+        {
           "href": "blog/series/ai-learning/day-12-embeddings-as-dense-time-series-ids.html",
           "kicker": "Day 12 of N",
           "title": "Embeddings as Dense Time-Series IDs",
