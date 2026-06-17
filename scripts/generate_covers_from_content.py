@@ -4,9 +4,9 @@
 Workflow:
   1. Read each post's <h1 class="post-title"> and prose for topic keywords.
   2. Build a per-slug image prompt (rich infographic — not plain text grid).
-  3. Generate PNGs via Cursor GenerateImage (or any 1200×630 source), then:
-       python scripts/generate_covers_from_content.py --install <slug>.png ...
-     or copy manually into scripts/cover_generated/<slug>.png and run --from-dir.
+  3. Generate PNGs via OpenAI DALL-E 3 API:
+       python scripts/generate_covers_from_content.py --generate <slug>
+     or manually copy into scripts/cover_generated/<slug>.png and run --from-dir.
 
   4. This script letterboxes to 1200×630 and writes:
        blog/assets/covers/<slug>.png
@@ -15,12 +15,19 @@ Workflow:
 Badges: series name only — no Day X, Experience N, or post numbers on the image.
 
 Does NOT copy scripts/cover_assets_rich/ or user cursor assets; each cover is unique to its post.
+
+OpenAI Integration:
+  - Uses DALL-E 3 (1024x1024 quality standard) for cost-effective generation
+  - Requires OPENAI_API_KEY environment variable
+  - Automatically downloads and saves to scripts/cover_generated/<slug>.png
 """
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from generate_blog_covers import ALL_SLUGS, SERIES_LABEL, resize_cover, write_cover
@@ -272,6 +279,64 @@ def install_source(slug: str, src: Path) -> None:
     write_cover(slug, img)
 
 
+def generate_with_openai(slug: str, save_dir: Path = GENERATED_DIR) -> Path:
+    """Generate cover image using OpenAI DALL-E 3 and save to save_dir/<slug>.png.
+    
+    Returns: Path to the generated PNG file.
+    Raises: ValueError if OPENAI_API_KEY is not set, RuntimeError on API errors.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "OPENAI_API_KEY environment variable not set.\n"
+            "Get your API key from: https://platform.openai.com/api-keys\n"
+            "Then add to ~/.zshrc: export OPENAI_API_KEY='sk-...'"
+        )
+    
+    try:
+        from openai import OpenAI
+        import httpx
+    except ImportError as e:
+        raise ImportError(
+            f"OpenAI SDK not installed: {e}\n"
+            "Install with: pip3 install --break-system-packages openai"
+        )
+    
+    prompt = image_prompt(slug)
+    print(f"\n🎨 Generating cover for {slug} with OpenAI DALL-E 3...")
+    print(f"   Prompt: {prompt[:100]}...")
+    
+    client = OpenAI(api_key=api_key)
+    
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        
+        image_url = response.data[0].url
+        if not image_url:
+            raise RuntimeError("OpenAI returned no image URL")
+        
+        print(f"   ✓ Image generated: {image_url[:60]}...")
+        
+        img_response = httpx.get(image_url, timeout=30.0)
+        img_response.raise_for_status()
+        
+        save_dir.mkdir(parents=True, exist_ok=True)
+        output_path = save_dir / f"{slug}.png"
+        output_path.write_bytes(img_response.content)
+        
+        print(f"   ✓ Saved to: {output_path}")
+        return output_path
+        
+    except Exception as e:
+        raise RuntimeError(f"OpenAI DALL-E generation failed: {e}")
+
+
 def run_from_dir(src_dir: Path, slugs: list[str] | None = None) -> None:
     targets = slugs or ALL_SLUGS
     print(f"Installing covers from {src_dir} → blog/assets/{{covers,og}}/")
@@ -282,8 +347,40 @@ def run_from_dir(src_dir: Path, slugs: list[str] | None = None) -> None:
         install_source(slug, src)
 
 
+def run_generate(slugs: list[str] | None = None, install: bool = True) -> None:
+    """Generate covers using OpenAI DALL-E 3, optionally install them immediately."""
+    targets = slugs or ALL_SLUGS
+    print(f"🚀 Generating {len(targets)} cover(s) with OpenAI DALL-E 3...")
+    
+    for slug in targets:
+        try:
+            generated_path = generate_with_openai(slug, GENERATED_DIR)
+            if install:
+                print(f"   📦 Installing {slug}...")
+                install_source(slug, generated_path)
+        except (ValueError, ImportError, RuntimeError) as e:
+            print(f"   ❌ Failed to generate {slug}: {e}", file=sys.stderr)
+            if isinstance(e, ValueError):
+                sys.exit(1)
+            continue
+    
+    print(f"\n✅ Generation complete!")
+    if not install:
+        print("   Run with --from-dir to install covers into blog/assets/covers,og/")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--generate",
+        action="store_true",
+        help="Generate covers using OpenAI DALL-E 3 (requires OPENAI_API_KEY)",
+    )
+    parser.add_argument(
+        "--no-install",
+        action="store_true",
+        help="With --generate, only download to scripts/cover_generated/ without installing",
+    )
     parser.add_argument(
         "--print-prompts",
         action="store_true",
@@ -295,7 +392,7 @@ def main() -> None:
         default=GENERATED_DIR,
         help=f"Directory of <slug>.png sources (default: {GENERATED_DIR})",
     )
-    parser.add_argument("--slug", action="append", dest="slugs")
+    parser.add_argument("--slug", action="append", dest="slugs", help="Only process these slugs")
     parser.add_argument(
         "sources",
         nargs="*",
@@ -306,6 +403,10 @@ def main() -> None:
     if args.print_prompts:
         for slug in args.slugs or ALL_SLUGS:
             print(f"\n=== {slug} ===\n{image_prompt(slug)}\n")
+        return
+
+    if args.generate:
+        run_generate(args.slugs, install=not args.no_install)
         return
 
     if args.sources:
