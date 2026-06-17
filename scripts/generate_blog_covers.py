@@ -69,6 +69,8 @@ SERIES_LABEL: dict[str, str] = {
     "two-weeks-one-readme-hiring-committees-scroll": "EXPERIENCE SERIES",
     "building-ai-inference-observability": "LENSAI · PRODUCT",
     "day-11-semantic-caching-vs-exact-match-redis": "AI LEARNING SERIES",
+    "day-25-cost-models-llm-gateways": "AI LEARNING SERIES",
+    "day-25-redis-rate-limits-lua-race-conditions": "EXPERIENCE SERIES",
 }
 
 # slug → source filename under assets dir (user-provided infographic art)

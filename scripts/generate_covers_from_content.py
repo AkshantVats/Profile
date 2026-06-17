@@ -76,6 +76,10 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
     "day-11-semantic-caching-vs-exact-match-redis": ROOT
     / "blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
+    "day-25-cost-models-llm-gateways": ROOT
+    / "blog/series/ai-learning/day-25-cost-models-llm-gateways.html",
+    "day-25-redis-rate-limits-lua-race-conditions": ROOT
+    / "blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html",
 }
 
 # Short display titles for cover art (strip "Day N of …" prefixes from h1)
@@ -101,6 +105,8 @@ TITLE_OVERRIDE: dict[str, str] = {
     "building-ai-inference-observability": "Building a Production-Grade\nAI Inference Observability Pipeline",
     "ota-at-scale-at-least-once-is-a-feature": "OTA at Scale — At-Least-Once\nIs a Feature, Not a Bug",
     "day-11-semantic-caching-vs-exact-match-redis": "Semantic Caching vs\nExact-Match Redis",
+    "day-25-cost-models-llm-gateways": "Cost Models for\nLLM Gateways",
+    "day-25-redis-rate-limits-lua-race-conditions": "Redis Rate Limits —\nLua Scripts and Race Conditions",
 }
 
 # Topic bullets fed into image-generation prompts
@@ -203,6 +209,17 @@ TOPIC_HINTS: dict[str, str] = {
         "cosine similarity vs L2 distance metrics, vector index refresh patterns, "
         "semantic drift detection with centroid anchors"
     ),
+    "day-25-cost-models-llm-gateways": (
+        "LLM cost model spreadsheet: cache hit rate × cheaper model routing × prompt cache savings, "
+        "token economics tracking (input/output/cached tokens), cost_usd validation gate, "
+        "LensAI inference economics dashboard, ROI calculation before Rust implementation"
+    ),
+    "day-25-redis-rate-limits-lua-race-conditions": (
+        "Distributed Redis rate limiter: INCR+EXPIRE race condition under concurrent load, "
+        "atomic Lua script solution (read-modify-write in single Redis command), "
+        "sliding window implementation, Black Friday near-miss timeline, "
+        "Wayfair supplier pricing API protection"
+    ),
     "supplier-apis-and-token-buckets-wayfair-circuit-breaker": (
         "Token bucket rate limiter protecting supplier APIs, circuit breaker state machine (closed/open/half-open), "
         "fallback cache tier, request throttling at peak traffic, Wayfair supplier integration patterns"
@@ -233,6 +250,8 @@ ACCENT: dict[str, str] = {
     "day-10-serving-frameworks-queue-schedulers": "neon green #5bd37a",
     "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
     "day-12-embeddings-as-dense-time-series-ids": "neon green #5bd37a",
+    "day-25-cost-models-llm-gateways": "neon green #5bd37a",
+    "day-25-redis-rate-limits-lua-race-conditions": "electric blue #64b4ff",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
