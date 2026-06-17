@@ -200,6 +200,25 @@ TOPIC_HINTS: dict[str, str] = {
         "similarity threshold τ tuned like tail-latency SLO, false positive risk + observability, "
         "hybrid recommendation, and anomalies fan-in with z-score latency events"
     ),
+    "day-12-embeddings-as-dense-time-series-ids": (
+        "Embedding vectors as dense time-series identity, high-dimensional VRAM fingerprints, "
+        "cosine similarity vs L2 distance metrics, vector index refresh patterns, "
+        "semantic drift detection with centroid anchors"
+    ),
+    "supplier-apis-and-token-buckets-wayfair-circuit-breaker": (
+        "Token bucket rate limiter protecting supplier APIs, circuit breaker state machine (closed/open/half-open), "
+        "fallback cache tier, request throttling at peak traffic, Wayfair supplier integration patterns"
+    ),
+    "delphi-aletheia-feed-sub-second-price-visibility": (
+        "Real-time price feed ingestion pipeline, sub-second latency visibility dashboards, "
+        "Delphi Aletheia system architecture, WebSocket price stream, ClickHouse time-series storage, "
+        "Grafana tail latency panels"
+    ),
+    "two-weeks-one-readme-hiring-committees-scroll": (
+        "Documentation debt vs hiring signal tension, two-week README sprint before interviews, "
+        "hiring committee scroll fatigue, knowledge transfer bottleneck, onboarding velocity metrics, "
+        "technical writing as staff signal"
+    ),
 }
 
 ACCENT: dict[str, str] = {
@@ -214,17 +233,21 @@ ACCENT: dict[str, str] = {
     "day-8-rag-as-infra-pipeline": "neon green #5bd37a",
     "day-9-gpu-memory-management": "neon green #5bd37a",
     "day-10-serving-frameworks-queue-schedulers": "neon green #5bd37a",
-    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "electric blue #64b4ff",
-    "reading-victoriametrics-source-oss-interview-prep": "electric blue #64b4ff",
+    "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
+    "day-12-embeddings-as-dense-time-series-ids": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
     "five-thousand-geo-events-per-second": "amber #f59e0b",
-    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "electric blue #64b4ff",
-    "building-ai-inference-observability": "violet #a78bfa",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
+    "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "electric blue #64b4ff",
+    "delphi-aletheia-feed-sub-second-price-visibility": "electric blue #64b4ff",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "electric blue #64b4ff",
+    "reading-victoriametrics-source-oss-interview-prep": "electric blue #64b4ff",
     "ota-at-scale-at-least-once-is-a-feature": "electric blue #64b4ff",
-    "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
+    "two-weeks-one-readme-hiring-committees-scroll": "electric blue #64b4ff",
+    "building-ai-inference-observability": "violet #a78bfa",
 }
 
 
