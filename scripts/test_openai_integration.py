@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verification test for OpenAI blog cover integration (no API calls)."""
+"""Verification test for blog cover generation workflow."""
 
 import sys
 from pathlib import Path
@@ -65,20 +65,26 @@ def test_prompt_generation():
 
 
 def test_function_signatures():
-    """Test that new functions exist with correct signatures."""
-    from generate_covers_from_content import generate_with_openai, run_generate
+    """Test that core functions exist with correct signatures."""
+    from generate_covers_from_content import image_prompt, install_source, run_from_dir
     import inspect
     
-    # Check generate_with_openai
-    sig = inspect.signature(generate_with_openai)
+    # Check image_prompt
+    sig = inspect.signature(image_prompt)
     if 'slug' not in sig.parameters:
-        print("❌ generate_with_openai missing 'slug' parameter")
+        print("❌ image_prompt missing 'slug' parameter")
         return False
     
-    # Check run_generate
-    sig = inspect.signature(run_generate)
-    if 'slugs' not in sig.parameters or 'install' not in sig.parameters:
-        print("❌ run_generate missing required parameters")
+    # Check install_source
+    sig = inspect.signature(install_source)
+    if 'slug' not in sig.parameters or 'src' not in sig.parameters:
+        print("❌ install_source missing required parameters")
+        return False
+    
+    # Check run_from_dir
+    sig = inspect.signature(run_from_dir)
+    if 'src_dir' not in sig.parameters:
+        print("❌ run_from_dir missing required parameters")
         return False
     
     print("✅ Function signatures verified")
@@ -110,60 +116,55 @@ def test_styling_consistency():
     return True
 
 
-def test_openai_sdk_available():
-    """Test that OpenAI SDK is installed."""
-    try:
-        import openai
-        from openai import OpenAI
-        print(f"✅ OpenAI SDK installed (version: {openai.__version__})")
-        return True
-    except ImportError as e:
-        print(f"❌ OpenAI SDK not installed: {e}")
+def test_cursor_workflow():
+    """Test that Cursor workflow documentation exists."""
+    from pathlib import Path
+    
+    workflow_file = Path(__file__).parent / "CURSOR_COVER_WORKFLOW.md"
+    readme_file = Path(__file__).parent / "README_COVER_GENERATION.md"
+    
+    if not workflow_file.exists():
+        print(f"❌ CURSOR_COVER_WORKFLOW.md not found")
         return False
+    
+    if not readme_file.exists():
+        print(f"❌ README_COVER_GENERATION.md not found")
+        return False
+    
+    print("✅ Cursor workflow documentation exists")
+    return True
 
 
-def test_error_handling():
-    """Test error handling for missing API key."""
-    import os
-    from generate_covers_from_content import generate_with_openai
+def test_generated_dir_structure():
+    """Test that generated directory structure is correct."""
+    from pathlib import Path
+    from generate_covers_from_content import GENERATED_DIR
     
-    # Save original key if exists
-    original_key = os.environ.get("OPENAI_API_KEY")
+    # Check GENERATED_DIR is properly defined
+    if not isinstance(GENERATED_DIR, Path):
+        print(f"❌ GENERATED_DIR not a Path object")
+        return False
     
-    try:
-        # Remove key temporarily
-        if "OPENAI_API_KEY" in os.environ:
-            del os.environ["OPENAI_API_KEY"]
-        
-        # Should raise ValueError
-        try:
-            generate_with_openai("day-11-semantic-caching-vs-exact-match-redis")
-            print("❌ Should have raised ValueError for missing API key")
-            return False
-        except ValueError as e:
-            if "OPENAI_API_KEY" in str(e):
-                print("✅ Error handling for missing API key works")
-                return True
-            else:
-                print(f"❌ Wrong error message: {e}")
-                return False
-    finally:
-        # Restore original key
-        if original_key:
-            os.environ["OPENAI_API_KEY"] = original_key
+    expected_name = "cover_generated"
+    if GENERATED_DIR.name != expected_name:
+        print(f"❌ GENERATED_DIR should be named '{expected_name}', got '{GENERATED_DIR.name}'")
+        return False
+    
+    print("✅ Generated directory structure correct")
+    return True
 
 
 def main():
     """Run all verification tests."""
-    print("🧪 Running OpenAI integration verification tests...\n")
+    print("🧪 Running blog cover generation verification tests...\n")
     
     tests = [
         ("Imports", test_imports),
         ("Prompt Generation", test_prompt_generation),
         ("Function Signatures", test_function_signatures),
         ("Styling Consistency", test_styling_consistency),
-        ("OpenAI SDK", test_openai_sdk_available),
-        ("Error Handling", test_error_handling),
+        ("Cursor Workflow", test_cursor_workflow),
+        ("Directory Structure", test_generated_dir_structure),
     ]
     
     results = []

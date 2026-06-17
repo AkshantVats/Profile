@@ -1,0 +1,98 @@
+Day 18 — Rate Limiting at the Supplier Boundary — Not the Textbook Diagram
+
+Wayfair · UCMS · gst-acc-promotions · supplier token bucket in production
+
+The first time I saw gst-acc-promotions fall over, the on-call alert said “p99 latency spike” — it didn’t say “14 suppliers sent simultaneous batch updates.” Those are not the same statement. One describes a symptom. The other names the cause and, if you’ve thought it through, also tells you the fix.
+
+The textbook diagram for rate limiting is a single box labeled “API Gateway” with an arrow flowing through a token bucket. At Wayfair, the actual problem was nothing like that box. It was 70,000 active suppliers, each with their own peak pattern, hammering a single ingestion boundary at 250,000+ SKU updates per supplier in near real-time — and the “gateway” that needed a rate limiter wasn’t a gateway at all.
+
+**Rate limiting at production scale is a topology decision before it is a bucket decision.** The parameters follow from the system layout. Until you’ve drawn the full graph of who calls what at what rate, the bucket config is guesswork.
+
+70K — active suppliers
+250K+ — SKU updates each
+4.5× — PAS CORE spike factor
+0.56s — gst-acc-promotions p50
+
+The system topology — where the pressure concentrates
+
+Before a line of rate-limiting code can be written correctly, you have to understand what you’re protecting. At Wayfair’s pricing platform, the ingestion path for supplier updates ran through UCMS (ucms-partner-home), the Supplier Core, which scaled from 10 to 35 pods via HPA. From there, promotion events passed to gst-acc-promotions — 12 pods, Python FastAPI, 0.56 second average latency, averaging 0.9 RPS but latency-sensitive because it sat upstream of two heavy compute layers.
+
+Those downstream layers were the real constraint. SPCS, the Supplier Cost Service, ran at roughly 2,800 QPS average and peaked near 4,200 QPS — a Bigtable-backed cost calculator that suppliers’ updates fed into. PAS CORE, the price adjustment layer, averaged 3,414 RPS but spiked to 15,263 RPS. That 4.5x spike factor is the number that makes naive rate limiting fail: a single token bucket sized for average load gets blown through in seconds at peak.
+
+**Team scope — Wayfair**
+UCMS and gst-acc-promotions were owned by the Supplier Cost and Promotions team. SPCS and PAS CORE were separate team surfaces. Rate limiting at the gst-acc-promotions ingestion boundary was a team decision; the downstream teams defined their own capacity limits that we had to respect.
+
+  → /Users/akshant/Desktop/Github/Profile/scripts/linkedin-export/day-18-supplier-rate-limiting/diagram-1.png
+
+The topology tells you where the pressure concentrates before you write a line of rate-limiting code. If you know PAS CORE spikes to 15,263 RPS, you know that’s the sustained throughput constraint the rate limiter must respect — not the 3,414 RPS average. Sizing to average is how you get paged at 2am.
+
+The supplier boundary concept
+
+A “supplier boundary” is not a network boundary. It’s a trust and capacity boundary — each supplier has contractually different update volumes, different peak hours, and different SLAs with Wayfair. A furniture supplier’s SKU updates cluster around catalog season; a home goods supplier spikes at holiday drops. The peaks don’t align.
+
+The naive implementation we started with was one shared rate limiter for all supplier traffic at the gst-acc-promotions ingestion path. This failed the first time a top-10 supplier by SKU count did a full catalog upload. Their batch consumed the entire shared bucket, and every other supplier hitting the endpoint during that window got 429s regardless of their own volume. We’d built fairness theater, not fairness.
+
+Think of a highway toll plaza. One toll booth for 70,000 cars fails. Separate lanes per vehicle class — trucks, cars, motorcycles — each with its own throughput, is how real highways work. The supplier boundary is the lane assignment. Once you name the right boundary, the bucket granularity writes itself.
+
+**What I didn’t expect**
+The per-supplier key wasn’t just the supplier ID from the request. It was a composite key of `(supplier_id, product_type)` because the same supplier sending furniture updates vs. rug updates hit different downstream services — SPCS vs. PAS CORE — with totally different cost profiles.
+
+Token bucket design decisions
+
+Token bucket over leaky bucket because suppliers send bursts — 250,000 SKU updates in near real-time — followed by silence for hours. Leaky bucket smooths at the cost of dropping the burst even when the system has headroom from the idle period. Token bucket absorbs the burst if the bucket was full. The algorithm should match the traffic shape.
+
+Bucket capacity was sized to the 90th-percentile burst for each supplier tier: top-10, mid-tier, and long-tail suppliers got different initial capacities. The refill rate was tied to downstream sustained throughput — the constraint was PAS CORE’s 15,263 peak RPS, not the supplier’s daily SKU count. A bucket that refills faster than the downstream can absorb is just a deferred queue.
+
+The first version had single-node bucket state: each of the 10–35 UCMS pods held its own bucket per supplier. With 35 pods, a supplier could hit all of them and effectively claim 35x their nominal capacity. Redis atomic counters per supplier with a sliding window fixed this. One shared ledger meant the bucket was actually enforced. The Redis key TTL was set to 24 hours of inactivity: if a supplier is quiet for a day, they start fresh on next activity. Penalizing suppliers for idle periods was wrong.
+
+  → /Users/akshant/Desktop/Github/Profile/scripts/linkedin-export/day-18-supplier-rate-limiting/diagram-2.png
+
+Token buckets in distributed systems always need a shared backing store. The algorithm is the easy part. The concurrency model is where production diverges from the whiteboard.
+
+Drop policy — the product decision inside the engineering decision
+
+The obvious answer when a bucket is empty is to drop the request and return 429. Simple, correct for stateless APIs. Wrong for this use case. A supplier’s SKU update is not idempotent from the supplier’s perspective. If gst-acc-promotions drops a price update with a 429, the supplier’s system may not retry — and Wayfair loses price accuracy on 250,000+ product pages until the next full batch run.
+
+The correct response was to queue the update with a position marker. The bucket controls the ingest *rate*, but the update must not be lost. This is the same instinct as a write-ahead log: before you tell the caller “I got it,” you persist their intent somewhere that survives a restart. We used Cloud Tasks for smaller updates and GCS objects for large batch uploads. The bucket was the door policy; the queue was the receipt.
+
+A circuit breaker was layered on top. When a supplier hit the bucket limit more than three times in sixty seconds, the circuit opened and their updates were queued with a five-minute delay before retry. This separated “burst but legitimate” from “runaway retry loop.” PAS CORE’s 3.1 second average latency was the downstream signal that opened the circuit — not just the token bucket state.
+
+**What I didn’t expect**
+The circuit breaker needed its own state, separate from the token bucket. Mixing them into one data structure made the logic unreadable and the tests brittle. Two clean primitives — bucket and breaker — made the code easier to reason about, even at the cost of an extra Redis key per supplier circuit.
+
+Drop policy is a product decision dressed as an engineering decision. The 429 vs. queue-and-drain question is really: “How much do we trust suppliers to retry, and what is the cost of a missed price update?” Get the product team in the room before you write the response code.
+
+The durability lesson — WAL instinct at the HTTP boundary
+
+At gst-acc-promotions, queued updates when the bucket was empty did not go to in-memory storage. A pod restart while holding 50,000 in-memory queued updates was a silent data loss event: price data stale by hours, support tickets from product pages showing wrong prices. The fix was the same whether you’re at Wayfair or writing a Go consumer for an eBPF tracer: append to a durable medium before you acknowledge.
+
+The WAL pattern at the HTTP boundary means: before you tell the supplier’s system “I accepted your update,” write it to a durable queue. Cloud Tasks in this case, or a WAL segment file in today’s ebpf-llm-tracer code — the medium changes, but the invariant doesn’t. Durability is not a feature you bolt on when you see the first incident. It’s the first question you answer when designing any ingestion path.
+
+Think of a restaurant’s order ticket system. The waiter doesn’t tell the kitchen to start cooking until the ticket is pinned to the board. If the waiter trips and forgets the verbal order, the pinned ticket is still there. That ticket is the WAL. The kitchen never receives an unrecorded order.
+
+**Pattern — shared across systems**
+This same instinct appeared at Delivery Hero’s order ingestion path: SQS as the durable append layer before the map-matching consumer processed events. The technology differs per company but the design question is identical: where is the durable boundary, and who owns the receipt?
+
+Numbers and scale in context
+
+When SPCS was at 4,200 QPS — its peak — a single misfiring supplier could add 300 QPS of unintended load from retry storms. At 2,800 QPS average, that 300 is barely visible. At 4,200 it’s a 7% additional load spike that lands on a system already running near limit. The bucket didn’t need to be infinitely precise; it needed to be conservative enough that one supplier’s burst didn’t push a neighbor past their SLO.
+
+The 20,000+ suppliers on the Global Pricing and Promotion Engine meant that even low-volume suppliers contributed to aggregate load at scale. A long-tail supplier sending 100 updates per day is trivial alone. Ten thousand of them sending simultaneously during a flash sale is not. The rate limiter had to account for correlated bursts, not just individual supplier capacity.
+
+Price propagation across the platform had been reduced from hours to sub-seconds after Wayfair’s event-driven rewrite of the pricing pipeline. That achievement made the durability requirement sharper, not looser: if a batch update arrives during a zone incident and pods restart, you can’t propagate what you didn’t persist.
+
+What I’d do differently
+
+Instrument the token bucket fill level as a metric, not just the drop rate. Knowing a supplier is at 80% bucket utilization before they hit the limit is a leading indicator. The drop count is lagging. By the time you see drops, the damage to the caller’s experience is already done.
+
+Test the distributed bucket under network partition between pods and Redis before production. We found a race condition in staging that unit tests missed because they mocked Redis. The test that catches distributed concurrency bugs is an integration test with a real Redis instance under artificial latency injection — not a mock.
+
+Write the drop policy spec before the token bucket spec. The bucket parameters flow from the drop policy decision, not the other way around. “What do we do when the bucket is empty?” is the senior-engineer question. “What should the capacity be?” comes after. The order of design matters as much as the design itself.
+
+Bridge to Day 18 code
+
+Today’s ebpf-llm-tracer work is a smaller-scale version of the same problem. When Kafka backpressures, the Go consumer must choose: queue indefinitely (OOM risk), drop silently (data loss), or shed new events through a rate limiter while persisting in-flight events to a WAL. The answer is the same one I arrived at in gst-acc-promotions: rate-limit new arrivals, never lose what’s already accepted.
+
+The WAL is the receipt. The token bucket is the door policy. Both are necessary; neither alone is sufficient. The WAL without the rate limiter fills your disk under sustained backpressure. The rate limiter without the WAL drops data you’ve already accepted. Together they give you at-least-once delivery with bounded resource usage under any Kafka latency condition.
+
+The WAL I’m writing in ebpf-llm-tracer today is the same instinct — never tell the upstream “I got it” until you’ve written it somewhere it can survive a crash. The technology stack changes. The design question stays the same across every ingestion path I’ve built.
