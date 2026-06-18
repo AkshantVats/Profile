@@ -4,10 +4,10 @@
 Workflow:
   1. Read each post's <h1 class="post-title"> and prose for topic keywords.
   2. Build a per-slug image prompt (rich infographic — not plain text grid).
-  3. Generate PNGs via Cursor GenerateImage (or any 1200×630 source), then:
-       python scripts/generate_covers_from_content.py --install <slug>.png ...
-     or copy manually into scripts/cover_generated/<slug>.png and run --from-dir.
-
+  3. Generate PNGs:
+       Manual: Use Cursor GenerateImage with --print-prompts, save to scripts/cover_generated/
+       Batch: python scripts/generate_covers_from_content.py --from-dir
+     
   4. This script letterboxes to 1200×630 and writes:
        blog/assets/covers/<slug>.png
        blog/assets/og/<slug>.png
@@ -15,12 +15,17 @@ Workflow:
 Badges: series name only — no Day X, Experience N, or post numbers on the image.
 
 Does NOT copy scripts/cover_assets_rich/ or user cursor assets; each cover is unique to its post.
+
+Note: OpenAI API integration removed to avoid costs. Use Cursor's built-in GenerateImage tool
+or open-source alternatives like Stable Diffusion instead.
 """
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from generate_blog_covers import ALL_SLUGS, SERIES_LABEL, resize_cover, write_cover
@@ -71,6 +76,52 @@ POST_HTML: dict[str, Path | None] = {
     / "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
     "day-11-semantic-caching-vs-exact-match-redis": ROOT
     / "blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html",
+    "day-13-embeddings-as-dense-time-series-ids": ROOT
+    / "blog/series/ai-learning/day-13-embeddings-as-dense-time-series-ids.html",
+    "day-18-quantization-model-optimization": ROOT
+    / "blog/series/ai-learning/day-18-quantization-model-optimization.html",
+    "day-19-agent-infrastructure-tools-memory-loops": ROOT
+    / "blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html",
+    "day-20-prompt-engineering-infra-optimization": ROOT
+    / "blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html",
+    "day-21-production-reliability-llm-apis": ROOT
+    / "blog/series/ai-learning/day-21-production-reliability-llm-apis.html",
+    "day-22-feature-flags-model-rollouts": ROOT
+    / "blog/series/ai-learning/day-22-feature-flags-model-rollouts.html",
+    "day-23-evaluations-as-event-streams": ROOT
+    / "blog/series/ai-learning/day-23-evaluations-as-event-streams.html",
+    "day-24-gpu-scheduling-resource-management": ROOT
+    / "blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html",
+    "day-25-cost-models-llm-gateways": ROOT
+    / "blog/series/ai-learning/day-25-cost-models-llm-gateways.html",
+    "day-26-fine-tuning-rag-prompting-infra-cost": ROOT
+    / "blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html",
+    "day-27-opentelemetry-collector-integration-hub": ROOT
+    / "blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html",
+    "day-28-competitor-teardown-lensai-positioning": ROOT
+    / "blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html",
+    "day-18-supplier-rate-limiting": ROOT
+    / "blog/series/experience/day-18-supplier-rate-limiting.html",
+    "day-19-kafka-redis-tiering-query-latency": ROOT
+    / "blog/series/experience/day-19-kafka-redis-tiering-query-latency.html",
+    "day-20-route-consumer-lag-keda": ROOT
+    / "blog/series/experience/day-20-route-consumer-lag-keda.html",
+    "day-21-launchdarkly-build-vs-buy-flagd": ROOT
+    / "blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html",
+    "day-22-h3-geospatial-indexing-surge-detection": ROOT
+    / "blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html",
+    "day-23-osrm-5000-events-eta-infrastructure": ROOT
+    / "blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html",
+    "day-24-bigquery-streaming-batch-burst-truth": ROOT
+    / "blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html",
+    "day-25-redis-rate-limits-lua-race-conditions": ROOT
+    / "blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html",
+    "day-26-systems-outlast-architects-walmart": ROOT
+    / "blog/series/experience/day-26-systems-outlast-architects-walmart.html",
+    "day-27-redesign-wayfair-2026-eyes": ROOT
+    / "blog/series/experience/day-27-redesign-wayfair-2026-eyes.html",
+    "day-28-integration-tests-launch-criteria": ROOT
+    / "blog/series/experience/day-28-integration-tests-launch-criteria.html",
 }
 
 # Short display titles for cover art (strip "Day N of …" prefixes from h1)
@@ -96,6 +147,29 @@ TITLE_OVERRIDE: dict[str, str] = {
     "building-ai-inference-observability": "Building a Production-Grade\nAI Inference Observability Pipeline",
     "ota-at-scale-at-least-once-is-a-feature": "OTA at Scale — At-Least-Once\nIs a Feature, Not a Bug",
     "day-11-semantic-caching-vs-exact-match-redis": "Semantic Caching vs\nExact-Match Redis",
+    "day-13-embeddings-as-dense-time-series-ids": "Embeddings as Dense\nTime-Series IDs",
+    "day-18-quantization-model-optimization": "Quantization and\nModel Optimization",
+    "day-19-agent-infrastructure-tools-memory-loops": "Agent Infrastructure —\nTools, Memory, Loops",
+    "day-20-prompt-engineering-infra-optimization": "Prompt Engineering as\nInfra Optimization",
+    "day-21-production-reliability-llm-apis": "Production Reliability\nfor LLM APIs",
+    "day-22-feature-flags-model-rollouts": "Feature Flags for\nModel Rollouts",
+    "day-23-evaluations-as-event-streams": "Evaluations as\nEvent Streams",
+    "day-24-gpu-scheduling-resource-management": "GPU Scheduling as\nResource Management",
+    "day-25-cost-models-llm-gateways": "Cost Models for\nLLM Gateways",
+    "day-26-fine-tuning-rag-prompting-infra-cost": "Fine-Tuning vs RAG vs Prompting —\nInfra Cost View",
+    "day-27-opentelemetry-collector-integration-hub": "OpenTelemetry Collector as\nIntegration Hub",
+    "day-28-competitor-teardown-lensai-positioning": "Competitor Teardown:\nLensAI Positioning",
+    "day-18-supplier-rate-limiting": "Rate Limiting at the\nSupplier Boundary",
+    "day-19-kafka-redis-tiering-query-latency": "Kafka + Redis Tiering —\nQuery Latency by Temperature",
+    "day-20-route-consumer-lag-keda": "Route Consumer Lag —\nWhy CPU-Based HPA Failed",
+    "day-21-launchdarkly-build-vs-buy-flagd": "LaunchDarkly Money —\nWhy We Built flagd Ourselves",
+    "day-22-h3-geospatial-indexing-surge-detection": "H3 vs Bounding Boxes —\nGeospatial Indexing That Scales",
+    "day-23-osrm-5000-events-eta-infrastructure": "OSRM at 5000 Events/sec —\nWhen ETA Becomes Infrastructure",
+    "day-24-bigquery-streaming-batch-burst-truth": "BigQuery Streaming vs Batch —\nBurst Traffic Truth",
+    "day-25-redis-rate-limits-lua-race-conditions": "Redis Rate Limits —\nLua Scripts and Race Conditions",
+    "day-26-systems-outlast-architects-walmart": "Systems That Outlast\nTheir Architects",
+    "day-27-redesign-wayfair-2026-eyes": "What I'd Redesign at Wayfair\nWith 2026 Eyes",
+    "day-28-integration-tests-launch-criteria": "Integration Tests —\nThe Only Launch Criteria I Trust",
 }
 
 # Topic bullets fed into image-generation prompts
@@ -193,6 +267,121 @@ TOPIC_HINTS: dict[str, str] = {
         "similarity threshold τ tuned like tail-latency SLO, false positive risk + observability, "
         "hybrid recommendation, and anomalies fan-in with z-score latency events"
     ),
+    "day-12-embeddings-as-dense-time-series-ids": (
+        "Embedding vectors as dense time-series identity, high-dimensional VRAM fingerprints, "
+        "cosine similarity vs L2 distance metrics, vector index refresh patterns, "
+        "semantic drift detection with centroid anchors"
+    ),
+    "day-25-cost-models-llm-gateways": (
+        "LLM cost model spreadsheet: cache hit rate × cheaper model routing × prompt cache savings, "
+        "token economics tracking (input/output/cached tokens), cost_usd validation gate, "
+        "LensAI inference economics dashboard, ROI calculation before Rust implementation"
+    ),
+    "day-25-redis-rate-limits-lua-race-conditions": (
+        "Distributed Redis rate limiter: INCR+EXPIRE race condition under concurrent load, "
+        "atomic Lua script solution (read-modify-write in single Redis command), "
+        "sliding window implementation, Black Friday near-miss timeline, "
+        "Wayfair supplier pricing API protection"
+    ),
+    "supplier-apis-and-token-buckets-wayfair-circuit-breaker": (
+        "Token bucket rate limiter protecting supplier APIs, circuit breaker state machine (closed/open/half-open), "
+        "fallback cache tier, request throttling at peak traffic, Wayfair supplier integration patterns"
+    ),
+    "delphi-aletheia-feed-sub-second-price-visibility": (
+        "Real-time price feed ingestion pipeline, sub-second latency visibility dashboards, "
+        "Delphi Aletheia system architecture, WebSocket price stream, ClickHouse time-series storage, "
+        "Grafana tail latency panels"
+    ),
+    "two-weeks-one-readme-hiring-committees-scroll": (
+        "Documentation debt vs hiring signal tension, two-week README sprint before interviews, "
+        "hiring committee scroll fatigue, knowledge transfer bottleneck, onboarding velocity metrics, "
+        "technical writing as staff signal"
+    ),
+    "day-13-embeddings-as-dense-time-series-ids": (
+        "Embedding vectors as dense time-series identity, high-dimensional VRAM fingerprints, "
+        "cosine similarity vs L2 distance metrics, vector index refresh patterns, "
+        "semantic drift detection with centroid anchors"
+    ),
+    "day-18-quantization-model-optimization": (
+        "INT8/INT4 quantization techniques, model compression trade-offs, VRAM savings vs accuracy loss, "
+        "quantization-aware training, ONNX runtime optimization, TensorRT inference acceleration"
+    ),
+    "day-19-agent-infrastructure-tools-memory-loops": (
+        "Agent tool calling patterns, persistent memory stores (vector DB + Redis), agentic loop architectures, "
+        "function schemas, tool retry + backoff strategies, LensAI agent design patterns"
+    ),
+    "day-20-prompt-engineering-infra-optimization": (
+        "Prompt templates as config, versioned prompt registry, A/B testing prompts in prod, "
+        "cost reduction through better prompts, latency reduction via shorter prompts, prompt observability metrics"
+    ),
+    "day-21-production-reliability-llm-apis": (
+        "Circuit breakers for LLM providers, fallback chains (primary/secondary models), timeout tuning per model, "
+        "retry with exponential backoff, health checks + dead letter queues, SLO tracking for inference latency"
+    ),
+    "day-22-feature-flags-model-rollouts": (
+        "Gradual model rollout patterns (canary/blue-green), feature flags for model switching, tenant-based routing, "
+        "shadow traffic for new models, rollback mechanisms, LaunchDarkly for AI/ML deployments"
+    ),
+    "day-23-evaluations-as-event-streams": (
+        "LLM eval pipelines as Kafka streams, online vs offline evaluation, golden dataset management, "
+        "regression detection, eval metrics (accuracy/latency/cost), continuous evaluation in production"
+    ),
+    "day-24-gpu-scheduling-resource-management": (
+        "Multi-tenant GPU sharing, resource quotas per tenant, priority queuing for GPU requests, "
+        "preemption strategies, Kubernetes GPU scheduling, pod anti-affinity for model replicas"
+    ),
+    "day-26-fine-tuning-rag-prompting-infra-cost": (
+        "Cost comparison matrix: fine-tuning GPU hours vs RAG vector DB hosting vs prompt token overhead, "
+        "latency trade-offs, when to fine-tune vs RAG, hybrid approaches, infrastructure implications, LensAI cost model"
+    ),
+    "day-27-opentelemetry-collector-integration-hub": (
+        "OTEL collector as central telemetry router, spans/metrics/logs unification, receiver/processor/exporter pipeline, "
+        "sampling strategies, vendor-agnostic observability, LensAI telemetry architecture"
+    ),
+    "day-28-competitor-teardown-lensai-positioning": (
+        "LensAI vs competitors (Datadog LLM, Langfuse, Helicone), feature comparison matrix, pricing models, "
+        "integration depth, observability vs monitoring, product differentiation, go-to-market positioning"
+    ),
+    "day-18-supplier-rate-limiting": (
+        "Token bucket rate limiters protecting external supplier APIs, per-supplier rate limits, backoff strategies, "
+        "circuit breaker integration, fallback cache tier, Wayfair supplier API protection patterns"
+    ),
+    "day-19-kafka-redis-tiering-query-latency": (
+        "Hot Redis tier + cold Kafka tier for time-series queries, temperature-based data routing, "
+        "query latency by tier (sub-10ms hot vs 100ms+ cold), TTL-based eviction, cross-tier query merging, Delivery Hero observability"
+    ),
+    "day-20-route-consumer-lag-keda": (
+        "HPA scaling on consumer lag metrics (not CPU), KEDA ScaledObject for SQS queue depth, dinner-rush lag spikes, "
+        "CPU low but queue stale, Prometheus metrics adapter, Route Service scaling patterns"
+    ),
+    "day-21-launchdarkly-build-vs-buy-flagd": (
+        "Build vs buy decision for feature flags, LaunchDarkly cost scaling, flagd (open-source) deployment, "
+        "flag evaluation latency, Redis-backed flag store, percentage rollouts, targeting rules, cost savings"
+    ),
+    "day-22-h3-geospatial-indexing-surge-detection": (
+        "H3 hexagonal grid indexing, geospatial surge detection, bounding box limitations, hexagon resolution levels, "
+        "rider density heatmaps, spatial query performance, Delivery Hero geo-infrastructure"
+    ),
+    "day-23-osrm-5000-events-eta-infrastructure": (
+        "OSRM cluster for route calculation, 5k geo-events/s throughput, ETA latency budgets, route JSON caching, "
+        "hot rider partition skew, Order SQS → Route Consumers pipeline, dinner-rush traffic patterns"
+    ),
+    "day-24-bigquery-streaming-batch-burst-truth": (
+        "BigQuery streaming inserts vs batch loads, burst traffic cost implications, streaming buffer delays, "
+        "data freshness SLOs, cost optimization with batch windows, real-time vs near-real-time trade-offs"
+    ),
+    "day-26-systems-outlast-architects-walmart": (
+        "Long-lived system design lessons from Walmart, documentation debt, knowledge transfer patterns, "
+        "architecture decision records, system longevity vs team turnover, maintainable complexity"
+    ),
+    "day-27-redesign-wayfair-2026-eyes": (
+        "Wayfair architecture hindsight, supplier API modernization, event-driven redesign, observability gaps filled, "
+        "cost optimization opportunities, lessons learned, 2026 technology retrospective"
+    ),
+    "day-28-integration-tests-launch-criteria": (
+        "Integration test suites as launch gates, end-to-end test patterns, smoke tests vs full regression, "
+        "test data management, flaky test quarantine, CI/CD integration, launch confidence from test coverage"
+    ),
 }
 
 ACCENT: dict[str, str] = {
@@ -207,17 +396,44 @@ ACCENT: dict[str, str] = {
     "day-8-rag-as-infra-pipeline": "neon green #5bd37a",
     "day-9-gpu-memory-management": "neon green #5bd37a",
     "day-10-serving-frameworks-queue-schedulers": "neon green #5bd37a",
-    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "electric blue #64b4ff",
-    "reading-victoriametrics-source-oss-interview-prep": "electric blue #64b4ff",
+    "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
+    "day-12-embeddings-as-dense-time-series-ids": "neon green #5bd37a",
+    "day-13-embeddings-as-dense-time-series-ids": "neon green #5bd37a",
+    "day-18-quantization-model-optimization": "neon green #5bd37a",
+    "day-19-agent-infrastructure-tools-memory-loops": "neon green #5bd37a",
+    "day-20-prompt-engineering-infra-optimization": "neon green #5bd37a",
+    "day-21-production-reliability-llm-apis": "neon green #5bd37a",
+    "day-22-feature-flags-model-rollouts": "neon green #5bd37a",
+    "day-23-evaluations-as-event-streams": "neon green #5bd37a",
+    "day-24-gpu-scheduling-resource-management": "neon green #5bd37a",
+    "day-25-cost-models-llm-gateways": "neon green #5bd37a",
+    "day-26-fine-tuning-rag-prompting-infra-cost": "neon green #5bd37a",
+    "day-27-opentelemetry-collector-integration-hub": "neon green #5bd37a",
+    "day-28-competitor-teardown-lensai-positioning": "neon green #5bd37a",
     "building-tsdb-at-agoda": "electric blue #64b4ff",
     "when-percentiles-lie-cross-tier-queries": "electric blue #64b4ff",
     "seven-million-iot-sensors-failure-modes": "cyan #00d2e6",
     "five-thousand-geo-events-per-second": "amber #f59e0b",
-    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
     "cardinality-is-the-silent-killer-roaringbitmap-lessons": "electric blue #64b4ff",
-    "building-ai-inference-observability": "violet #a78bfa",
+    "ten-thousand-concurrent-requests-eks-patterns-delivery-hero": "electric blue #64b4ff",
+    "supplier-apis-and-token-buckets-wayfair-circuit-breaker": "electric blue #64b4ff",
+    "delphi-aletheia-feed-sub-second-price-visibility": "electric blue #64b4ff",
+    "we-killed-redpanda-on-purpose-chaos-as-commit-message": "electric blue #64b4ff",
+    "reading-victoriametrics-source-oss-interview-prep": "electric blue #64b4ff",
     "ota-at-scale-at-least-once-is-a-feature": "electric blue #64b4ff",
-    "day-11-semantic-caching-vs-exact-match-redis": "neon green #5bd37a",
+    "two-weeks-one-readme-hiring-committees-scroll": "electric blue #64b4ff",
+    "day-18-supplier-rate-limiting": "electric blue #64b4ff",
+    "day-19-kafka-redis-tiering-query-latency": "electric blue #64b4ff",
+    "day-20-route-consumer-lag-keda": "electric blue #64b4ff",
+    "day-21-launchdarkly-build-vs-buy-flagd": "electric blue #64b4ff",
+    "day-22-h3-geospatial-indexing-surge-detection": "electric blue #64b4ff",
+    "day-23-osrm-5000-events-eta-infrastructure": "electric blue #64b4ff",
+    "day-24-bigquery-streaming-batch-burst-truth": "electric blue #64b4ff",
+    "day-25-redis-rate-limits-lua-race-conditions": "electric blue #64b4ff",
+    "day-26-systems-outlast-architects-walmart": "electric blue #64b4ff",
+    "day-27-redesign-wayfair-2026-eyes": "electric blue #64b4ff",
+    "day-28-integration-tests-launch-criteria": "electric blue #64b4ff",
+    "building-ai-inference-observability": "violet #a78bfa",
 }
 
 
@@ -272,6 +488,8 @@ def install_source(slug: str, src: Path) -> None:
     write_cover(slug, img)
 
 
+
+
 def run_from_dir(src_dir: Path, slugs: list[str] | None = None) -> None:
     targets = slugs or ALL_SLUGS
     print(f"Installing covers from {src_dir} → blog/assets/{{covers,og}}/")
@@ -282,12 +500,14 @@ def run_from_dir(src_dir: Path, slugs: list[str] | None = None) -> None:
         install_source(slug, src)
 
 
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--print-prompts",
         action="store_true",
-        help="Print GenerateImage prompts for all slugs and exit",
+        help="Print image generation prompts for all slugs (use with Cursor GenerateImage)",
     )
     parser.add_argument(
         "--from-dir",
@@ -295,7 +515,7 @@ def main() -> None:
         default=GENERATED_DIR,
         help=f"Directory of <slug>.png sources (default: {GENERATED_DIR})",
     )
-    parser.add_argument("--slug", action="append", dest="slugs")
+    parser.add_argument("--slug", action="append", dest="slugs", help="Only process these slugs")
     parser.add_argument(
         "sources",
         nargs="*",
@@ -304,8 +524,12 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.print_prompts:
+        print("📝 Image generation prompts for Cursor GenerateImage tool:\n")
         for slug in args.slugs or ALL_SLUGS:
-            print(f"\n=== {slug} ===\n{image_prompt(slug)}\n")
+            prompt = image_prompt(slug)
+            print(f"=== {slug} ===")
+            print(f"Prompt: {prompt}")
+            print(f"Save as: scripts/cover_generated/{slug}.png\n")
         return
 
     if args.sources:

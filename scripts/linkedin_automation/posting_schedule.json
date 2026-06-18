@@ -1,0 +1,251 @@
+{
+  "schedule": [
+    {
+      "date": "2026-06-18",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-15-multi-model-routing-strategies.txt",
+          "type": "ai_learning",
+          "day": 15,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-18-supplier-rate-limiting.txt",
+          "type": "experience",
+          "day": 18,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-16-the-mental-model-llm-infra-click.txt",
+          "type": "ai_learning",
+          "day": 16,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-19-kafka-redis-tiering-query-latency.txt",
+          "type": "experience",
+          "day": 19,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-20",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-17-llm-observability-what-actually-matters.txt",
+          "type": "ai_learning",
+          "day": 17,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-20-route-consumer-lag-keda.txt",
+          "type": "experience",
+          "day": 20,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-21",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-18-quantization-model-optimization.txt",
+          "type": "ai_learning",
+          "day": 18,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-21-launchdarkly-build-vs-buy-flagd.txt",
+          "type": "experience",
+          "day": 21,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-22",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-19-agent-infrastructure-tools-memory-loops.txt",
+          "type": "ai_learning",
+          "day": 19,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-22-h3-geospatial-indexing-surge-detection.txt",
+          "type": "experience",
+          "day": 22,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-23",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-20-prompt-engineering-infra-optimization.txt",
+          "type": "ai_learning",
+          "day": 20,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-23-osrm-5000-events-eta-infrastructure.txt",
+          "type": "experience",
+          "day": 23,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-24",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-21-production-reliability-llm-apis.txt",
+          "type": "ai_learning",
+          "day": 21,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-24-bigquery-streaming-batch-burst-truth.txt",
+          "type": "experience",
+          "day": 24,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-25",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-22-feature-flags-model-rollouts.txt",
+          "type": "ai_learning",
+          "day": 22,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-25-redis-rate-limits-lua-race-conditions.txt",
+          "type": "experience",
+          "day": 25,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-26",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-23-evaluations-as-event-streams.txt",
+          "type": "ai_learning",
+          "day": 23,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-26-systems-outlast-architects-walmart.txt",
+          "type": "experience",
+          "day": 26,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-27",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-24-gpu-scheduling-resource-management.txt",
+          "type": "ai_learning",
+          "day": 24,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-27-redesign-wayfair-2026-eyes.txt",
+          "type": "experience",
+          "day": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-28",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-25-cost-models-llm-gateways.txt",
+          "type": "ai_learning",
+          "day": 25,
+          "status": "pending"
+        },
+        {
+          "file": "exp-day-28-integration-tests-launch-criteria.txt",
+          "type": "experience",
+          "day": 28,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-29",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-26-fine-tuning-rag-prompting-infra-cost.txt",
+          "type": "ai_learning",
+          "day": 26,
+          "status": "pending"
+        },
+        {
+          "file": "seven-million-iot-sensors-failure-modes.txt",
+          "type": "experience",
+          "day": 0,
+          "status": "pending",
+          "note": "Special post - IoT sensors case study"
+        }
+      ]
+    },
+    {
+      "date": "2026-06-30",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-27-opentelemetry-collector-integration-hub.txt",
+          "type": "ai_learning",
+          "day": 27,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "date": "2026-07-01",
+      "time": "09:00",
+      "posts": [
+        {
+          "file": "ai-day-28-competitor-teardown-lensai-positioning.txt",
+          "type": "ai_learning",
+          "day": 28,
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "config": {
+    "export_dir": "/Users/akshant/Desktop/Github/Profile/scripts/linkedin-export",
+    "post_interval_minutes": 5,
+    "timezone": "Asia/Kolkata",
+    "dry_run": false
+  }
+}

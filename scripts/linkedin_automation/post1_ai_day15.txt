@@ -1,0 +1,77 @@
+Day 15 — Multi-Model Routing Strategies
+
+15 of 150 — AI Learning Series. Cost-first vs quality-first vs latency-first routing between LLM models — routing policy as a feature flag engine with GPUs, and shadow routing for safe model promotion.
+
+Routing Is Policy — You’ve Operated This Before
+
+Routing is policy engines — you operated feature flags for humans; models are flags with GPUs. That framing landed for me the moment I saw a routing table that chose between GPT-4 and Mistral based on prompt complexity. It looked exactly like a rollout rule in LaunchDarkly, not a new category of infrastructure.
+
+I had spent years configuring LaunchDarkly and Flipt — writing rules like “if user.tier == enterprise and region == APAC, serve variant B at 20%.” A multi-model router does the same thing: “if prompt.token_count < 500 and user.tier == free, route to Mistral-7B; otherwise route to GPT-4o.” The predicate language is identical. The only difference is that the “variant” is a model endpoint backed by a GPU, and the cost of getting the rule wrong shows up on an invoice rather than in a conversion metric.
+
+That mental model transfer — flag rules to routing rules — is the unlock. Once I stopped thinking of multi-model routing as a new AI problem and started thinking of it as feature flag infrastructure with a cost dimension, the design decisions became obvious.
+
+What Multi-Model Routing Is
+
+A router sits in front of a fleet of models and decides, per-request, which model handles it. The decision function is a policy: a set of weighted rules over request attributes like prompt length, user tier, required response quality, and current model latency. Each rule is evaluated in priority order, and the first match determines the target model.
+
+Think of it like a smart postmaster who reads the label and chooses whether to send a parcel overnight vs ground based on sender priority and current delivery load. The postmaster does not open the parcel to inspect the contents — they read the label metadata and apply a dispatch policy. A model router does exactly the same: it reads the request headers and prompt attributes without generating a response, applies a policy table, and dispatches to the appropriate model endpoint.
+
+The attributes a router can evaluate include prompt token count (cheap to compute before sending), detected intent via a lightweight embedding classifier (a small model that classifies the request type), user tier from the authentication context, and the current P50 latency of each candidate model from a health-check loop. The router itself is a thin, stateless service — it holds no conversation state and adds single-digit milliseconds of overhead per request.
+
+So what does this buy? It buys the ability to serve the cheapest acceptable model for each request rather than routing everything to the most capable model by default. For a SaaS product where 60% of requests are simple factual lookups, routing those to a smaller model can cut inference costs significantly without user-visible quality degradation.
+
+The Three-Axis Tradeoff
+
+Cost, quality, latency — you can optimise for two. This is the routing operator’s equivalent of the CAP theorem: every routing policy is a position on a triangle, and the router policy is the mechanism that enforces your chosen position.
+
+An operator choosing cost-first routes short factual queries to a smaller model and reserves large models for complex reasoning or high-tier users. Quality degrades for edge cases but the bill shrinks. An operator choosing quality-first routes everything to GPT-4o or Claude Opus and eats the cost; this makes sense during early product development when you need maximum accuracy to validate the product thesis before optimising. An operator choosing latency-first keeps a hot pool of smaller models — fast to respond, always warm — and falls back to larger models only when a confidence score from the small model drops below threshold.
+
+  → /Users/akshant/Desktop/Github/Profile/scripts/linkedin-export/day-15-multi-model-routing-strategies/diagram-1.png
+
+The triangle is not static — the router policy is a live configuration, not a compile-time decision. I can move from quality-first to cost-first by updating a policy file, exactly like flipping a feature flag from 0% to 100% rollout. That mutability is the entire point of the policy engine abstraction.
+
+Routing Policy Design
+
+The policy is a priority-ordered list of rules. Each rule is: `if <predicate> then route_to <model>`. Predicates evaluate prompt attributes — token count, detected intent via embeddings, user tier from auth context, and current model health. Rules are evaluated top-down; first match wins.
+
+This is identical to how LaunchDarkly evaluates flag rules. Rule 1 might be “if user is on the enterprise plan, always route to GPT-4o” — a hard override, same as a targeting rule that bypasses the rollout percentage. Rule 2 might be “if prompt token count exceeds 2000, route to a long-context model.” Rule 3 is the default: route to the cost-optimised small model for everything else. The mental model transferred almost without friction when I first built this.
+
+    rules:
+      - name: enterprise-override
+        predicate: user.tier == "enterprise"
+        target: gpt-4o
+        priority: 1
+      - name: long-context
+        predicate: prompt.token_count > 2000
+        target: claude-3-haiku-long
+        priority: 2
+      - name: complex-intent
+        predicate: intent_classifier.score("reasoning") > 0.8
+        target: gpt-4o
+        priority: 3
+      - name: default
+        predicate: true
+        target: mistral-7b
+        priority: 99
+
+The intent classifier in rule 3 deserves attention. It is a small, fast embedding model that scores the incoming prompt against a set of intent categories — simple factual, creative writing, code generation, multi-step reasoning. Running this classifier adds 5–10ms of latency but enables much more precise routing than token count alone. So what does correct policy design buy you? It buys routing decisions that match the actual difficulty distribution of your traffic rather than treating every request as if it might need the most capable model.
+
+Shadow Routing for Evaluation
+
+Shadow routing duplicates live traffic to a candidate model without serving its response to the user. The production model answers the user; the shadow model answers in parallel, its response captured and scored offline. I compare quality offline — running the shadow response through an LLM judge that scores coherence, factual accuracy, and task completion against the production model’s response.
+
+This is A/B testing for model quality, and it lets me promote a cheaper model to primary only after I have statistical confidence it meets quality SLAs. The analogy: a new hire who shadows calls for two weeks before going solo — they hear the conversation, they draft their own answer, but the customer gets the experienced rep’s response until we’ve validated the new hire’s judgment. Shadow routing is that two-week probation period for model endpoints.
+
+The shadow infrastructure is straightforward. The router sends the request to both the primary and shadow endpoints, returns the primary response immediately, and enqueues the shadow response for async evaluation. The evaluator runs an LLM-as-judge prompt that scores the shadow response on the same dimensions as the primary, producing a quality delta. When the rolling quality delta stays within tolerance for a configurable number of requests — say, 1000 requests over 48 hours — the router can be updated to promote the shadow model to primary for that rule. So what does shadow routing change? It converts model promotion from a leap of faith into a measurement exercise.
+
+Connection to LensAI
+
+The eBPF probe I built on Day 14 captures raw HTTP events per model endpoint. Layering the router policy on top means LensAI can attribute latency and cost not just to a model name but to a routing decision — did quality-first routing on user tier A cause the P99 spike, or was it the fallback to GPT-4o when Mistral’s confidence dropped below threshold?
+
+That attribution gap — knowing the model that answered but not the rule that sent it there — is exactly the observability hole I am trying to close. Without routing context on each LLMCallEvent, I can see that GPT-4o latency spiked at 19:47, but I cannot tell whether it spiked because traffic that should have hit Mistral was incorrectly escalated, or because GPT-4o itself degraded. The router policy ID and matched rule name need to be fields on every event, not just the model name. That is the schema extension I am building for LensAI this week.
+
+Measurement First, Policy Second
+
+Tomorrow I write the syscall capture layer — Day 15’s eBPF program that sits behind all of this, capturing socket events per connection. Multi-model routing is the policy layer; eBPF is the measurement layer. Without both, I would have either a black-box router whose decisions I cannot observe, or a profiler with no context about which routing decisions drove the traffic it is measuring.
+
+The pairing is not coincidental. Feature flag systems without experiment tracking are just config files. Model routers without observability are just load balancers. The discipline is the same: every routing decision needs to produce a structured event that says what rule fired, why, and what the outcome was. That event is the unit of learning that lets you improve the policy over time.
