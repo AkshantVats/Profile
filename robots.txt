@@ -1,0 +1,42 @@
+# Akshant Sharma — Blog and Portfolio
+# https://akshantvats.github.io/Profile/
+# AI crawlers are explicitly welcome — all content is public.
+
+User-agent: *
+Allow: /
+
+# OpenAI / ChatGPT
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic / Claude
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# Apple
+User-agent: Applebot-Extended
+Allow: /
+
+# Google
+User-agent: Googlebot
+Allow: /
+
+# Microsoft / Bing
+User-agent: Bingbot
+Allow: /
+
+# Common / Meta
+User-agent: facebookexternalhit
+Allow: /
+
+Sitemap: https://akshantvats.github.io/Profile/sitemap.xml

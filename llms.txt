@@ -1,0 +1,83 @@
+# Akshant Sharma
+
+> Staff distributed systems engineer building LensAI — open-source AI inference observability via eBPF. 150 days of public building across two blog series: AI Learning (learning AI infra through a distributed systems lens) and Experience (production war stories from Agoda, Delivery Hero, Wayfair, Walmart Labs).
+
+Homepage: https://akshantvats.github.io/Profile/
+Blog: https://akshantvats.github.io/Profile/blog/
+GitHub: https://github.com/AkshantVats
+LinkedIn: https://linkedin.com/in/akshantsharma07/
+Email: akshant3@gmail.com
+
+## AI Learning Series
+
+Learning AI Inference as a Distributed Systems Engineer — 30 posts published (Day 0–29 of 150). Topics: KV cache, continuous batching, GPU scheduling, RAG pipelines, feature flags for model rollouts, eBPF tracing, OTel Collector, LLM observability, agent infrastructure.
+
+- [Day 29 — The AI Infrastructure Stack — Full Map](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html): Five layers from training pipeline to agent orchestration — where each is hard and where LensAI fits.
+- [Day 28 — Competitor Teardown: LensAI Positioning](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html): Honest teardown of Datadog LLM Observability, Helicone, and Langfuse — where each falls short.
+- [Day 27 — OpenTelemetry Collector as Integration Hub](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html): Processors as middleware, exporters as adapters, and why LensAI speaks OTel natively.
+- [Day 26 — Fine-Tuning vs RAG vs Prompting — Infra Cost View](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html): Four-question decision framework and cost crossover at three traffic volumes.
+- [Day 25 — Cost Models for LLM Gateways](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-25-cost-models-llm-gateways.html): Cache hit rate × cheaper model route × prompt cache — token economics for model routing.
+- [Day 24 — GPU Scheduling as Resource Management](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html): MIG, tensor parallelism, and Kubernetes extended resources.
+- [Day 23 — Evaluations as Event Streams](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-23-evaluations-as-event-streams.html): LLM-as-judge as a Kafka producer, eval event schema, and the ClickHouse join that closes the cost-quality loop.
+- [Day 22 — Feature Flags for Model Rollouts](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-22-feature-flags-model-rollouts.html): Deterministic hashing, audit logs, and the four-step canary sequence.
+- [Day 21 — Production Reliability for LLM APIs](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-21-production-reliability-llm-apis.html): Four-bucket error classification — retry, circuit break, fallback, fail loud.
+- [Day 20 — Prompt Engineering as Infra Optimization](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html): Prompt cache and prefix reuse in dollars per million requests.
+- [Day 19 — Agent Infrastructure — Tools, Memory, Loops](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html): Tool calling as RPC with hallucination risk, agent memory as tiered cache.
+- [Day 18 — Quantization and Model Optimization](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-18-quantization-model-optimization.html): GPTQ vs AWQ vs bitsandbytes — pick variants like a codec picks compression.
+- [Day 17 — LLM Observability: What Actually Matters](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html): Arize vs Langfuse vs Helicone schema diff against eBPF-captured events.
+- [Day 16 — The Mental Model That Made LLM Infra Click](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html): Prefill as batch write, decode as serial consumer.
+- [Day 15 — Multi-Model Routing Strategies](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-15-multi-model-routing-strategies.html): Cost-first vs quality-first vs latency-first routing.
+- [Day 14 — eBPF for AI Infrastructure](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-14-ebpf-for-ai-infrastructure.html): Zero-SDK LLM HTTP tracing via eBPF — kernel probes vs SDK patches.
+- [Day 13 — Embeddings as Dense Time-Series IDs](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-13-embeddings-as-dense-time-series-ids.html): Embedding pipeline as event stream, model version migration, blue/green index cutover.
+- [Day 12 — Embeddings as Dense Time-Series IDs (Part 1)](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-12-embeddings-as-dense-time-series-ids.html): Vectors are high-cardinality series in ANN storage engines.
+- [Day 11 — Semantic Caching vs Exact-Match Redis](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-11-semantic-caching-vs-exact-match-redis.html): Exact Redis when bytes are the contract; semantic cache when paraphrase is the traffic.
+- [Day 10 — Serving Frameworks Compared as Queue Schedulers](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-10-serving-frameworks-queue-schedulers.html): vLLM vs TGI vs Ollama on admission and continuous batching.
+- [Day 9 — GPU Memory Management](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-9-gpu-memory-management.html): Four VRAM tenants, one capacity plan.
+- [Day 8 — RAG as an Infrastructure Pipeline](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-8-rag-as-infra-pipeline.html): Five pipeline stages, one latency budget.
+- [Day 7 — Prompt Caching at the Infrastructure Layer](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-7-prompt-caching-infrastructure-layer.html): Provider prompt caches as prefix KV hits.
+- [Day 6 — Quantization vs Compression Tradeoffs](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-6-quantization-vs-compression-tradeoffs.html): INT8/INT4 as Snappy-vs-Zstd for weights.
+- [Day 5 — Sampling and Deterministic Routing](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-5-sampling-deterministic-routing.html): Head vs tail sampling, hash(trace_id) discipline.
+- [Day 4 — Tensor Parallelism Meets Kafka Partitions](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-4-tensor-parallelism-kafka-partitions.html): TP/PP scale-out, Triton as routing table.
+- [Day 3 — Token Budgets and Real Cost Structure](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-3-token-budgets-cost-structure.html): Prompt vs completion buckets, asymmetric rate cards.
+- [Day 2 — Continuous Batching in vLLM](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html): Static vs continuous batching, GPU bubbles, token-step scheduling.
+- [Day 1 — The KV Cache Is a Memory Bandwidth Problem](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-1-kv-cache-memory-bandwidth.html): Prefill vs decode, why decode is memory-bound.
+- [Day 0 — Why I'm Writing This Series](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-0-series-roadmap.html): Distributed-systems lens on AI inference — 150-day scope and format.
+
+## Experience Series
+
+Production war stories from large-scale engineering: Agoda (WhiteFalcon in-house TSDB, 1.5T events/day), Delivery Hero (rider tracking at 5k geo-events/s), Wayfair (pricing platform, 70k+ suppliers), Walmart Labs (7M+ IoT sensors, 50+ facilities).
+
+- [Day 29 — Thirty Days of Building — What Shipped vs What Matters](https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html): LensAI month-one retrospective — four repos, one smoke test, three things to redo.
+- [Day 28 — Integration Tests — The Only Launch Criteria I Trust](https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html): Agoda staging discipline mapped to LensAI's smoke test launch gate.
+- [Day 27 — What I'd Redesign at Wayfair With 2026 Eyes](https://akshantvats.github.io/Profile/blog/series/experience/day-27-redesign-wayfair-2026-eyes.html): Schema ownership contracts, cost attribution at event level, event-sourced pricing inputs.
+- [Day 26 — Systems That Outlast Their Architects — Walmart Lessons](https://akshantvats.github.io/Profile/blog/series/experience/day-26-systems-outlast-architects-walmart.html): Walmart Labs IoT at 7M+ sensors — why undocumented systems cost more than docs.
+- [Day 25 — Distributed Redis Rate Limits — Lua Scripts and Race Conditions](https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html): Why Redis INCR+EXPIRE fails under concurrent load and how Lua scripts fix it atomically.
+- [Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth](https://akshantvats.github.io/Profile/blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html): Wayfair PAS analytics — slot exhaustion under burst pricing runs.
+- [Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure](https://akshantvats.github.io/Profile/blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html): Delivery Hero route recompute budget at scale.
+- [Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales](https://akshantvats.github.io/Profile/blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html): Delivery Hero surge detection — why naive geo fails at 5k events/s.
+- [Day 21 — LaunchDarkly Money — Why We Build flagd Ourselves](https://akshantvats.github.io/Profile/blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html): Delivery Hero config propagation — etcd + gRPC + AI model rollouts.
+- [Day 20 — Route Consumer Lag — Why CPU-Based HPA Failed at Lunch Rush](https://akshantvats.github.io/Profile/blog/series/experience/day-20-route-consumer-lag-keda.html): Delivery Hero — SQS depth as the right scale signal.
+- [Day 19 — Kafka + Redis Tiering — Query Latency by Temperature](https://akshantvats.github.io/Profile/blog/series/experience/day-19-kafka-redis-tiering-query-latency.html): WhiteFalcon at Agoda — SLOs that average across storage temperatures.
+- [Day 18 — Rate Limiting at the Supplier Boundary](https://akshantvats.github.io/Profile/blog/series/experience/day-18-supplier-rate-limiting.html): 70k active suppliers, 250k+ SKU updates each, one ingestion boundary.
+- [Building in Public — The Blog Post That Outlives LinkedIn](https://akshantvats.github.io/Profile/blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html): Architecture posts as durable hiring signals.
+- [Cross-Tier Query Latency — Hot Redis, Cold Ceph](https://akshantvats.github.io/Profile/blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html): WhiteFalcon histogram-based storage cross-tier quantile queries.
+- [Order SQS → Route Consumers: Decoupling Map-Match from Status](https://akshantvats.github.io/Profile/blog/series/experience/order-sqs-route-consumers-delivery-hero.html): Decoupling OSRM route calculation from order status updates.
+- [High-Cardinality Metrics — The Prometheus Wall We Hit](https://akshantvats.github.io/Profile/blog/series/experience/high-cardinality-metrics-prometheus-wall.html): Label explosion at Agoda WhiteFalcon.
+- [OTA at Scale — At-Least-Once Is a Feature, Not a Bug](https://akshantvats.github.io/Profile/blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html): Walmart WeIoT OTA under flaky networks.
+- [Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep](https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html): Four-pass OSS reading for Staff interviews.
+- [We Killed Redpanda on Purpose — Chaos as Commit Message](https://akshantvats.github.io/Profile/blog/series/experience/we-killed-redpanda-on-purpose-chaos-as-commit-message.html): Agoda WhiteFalcon at 1.5T/day chaos testing.
+- [Delphi → Aletheia Feed — Sub-Second Price Visibility](https://akshantvats.github.io/Profile/blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html): Wayfair pricing — Aletheia at ~21k RPS, Kafka pricing_refresh on 40 partitions.
+- [Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped](https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html): Delivery Hero peak on AWS EKS.
+- [Supplier APIs and Token Buckets — Wayfair's Real Circuit Breaker](https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html): Per-supplier token buckets in Redis, circuit breakers on downstream failure.
+- [Cardinality Is the Silent Killer — RoaringBitmap Lessons](https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html): Agoda-scale series explosion, RoaringBitmap indexing.
+- [Five Thousand Geo-Events Per Second — Shape of the Stream](https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html): Delivery Hero rider-tracking at 5k+ geo-events/s.
+- [Seven Million IoT Sensors — Failure Modes Textbooks Skip](https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html): Walmart SmartBuildings at 7M+ data points.
+- [When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB](https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html): Silent wrong aggregates at Agoda.
+- [1.5T events/day — what I worked on at Agoda](https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html): WhiteFalcon context, team vs personal contribution boundaries.
+
+## LensAI — Open Source Project
+
+LensAI is zero-SDK AI inference observability: eBPF hooks TLS at the kernel level to capture LLM API calls without modifying application code. Cost attribution via resolved_model_id (what flagd actually routed vs what the app requested). Stack: Rust + Kafka + ClickHouse + Grafana.
+
+- [Building a Production-Grade AI Inference Observability Pipeline](https://akshantvats.github.io/Profile/blog/series/inference-ai-project/building-ai-inference-observability.html): Architecture, tradeoffs, benchmarks.
+- GitHub repos: https://github.com/AkshantVats/infra-ai-streaming (Rust ingest), https://github.com/AkshantVats/ebpf-llm-tracer (eBPF tracer), https://github.com/AkshantVats/lensai-integration (quickstart docker-compose + smoke.sh)
