@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust | Experience Series</title>
-<meta name="description" content="Staging discipline at Agoda: how running the full WhiteFalcon pipeline in a clean environment caught a systematic P99 inflation bug before it reached production — and why LensAI's smoke.sh is the same discipline.">
-<meta property="og:title" content="Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust">
-<meta property="og:description" content="Agoda staging discipline, the cross-tier histogram compaction bug, and why scripts/smoke.sh is the engineering contract that makes LensAI's demo GIF honest.">
+<title>Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters | Experience Series</title>
+<meta name="description" content="LensAI month-one retrospective: what four repos actually shipped, what I'd redo, the Show HN moment, and how Agoda's go-live checklist discipline maps to open-source launch criteria.">
+<meta property="og:title" content="Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters">
+<meta property="og:description" content="Month-one on LensAI: four repos, one smoke test, three things I'd redo — and the Agoda go-live checklist that gave me the launch criteria framework.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-28-integration-tests-launch-criteria.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-thirty-days-lensai-month-one.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-28-integration-tests-launch-criteria.png">
-<meta property="article:published_time" content="2026-06-12">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-thirty-days-lensai-month-one.png">
+<meta property="article:published_time" content="2026-07-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,113 +185,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 28 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">WhiteFalcon TSDB</span>
-    <span class="tag">Integration Testing</span>
-    <span class="tag">Staging Discipline</span>
+    <span class="tag accent">Experience &middot; Day 29 of 150</span>
     <span class="tag">LensAI</span>
+    <span class="tag">Retrospective</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">OSS Launch</span>
+    <span class="tag">Show HN</span>
   </div>
-  <h1 class="post-title">Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust</h1>
-  <p class="post-subtitle">How staging discipline at Agoda shaped the LensAI quickstart smoke test</p>
+  <h1 class="post-title">Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters</h1>
+  <p class="post-subtitle">LensAI month-one &middot; four repos, one smoke test, and the Agoda go-live checklist that gave me the launch criteria framework</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 28 of 150</span>
+    <span class="meta-item">Experience &middot; Day 29 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">June 12, 2026</span>
+    <span class="meta-item">July 2, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">14 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-28-integration-tests-launch-criteria.png" alt="Day 28 — Integration Tests — The Only Launch Criteria I Trust" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-29-thirty-days-lensai-month-one.png" alt="Day 29 — Thirty Days of Building — What Shipped vs What Matters" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Three weeks before we shipped the cross-tier query extension in WhiteFalcon, every unit test was green. The histogram merge logic had 100% branch coverage. The Redis hot-tier fetcher tests passed. The S3 cold-tier fetcher tests passed. The merge function was mathematically correct &mdash; I&rsquo;d verified it against five different time ranges by hand.</p>
+<p>Thirty days of public building has two distinct phases. The first two weeks, you are writing toward something you hope will cohere &mdash; each post is a piece of evidence in an argument you haven&rsquo;t fully formed yet. The last two weeks, the pieces are good enough that each new one makes the previous ones make more sense, and you can see what you were actually building rather than what you told yourself you were building. Today is Day 29, which means it is time to ask the honest version of the retrospective question: what shipped, what I would redo, and what the whole month was actually for.</p>
 
-<p>But we had never run the full sequence &mdash; Redis fetch, S3 fetch, merge, and Grafana query &mdash; against a real dataset on a real Kafka-backed pipeline in a staging environment. The day we did, the query returned the wrong result for ranges crossing the hot/cold boundary at exactly the 3-hour mark, when a compaction job was mid-run and the S3 partition was split across two files. No unit test could have found this. Only the integration test did.</p>
+<p>I will be specific about what shipped because specificity is the only defense against retrospectives that become self-congratulation. The vague answer is &ldquo;I built an AI inference observability platform.&rdquo; The useful answer is four repos, a set of PRs, a smoke test, and a landing page. The gap between the vague answer and the useful answer is where the lessons live.</p>
 
-<p>That experience is why I trust one thing when deciding whether a system is ready to launch: does it work end-to-end on data that looks like production data, in an environment that looks like production, running from a clean state? Everything else &mdash; unit tests, code review, staging smoke tests on synthetic data &mdash; is evidence that the components are correct. Integration tests are the only evidence that they work together. And for a distributed system where the interesting failures are exactly the ones at the boundaries between components, that distinction is the whole ballgame.</p>
+<p>The bridge to today from Day 28&rsquo;s integration testing post: Show HN and the OpenTelemetry Collector PR are distribution for the integration test I can rerun. Both require the same standard Agoda applied before shipping any cross-tier query extension to production: does this work end-to-end on a clean machine, without manual steps, and does it cover the edge cases that only show up when real infrastructure is running? That standard is the thread that connects WhiteFalcon staging discipline to the LensAI smoke test to the Show HN launch.</p>
 
-<div class="attr-box team"><div class="attr-label">What the team built vs what I contributed at Agoda</div>The WhiteFalcon TSDB described here &mdash; Kafka pipeline handling 1.5T events/day, RoaringBitmap inverted index, Redis hot tier, Parquet/S3 cold tier, Scala query engine &mdash; was designed and built by the Agoda team before I joined. I was a Senior Engineer on the team for ~5 months. My contribution was the cross-tier query engine extension (handling time ranges spanning the hot/cold boundary) and new Grafana query types. The compaction bug this post describes was found during integration testing of my extension, not of the core system.</div>
+<h2 id="what-shipped">What actually shipped</h2>
 
-<h2 id="the-integration-test-gap">The integration test gap</h2>
+<p>Four repositories form the LensAI stack. I want to be precise about what each one is, because &ldquo;LensAI&rdquo; as a product name can obscure the actual moving parts. Each repo has a distinct role and a distinct set of technical decisions that went into it.</p>
 
-<p>Unit tests verify component behavior in isolation. They are fast, deterministic, and give immediate feedback on individual functions. They are the right tool for testing that the histogram merge function returns the correct output for a given pair of bucket arrays. But they cannot test that the histogram bucket arrays received from the Redis hot tier and the S3 cold tier are in the same format, covering the same bucket boundaries, with the same time alignment.</p>
+<p><strong>infra-ai-streaming</strong> is the Rust ingest pipeline. It runs a Tokio async Kafka consumer, reads LLM inference events from a topic, and writes them to ClickHouse via the <code>clickhouse-rs</code> client. The schema it writes is the <code>inference_events</code> table: <code>timestamp</code>, <code>model_id</code> (what the application requested), <code>resolved_model_id</code> (what flagd decided actually ran), <code>token_count_prompt</code>, <code>token_count_completion</code>, <code>latency_ms</code>, <code>request_id</code>. The <code>resolved_model_id</code> field is the column that makes cost attribution honest.</p>
 
-<p>That is a contract between two components, and unit tests only test one component at a time. The integration test gap lives at every boundary between components: between the Kafka consumer and the storage layer it writes to, between the storage layer and the query engine that reads from it, between the query engine and the Grafana plugin that formats the response.</p>
+<p><strong>distributed-flagd</strong> is the Go feature flag daemon. It uses etcd as the backing store for flag state, exposes a gRPC streaming watch API so inference servers can receive flag updates without polling, and writes every flag change to a Kafka topic as an audit log. Its job in the LensAI stack is controlling which model version handles what percentage of traffic &mdash; the <code>resolved_model_id</code> in infra-ai-streaming comes from flagd evaluating the traffic split rule at request time. A flag flip that changes the canary percentage shows up in the audit log and in the inference event stream simultaneously.</p>
 
-<p>Each boundary has an implicit contract &mdash; a set of assumptions each component makes about what the other will produce. Integration tests are the only tests that can verify these contracts are actually being kept in practice. Unit tests are necessary but not sufficient for distributed systems &mdash; the interesting bugs live at component boundaries, and only integration tests can find them.</p>
+<p><strong>ebpf-llm-tracer</strong> is the eBPF program that hooks TLS socket operations at the kernel level. It attaches uprobes to <code>SSL_read</code> and <code>SSL_write</code> in the OpenSSL or BoringSSL library loaded by the inference server process. When the inference server makes an HTTPS call to an LLM API &mdash; OpenAI, Anthropic, a self-hosted vLLM endpoint &mdash; the uprobe fires and captures the HTTP/2 frame headers. The capture includes the request ID, model name from the request, response token counts from the response headers, and latency from the socket timing. Zero SDK changes required. Zero application code modifications. The kernel sees every TLS handshake regardless of what the application code is doing.</p>
 
-<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; cooking</div>Unit tests are like checking each ingredient separately before cooking &mdash; confirming the flour is fresh, the eggs are uncracked, the butter is soft. Integration tests are like making the recipe once and tasting it. You cannot know how the dish turns out from inspecting the ingredients individually. The interaction between heat, timing, and specific quantities is something you can only test by actually cooking it.</div>
+<p><strong>lensai-integration</strong> is the unified quickstart: a Docker Compose file that wires all three services together, a synthetic load generator that fires inference events at the ingest endpoint, and <code>scripts/smoke.sh</code> &mdash; the integration test that ties a bow on the whole thing. The smoke test was the last piece built (Day 28) and it is the most important one. PR #1 in lensai-integration added the smoke test, the health check sequence, and the end-to-end verification that an injected event flows from HTTP POST to Kafka to ClickHouse in under five seconds on commodity hardware.</p>
 
-<h2 id="staging-discipline-at-agoda">Staging discipline at Agoda</h2>
-
-<p>WhiteFalcon&rsquo;s staging environment was a reduced-scale replica of production. It ran the full pipeline &mdash; Kafka with a subset of the 1.5T daily events forwarded from production, Rust consumers writing to Redis, compaction jobs running on a 10-minute cycle instead of hourly, Scala query engine pointing at staging S3, Grafana connected to the staging query endpoint. The purpose was not to test performance. The purpose was to test the correctness of the pipeline under production-like conditions, including production-like data shapes, compaction timing, and query patterns.</p>
-
-<p>The discipline I learned from this staging environment was the clean-machine requirement. Every integration test run started from a clean state &mdash; empty Redis, empty S3 prefix, no compaction job history. This was not about realism. Production was never in a clean state. The clean-machine discipline existed because it made failures reproducible. When a test failed from a pre-existing state, the root cause could be in the test&rsquo;s setup or in the system under test &mdash; and untangling the two was expensive. A clean starting state meant every failure was a system failure, not a state artifact.</p>
-
-<p>The compose-on-clean-laptop formulation is the same discipline applied to a single developer machine. If the integration test only works on the CI server, or only works after a specific manual setup sequence, it is not an integration test &mdash; it is a demo. Staging discipline at any scale is the difference between a test that provides evidence the system works and a test that provides evidence the test can run.</p>
-
-<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; fire drills</div>A clean-machine integration test is like a fire drill. The point of a fire drill is not to practice when the fire alarm is already ringing &mdash; the point is to discover whether the evacuation procedure works before there is a real fire. Running the drill starting from normal working conditions, not from a pre-staged &ldquo;everyone is already at the exits&rdquo; state, is what makes it a real test. A staged fire drill is a performance review, not a safety check.</div>
-
-<h2 id="the-histogram-bug">The histogram bug: what clean staging found</h2>
-
-<p>The cross-tier query extension I built extended WhiteFalcon&rsquo;s Scala query engine to handle time ranges crossing the hot/cold boundary. The correct approach was to fetch histogram bucket counts from both tiers and merge them before computing quantiles &mdash; add corresponding bucket counts, then compute P95 or P99 on the merged histogram. The math was correct. The unit tests were thorough. The merge function returned the right result for every input I hand-crafted.</p>
-
-<p>The integration test failure appeared when the test sent a query for a time range ending in the Redis hot tier and starting in S3 during a compaction window. Compaction at Agoda ran hourly &mdash; it merged hourly S3 Parquet files into 3-hour files. During the merge window, both the hourly file and the in-progress 3-hour file existed in S3 with overlapping time ranges. The query engine&rsquo;s S3 file discovery returned both files. The bucket counts were summed from both files, meaning bucket counts for the overlapping time range were doubled.</p>
-
-<p>The resulting P99 latency from the cross-tier query was approximately 1.3&times; the actual P99 &mdash; a systematic error appearing in every production query crossing a compaction boundary. Infrequent enough that it might have shipped and been attributed to &ldquo;normal variance&rdquo; for weeks before being diagnosed.</p>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    A["Scala query engine\ncross-tier request"] --> B["Redis hot tier\nlast 3h buckets"]
-    A --> C["S3 cold tier\nfile discovery"]
-    C --> D["Compaction window:\nhourly + 3h file both exist"]
-    D --> E["Both files returned\noverlapping time range"]
-    B --> F["Merge histogram buckets"]
-    E --> F
-    F --> G["Double-count in overlap\nP99 inflated 1.3x"]
-    G --> H["Integration test\ncaught it pre-ship"]
-</pre>
-
-<p>What the integration test did that no unit test could: it ran the compaction job during the query. The compaction timing wasn&rsquo;t controlled &mdash; it was running on a 10-minute cycle in staging, and the integration test happened to query during a compaction window. That accidental overlap, in a real pipeline with a real compaction job, was the test the system needed.</p>
-
-<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; bridge engineering</div>Finding a bug during a compaction window is like discovering that a bridge sways in crosswinds only while a resurfacing crew is applying new asphalt. The bridge is fine empty and fine under normal traffic. But the combination of reduced structural stiffness during resurfacing and lateral wind load produces resonance that static load tests never reveal. Integration tests are the wind tunnel. Unit tests are the static load test.</div>
-
-<h2 id="compose-on-clean-laptop">What &ldquo;compose on clean laptop&rdquo; means</h2>
-
-<p>&ldquo;Compose on clean laptop&rdquo; means the integration test runs with a single command from a fresh <code>git clone</code> on a machine that has never seen the codebase before. The test sets up its own infrastructure (databases, message brokers, background services), runs against that infrastructure, and tears it down. It makes no assumptions about machine state except that Docker is installed.</p>
-
-<p>This discipline has a practical consequence: it forces the developer to encode all configuration into the test setup. Every environment variable, every service address, every schema creation step must be handled by the test&rsquo;s setup phase. The temptation to rely on &ldquo;everyone knows they need to run the migration first&rdquo; is eliminated by the clean-laptop requirement. The test either handles it or the test fails.</p>
-
-<p>The second consequence is that the clean-laptop test is self-documenting. A developer who has never seen the codebase can run the integration test and learn &mdash; from watching it set up and execute &mdash; what services the system depends on, how they interact, and what a successful run looks like. This is operational documentation that never becomes stale because it runs against the actual code.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">repos in the stack</span></div>
+  <div class="stat-cell"><span class="stat-num">29</span><span class="stat-label">days to launch</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">smoke test: the gate</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">SDK changes required</span></div>
+</div>
 
 <pre class="mermaid">
 %%{init: {
@@ -311,58 +260,104 @@ flowchart TD
   }
 }}%%
 flowchart LR
-    A["git clone\nclean state"] --> B["docker compose up\nservices start"]
-    B --> C["Inject test event\nHTTP POST /ingest"]
-    C --> D["Verify end-to-end\nevent in ClickHouse"]
-    D --> E["Exit 0 or exit 1\nwith reason"]
+    A["infra-ai-streaming"] --> B["lensai-integration"]
+    C["distributed-flagd"] --> B
+    D["ebpf-llm-tracer"] --> B
+    B --> E["smoke.sh exit 0"]
 </pre>
 
-<h2 id="bridge-lensai-smoke-test">The bridge: LensAI&rsquo;s smoke test as integration contract</h2>
+<h2 id="what-surprised-me">What surprised me</h2>
 
-<p>The <code>scripts/smoke.sh</code> in lensai-integration is the same discipline applied to LensAI&rsquo;s entire stack. It runs from a clean docker state, starts all services via docker compose, injects a synthetic inference event, and verifies the event flows from the ingest endpoint through Kafka to ClickHouse and appears in the Grafana dashboard. Exit 0 means the pipeline works. Exit 1 means it doesn&rsquo;t. There is no ambiguity, no manual steps, no &ldquo;it works on my machine&rdquo; qualification.</p>
+<p>I expected the eBPF tracer to be the hard part. Writing a CO-RE (Compile Once &mdash; Run Everywhere) eBPF program that hooks TLS socket operations and correctly parses HTTP/2 frame boundaries is genuinely tricky: TLS data arrives in arbitrary-sized chunks that do not align with HTTP/2 frame boundaries, and the uprobe fires on each <code>SSL_read</code> call, not on each complete frame. The program needs to buffer across calls, detect frame boundaries, and avoid allocating in kernel context. That is real work.</p>
 
-<p>The reason this matters specifically for LensAI&rsquo;s launch is the demo GIF. The landing page for a developer-focused open-source project needs to show the product working, not describe it working. A demo GIF showing eBPF tracing requests, those requests appearing in ClickHouse, and a Grafana dashboard updating in real time is worth more than any architecture diagram. But the demo GIF is only credible if the system it depicts is the system in the repository &mdash; if a developer can clone the repo, run one command, and see the same thing.</p>
+<p>But what was actually hardest was the schema. Specifically: the <code>resolved_model_id</code> field. The problem is that the eBPF tracer sees the model name from the HTTP/2 request frame. The flagd daemon knows what traffic split it applied. These two pieces of information live in different systems with different timing. The eBPF capture happens at the kernel level when the TLS write fires. The flagd evaluation happens at the application level before the write. Getting <code>resolved_model_id</code> to flow correctly &mdash; from flagd&rsquo;s evaluation result through the application&rsquo;s request header to the eBPF capture to the ClickHouse row &mdash; required three schema design iterations over two weeks.</p>
 
-<p>The WhiteFalcon lesson that applies directly here: the integration test found a systematic error because it ran the full pipeline including compaction. The LensAI smoke test must run the full pipeline including the eBPF tracer &mdash; the component most likely to have environment-specific behavior. Finding that failure in the smoke test, before the demo GIF is recorded, is the value of the integration test discipline.</p>
+<p>What I didn&rsquo;t expect was that the observability design problem was more interesting than the infrastructure plumbing problem. I&rsquo;ve built Kafka consumers and ClickHouse schemas many times, in different contexts at Agoda and elsewhere. The schema design for an observability product &mdash; where the goal is to answer questions you haven&rsquo;t thought of yet, not just store the data efficiently &mdash; is a different kind of problem. The columns in an inference event schema are a bet on what questions will matter in production.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">7</span><span class="stat-label">smoke test checks</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">command to run all</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">manual steps required</span></div>
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day in production</span></div>
-</div>
+<h2 id="what-id-redo">What I&rsquo;d redo</h2>
 
-<h2 id="what-id-do-differently">What I&rsquo;d do differently</h2>
+<p>Three things, in order of how much time they would have saved.</p>
 
-<p>At Agoda, the integration test that found the compaction bug was not a planned test. It was a test we ran because I happened to send a query during a compaction window in staging. The bug was found by luck, not by design. A designed test would have deliberately triggered compaction during the query &mdash; scheduled both to overlap &mdash; rather than waiting for the overlap to happen by chance.</p>
+<p>First: start with the schema, not the pipeline. I built infra-ai-streaming before I had a stable schema. This felt efficient at the time &mdash; I was making progress on the Rust code while still thinking about the schema design. It was not efficient. I did two ClickHouse schema migrations and one Kafka topic rename because the schema changed under the pipeline. The correct sequence is: finalize the event schema, write a schema migration, write one test that inserts a valid event and queries it back, then build the pipeline that produces that event.</p>
 
-<p>The general principle: integration tests should target the boundary conditions that are most likely to fail, not just verify that everything works when nothing goes wrong. At component boundaries, the interesting failure modes are usually timing-dependent, load-dependent, or state-dependent in ways that don&rsquo;t show up in steady-state testing. Tests that deliberately break things &mdash; trigger compaction, evict cache entries, introduce consumer lag &mdash; are more valuable than tests verifying everything works when nothing goes wrong.</p>
+<p>Second: ship the smoke test on Day 1 of the product, not Day 28. The smoke test is the end-to-end integration test. Building it last meant I had 27 days of building four components that I was never certain worked together correctly until Day 28. Building it first would have been harder &mdash; it would have required stubbing out services that didn&rsquo;t exist yet &mdash; but it would have given me a failing test to run against every day, making integration failures visible immediately instead of on Day 28.</p>
 
-<p>For LensAI, this means the smoke test is not the ceiling. It is the floor. A smoke test that exits 0 on a clean machine means the pipeline works when nothing is under stress. What I want to build next &mdash; Day 29 and beyond &mdash; is a failure-injection test suite that verifies the pipeline degrades gracefully: ingest slows when ClickHouse is saturated, events queue in Kafka rather than being dropped, and the smoke test itself diagnoses which check failed and why.</p>
+<p>Third: write the landing page at the halfway point (Day 15), not at launch (Day 29). The process of explaining the product to a reader who knows nothing about it is the fastest way to find gaps in your own mental model of what you built. I discovered three things I&rsquo;d assumed were true about LensAI while writing today&rsquo;s landing page that required me to actually check the code. Two were correct. One required a documentation fix. That discovery cost five minutes today. If I&rsquo;d made it on Day 15, the second half of the build would have been clearer.</p>
 
-<p>The Agoda lesson is that the compaction bug was a systematic error hiding in normal-looking variance. The integration test found it because it was running real infrastructure that behaved in production-like ways. Building tests that are boring to run but comprehensive in what they exercise is the only way to get the same coverage without waiting for a staging accident.</p>
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; expedition planning</div>Starting with the pipeline before the schema is like packing your gear for an expedition before you know the route. You end up with the right general equipment but wrong specifics: the tent stakes are too long for the terrain, the water filter is rated for the wrong micron range, the map is the wrong scale. Repacking mid-expedition is possible but disruptive. Planning the route first &mdash; the schema &mdash; lets you pack for the actual conditions. The gear &mdash; the pipeline &mdash; can then be specific rather than general.</div>
+
+<h2 id="the-show-hn-moment">The Show HN moment</h2>
+
+<p>Today&rsquo;s code task is the landing page and the Show HN draft. The landing page is not marketing; it is proof. A Show HN post lives or dies on whether the reader can verify the claim independently, and the claim for LensAI is: &ldquo;you can run this on your laptop in five minutes and see real eBPF-captured LLM traffic in a Grafana dashboard.&rdquo; The only thing that makes that claim credible is the quickstart that delivers it.</p>
+
+<p>The Show HN post is a specific format. It needs: what the project is in one sentence, why you built it (what problem it solves that existing tools don&rsquo;t), the key design decisions and why you made them (these are what engineers actually want to read), honest limitations (what it doesn&rsquo;t do), and a link to a runnable demo. The honest limitations are the engineering credibility. An open-source tool that lists its honest gaps is more trustworthy than one that claims to do everything. I am writing the Show HN draft today because the product is ready for independent verification.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; product demonstration</div>The Show HN post is like a chef&rsquo;s table at a restaurant. The regular dining room has servers who describe the dish. The chef&rsquo;s table has the chef who cooks it in front of you and explains each decision. The value is not just the dish but the transparency: you can see exactly what went in, ask questions in real time, and form your own opinion about whether you&rsquo;d want it in your kitchen. The quickstart is the chef&rsquo;s table. The landing page is the menu. You need both but the chef&rsquo;s table is the one that builds credibility.</div>
+
+<h2 id="agoda-go-live-to-oss-launch">From Agoda go-live criteria to OSS launch criteria</h2>
+
+<p>At Agoda, before the cross-tier query extension I built for WhiteFalcon went to production, it had to meet three criteria that the team treated as non-negotiable. I am paraphrasing from memory because I am not claiming ownership of the process &mdash; this was team discipline that was in place before I joined.</p>
+
+<div class="attr-box team"><div class="attr-label">WhiteFalcon context — Agoda team&rsquo;s system, my contribution boundary</div>WhiteFalcon is Agoda&rsquo;s in-house time-series database, designed by the Agoda team. It handles 1.5T events per day through a Kafka pipeline, Rust consumers writing to Redis (hot tier), and Parquet/S3 cold tier. I was a Senior Engineer on the team for approximately five months. The go-live discipline described in this section was team practice, not something I designed. My contribution was the cross-tier query extension and new Grafana query types. The staging environment and integration test process were established practice.</div>
+
+<p>The first criterion was: the integration test passes in the staging environment on production-like data. Not synthetic data, not hand-crafted test events, but a sample of the actual Kafka stream forwarded to staging. The point of production-like data is that it contains the edge cases that synthetic data misses &mdash; the exact distribution of time ranges, the exact compaction windows, the exact query patterns that production traffic generates. The cross-tier query extension&rsquo;s histogram merge bug &mdash; where P99 was inflated by 1.3&times; during a compaction boundary window &mdash; would not have been found with synthetic data. It required the real compaction timing running in a real pipeline.</p>
+
+<p>The second criterion was the clean-machine rule: the integration test starts from an empty Redis, empty S3 prefix, no compaction history. This enforces reproducibility. If a test passes from a pre-warmed state, you do not know whether it passed because the code is correct or because the pre-existing state happened to avoid the failure condition. A clean start means every failure is a system failure, not a state artifact. The test either works or it doesn&rsquo;t, and there is no ambiguity about whether the test setup caused the result.</p>
+
+<p>The third criterion was edge case coverage: the test must exercise the exact boundary condition most likely to fail. For the cross-tier query, that was queries crossing the hot/cold boundary during a compaction window. For LensAI, the equivalent is: the eBPF tracer captures events correctly when the BPF ring buffer is under pressure from a burst of traffic, the ingest pipeline processes events correctly when Kafka consumer lag spikes, and the smoke test verifies end-to-end flow under these conditions, not just under idle conditions.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    A["Agoda: production data\nclean state + edge case"] --> C["Go-live approved"]
+    B["LensAI: smoke.sh\nclean docker + burst test"] --> C
+    C --> D["Ship the thing"]
+</pre>
+
+<p>The mapping is direct. Agoda&rsquo;s three criteria &mdash; production-like data, clean state, edge case coverage &mdash; translate to LensAI&rsquo;s launch criteria as: <code>smoke.sh</code> exits 0 on a clean Docker state, with a synthetic load burst that exercises the ring buffer under pressure. The discipline is the same. The tooling is different &mdash; a Bash script and Docker Compose instead of a Scala integration test suite and a Kafka staging cluster. The principle is identical: before you say the thing works, prove it works under conditions that resemble the conditions where it will fail.</p>
+
+<p>What makes the Show HN and the OpenTelemetry Collector PR distribution for this standard is the same logic. The HN post is a claim. The claim is backed by a quickstart anyone can run. The OTel PR adds a receiver that lets existing OTel Collector pipelines export to LensAI without replacing their current setup. Both are channels through which independent engineers can run the integration test themselves &mdash; on their own hardware, with their own traffic, with their own edge cases. The Agoda go-live checklist was internal verification. The Show HN launch is external verification at scale. What passes internal verification does not always pass external. The quickstart is the only way to find out.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 28 of 150 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-27-redesign-wayfair-2026-eyes.html">Day 27 &mdash; What I&rsquo;d Redesign at Wayfair With 2026 Eyes</a></em></p>
-  <p><em>Next: <a href="day-29-thirty-days-lensai-month-one.html">Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html">Day 28 &mdash; Competitor Teardown: LensAI Positioning</a></em></p>
+  <p><em>Experience &middot; Day 29 of 150 &mdash; Thirty Days of Building: What Shipped vs What Matters. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-28-integration-tests-launch-criteria.html">Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust</a></em></p>
+  <p><em>Next: Day 30 coming tomorrow</em></p>
+  <p><em>Sibling (AI Learning): <a href="../ai-learning/day-29-ai-infrastructure-stack-full-map.html">Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-27-redesign-wayfair-2026-eyes.html">
+    <a href="day-28-integration-tests-launch-criteria.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 27 &mdash; What I&rsquo;d Redesign at Wayfair With 2026 Eyes
+      Day 28 Experience &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust
+    </a>
+    <a href="https://github.com/AkshantVats/lensai-integration">
+      <span class="footnote-arrow">&#x2197;</span>
+      lensai-integration &mdash; LensAI unified quickstart (GitHub)
     </a>
     <a href="https://github.com/AkshantVats/lensai-integration/pull/1">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 28 code: lensai-integration unified docker-compose + smoke.sh (PR #1)
+      Day 28 code: smoke.sh + unified docker-compose (PR #1)
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html">
+    <a href="../ai-learning/day-29-ai-infrastructure-stack-full-map.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 28 AI Learning &mdash; Competitor Teardown: LensAI Positioning
+      Day 29 AI Learning &mdash; The AI Infrastructure Stack &mdash; Full Map
     </a>
   </div>
 </div>
@@ -376,22 +371,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-integration-test-gap">The integration test gap</a></li>
-      <li><a href="#staging-discipline-at-agoda">Staging discipline at Agoda</a></li>
-      <li><a href="#the-histogram-bug">The histogram bug</a></li>
-      <li><a href="#compose-on-clean-laptop">Compose on clean laptop</a></li>
-      <li><a href="#bridge-lensai-smoke-test">LensAI smoke test</a></li>
-      <li><a href="#what-id-do-differently">What I&rsquo;d do differently</a></li>
+      <li><a href="#what-shipped">What shipped</a></li>
+      <li><a href="#what-surprised-me">What surprised me</a></li>
+      <li><a href="#what-id-redo">What I&rsquo;d redo</a></li>
+      <li><a href="#the-show-hn-moment">The Show HN moment</a></li>
+      <li><a href="#agoda-go-live-to-oss-launch">Agoda go-live &rarr; OSS launch</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+28+%E2%80%94+Integration+Tests+%E2%80%94+The+Only+Launch+Criteria+I+Trust&url=https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+29+%E2%80%94+Thirty+Days+of+Building+%E2%80%94+What+Shipped+vs+What+Matters&url=https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
