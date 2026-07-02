@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map | AI Learning Series</title>
+<meta name="description" content="Training to inference to observability to agents — a map of the full AI infrastructure stack drawn once, from a distributed systems perspective, with annotations for where each layer is hard.">
+<meta property="og:title" content="Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map">
+<meta property="og:description" content="Five layers: training pipeline, model registry, inference serving, observability, agent orchestration — where each one is hard, and where LensAI sits.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-ai-infrastructure-stack-full-map.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-ai-infrastructure-stack-full-map.png">
+<meta property="article:published_time" content="2026-07-02">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'\2190 '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &middot; Day 29 of 150</span>
+    <span class="tag">LensAI</span>
+    <span class="tag">AI Infrastructure</span>
+    <span class="tag">Inference</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Agents</span>
+  </div>
+  <h1 class="post-title">Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map</h1>
+  <p class="post-subtitle">Training &rarr; inference &rarr; observability &rarr; agents &mdash; where you fit, drawn once for reference</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &middot; Day 29 of 150</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">July 2, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">19 min read</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+  <figure class="post-cover">
+    <img src="../../assets/covers/day-29-ai-infrastructure-stack-full-map.png" alt="Day 29 — The AI Infrastructure Stack — Full Map" width="1200" height="630" loading="lazy">
+  </figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>Drawing a map of the AI infrastructure stack is useful exactly once and then wrong forever in its specifics. Technologies shift every six months, companies add proprietary layers, and the terminology changes with each wave of frameworks. But the broad architecture is stable at the level I care about as a distributed systems engineer: training pipelines, model registries, inference serving, observability, and agent orchestration sit in roughly the same positions relative to each other regardless of which specific tool occupies each slot.</p>
+
+<p>This post is that map. It is not a tutorial on any individual layer &mdash; there are better resources for each one. It is a reference document: the kind of diagram you draw once, put on a wall, and return to when you are trying to understand where a new problem sits or how two systems relate to each other. I want you to be able to open this post six months from now and orient yourself quickly, even after the specific tools have changed.</p>
+
+<p>I will cover five layers, the distributed systems problem that makes each one hard, one concrete analogy per layer, and a synthesis at the end on where LensAI sits and what Day 30 (TraceForge) adds. Think of it as the engineer&rsquo;s field guide to the stack, not the researcher&rsquo;s introduction to the theory.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    A["Training Pipeline"] --> B["Model Registry"]
+    B --> C["Inference Serving"]
+    C --> D["Observability Layer"]
+    E["Agent Orchestration"] --> C
+    D --> F["Dashboards + Alerts"]
+    B --> E
+</pre>
+
+<h2 id="layer-1-training">Layer 1: Training infrastructure</h2>
+
+<p>Training infrastructure is where you make the model. The compute is a GPU cluster &mdash; typically A100s or H100s &mdash; running distributed training jobs using PyTorch with FSDP (Fully Sharded Data Parallel) or DeepSpeed for splitting model parameters across cards. The data pipeline preprocesses raw text or examples into token sequences and loads them into the training loop from object storage. Experiment tracking tools like MLflow or Weights &amp; Biases record hyperparameters, loss curves, and evaluation checkpoints across runs.</p>
+
+<p>The distributed systems problem in training is not the GPU math. It is the data pipeline. If your tokenizer workers cannot keep GPUs fed, the expensive cards sit idle, waiting for the next batch. This is called a data bottleneck and it shows up as GPU utilization below 80% on the training server dashboard &mdash; a wall of expensive cards doing nothing while a cheaper CPU cluster scrambles to catch up. The bottleneck shifts between compute, network, and storage depending on model size, batch schedule, and dataset locality.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; printing press factory</div>Training infrastructure is like a printing press factory. The GPU cluster is the expensive press: slow to start, costly per hour, and consuming materials at a fixed rate. The data pipeline is the paper and ink supply chain. If the supply chain cannot keep the press fed, the press stops &mdash; and idle press time costs money without producing output. FSDP and model parallelism are like running multiple presses in parallel on the same job, each one handling a section of the plate. The coordination overhead is real and the speedup is not linear.</div>
+
+<p>The &ldquo;so what&rdquo; for training infrastructure: most engineers never own the training loop. What they do own is the artifact it produces &mdash; the model checkpoint &mdash; and the data pipeline that feeds it. Getting the data pipeline right matters as much as getting the model architecture right. A model trained on a stale or miscleaned dataset is wrong from the first token.</p>
+
+<h2 id="layer-2-model-registry">Layer 2: Model registry</h2>
+
+<p>The model registry is version control for model artifacts. A model artifact is the checkpoint (the weights, a binary blob of hundreds of gigabytes), the tokenizer configuration, the model architecture parameters, and optionally an evaluation record &mdash; what benchmarks it scored, what dataset it trained on, what training commit produced it. The registry tracks which artifact is deployed to which environment (staging, production, canary) and who promoted it and when.</p>
+
+<p>The distributed systems problem in the model registry is lineage. A model deployed to production last Tuesday was trained on data from which date range, preprocessed by which tokenizer version, on which architecture configuration? Without a registry with rigorous lineage tracking, debugging a model quality regression becomes archaeology: you are digging backward through Slack messages and Jupyter notebooks trying to reconstruct what changed. The registry that connects training run ID to deployment record to evaluation score is the artifact that makes post-incident analysis tractable.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; library card catalog</div>The model registry is a library card catalog for very expensive books, except each &ldquo;book&rdquo; is a machine-learning model taking up hundreds of gigabytes on the shelf. The card records not just title and location but edition, printing date, editorial review scores, and which reading room it has been checked out to. When a researcher returns a bad edition (a model quality regression), you need the card to know exactly which printing it was and which previous edition to restore. Without the card, you know something went wrong but not what.</div>
+
+<p>The registry layer is often under-invested. Teams track training runs in a spreadsheet, deploys in a wiki, and end up with a version gap when something goes wrong. The investment in a proper model registry pays off the first time you need to roll back a production model and can do it in minutes instead of hours.</p>
+
+<h2 id="layer-3-inference-serving">Layer 3: Inference serving</h2>
+
+<p>Inference serving is where requests go. A user or application sends a prompt to an API endpoint; a serving framework loads the model weights into GPU VRAM, runs the forward pass (prefill for the prompt, then autoregressive decode for each output token), and streams the token output back. The major open-source serving frameworks &mdash; vLLM, TGI (Text Generation Inference), and NVIDIA Triton Inference Server &mdash; differ in their batching strategies, memory management, and API surface. Each makes a different trade-off on throughput versus latency versus operational complexity.</p>
+
+<p>The most important innovation in inference serving in the last two years is continuous batching. Traditional static batching fills a batch to a fixed size and runs it &mdash; if one request finishes early, its GPU slot sits idle until the full batch completes. Continuous batching schedules at the token step: as soon as one sequence finishes a decode step and is complete, a new sequence is admitted to the batch. The effect is dramatically higher GPU utilization under mixed-length traffic, which is what production workloads look like.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; short-order diner</div>Inference serving is a short-order diner counter. The GPU is the cook: it can handle several orders simultaneously because each dish has idle time (waiting for the toast to pop, waiting for the egg to set). Static batching is like the cook who takes exactly four orders, starts all four simultaneously, and won&rsquo;t take a fifth until all four plates are done. Continuous batching is the experienced short-order cook who takes the next order the moment one dish is plated, keeping the grill full at all times. The throughput difference is significant, the diner analogy is exact, and the scheduling discipline is the hard part.</div>
+
+<p>The KV cache &mdash; the attention key-value matrices computed during the prefill phase &mdash; is the memory management problem that defines inference serving capacity. These matrices take variable memory depending on prompt length and must be stored in VRAM for the lifetime of the request. vLLM&rsquo;s paged attention treats the KV cache like virtual memory with fixed-size pages, allocating on demand rather than pre-reserving max sequence length. The analogy to OS virtual memory is intentional and the engineering is genuinely similar.</p>
+
+<h2 id="layer-4-observability">Layer 4: Observability</h2>
+
+<p>Observability for AI inference is different from traditional service observability in two ways. First, the questions are different: not just &ldquo;is the service up&rdquo; and &ldquo;what is the P99 latency&rdquo; but also &ldquo;what model actually served this request,&rdquo; &ldquo;how many tokens were consumed,&rdquo; and &ldquo;what was the quality of the output.&rdquo; Second, the interesting failures are silent: a model serving incorrect output does not throw an exception or return a 5xx code. The only way to detect quality degradation is to measure it explicitly.</p>
+
+<p>The standard observability trio &mdash; logs, metrics, traces &mdash; covers availability and latency but misses cost attribution and quality. Cost attribution requires correlating each inference event with the specific model version that handled it, the token counts consumed, and the per-token pricing of that model. This is what the <code>resolved_model_id</code> field in LensAI&rsquo;s schema does: it records not the model the application requested but the exact model checkpoint that actually ran, including fine-tuned variants and flagd-controlled canary percentages.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; receipt system and inspector</div>Traditional service observability is the restaurant reservation system: it tells you whether tables were filled, how long people waited to be seated, and whether they complained. AI inference observability is the itemized receipt combined with the health inspector&rsquo;s report. The receipt knows what was ordered, how many items, and what the bill was by dish. The health inspector verifies the kitchen is operating at spec. A restaurant can fill tables efficiently and still have a cost problem (wrong supplier) or a safety problem (kitchen running outside temperature range) that only the receipt and inspector combination reveals.</div>
+
+<p>LensAI is built in this layer. The eBPF tracer (in <code>ebpf-llm-tracer</code>) captures LLM API calls by hooking TLS socket operations at the Linux kernel level &mdash; no SDK changes required, no application code to instrument. ClickHouse (in <code>infra-ai-streaming</code>) stores the inference events in a columnar format optimized for cost attribution aggregations. Grafana sits on top for alerting and dashboards. The full LensAI stack is the receipt system and the health inspector in one.</p>
+
+<h2 id="layer-5-agent-orchestration">Layer 5: Agent orchestration</h2>
+
+<p>Agent orchestration is the newest and least standardized layer. An agent is a control loop: it calls a model with a prompt, the model produces text or tool calls, the agent executes the tool calls (querying a database, calling an API, running code), the results go back into the next model call, and the loop continues until a stop condition is met. The orchestration layer manages the loop structure, the tool registry (which tools are available and how to call them), and the memory system (what gets passed back to the model versus stored externally).</p>
+
+<p>The distributed systems problem in agent orchestration is durable state. A long-running agent loop can be interrupted by a network timeout, a model API error, or a context window overflow after many tool call iterations. Recovering from an interruption requires that intermediate tool call results be persisted somewhere durable &mdash; not just held in the in-process context array. Frameworks like LangGraph checkpoint each step of the agent graph so that an interrupted run can resume from its last successful node rather than starting over.</p>
+
+<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; air traffic control</div>An agent orchestrator is an air traffic controller. The ATC does not fly the planes &mdash; the models do that, each request being one plane in the pattern. The ATC knows which runways are open (which tools are callable), enforces separation (prevents the agent from calling the same tool recursively in a tight loop), sequences arrivals and departures (orders tool calls to avoid conflicts), and decides when a plane is cleared to land (when the agent loop terminates). Without the ATC, multiple planes try to land simultaneously. Without an orchestrator, an unbounded agent loop exhausts its context window and crashes without producing output.</div>
+
+<p>The interesting infrastructure question for agents is observability: when a multi-step agent loop produces a wrong answer, which step went wrong? Was it the first model call (bad planning), a tool call (incorrect retrieval), or a later model call (failure to synthesize)? This is a different observability problem from tracing a single inference call, and it requires capturing the full loop trace rather than individual spans. This is the gap TraceForge addresses at Day 30.</p>
+
+<h2 id="where-lensai-fits">Where LensAI fits in the map</h2>
+
+<p>LensAI sits in Layer 4 (observability) but its observation points span three layers. The eBPF tracer watches below Layer 3 &mdash; at the kernel syscall level, it sees every TLS socket operation that carries LLM API traffic, regardless of which Layer 3 serving framework generated it. ClickHouse stores the resulting events in a format that references Layer 2 &mdash; the <code>resolved_model_id</code> field connects each inference event to the specific model version from the registry. Grafana at the top connects to Layer 5 &mdash; agent tool call telemetry will flow through the same ClickHouse store once TraceForge is integrated.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">layers in the stack</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">LensAI components</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">SDK changes for eBPF</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">command to verify all</span></div>
+</div>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["eBPF kernel tracer"] --> B["Kafka ingest stream"]
+    B --> C["ClickHouse storage"]
+    C --> D["Grafana dashboards"]
+    E["flagd model versions"] --> C
+    D --> F["Alerts and rollback"]
+</pre>
+
+<p>What I find clarifying about drawing this map is where LensAI is not. It is not in the training pipeline &mdash; it has no visibility into gradient descent, dataset preprocessing, or experiment tracking. It is not in the model registry &mdash; it does not manage checkpoints or deployment state. It is not in the agent orchestration loop itself &mdash; it observes the inference calls the loop makes, but it does not record tool call structure or planning steps. Each of these gaps is real, and naming them helps define the boundary of what LensAI is for.</p>
+
+<p>The boundary that matters most is between Layer 4 (what LensAI does) and Layer 5 (agent traces). A single inference call from an agent loop looks identical to a single inference call from a direct API call at the kernel level. The eBPF tracer sees both the same way. What it cannot see is that the agent call was step three of a five-step planning loop, that the previous step returned a context that influenced this call, and that the next step will use this response to decide whether to retry. That context &mdash; the agent loop structure &mdash; requires a different instrumentation layer.</p>
+
+<h2 id="day-30-traceforge">Day 30: TraceForge fills the agent observability gap</h2>
+
+<p>Day 30 introduces TraceForge, a lightweight agent trace collector. Where LensAI observes Layer 3 (inference serving) from below via eBPF, TraceForge observes Layer 5 (agent orchestration) from above via a thin SDK wrapper. Each agent tool call, each model invocation within the loop, each intermediate result, and each loop iteration is captured as a structured trace event and written to the same ClickHouse store that holds LensAI&rsquo;s inference events.</p>
+
+<p>The integration goal is a trace that spans from the initial user request through every tool call to the final response, with cost attributed to each model invocation from LensAI and loop structure attributed to each step from TraceForge. This gives the full picture: how much did this five-step agent run cost, which model calls were expensive, and which step produced a wrong intermediate result that caused the final answer to fail. The stack map is only useful when you can observe the whole stack, not just one layer.</p>
+
+<p>What I didn&rsquo;t expect when I started building LensAI was that the observability problem would be more interesting than the inference problem. Inference serving is largely solved by excellent open-source frameworks. Observability at the resolution needed for cost attribution and quality tracking &mdash; especially across multi-step agent loops &mdash; is not solved. That gap is what makes the next week of building genuinely interesting work.</p>
+
+<div class="series-footer">
+  <p><em>AI Learning &middot; Day 29 of 150 &mdash; The AI Infrastructure Stack: Full Map. Staff engineer working on distributed systems and AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-28-competitor-teardown-lensai-positioning.html">Day 28 &mdash; Competitor Teardown: LensAI Positioning</a></em></p>
+  <p><em>Next: Day 30 &mdash; TraceForge: Agent Trace Collection (coming tomorrow)</em></p>
+  <p><em>Sibling (Experience): <a href="../experience/day-29-thirty-days-lensai-month-one.html">Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters</a></em></p>
+</div>
+
+<div class="footnote-row" id="footnotes">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="day-28-competitor-teardown-lensai-positioning.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 28 &mdash; Competitor Teardown: LensAI Positioning
+    </a>
+    <a href="https://github.com/AkshantVats/lensai-integration">
+      <span class="footnote-arrow">&#x2197;</span>
+      lensai-integration &mdash; unified docker-compose quickstart
+    </a>
+    <a href="https://github.com/AkshantVats/lensai-integration/pull/1">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 28 code: lensai-integration unified docker-compose + smoke.sh (PR #1)
+    </a>
+    <a href="../experience/day-29-thirty-days-lensai-month-one.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 29 Experience &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#layer-1-training">Layer 1: Training</a></li>
+      <li><a href="#layer-2-model-registry">Layer 2: Model registry</a></li>
+      <li><a href="#layer-3-inference-serving">Layer 3: Inference serving</a></li>
+      <li><a href="#layer-4-observability">Layer 4: Observability</a></li>
+      <li><a href="#layer-5-agent-orchestration">Layer 5: Agent orchestration</a></li>
+      <li><a href="#where-lensai-fits">Where LensAI fits</a></li>
+      <li><a href="#day-30-traceforge">Day 30: TraceForge</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+29+%E2%80%94+The+AI+Infrastructure+Stack+%E2%80%94+Full+Map&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Share on X
+      </a>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Staff engineer working on distributed systems and AI infrastructure. Building LensAI: zero-SDK LLM observability via eBPF. 150 days of learning in public.</div>
+      <div class="author-card-links">
+        <a href="https://github.com/AkshantVats" target="_blank" rel="noopener" class="ff-gh">GitHub</a>
+        <a href="https://linkedin.com/in/akshantsharma07/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="https://akshantvats.github.io/Profile/blog/" class="ff-posts">All posts</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){var k="theme",r=document.documentElement,m=document.querySelector('meta[name="theme-color"]');function a(d){if(d){r.setAttribute("data-theme","dark");if(m)m.setAttribute("content","#0f0f0e");}else{r.removeAttribute("data-theme");if(m)m.setAttribute("content","#fafafa");}localStorage.setItem(k,d?"dark":"light");var b=document.getElementById("theme-toggle");if(b){b.setAttribute("aria-label",d?"Switch to light mode":"Switch to dark mode");b.title=d?"Light mode":"Dark mode";}}document.getElementById("theme-toggle")?.addEventListener("click",function(){a(r.getAttribute("data-theme")!=="dark");});})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
+})();
+</script>
+<script src="../../series-nav-dynamic.js"></script>
+</body>
+</html>

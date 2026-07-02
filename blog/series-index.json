@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html",
+          "kicker": "AI Learning · Day 29 of 150",
+          "title": "Day 29 — The AI Infrastructure Stack — Full Map",
+          "subtitle": "Training → inference → observability → agents — where you fit",
+          "date": "2026-07-02",
+          "slug": "day-29-ai-infrastructure-stack-full-map",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html",
+          "coverImage": "blog/assets/covers/day-29-ai-infrastructure-stack-full-map.png",
+          "desc": "The full AI infrastructure stack — training, model registry, inference serving, observability, agent orchestration — where each layer is hard and where LensAI fits."
+        },
+        {
           "href": "blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html",
           "kicker": "AI Learning \u00b7 Day 28 of 150",
           "title": "Day 28 \u2014 Competitor Teardown: LensAI Positioning",
