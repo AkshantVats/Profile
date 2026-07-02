@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters | Experience Series</title>
-<meta name="description" content="LensAI month-one retrospective: what four repos actually shipped, what I'd redo, the Show HN moment, and how Agoda's go-live checklist discipline maps to open-source launch criteria.">
-<meta property="og:title" content="Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters">
-<meta property="og:description" content="Month-one on LensAI: four repos, one smoke test, three things I'd redo — and the Agoda go-live checklist that gave me the launch criteria framework.">
+<title>Day 30 &mdash; ReAct Loops as Distributed Workflows | AI Learning Series</title>
+<meta name="description" content="A ReAct loop is a distributed saga, not AI magic — how the state machine model makes agent failures diagnosable, predictable, and instrumentable with OTel spans.">
+<meta property="og:title" content="Day 30 &mdash; ReAct Loops as Distributed Workflows">
+<meta property="og:description" content="A ReAct loop is a distributed saga, not AI magic — how the state machine model makes agent failures diagnosable, predictable, and instrumentable with OTel spans.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-thirty-days-lensai-month-one.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-30-react-loops-distributed-workflows.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-29-thirty-days-lensai-month-one.png">
-<meta property="article:published_time" content="2026-07-02">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-30-react-loops-distributed-workflows.png">
+<meta property="article:published_time" content="2026-07-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,24 +185,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 29 of 150</span>
-    <span class="tag">LensAI</span>
-    <span class="tag">Retrospective</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">OSS Launch</span>
-    <span class="tag">Show HN</span>
+    <span class="tag accent">AI Learning &middot; Day 30 of 150</span>
+    <span class="tag">ReAct</span>
+    <span class="tag">Distributed Systems</span>
+    <span class="tag">Agent Infrastructure</span>
+    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 29 &mdash; Thirty Days of Building &mdash; What Shipped vs What Matters</h1>
-  <p class="post-subtitle">LensAI month-one &middot; four repos, one smoke test, and the Agoda go-live checklist that gave me the launch criteria framework</p>
+  <h1 class="post-title">Day 30 &mdash; ReAct Loops as Distributed Workflows</h1>
+  <p class="post-subtitle">Planner &rarr; tools &rarr; memory &mdash; state machine, not magic</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 29 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 30 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 2, 2026</span>
+    <span class="meta-item">July 3, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">14 min read</span>
   </div>
@@ -210,37 +209,80 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-29-thirty-days-lensai-month-one.png" alt="Day 29 — Thirty Days of Building — What Shipped vs What Matters" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-30-react-loops-distributed-workflows.png" alt="Day 30 — ReAct Loops as Distributed Workflows" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Thirty days of public building has two distinct phases. The first two weeks, you are writing toward something you hope will cohere &mdash; each post is a piece of evidence in an argument you haven&rsquo;t fully formed yet. The last two weeks, the pieces are good enough that each new one makes the previous ones make more sense, and you can see what you were actually building rather than what you told yourself you were building. Today is Day 29, which means it is time to ask the honest version of the retrospective question: what shipped, what I would redo, and what the whole month was actually for.</p>
+<p>When I first encountered ReAct &mdash; the reasoning-then-acting loop that underlies most tool-using AI agents &mdash; my instinct was to model it like a human decision process: fluid, contextual, hard to decompose. That instinct was wrong, and it led me to treat agent failures as inherently mysterious. The mental model that actually works &mdash; the one that makes agent behaviour predictable and debuggable &mdash; is a state machine borrowed from distributed systems: the saga pattern.</p>
 
-<p>I will be specific about what shipped because specificity is the only defense against retrospectives that become self-congratulation. The vague answer is &ldquo;I built an AI inference observability platform.&rdquo; The useful answer is four repos, a set of PRs, a smoke test, and a landing page. The gap between the vague answer and the useful answer is where the lessons live.</p>
+<p>Draw the loop as a saga. Make each tool call a compensatable step with a timeout. Track state transitions in a durable log. Suddenly, the &ldquo;thinking&rdquo; between steps is just the orchestrator deciding which compensating transaction to execute next.</p>
 
-<p>The bridge to today from Day 28&rsquo;s integration testing post: Show HN and the OpenTelemetry Collector PR are distribution for the integration test I can rerun. Both require the same standard Agoda applied before shipping any cross-tier query extension to production: does this work end-to-end on a clean machine, without manual steps, and does it cover the edge cases that only show up when real infrastructure is running? That standard is the thread that connects WhiteFalcon staging discipline to the LensAI smoke test to the Show HN launch.</p>
+<p>When an AI agent fails &mdash; wrong output, stuck loop, incomplete result &mdash; diagnosis is much faster if you know which state transition failed. &ldquo;The AI is confused&rdquo; gives you nothing. &ldquo;The saga is stuck at Step 4 &mdash; tool call returned ERROR and the orchestrator has no compensating path defined&rdquo; gives you exactly the right fix.</p>
 
-<h2 id="what-shipped">What actually shipped</h2>
+<h2 id="state-machine">ReAct: The State Machine Underneath</h2>
 
-<p>Four repositories form the LensAI stack. I want to be precise about what each one is, because &ldquo;LensAI&rdquo; as a product name can obscure the actual moving parts. Each repo has a distinct role and a distinct set of technical decisions that went into it.</p>
-
-<p><strong>infra-ai-streaming</strong> is the Rust ingest pipeline. It runs a Tokio async Kafka consumer, reads LLM inference events from a topic, and writes them to ClickHouse via the <code>clickhouse-rs</code> client. The schema it writes is the <code>inference_events</code> table: <code>timestamp</code>, <code>model_id</code> (what the application requested), <code>resolved_model_id</code> (what flagd decided actually ran), <code>token_count_prompt</code>, <code>token_count_completion</code>, <code>latency_ms</code>, <code>request_id</code>. The <code>resolved_model_id</code> field is the column that makes cost attribution honest.</p>
-
-<p><strong>distributed-flagd</strong> is the Go feature flag daemon. It uses etcd as the backing store for flag state, exposes a gRPC streaming watch API so inference servers can receive flag updates without polling, and writes every flag change to a Kafka topic as an audit log. Its job in the LensAI stack is controlling which model version handles what percentage of traffic &mdash; the <code>resolved_model_id</code> in infra-ai-streaming comes from flagd evaluating the traffic split rule at request time. A flag flip that changes the canary percentage shows up in the audit log and in the inference event stream simultaneously.</p>
-
-<p><strong>ebpf-llm-tracer</strong> is the eBPF program that hooks TLS socket operations at the kernel level. It attaches uprobes to <code>SSL_read</code> and <code>SSL_write</code> in the OpenSSL or BoringSSL library loaded by the inference server process. When the inference server makes an HTTPS call to an LLM API &mdash; OpenAI, Anthropic, a self-hosted vLLM endpoint &mdash; the uprobe fires and captures the HTTP/2 frame headers. The capture includes the request ID, model name from the request, response token counts from the response headers, and latency from the socket timing. Zero SDK changes required. Zero application code modifications. The kernel sees every TLS handshake regardless of what the application code is doing.</p>
-
-<p><strong>lensai-integration</strong> is the unified quickstart: a Docker Compose file that wires all three services together, a synthetic load generator that fires inference events at the ingest endpoint, and <code>scripts/smoke.sh</code> &mdash; the integration test that ties a bow on the whole thing. The smoke test was the last piece built (Day 28) and it is the most important one. PR #1 in lensai-integration added the smoke test, the health check sequence, and the end-to-end verification that an injected event flows from HTTP POST to Kafka to ClickHouse in under five seconds on commodity hardware.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">repos in the stack</span></div>
-  <div class="stat-cell"><span class="stat-num">29</span><span class="stat-label">days to launch</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">smoke test: the gate</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">SDK changes required</span></div>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; saga orchestrator</div>
+  A ReAct loop is a distributed saga. The planner is the saga orchestrator. Each tool call is a compensatable step with a timeout and a defined rollback. Memory updates between steps are the saga&rsquo;s durable log &mdash; the record of what has been done that survives a crash.
 </div>
+
+<p>ReAct stands for Reasoning and Acting. The loop has four states: Observe (read current context), Reason (generate a thought &mdash; this is the LLM&rsquo;s inference pass), Act (call a tool or produce a final answer), Update (write tool result back into context). The loop continues until Act produces a final answer rather than a tool call.</p>
+
+<p>What makes this a state machine is the durable dependency between steps. The Observe step at iteration N reads accumulated tool results from iterations 1 through N-1. The Reason step generates a thought conditioned on accumulated context. The Act step selects a tool or terminates based on Reason output. Each iteration&rsquo;s Act output modifies the context for the next iteration&rsquo;s Observe &mdash; this is a state machine.</p>
+
+<p>The &ldquo;magic&rdquo; of ReAct is that the state transition function (Reason &rarr; Act) is implemented by an LLM rather than a hardcoded if-else tree. That&rsquo;s interesting but doesn&rsquo;t make it fundamentally different from any other state machine. The state is still defined, transitions deterministic given fixed inputs, terminal condition observable. You can instrument it exactly like any other state machine: trace each state transition, log inputs and outputs, alert on loops that don&rsquo;t terminate.</p>
+
+<p>A ReAct loop is a state machine with a model-implemented transition function &mdash; instrumentable, debuggable, and observable using the same techniques you&rsquo;d apply to any async multi-step process.</p>
+
+<h2 id="saga">The Saga Pattern: Tool Calls as Compensatable Steps</h2>
+
+<p>In distributed systems, a saga is a sequence of local transactions where each transaction publishes an event triggering the next. If a transaction fails, compensating transactions undo the partial work. The saga pattern solves the same problem a ReAct loop solves: how do you perform a multi-step operation reliably when each step might fail, and when you can&rsquo;t lock all resources for the entire duration?</p>
+
+<p>Mapping ReAct to saga: each tool call is a local transaction that reads from context (the saga&rsquo;s durable log) and produces a result written back into context. If the tool call fails, the saga needs a compensating path: retry with different parameters, try a different tool, or terminate with partial result. The language model&rsquo;s Reason step is the saga orchestrator making this decision.</p>
+
+<p>The critical saga property that applies to ReAct loops is compensatability: every step that can fail should have a defined compensating action. For a file-editing agent, &ldquo;write a file&rdquo; should have &ldquo;restore the backup.&rdquo; For a web-browsing agent, &ldquo;navigate to URL&rdquo; should have &ldquo;return to previous URL.&rdquo; In practice most ReAct implementations don&rsquo;t define explicit compensations &mdash; they rely on the model to &ldquo;figure out&rdquo; recovery. This works until it doesn&rsquo;t, and when it doesn&rsquo;t, there&rsquo;s no structured way to diagnose why.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Non-software analogy &mdash; airport check-in</div>
+  An airport check-in process with multiple steps is a saga. Passenger scans passport (step 1), selects seat (step 2), pays for baggage (step 3), prints boarding pass (step 4). If step 3 fails &mdash; payment declined &mdash; compensating transactions release the held seat (compensate step 2) and invalidate the passport scan session (compensate step 1). Without defined compensations, a failed payment leaves the seat permanently held. A ReAct loop with no compensating paths is that check-in system.
+</div>
+
+<p>Thinking of each tool call as a compensatable step forces you to define what &ldquo;undo&rdquo; means for every action the agent can take &mdash; exactly the discipline that prevents an agent from getting stuck in a partially-applied state with no recovery path.</p>
+
+<h2 id="timeouts">Timeouts, Loops, and Terminal Conditions</h2>
+
+<p>Every distributed system has timeout semantics &mdash; a maximum duration after which an operation is declared failed and a compensating path triggered. ReAct loops without explicit timeouts per tool call have an implicit timeout determined by the LLM&rsquo;s context window limit and max-tokens setting. This is not a design choice &mdash; it&rsquo;s an accident of implementation. When a tool call hangs, the agent has no way to detect it and trigger a compensating path without an explicit timeout.</p>
+
+<p>Terminal condition detection is the second gap. A saga terminates when all transactions complete successfully or a compensating transaction fails to produce a consistent state. A ReAct loop terminates when the model produces a final answer. But what prevents an agent from an infinite sequence of tool calls, each moving the plan slightly forward without ever reaching a final answer? Nothing, unless the loop has an explicit maximum step count or termination condition checker.</p>
+
+<p>Both problems have the same root cause: the distributed systems engineering concepts governing saga design haven&rsquo;t been applied to agent design. Saga implementations have explicit timeout specifications per transaction and explicit terminal failure states. Agent frameworks typically delegate both to the model &mdash; the model must execute the task AND govern its own execution. Separating concerns &mdash; putting timeouts and terminal conditions in the agent harness, not the model &mdash; is the architectural improvement that makes agents more reliable.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Non-software analogy &mdash; traffic light maximum</div>
+  A timeout in a ReAct loop is like a traffic light cycle with a maximum green duration. Without a maximum, a particularly busy road could hold the light green indefinitely, starving cross traffic. The maximum isn&rsquo;t about the common case &mdash; most cycles complete well under the maximum. It&rsquo;s about the rare case where the detector loop fails and keeps the light green forever. Timeouts handle the rare case where a tool call hangs.
+</div>
+
+<p>Explicit per-step timeouts and maximum iteration counts in the agent harness, not the model, are the two structural properties that separate a reliable ReAct agent from an unreliable one &mdash; both have direct precedents in saga pattern design.</p>
+
+<h2 id="memory">Memory as the Saga's Durable Log</h2>
+
+<p>A saga&rsquo;s durable log records which transactions completed successfully. It allows a saga to resume after a crash: read the log, determine which transactions completed, determine which compensating transactions need to run, continue from the last consistent state. Without durability, a crash requires starting the entire saga from the beginning.</p>
+
+<p>In a ReAct loop, the context window is the memory. It records which tool calls were made, what results they returned, what reasoning the model produced after each. For a single-session run, the context window is durable in the sense that it accumulates across iterations. But the context window is not durable across sessions &mdash; if the agent process crashes, context is lost. Resuming requires starting the loop from scratch.</p>
+
+<p>This is the gap that motivates externalising memory. An external memory store &mdash; a vector database, a key-value store, a structured span log &mdash; is the saga&rsquo;s durable log. Each tool call&rsquo;s result is written to the external store as it completes. If the agent crashes at step 7, the next run can query the store to find steps 1 through 6 completed and resume from step 7. This is exactly what agent-trace-collector&rsquo;s span schema enables: each span is a record of a completed saga step, persistent across agent restarts, queryable to reconstruct execution state.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Non-software analogy &mdash; construction punch list</div>
+  External agent memory is like a construction project&rsquo;s punch list. The punch list records every completed task: &ldquo;drywall installed &mdash; room 3, floor 2&rdquo; is checked off when the crew finishes and cannot be un-checked. If a crew is replaced mid-project, the new crew reads the punch list to find what&rsquo;s done and what remains. The context window is the crew&rsquo;s verbal briefing at the start of each shift &mdash; useful, but lost when the crew goes home. The external memory store survives restarts.
+</div>
+
+<p>Externalising memory as a structured log &mdash; one record per completed step, persistent across agent restarts &mdash; converts a ReAct agent from a single-session process into a resumable distributed workflow, with the same durability properties as a properly implemented saga.</p>
+
+<h2 id="tracing">Instrumenting the Saga: Where Tracing Comes In</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -259,52 +301,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart LR
-    A["infra-ai-streaming"] --> B["lensai-integration"]
-    C["distributed-flagd"] --> B
-    D["ebpf-llm-tracer"] --> B
-    B --> E["smoke.sh exit 0"]
+stateDiagram-v2
+    [*] --> Observe
+    Observe --> Reason: context accumulated
+    Reason --> Act: thought generated
+    Act --> Update: tool result returned
+    Update --> Observe: context extended
+    Act --> [*]: final answer
+    Act --> Compensate: tool error or timeout
+    Compensate --> Reason: compensation chosen
 </pre>
 
-<h2 id="what-surprised-me">What surprised me</h2>
+<p>Once you think of a ReAct loop as a saga, the instrumentation question answers itself. A saga&rsquo;s durable log needs to record: which transaction ran, when it started, how long it took, what its result was, which transaction triggered it. This is exactly an OTel span: span_id, start_time, latency_ms, status, and parent_span_id. The saga&rsquo;s dependency graph &mdash; &ldquo;transaction 4 was triggered by the result of transaction 3&rdquo; &mdash; is the span&rsquo;s parent_span_id. The execution tree of a ReAct loop is a span tree.</p>
 
-<p>I expected the eBPF tracer to be the hard part. Writing a CO-RE (Compile Once &mdash; Run Everywhere) eBPF program that hooks TLS socket operations and correctly parses HTTP/2 frame boundaries is genuinely tricky: TLS data arrives in arbitrary-sized chunks that do not align with HTTP/2 frame boundaries, and the uprobe fires on each <code>SSL_read</code> call, not on each complete frame. The program needs to buffer across calls, detect frame boundaries, and avoid allocating in kernel context. That is real work.</p>
+<p>The practical consequence: building observability for a ReAct agent is not a new problem. It&rsquo;s the same problem as building observability for a microservice call chain. Same tooling: OTel spans, Jaeger or Grafana Tempo for visualisation, ClickHouse for aggregation queries. Same schema: trace ID for root operation, span ID per step, parent span ID for dependency. What&rsquo;s new is that the &ldquo;service&rdquo; is an LLM inference pass and the &ldquo;operation&rdquo; is a tool call &mdash; the schema needs to capture tool_name, model, tokens, and cost_usd, which standard OTel schemas don&rsquo;t include. The schema extension is small. The infrastructure reuse is large.</p>
 
-<p>But what was actually hardest was the schema. Specifically: the <code>resolved_model_id</code> field. The problem is that the eBPF tracer sees the model name from the HTTP/2 request frame. The flagd daemon knows what traffic split it applied. These two pieces of information live in different systems with different timing. The eBPF capture happens at the kernel level when the TLS write fires. The flagd evaluation happens at the application level before the write. Getting <code>resolved_model_id</code> to flow correctly &mdash; from flagd&rsquo;s evaluation result through the application&rsquo;s request header to the eBPF capture to the ClickHouse row &mdash; required three schema design iterations over two weeks.</p>
-
-<p>What I didn&rsquo;t expect was that the observability design problem was more interesting than the infrastructure plumbing problem. I&rsquo;ve built Kafka consumers and ClickHouse schemas many times, in different contexts at Agoda and elsewhere. The schema design for an observability product &mdash; where the goal is to answer questions you haven&rsquo;t thought of yet, not just store the data efficiently &mdash; is a different kind of problem. The columns in an inference event schema are a bet on what questions will matter in production.</p>
-
-<h2 id="what-id-redo">What I&rsquo;d redo</h2>
-
-<p>Three things, in order of how much time they would have saved.</p>
-
-<p>First: start with the schema, not the pipeline. I built infra-ai-streaming before I had a stable schema. This felt efficient at the time &mdash; I was making progress on the Rust code while still thinking about the schema design. It was not efficient. I did two ClickHouse schema migrations and one Kafka topic rename because the schema changed under the pipeline. The correct sequence is: finalize the event schema, write a schema migration, write one test that inserts a valid event and queries it back, then build the pipeline that produces that event.</p>
-
-<p>Second: ship the smoke test on Day 1 of the product, not Day 28. The smoke test is the end-to-end integration test. Building it last meant I had 27 days of building four components that I was never certain worked together correctly until Day 28. Building it first would have been harder &mdash; it would have required stubbing out services that didn&rsquo;t exist yet &mdash; but it would have given me a failing test to run against every day, making integration failures visible immediately instead of on Day 28.</p>
-
-<p>Third: write the landing page at the halfway point (Day 15), not at launch (Day 29). The process of explaining the product to a reader who knows nothing about it is the fastest way to find gaps in your own mental model of what you built. I discovered three things I&rsquo;d assumed were true about LensAI while writing today&rsquo;s landing page that required me to actually check the code. Two were correct. One required a documentation fix. That discovery cost five minutes today. If I&rsquo;d made it on Day 15, the second half of the build would have been clearer.</p>
-
-<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; expedition planning</div>Starting with the pipeline before the schema is like packing your gear for an expedition before you know the route. You end up with the right general equipment but wrong specifics: the tent stakes are too long for the terrain, the water filter is rated for the wrong micron range, the map is the wrong scale. Repacking mid-expedition is possible but disruptive. Planning the route first &mdash; the schema &mdash; lets you pack for the actual conditions. The gear &mdash; the pipeline &mdash; can then be specific rather than general.</div>
-
-<h2 id="the-show-hn-moment">The Show HN moment</h2>
-
-<p>Today&rsquo;s code task is the landing page and the Show HN draft. The landing page is not marketing; it is proof. A Show HN post lives or dies on whether the reader can verify the claim independently, and the claim for LensAI is: &ldquo;you can run this on your laptop in five minutes and see real eBPF-captured LLM traffic in a Grafana dashboard.&rdquo; The only thing that makes that claim credible is the quickstart that delivers it.</p>
-
-<p>The Show HN post is a specific format. It needs: what the project is in one sentence, why you built it (what problem it solves that existing tools don&rsquo;t), the key design decisions and why you made them (these are what engineers actually want to read), honest limitations (what it doesn&rsquo;t do), and a link to a runnable demo. The honest limitations are the engineering credibility. An open-source tool that lists its honest gaps is more trustworthy than one that claims to do everything. I am writing the Show HN draft today because the product is ready for independent verification.</p>
-
-<div class="attr-box mine"><div class="attr-label">Non-software analogy &mdash; product demonstration</div>The Show HN post is like a chef&rsquo;s table at a restaurant. The regular dining room has servers who describe the dish. The chef&rsquo;s table has the chef who cooks it in front of you and explains each decision. The value is not just the dish but the transparency: you can see exactly what went in, ask questions in real time, and form your own opinion about whether you&rsquo;d want it in your kitchen. The quickstart is the chef&rsquo;s table. The landing page is the menu. You need both but the chef&rsquo;s table is the one that builds credibility.</div>
-
-<h2 id="agoda-go-live-to-oss-launch">From Agoda go-live criteria to OSS launch criteria</h2>
-
-<p>At Agoda, before the cross-tier query extension I built for WhiteFalcon went to production, it had to meet three criteria that the team treated as non-negotiable. I am paraphrasing from memory because I am not claiming ownership of the process &mdash; this was team discipline that was in place before I joined.</p>
-
-<div class="attr-box team"><div class="attr-label">WhiteFalcon context — Agoda team&rsquo;s system, my contribution boundary</div>WhiteFalcon is Agoda&rsquo;s in-house time-series database, designed by the Agoda team. It handles 1.5T events per day through a Kafka pipeline, Rust consumers writing to Redis (hot tier), and Parquet/S3 cold tier. I was a Senior Engineer on the team for approximately five months. The go-live discipline described in this section was team practice, not something I designed. My contribution was the cross-tier query extension and new Grafana query types. The staging environment and integration test process were established practice.</div>
-
-<p>The first criterion was: the integration test passes in the staging environment on production-like data. Not synthetic data, not hand-crafted test events, but a sample of the actual Kafka stream forwarded to staging. The point of production-like data is that it contains the edge cases that synthetic data misses &mdash; the exact distribution of time ranges, the exact compaction windows, the exact query patterns that production traffic generates. The cross-tier query extension&rsquo;s histogram merge bug &mdash; where P99 was inflated by 1.3&times; during a compaction boundary window &mdash; would not have been found with synthetic data. It required the real compaction timing running in a real pipeline.</p>
-
-<p>The second criterion was the clean-machine rule: the integration test starts from an empty Redis, empty S3 prefix, no compaction history. This enforces reproducibility. If a test passes from a pre-warmed state, you do not know whether it passed because the code is correct or because the pre-existing state happened to avoid the failure condition. A clean start means every failure is a system failure, not a state artifact. The test either works or it doesn&rsquo;t, and there is no ambiguity about whether the test setup caused the result.</p>
-
-<p>The third criterion was edge case coverage: the test must exercise the exact boundary condition most likely to fail. For the cross-tier query, that was queries crossing the hot/cold boundary during a compaction window. For LensAI, the equivalent is: the eBPF tracer captures events correctly when the BPF ring buffer is under pressure from a burst of traffic, the ingest pipeline processes events correctly when Kafka consumer lag spikes, and the smoke test verifies end-to-end flow under these conditions, not just under idle conditions.</p>
+<p>This is exactly what agent-trace-collector encodes. The Span schema in <code>pkg/schema/span.go</code> is a standard OTel span with four additional fields: tool_name, model, input_tokens/output_tokens, and cost_usd. Everything else &mdash; trace ID, span ID, parent span ID, status, latency &mdash; is standard OTel. The span forwards to a standard OTel Collector, which routes to ClickHouse via the same pipeline built in OSS-03. The agent observability infrastructure reuses every component from the LLM inference observability infrastructure.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -324,40 +336,40 @@ flowchart LR
   }
 }}%%
 flowchart TD
-    A["Agoda: production data\nclean state + edge case"] --> C["Go-live approved"]
-    B["LensAI: smoke.sh\nclean docker + burst test"] --> C
-    C --> D["Ship the thing"]
+    A["Root span\nmodel_call · 1.2s"] --> B["Span: Read file\nfile_io · 42ms · OK"]
+    A --> C["Span: Bash command\ncode_exec · 340ms · OK"]
+    A --> D["Span: Edit file\nfile_io · 28ms · OK"]
+    C --> E["Sub-span: test run\ncode_exec · 290ms · OK"]
 </pre>
 
-<p>The mapping is direct. Agoda&rsquo;s three criteria &mdash; production-like data, clean state, edge case coverage &mdash; translate to LensAI&rsquo;s launch criteria as: <code>smoke.sh</code> exits 0 on a clean Docker state, with a synthetic load burst that exercises the ring buffer under pressure. The discipline is the same. The tooling is different &mdash; a Bash script and Docker Compose instead of a Scala integration test suite and a Kafka staging cluster. The principle is identical: before you say the thing works, prove it works under conditions that resemble the conditions where it will fail.</p>
+<div class="attr-box mine">
+  <div class="attr-label">Non-software analogy &mdash; package scanning + GPS</div>
+  Instrumenting a ReAct loop with OTel spans is like adding GPS tracking to a delivery route that already has package scanning. The scanning system tracks: when a package was scanned, where, which delivery it belongs to. Adding four new fields (tool_name, model, tokens, cost_usd) to each scan record gives you richer information without building a new tracking system. The new fields extend the existing schema. The existing infrastructure handles collection, storage, and visualisation.
+</div>
 
-<p>What makes the Show HN and the OpenTelemetry Collector PR distribution for this standard is the same logic. The HN post is a claim. The claim is backed by a quickstart anyone can run. The OTel PR adds a receiver that lets existing OTel Collector pipelines export to LensAI without replacing their current setup. Both are channels through which independent engineers can run the integration test themselves &mdash; on their own hardware, with their own traffic, with their own edge cases. The Agoda go-live checklist was internal verification. The Show HN launch is external verification at scale. What passes internal verification does not always pass external. The quickstart is the only way to find out.</p>
+<p>A ReAct agent&rsquo;s execution is naturally representable as an OTel span tree, which means the entire observability problem is solved by adding four fields to a standard span schema &mdash; no custom UI, no agent-specific visualisation tooling, no new storage system.</p>
 
 <div class="series-footer">
-  <p><em>Experience &middot; Day 29 of 150 &mdash; Thirty Days of Building: What Shipped vs What Matters. Staff engineer working on distributed systems and AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-28-integration-tests-launch-criteria.html">Day 28 &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust</a></em></p>
-  <p><em>Next: <a href="day-30-step-7-failed-silently-no-span.html">Day 30 &mdash; Step 7 Failed Silently &mdash; And Nobody Had a Span</a></em></p>
-  <p><em>Sibling (AI Learning): <a href="../ai-learning/day-29-ai-infrastructure-stack-full-map.html">Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map</a></em></p>
+  <p><em>AI Learning &middot; Day 30 of 150 &mdash; ReAct Loops as Distributed Workflows. Staff engineer building AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-29-ai-infrastructure-stack-full-map.html">Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map</a></em></p>
+  <p><em>Next: Day 31 coming tomorrow</em></p>
+  <p><em>Sibling (Experience): <a href="../experience/day-30-step-7-failed-silently-no-span.html">Day 30 &mdash; Step 7 Failed Silently &mdash; And Nobody Had a Span</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-28-integration-tests-launch-criteria.html">
-      <span class="footnote-arrow">&#x2197;</span>
-      Day 28 Experience &mdash; Integration Tests &mdash; The Only Launch Criteria I Trust
-    </a>
-    <a href="https://github.com/AkshantVats/lensai-integration">
-      <span class="footnote-arrow">&#x2197;</span>
-      lensai-integration &mdash; LensAI unified quickstart (GitHub)
-    </a>
-    <a href="https://github.com/AkshantVats/lensai-integration/pull/1">
-      <span class="footnote-arrow">&#x2197;</span>
-      Day 28 code: smoke.sh + unified docker-compose (PR #1)
-    </a>
-    <a href="../ai-learning/day-29-ai-infrastructure-stack-full-map.html">
+    <a href="day-29-ai-infrastructure-stack-full-map.html">
       <span class="footnote-arrow">&#x2197;</span>
       Day 29 AI Learning &mdash; The AI Infrastructure Stack &mdash; Full Map
+    </a>
+    <a href="https://github.com/AkshantVats/agent-trace-collector">
+      <span class="footnote-arrow">&#x2197;</span>
+      agent-trace-collector &mdash; TraceForge span schema (GitHub)
+    </a>
+    <a href="../experience/day-30-step-7-failed-silently-no-span.html">
+      <span class="footnote-arrow">&#x2197;</span>
+      Day 30 Experience &mdash; Step 7 Failed Silently &mdash; And Nobody Had a Span
     </a>
   </div>
 </div>
@@ -366,26 +378,26 @@ flowchart TD
 
 <aside class="post-sidebar">
   <div class="sidebar-section">
-    <div id="series-nav-mount" data-series-slug="experience"></div>
+    <div id="series-nav-mount" data-series-slug="ai-learning"></div>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-shipped">What shipped</a></li>
-      <li><a href="#what-surprised-me">What surprised me</a></li>
-      <li><a href="#what-id-redo">What I&rsquo;d redo</a></li>
-      <li><a href="#the-show-hn-moment">The Show HN moment</a></li>
-      <li><a href="#agoda-go-live-to-oss-launch">Agoda go-live &rarr; OSS launch</a></li>
+      <li><a href="#state-machine">ReAct State Machine</a></li>
+      <li><a href="#saga">Saga Pattern: Tool Calls</a></li>
+      <li><a href="#timeouts">Timeouts &amp; Terminal Conditions</a></li>
+      <li><a href="#memory">Memory as Durable Log</a></li>
+      <li><a href="#tracing">Instrumenting the Saga</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+29+%E2%80%94+Thirty+Days+of+Building+%E2%80%94+What+Shipped+vs+What+Matters&url=https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+30+%E2%80%94+ReAct+Loops+as+Distributed+Workflows&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
