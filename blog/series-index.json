@@ -240,6 +240,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-29-thirty-days-lensai-month-one.html",
+          "kicker": "Experience · Day 29 of 150",
+          "title": "Day 29 — Thirty Days of Building — What Shipped vs What Matters",
+          "subtitle": "LensAI month-one · public proof",
+          "date": "2026-07-02",
+          "slug": "day-29-thirty-days-lensai-month-one",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html",
+          "coverImage": "blog/assets/covers/day-29-thirty-days-lensai-month-one.png",
+          "desc": "Month-one retrospective on LensAI: four repos, one smoke test, three things I'd redo — and the Agoda go-live checklist that gave me the launch criteria framework."
+        },
+        {
           "href": "blog/series/experience/day-28-integration-tests-launch-criteria.html",
           "kicker": "Experience \u00b7 Day 28 of 150",
           "title": "Day 28 \u2014 Integration Tests \u2014 The Only Launch Criteria I Trust",
