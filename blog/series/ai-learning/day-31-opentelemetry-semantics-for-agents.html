@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 30 &mdash; ReAct Loops as Distributed Workflows | AI Learning Series</title>
-<meta name="description" content="A ReAct loop is a distributed saga, not AI magic — how the state machine model makes agent failures diagnosable, predictable, and instrumentable with OTel spans.">
-<meta property="og:title" content="Day 30 &mdash; ReAct Loops as Distributed Workflows">
-<meta property="og:description" content="A ReAct loop is a distributed saga, not AI magic — how the state machine model makes agent failures diagnosable, predictable, and instrumentable with OTel spans.">
+<title>Day 31 &mdash; OpenTelemetry Semantics for Agents | AI Learning Series</title>
+<meta name="description" content="OTel gives you identity and span kinds for free. The question is which three attribute names to lock into your ClickHouse table before the GenAI SIG finalises its spec.">
+<meta property="og:title" content="Day 31 &mdash; OpenTelemetry Semantics for Agents">
+<meta property="og:description" content="OTel gives you identity and span kinds for free. The question is which three attribute names to lock into your ClickHouse table before the GenAI SIG finalises its spec.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-30-react-loops-distributed-workflows.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-31-opentelemetry-semantics-for-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-30-react-loops-distributed-workflows.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-31-opentelemetry-semantics-for-agents.png">
 <meta property="article:published_time" content="2026-07-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,104 +185,108 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 30 of 150</span>
-    <span class="tag">ReAct</span>
+    <span class="tag accent">AI Learning &middot; Day 31 of 150</span>
+    <span class="tag">OpenTelemetry</span>
+    <span class="tag">Agent Observability</span>
+    <span class="tag">ClickHouse</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Agent Infrastructure</span>
-    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 30 &mdash; ReAct Loops as Distributed Workflows</h1>
-  <p class="post-subtitle">Planner &rarr; tools &rarr; memory &mdash; state machine, not magic</p>
+  <h1 class="post-title">Day 31 &mdash; OpenTelemetry Semantics for Agents</h1>
+  <p class="post-subtitle">Span kinds, attributes, and what to standardise now</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 30 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 31 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 3, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">14 min read</span>
+    <span class="meta-item">15 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-30-react-loops-distributed-workflows.png" alt="Day 30 — ReAct Loops as Distributed Workflows" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-31-opentelemetry-semantics-for-agents.png" alt="Day 31 — OpenTelemetry Semantics for Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>When I first encountered ReAct &mdash; the reasoning-then-acting loop that underlies most tool-using AI agents &mdash; my instinct was to model it like a human decision process: fluid, contextual, hard to decompose. That instinct was wrong, and it led me to treat agent failures as inherently mysterious. The mental model that actually works &mdash; the one that makes agent behaviour predictable and debuggable &mdash; is a state machine borrowed from distributed systems: the saga pattern.</p>
+<p>When I started building TraceForge, I reached for OpenTelemetry the same way I&rsquo;d reach for it when adding observability to any HTTP service. I expected to find a semantic conventions page for agents the same way I find one for <code>http.method</code> or <code>db.statement</code>. I found a GitHub issue with 47 comments and no resolution instead.</p>
 
-<p>Draw the loop as a saga. Make each tool call a compensatable step with a timeout. Track state transitions in a durable log. Suddenly, the &ldquo;thinking&rdquo; between steps is just the orchestrator deciding which compensating transaction to execute next.</p>
+<p>That&rsquo;s not a failure of the OTel project &mdash; it&rsquo;s actually the right moment to be building here. The OpenTelemetry GenAI SIG (Special Interest Group) is actively drafting conventions for LLM calls right now, in 2026, which means the choices I make today in TraceForge&rsquo;s ClickHouse schema are being made while the standard is still forming. Some of those choices will align with the final spec. Some won&rsquo;t.</p>
 
-<p>When an AI agent fails &mdash; wrong output, stuck loop, incomplete result &mdash; diagnosis is much faster if you know which state transition failed. &ldquo;The AI is confused&rdquo; gives you nothing. &ldquo;The saga is stuck at Step 4 &mdash; tool call returned ERROR and the orchestrator has no compensating path defined&rdquo; gives you exactly the right fix.</p>
+<p>The concrete question I kept returning to: which attribute names do I put in a ClickHouse <code>ORDER BY</code> today, knowing I&rsquo;ll still be reading them in two years? This post is how I arrived at an answer.</p>
 
-<h2 id="state-machine">ReAct: The State Machine Underneath</h2>
+<h2 id="free">What OTel Gives You Without Any Standard</h2>
 
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; saga orchestrator</div>
-  A ReAct loop is a distributed saga. The planner is the saga orchestrator. Each tool call is a compensatable step with a timeout and a defined rollback. Memory updates between steps are the saga&rsquo;s durable log &mdash; the record of what has been done that survives a crash.
-</div>
+<p>OpenTelemetry has two layers that are completely stable and universal, requiring no domain-specific conventions: identity and classification. Every span, regardless of what it represents, gets both for free.</p>
 
-<p>ReAct stands for Reasoning and Acting. The loop has four states: Observe (read current context), Reason (generate a thought &mdash; this is the LLM&rsquo;s inference pass), Act (call a tool or produce a final answer), Update (write tool result back into context). The loop continues until Act produces a final answer rather than a tool call.</p>
+<p>The <strong>identity layer</strong> consists of three fields: <code>TraceId</code> (128-bit hex, 32 chars), <code>SpanId</code> (64-bit hex, 16 chars), and <code>ParentSpanId</code> (empty for root spans). These are wire format, not semantic. A Jaeger instance receiving your agent spans via OTLP will reconstruct the full execution waterfall from these three fields alone &mdash; no convention required. The tree structure is implicit: a span with no parent is a root; every other span attaches to its parent by ID.</p>
 
-<p>What makes this a state machine is the durable dependency between steps. The Observe step at iteration N reads accumulated tool results from iterations 1 through N-1. The Reason step generates a thought conditioned on accumulated context. The Act step selects a tool or terminates based on Reason output. Each iteration&rsquo;s Act output modifies the context for the next iteration&rsquo;s Observe &mdash; this is a state machine.</p>
-
-<p>The &ldquo;magic&rdquo; of ReAct is that the state transition function (Reason &rarr; Act) is implemented by an LLM rather than a hardcoded if-else tree. That&rsquo;s interesting but doesn&rsquo;t make it fundamentally different from any other state machine. The state is still defined, transitions deterministic given fixed inputs, terminal condition observable. You can instrument it exactly like any other state machine: trace each state transition, log inputs and outputs, alert on loops that don&rsquo;t terminate.</p>
-
-<p>A ReAct loop is a state machine with a model-implemented transition function &mdash; instrumentable, debuggable, and observable using the same techniques you&rsquo;d apply to any async multi-step process.</p>
-
-<h2 id="saga">The Saga Pattern: Tool Calls as Compensatable Steps</h2>
-
-<p>In distributed systems, a saga is a sequence of local transactions where each transaction publishes an event triggering the next. If a transaction fails, compensating transactions undo the partial work. The saga pattern solves the same problem a ReAct loop solves: how do you perform a multi-step operation reliably when each step might fail, and when you can&rsquo;t lock all resources for the entire duration?</p>
-
-<p>Mapping ReAct to saga: each tool call is a local transaction that reads from context (the saga&rsquo;s durable log) and produces a result written back into context. If the tool call fails, the saga needs a compensating path: retry with different parameters, try a different tool, or terminate with partial result. The language model&rsquo;s Reason step is the saga orchestrator making this decision.</p>
-
-<p>The critical saga property that applies to ReAct loops is compensatability: every step that can fail should have a defined compensating action. For a file-editing agent, &ldquo;write a file&rdquo; should have &ldquo;restore the backup.&rdquo; For a web-browsing agent, &ldquo;navigate to URL&rdquo; should have &ldquo;return to previous URL.&rdquo; In practice most ReAct implementations don&rsquo;t define explicit compensations &mdash; they rely on the model to &ldquo;figure out&rdquo; recovery. This works until it doesn&rsquo;t, and when it doesn&rsquo;t, there&rsquo;s no structured way to diagnose why.</p>
+<p>The <strong>classification layer</strong> is <code>SpanKind</code>, and four values matter for agent work. <code>CLIENT</code> means your code is calling an external service &mdash; the right kind for an LLM API call, a vector database query, any outbound HTTP. <code>INTERNAL</code> means a step inside your own process &mdash; the right kind for tool dispatch logic, planning loop iteration, in-process computation. <code>SERVER</code> means your agent is acting as the responder &mdash; receiving a request from an orchestrator above it. <code>PRODUCER</code> means your agent is emitting work to a queue, not waiting for a response &mdash; a Kafka publish, an SQS send, a sub-agent handoff over a message bus.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; airport check-in</div>
-  An airport check-in process with multiple steps is a saga. Passenger scans passport (step 1), selects seat (step 2), pays for baggage (step 3), prints boarding pass (step 4). If step 3 fails &mdash; payment declined &mdash; compensating transactions release the held seat (compensate step 2) and invalidate the passport scan session (compensate step 1). Without defined compensations, a failed payment leaves the seat permanently held. A ReAct loop with no compensating paths is that check-in system.
+  <div class="attr-label">For a Claude Code agent run</div>
+  The top-level model call is <code>CLIENT</code> &mdash; your orchestrator is calling the Anthropic API. The tool calls dispatched by the model response are <code>INTERNAL</code> &mdash; your harness is running them inside the same process. A sub-agent spawn that hands work to a separate process via Kafka is <code>PRODUCER</code>. The sub-agent&rsquo;s own model call is <code>CLIENT</code> again.
 </div>
 
-<p>Thinking of each tool call as a compensatable step forces you to define what &ldquo;undo&rdquo; means for every action the agent can take &mdash; exactly the discipline that prevents an agent from getting stuck in a partially-applied state with no recovery path.</p>
+<p>With just these three identity fields and SpanKind, Jaeger and Grafana Tempo will visualise your agent&rsquo;s execution tree correctly, with swimlane grouping and waterfall timing. The entire observability frontend &mdash; built for microservices &mdash; works for agents before you add a single agent-specific attribute.</p>
 
-<h2 id="timeouts">Timeouts, Loops, and Terminal Conditions</h2>
+<h2 id="headers">Attributes Are Kafka Message Headers</h2>
 
-<p>Every distributed system has timeout semantics &mdash; a maximum duration after which an operation is declared failed and a compensating path triggered. ReAct loops without explicit timeouts per tool call have an implicit timeout determined by the LLM&rsquo;s context window limit and max-tokens setting. This is not a design choice &mdash; it&rsquo;s an accident of implementation. When a tool call hangs, the agent has no way to detect it and trigger a compensating path without an explicit timeout.</p>
+<p>The mental model that unlocked attribute design for me came from Kafka. Every Kafka message carries a payload and an optional set of headers: arbitrary key-value pairs attached alongside the message, readable by any consumer that knows to look for them. You can add a new header without changing the message schema. Consumers that don&rsquo;t read the new header are unaffected. Headers are the extensibility mechanism.</p>
 
-<p>Terminal condition detection is the second gap. A saga terminates when all transactions complete successfully or a compensating transaction fails to produce a consistent state. A ReAct loop terminates when the model produces a final answer. But what prevents an agent from an infinite sequence of tool calls, each moving the plan slightly forward without ever reaching a final answer? Nothing, unless the loop has an explicit maximum step count or termination condition checker.</p>
+<p>OTel span attributes work the same way. A span&rsquo;s identity and timing &mdash; trace ID, span ID, start time, end time, status &mdash; are fixed in the wire format. Attributes are arbitrary typed key-value pairs you attach to a span. Adding <code>traceforge.cost.usd</code> to every span today doesn&rsquo;t touch the consumers that only read <code>http.method</code>. You can add, remove, and rename attributes in your instrumentation without breaking existing queries, as long as you don&rsquo;t break anything that&rsquo;s been promoted to a first-class column.</p>
 
-<p>Both problems have the same root cause: the distributed systems engineering concepts governing saga design haven&rsquo;t been applied to agent design. Saga implementations have explicit timeout specifications per transaction and explicit terminal failure states. Agent frameworks typically delegate both to the model &mdash; the model must execute the task AND govern its own execution. Separating concerns &mdash; putting timeouts and terminal conditions in the agent harness, not the model &mdash; is the architectural improvement that makes agents more reliable.</p>
+<p>The difference from Kafka headers: OTel attributes are typed (string, int64, float64, bool, or arrays thereof), not opaque bytes. And OTel has semantic conventions &mdash; agreed attribute names &mdash; so two teams independently instrumenting their LLM calls end up with <code>gen_ai.usage.input_tokens</code> in both datasets and can be joined without a mapping table.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; traffic light maximum</div>
-  A timeout in a ReAct loop is like a traffic light cycle with a maximum green duration. Without a maximum, a particularly busy road could hold the light green indefinitely, starving cross traffic. The maximum isn&rsquo;t about the common case &mdash; most cycles complete well under the maximum. It&rsquo;s about the rare case where the detector loop fails and keeps the light green forever. Timeouts handle the rare case where a tool call hangs.
+  <div class="attr-label">Non-software analogy &mdash; luggage tags</div>
+  An airline&rsquo;s baggage system attaches a printed tag (identity: barcode, flight, destination) to every bag. The tag format is standardised. Airlines also attach optional sticky labels: fragile, priority, oversized. These labels are attributes &mdash; arbitrary key-value pairs that any handler can read and act on. Adding a new label type (say, &ldquo;lithium battery inside&rdquo;) doesn&rsquo;t require redesigning the tag format. Handlers that don&rsquo;t need to act on lithium battery status ignore it. OTel attributes work the same way.
 </div>
 
-<p>Explicit per-step timeouts and maximum iteration counts in the agent harness, not the model, are the two structural properties that separate a reliable ReAct agent from an unreliable one &mdash; both have direct precedents in saga pattern design.</p>
+<p>The practical consequence is that you can evolve your agent instrumentation incrementally: add new attributes as you discover what you need, promote the frequently-queried ones to ClickHouse columns, leave the rest in an attributes map. You&rsquo;re not committing to a final schema on day one &mdash; you&rsquo;re committing to the three attributes that drive your most important queries.</p>
 
-<h2 id="memory">Memory as the Saga's Durable Log</h2>
+<h2 id="genai-sig">Where the Standard Is Today</h2>
 
-<p>A saga&rsquo;s durable log records which transactions completed successfully. It allows a saga to resume after a crash: read the log, determine which transactions completed, determine which compensating transactions need to run, continue from the last consistent state. Without durability, a crash requires starting the entire saga from the beginning.</p>
+<p>The OpenTelemetry GenAI SIG is drafting semantic conventions for LLM calls. As of mid-2026, the draft is still in-progress &mdash; not stable, not a formal release &mdash; but stable enough to read and plan against. The current proposal covers the single LLM API invocation span with these attributes:</p>
 
-<p>In a ReAct loop, the context window is the memory. It records which tool calls were made, what results they returned, what reasoning the model produced after each. For a single-session run, the context window is durable in the sense that it accumulates across iterations. But the context window is not durable across sessions &mdash; if the agent process crashes, context is lost. Resuming requires starting the loop from scratch.</p>
+<table>
+  <thead>
+    <tr><th>Attribute</th><th>Type</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gen_ai.system</code></td><td>string</td><td>LLM provider: <code>openai</code>, <code>anthropic</code>, <code>vertexai</code></td></tr>
+    <tr><td><code>gen_ai.request.model</code></td><td>string</td><td>Model ID requested by the caller</td></tr>
+    <tr><td><code>gen_ai.response.model</code></td><td>string</td><td>Actual model ID used (may differ from requested)</td></tr>
+    <tr><td><code>gen_ai.usage.input_tokens</code></td><td>int</td><td>Prompt token count</td></tr>
+    <tr><td><code>gen_ai.usage.output_tokens</code></td><td>int</td><td>Completion token count</td></tr>
+    <tr><td><code>gen_ai.operation.name</code></td><td>string</td><td><code>chat</code>, <code>text_completion</code>, <code>embeddings</code></td></tr>
+  </tbody>
+</table>
 
-<p>This is the gap that motivates externalising memory. An external memory store &mdash; a vector database, a key-value store, a structured span log &mdash; is the saga&rsquo;s durable log. Each tool call&rsquo;s result is written to the external store as it completes. If the agent crashes at step 7, the next run can query the store to find steps 1 through 6 completed and resume from step 7. This is exactly what agent-trace-collector&rsquo;s span schema enables: each span is a record of a completed saga step, persistent across agent restarts, queryable to reconstruct execution state.</p>
+<p>This is a good foundation for the model call span &mdash; the single LLM API invocation. What it doesn&rsquo;t yet cover is the broader agent execution model. There are no conventions for tool calls as child spans of a model call, for sub-agent invocations, for a tool kind taxonomy that distinguishes retrieval from code execution, or for cost in USD.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; construction punch list</div>
-  External agent memory is like a construction project&rsquo;s punch list. The punch list records every completed task: &ldquo;drywall installed &mdash; room 3, floor 2&rdquo; is checked off when the crew finishes and cannot be un-checked. If a crew is replaced mid-project, the new crew reads the punch list to find what&rsquo;s done and what remains. The context window is the crew&rsquo;s verbal briefing at the start of each shift &mdash; useful, but lost when the crew goes home. The external memory store survives restarts.
-</div>
+<p>Cost in USD is notable by its absence. The SIG classifies it as a business attribute rather than a technical one, which is a reasonable distinction: two teams can instrument the same LLM call and get identical token counts, but cost depends on their contract pricing, their discount tier, their region. The SIG is defining the technical measurement layer, not the billing layer. Cost belongs in a project namespace, not <code>gen_ai.*</code>.</p>
 
-<p>Externalising memory as a structured log &mdash; one record per completed step, persistent across agent restarts &mdash; converts a ReAct agent from a single-session process into a resumable distributed workflow, with the same durability properties as a properly implemented saga.</p>
+<p>The practical guidance: use <code>gen_ai.*</code> for model call spans when these attributes are stable enough to adopt &mdash; they&rsquo;re close. For everything else &mdash; tool calls, tool kind, sub-agent spans, cost &mdash; use a project namespace (<code>traceforge.*</code>) until the standard catches up. You can migrate the column names later; the data doesn&rsquo;t care what the column was called when it was written.</p>
 
-<h2 id="tracing">Instrumenting the Saga: Where Tracing Comes In</h2>
+<h2 id="lock-in">Three Attributes to Lock In Before v1</h2>
+
+<p>The question isn&rsquo;t whether to follow the standard versus use your own names. It&rsquo;s: which attributes are you putting in a ClickHouse <code>ORDER BY</code> or <code>PRIMARY KEY</code>? Those are the ones that hurt to rename because renaming them requires a table migration and rewriting every query that touches them.</p>
+
+<p>In TraceForge&rsquo;s <code>lensai.agent_spans</code> table, the <code>ORDER BY</code> is <code>(started_at, trace_id, span_id)</code>. Those are OTel identity fields &mdash; never changing. The three mutable attributes that also deserve a stable name are these:</p>
+
+<p><strong>1. <code>tool_kind</code></strong> &mdash; a <code>LowCardinality(String)</code> in ClickHouse. This is the column most likely to anchor a <code>GROUP BY</code> in cost analytics: &ldquo;total cost by tool category this week.&rdquo; Lock in the enum values now: <code>retrieval</code>, <code>code_execution</code>, <code>browser</code>, <code>file_io</code>, <code>sub_agent</code>, <code>model_call</code>, <code>unknown</code>. Adding new values later is cheap. Renaming an existing value breaks every dashboard that has it hardcoded as a filter.</p>
+
+<p><strong>2. <code>model</code></strong> &mdash; a plain string. Every cost query groups by model: &ldquo;which model did this agent run use, and what did it cost?&rdquo; The value format matters: use the full model ID (<code>claude-sonnet-4-6</code>, not <code>claude-sonnet</code> or <code>sonnet</code>) because you will eventually want to compare cost across patch versions of the same model family. Abbreviated model names make this impossible without a lookup table.</p>
+
+<p><strong>3. <code>cost_usd</code></strong> &mdash; a <code>Float64</code> column, not buried in an attributes map. The GenAI SIG draft doesn&rsquo;t include cost &mdash; this is the one genuinely new field in the agent span schema versus a standard gRPC span. It must be a first-class column because you run <code>sum(cost_usd)</code> constantly: per-trace cost rollups, per-agent budget tracking, per-user spend limits. Extracting a float from a JSON attributes map is possible in ClickHouse, but it&rsquo;s slow and the query is ugly.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -301,22 +305,76 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-stateDiagram-v2
-    [*] --> Observe
-    Observe --> Reason: context accumulated
-    Reason --> Act: thought generated
-    Act --> Update: tool result returned
-    Update --> Observe: context extended
-    Act --> [*]: final answer
-    Act --> Compensate: tool error or timeout
-    Compensate --> Reason: compensation chosen
+flowchart LR
+    A["OTel wire format\ntrace_id · span_id"] --> B["Stable — never rename"]
+    C["gen_ai.* attrs\nmodel call only"] --> D["Stable when SIG ships"]
+    E["tool_kind · model\ncost_usd"] --> F["Lock in before v1"]
+    G["Custom attributes\nerror · metadata"] --> H["Evolve freely"]
 </pre>
 
-<p>Once you think of a ReAct loop as a saga, the instrumentation question answers itself. A saga&rsquo;s durable log needs to record: which transaction ran, when it started, how long it took, what its result was, which transaction triggered it. This is exactly an OTel span: span_id, start_time, latency_ms, status, and parent_span_id. The saga&rsquo;s dependency graph &mdash; &ldquo;transaction 4 was triggered by the result of transaction 3&rdquo; &mdash; is the span&rsquo;s parent_span_id. The execution tree of a ReAct loop is a span tree.</p>
+<p>Everything else &mdash; input_tokens, output_tokens, error_message, agent_id, tenant_id &mdash; can live as columns today but migrate without pain tomorrow. They&rsquo;re not in the <code>ORDER BY</code> and not in the <code>GROUP BY</code> of your most important queries. The three you lock in are the three that would require a full table rebuild to rename.</p>
 
-<p>The practical consequence: building observability for a ReAct agent is not a new problem. It&rsquo;s the same problem as building observability for a microservice call chain. Same tooling: OTel spans, Jaeger or Grafana Tempo for visualisation, ClickHouse for aggregation queries. Same schema: trace ID for root operation, span ID per step, parent span ID for dependency. What&rsquo;s new is that the &ldquo;service&rdquo; is an LLM inference pass and the &ldquo;operation&rdquo; is a tool call &mdash; the schema needs to capture tool_name, model, tokens, and cost_usd, which standard OTel schemas don&rsquo;t include. The schema extension is small. The infrastructure reuse is large.</p>
+<h2 id="spans">What the Spans Look Like in Practice</h2>
 
-<p>This is exactly what agent-trace-collector encodes. The Span schema in <code>pkg/schema/span.go</code> is a standard OTel span with four additional fields: tool_name, model, input_tokens/output_tokens, and cost_usd. Everything else &mdash; trace ID, span ID, parent span ID, status, latency &mdash; is standard OTel. The span forwards to a standard OTel Collector, which routes to ClickHouse via the same pipeline built in OSS-03. The agent observability infrastructure reuses every component from the LLM inference observability infrastructure.</p>
+<p>A complete agent run produces two kinds of spans: the root model call span (SpanKind CLIENT) and child tool call spans (SpanKind INTERNAL). The model call span carries the <code>gen_ai.*</code> attributes alongside the TraceForge fields. The tool call span carries only TraceForge fields &mdash; there are no GenAI SIG attributes for tool calls yet.</p>
+
+<p>The root model call span, from <code>lensai.agent_spans</code>:</p>
+
+<pre><code>{
+  "trace_id":      "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id":       "1234567890abcdef",
+  "parent_span_id":"",
+  "tool_name":     "claude-sonnet-4-6",
+  "tool_kind":     "model_call",
+  "model":         "claude-sonnet-4-6",
+  "status":        "ok",
+  "latency_ms":    7800,
+  "tokens":        13250,
+  "cost_usd":      0.053,
+  "attributes": {
+    "gen_ai.system":         "anthropic",
+    "gen_ai.request.model":  "claude-sonnet-4-6",
+    "gen_ai.usage.input_tokens":  "12400",
+    "gen_ai.usage.output_tokens": "850"
+  }
+}</code></pre>
+
+<p>A child tool call span &mdash; a Bash execution triggered by the model:</p>
+
+<pre><code>{
+  "trace_id":      "4bf92f3577b34da6a3ce929d0e0e4736",
+  "span_id":       "00f067aa0ba902b7",
+  "parent_span_id":"1234567890abcdef",
+  "tool_name":     "Bash",
+  "tool_kind":     "code_execution",
+  "model":         "",
+  "status":        "ok",
+  "latency_ms":    4200,
+  "tokens":        0,
+  "cost_usd":      0.0
+}</code></pre>
+
+<div class="attr-box mine">
+  <div class="attr-label">Span tree anatomy</div>
+  The two spans above share a <code>trace_id</code>. The Bash span&rsquo;s <code>parent_span_id</code> is the model call span&rsquo;s <code>span_id</code>. Jaeger reads these two rows from ClickHouse and renders: a root &ldquo;claude-sonnet-4-6&rdquo; span of 7800ms containing a child &ldquo;Bash&rdquo; span of 4200ms. The waterfall shows exactly when the model finished reasoning and when the tool execution completed.
+</div>
+
+<p>The model field is empty for the Bash span because <code>model</code> is a model identifier &mdash; it only has meaning for spans that invoke an LLM. Setting it to an empty string rather than null means ClickHouse can use the column in a <code>WHERE model != ''</code> filter without handling nulls, which matters when the column is in a hot query path.</p>
+
+<h2 id="query">The ClickHouse Query This Unlocks</h2>
+
+<p>The design decision in section 4 &mdash; <code>tool_kind</code> as a first-class column &mdash; directly enables this query:</p>
+
+<pre><code>SELECT
+    tool_kind,
+    count()           AS span_count,
+    sum(tokens)       AS total_tokens,
+    sum(cost_usd)     AS total_cost_usd,
+    avg(latency_ms)   AS avg_latency_ms
+FROM lensai.agent_spans
+WHERE started_at &gt;= now() - INTERVAL 7 DAY
+GROUP BY tool_kind
+ORDER BY total_cost_usd DESC;</code></pre>
 
 <pre class="mermaid">
 %%{init: {
@@ -336,40 +394,38 @@ stateDiagram-v2
   }
 }}%%
 flowchart TD
-    A["Root span\nmodel_call · 1.2s"] --> B["Span: Read file\nfile_io · 42ms · OK"]
-    A --> C["Span: Bash command\ncode_exec · 340ms · OK"]
-    A --> D["Span: Edit file\nfile_io · 28ms · OK"]
-    C --> E["Sub-span: test run\ncode_exec · 290ms · OK"]
+    A["trace_id (root)"] --> B["model_call span\nSpanKind=CLIENT"]
+    B --> C["file_io span\nSpanKind=INTERNAL"]
+    B --> D["code_exec span\nSpanKind=INTERNAL"]
+    B --> E["sub_agent span\nSpanKind=PRODUCER"]
+    E --> F["child model_call\nSpanKind=CLIENT"]
 </pre>
 
-<div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; package scanning + GPS</div>
-  Instrumenting a ReAct loop with OTel spans is like adding GPS tracking to a delivery route that already has package scanning. The scanning system tracks: when a package was scanned, where, which delivery it belongs to. Adding four new fields (tool_name, model, tokens, cost_usd) to each scan record gives you richer information without building a new tracking system. The new fields extend the existing schema. The existing infrastructure handles collection, storage, and visualisation.
-</div>
+<p>Without <code>tool_kind</code> as a first-class column, this query doesn&rsquo;t run cleanly &mdash; you&rsquo;d need a <code>JSONExtractString(attributes, 'tool_kind')</code> call inside the <code>GROUP BY</code>, which forces ClickHouse to deserialise the attributes JSON for every row in the scan, eliminating the column projection optimisation that makes this query fast even at tens of millions of rows.</p>
 
-<p>A ReAct agent&rsquo;s execution is naturally representable as an OTel span tree, which means the entire observability problem is solved by adding four fields to a standard span schema &mdash; no custom UI, no agent-specific visualisation tooling, no new storage system.</p>
+<p>You can argue about the attribute naming prefix &mdash; <code>traceforge.tool_kind</code> versus <code>gen_ai.tool_kind</code> versus just <code>tool_kind</code> &mdash; but the query above works regardless of the prefix, as long as you made the column choice before the first row was written. Align on attribute names with the standard when it stabilises. What you can&rsquo;t change cheaply is whether a value is a column or a JSON key &mdash; that&rsquo;s the decision to make before v1.</p>
 
 <div class="series-footer">
-  <p><em>AI Learning &middot; Day 30 of 150 &mdash; ReAct Loops as Distributed Workflows. Staff engineer building AI infrastructure.</em></p>
-  <p><em>Previous: <a href="day-29-ai-infrastructure-stack-full-map.html">Day 29 &mdash; The AI Infrastructure Stack &mdash; Full Map</a></em></p>
-  <p><em>Next: <a href="day-31-opentelemetry-semantics-for-agents.html">Day 31 &mdash; OpenTelemetry Semantics for Agents</a></em></p>
-  <p><em>Sibling (Experience): <a href="../experience/day-30-step-7-failed-silently-no-span.html">Day 30 &mdash; Step 7 Failed Silently &mdash; And Nobody Had a Span</a></em></p>
+  <p><em>AI Learning &middot; Day 31 of 150 &mdash; OpenTelemetry Semantics for Agents. Staff engineer building AI infrastructure.</em></p>
+  <p><em>Previous: <a href="day-30-react-loops-distributed-workflows.html">Day 30 &mdash; ReAct Loops as Distributed Workflows</a></em></p>
+  <p><em>Next: Day 32 coming tomorrow</em></p>
+  <p><em>Sibling (Experience): <a href="../experience/day-31-tool-calls-are-rpcs-with-marketing.html">Day 31 &mdash; Tool Calls Are RPCs With Marketing</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-29-ai-infrastructure-stack-full-map.html">
+    <a href="day-30-react-loops-distributed-workflows.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 29 AI Learning &mdash; The AI Infrastructure Stack &mdash; Full Map
+      Day 30 AI Learning &mdash; ReAct Loops as Distributed Workflows
     </a>
-    <a href="https://github.com/AkshantVats/agent-trace-collector">
+    <a href="../experience/day-31-tool-calls-are-rpcs-with-marketing.html">
       <span class="footnote-arrow">&#x2197;</span>
-      agent-trace-collector &mdash; TraceForge span schema (GitHub)
+      Day 31 Experience &mdash; Tool Calls Are RPCs With Marketing
     </a>
-    <a href="../experience/day-30-step-7-failed-silently-no-span.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/67">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 30 Experience &mdash; Step 7 Failed Silently &mdash; And Nobody Had a Span
+      Day 31 Code PR &mdash; TraceForge OTel pipeline (HTTP ingest + OTLP export + ClickHouse DDL)
     </a>
   </div>
 </div>
@@ -383,21 +439,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#state-machine">ReAct State Machine</a></li>
-      <li><a href="#saga">Saga Pattern: Tool Calls</a></li>
-      <li><a href="#timeouts">Timeouts &amp; Terminal Conditions</a></li>
-      <li><a href="#memory">Memory as Durable Log</a></li>
-      <li><a href="#tracing">Instrumenting the Saga</a></li>
+      <li><a href="#free">What OTel Gives Free</a></li>
+      <li><a href="#headers">Attributes as Kafka Headers</a></li>
+      <li><a href="#genai-sig">GenAI SIG Status</a></li>
+      <li><a href="#lock-in">Three Attributes to Lock In</a></li>
+      <li><a href="#spans">Practical Span Examples</a></li>
+      <li><a href="#query">ClickHouse Query</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+30+%E2%80%94+ReAct+Loops+as+Distributed+Workflows&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+31+%E2%80%94+OpenTelemetry+Semantics+for+Agents&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
