@@ -252,6 +252,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-31-tool-calls-are-rpcs-with-marketing.html",
+          "kicker": "Experience · Day 31 of 150",
+          "title": "Day 31 — Tool Calls Are RPCs With Marketing",
+          "subtitle": "Agoda · fan-out · retries · cost attribution",
+          "date": "2026-07-03",
+          "slug": "day-31-tool-calls-are-rpcs-with-marketing",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-31-tool-calls-are-rpcs-with-marketing.html",
+          "coverImage": "blog/assets/covers/day-31-tool-calls-are-rpcs-with-marketing.png",
+          "desc": "LLM tool calls are structurally identical to gRPC sub-requests — the only new field is cost_usd. Lessons from Agoda’s WhiteFalcon cross-tier fan-out on retry double-counting and what TraceForge learned from it."
+        },
+        {
           "href": "blog/series/experience/day-30-step-7-failed-silently-no-span.html",
           "kicker": "Experience · Day 30 of 150",
           "title": "Day 30 — Step 7 Failed Silently — And Nobody Had a Span",
