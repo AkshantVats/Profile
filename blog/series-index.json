@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html",
+          "kicker": "AI Learning · Day 31 of 150",
+          "title": "Day 31 — OpenTelemetry Semantics for Agents",
+          "subtitle": "Span kinds, attributes, and what to standardise now",
+          "date": "2026-07-03",
+          "slug": "day-31-opentelemetry-semantics-for-agents",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html",
+          "coverImage": "blog/assets/covers/day-31-opentelemetry-semantics-for-agents.png",
+          "desc": "OTel gives you identity and SpanKind for free — the waterfall works before you add a single agent-specific attribute. The question is which three attributes to lock into your ClickHouse schema before the GenAI SIG spec ships."
+        },
+        {
           "href": "blog/series/ai-learning/day-30-react-loops-distributed-workflows.html",
           "kicker": "AI Learning · Day 30 of 150",
           "title": "Day 30 — ReAct Loops as Distributed Workflows",
