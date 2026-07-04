@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html",
+          "kicker": "AI Learning · Day 32 of 150",
+          "title": "Day 32 — Tool Calling Protocols — OpenAI vs Anthropic",
+          "subtitle": "NormalizedToolCall adapter, parallel spans, refusal handling",
+          "date": "2026-07-04",
+          "slug": "day-32-tool-calling-protocols-openai-vs-anthropic",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html",
+          "coverImage": "blog/assets/covers/day-32-tool-calling-protocols-openai-vs-anthropic.png",
+          "desc": "OpenAI returns tool_calls as an array of JSON strings; Anthropic returns content blocks. A thin adapter absorbs both. Build it once, never touch the SQL."
+        },
+        {
           "href": "blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html",
           "kicker": "AI Learning · Day 31 of 150",
           "title": "Day 31 — OpenTelemetry Semantics for Agents",
@@ -263,6 +275,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-32-when-the-collector-is-the-product.html",
+          "kicker": "Experience · Day 32 of 150",
+          "title": "Day 32 — When the Collector Is the Product",
+          "subtitle": "Walmart Labs · WeIoT · OTel Collector as batch/drop/retry layer",
+          "date": "2026-07-04",
+          "slug": "day-32-when-the-collector-is-the-product",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-32-when-the-collector-is-the-product.html",
+          "coverImage": "blog/assets/covers/day-32-when-the-collector-is-the-product.png",
+          "desc": "At Walmart Labs WeIoT, the IoT data collector was the product — every batch/drop/retry decision was a business rule. The OTel Collector is the same system with a different logo."
+        },
         {
           "href": "blog/series/experience/day-31-tool-calls-are-rpcs-with-marketing.html",
           "kicker": "Experience · Day 31 of 150",
