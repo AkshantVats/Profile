@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html",
+          "kicker": "AI Learning · Day 33 of 150",
+          "title": "Day 33 — Context Propagation in Polyglot Agents",
+          "subtitle": "W3C TraceContext, traceparent header, inject/extract in Go",
+          "date": "2026-07-22",
+          "slug": "day-33-context-propagation-polyglot-agents",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html",
+          "coverImage": "blog/assets/covers/day-33-context-propagation-polyglot-agents.png",
+          "desc": "When your Python orchestrator calls a Go tool, the trace_id has to travel with the HTTP request or the spans arrive as strangers. W3C TraceContext is the handshake that keeps them family."
+        },
+        {
           "href": "blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html",
           "kicker": "AI Learning · Day 32 of 150",
           "title": "Day 32 — Tool Calling Protocols — OpenAI vs Anthropic",

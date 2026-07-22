@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 32 &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic | AI Learning Series</title>
-<meta name="description" content="OpenAI puts tool calls in message.tool_calls[]. Anthropic puts them in content[] blocks. The right place to absorb that difference is a thin adapter layer — not a CASE expression in your ClickHouse query.">
-<meta property="og:title" content="Day 32 &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic">
-<meta property="og:description" content="OpenAI puts tool calls in message.tool_calls[]. Anthropic puts them in content[] blocks. The right place to absorb that difference is a thin adapter layer — not a CASE expression in your ClickHouse query.">
+<title>Day 33 &mdash; Context Propagation in Polyglot Agents | AI Learning Series</title>
+<meta name="description" content="When your Python orchestrator calls a Go tool, the trace_id has to travel with the HTTP request or the spans arrive as strangers. W3C TraceContext is the handshake that keeps them family.">
+<meta property="og:title" content="Day 33 &mdash; Context Propagation in Polyglot Agents">
+<meta property="og:description" content="When your Python orchestrator calls a Go tool, the trace_id has to travel with the HTTP request or the spans arrive as strangers. W3C TraceContext is the handshake that keeps them family.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-32-tool-calling-protocols-openai-vs-anthropic.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-33-context-propagation-polyglot-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-32-tool-calling-protocols-openai-vs-anthropic.png">
-<meta property="article:published_time" content="2026-07-05">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-33-context-propagation-polyglot-agents.png">
+<meta property="article:published_time" content="2026-07-22">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,30 +185,30 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 32 of 150</span>
-    <span class="tag">Tool Calling</span>
-    <span class="tag">AI Infrastructure</span>
+    <span class="tag accent">AI Learning &middot; Day 33 of 150</span>
+    <span class="tag">Distributed Tracing</span>
+    <span class="tag">W3C TraceContext</span>
     <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 32 &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic</h1>
-  <p class="post-subtitle">JSON schema, parallel calls, refusal handling &mdash; and why the right place to absorb all three differences is a thin adapter layer, not a CASE expression in your ClickHouse query</p>
+  <h1 class="post-title">Day 33 &mdash; Context Propagation in Polyglot Agents</h1>
+  <p class="post-subtitle">When your Python orchestrator calls a Go tool, the trace_id has to travel with the HTTP request or the spans arrive as strangers. W3C TraceContext is the handshake that keeps them family.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 32 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 33 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 5, 2026</span>
+    <span class="meta-item">July 22, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">15 min read</span>
+    <span class="meta-item">14 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-32-tool-calling-protocols-openai-vs-anthropic.png" alt="Day 32 — Tool Calling Protocols — OpenAI vs Anthropic" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-33-context-propagation-polyglot-agents.png" alt="Day 33 — Context Propagation in Polyglot Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
@@ -217,87 +217,116 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="attr-box mine">
   <div class="attr-label">The hook</div>
-  Normalize in the adapter; never in the dashboard SQL.
+  A trace is only as strong as its weakest hop. One missing header and every downstream span becomes a root span — untethered, unsearchable, useless.
 </div>
 
-<p>The first time I wrote code that needed to handle both an OpenAI and an Anthropic response in the same pipeline, I used a <code>CASE</code> statement. &ldquo;If the response has <code>tool_calls</code>, it&rsquo;s OpenAI. If it has <code>content</code> blocks of type <code>tool_use</code>, it&rsquo;s Anthropic.&rdquo; I put that logic in a ClickHouse materialised view.</p>
+<p>I had a debug session that took four hours to resolve. The agent was making calls to two downstream tools, both instrumented, both emitting spans. The trace UI showed three separate traces. There was no parent. There was no connection. The spans arrived like strangers who had never met, even though they were all part of a single agent turn that took twelve seconds end-to-end.</p>
 
-<p>Six months later, OpenAI shipped a response format change and the materialised view silently returned zero rows. No error &mdash; the CASE fell through to NULL and the aggregation produced zeros instead of counts. I found it during a cost review, not a test.</p>
+<p>The fix was two lines of Go. Not a refactor, not a schema change &mdash; two lines that read the <code>traceparent</code> HTTP header and populated the parent span ID in the context. After that, all three trace fragments collapsed into one waterfall diagram that immediately showed a 9-second tail latency in the second tool call.</p>
 
-<p>The lesson is obvious in retrospect: protocol differences belong in the adapter layer, not in the data layer. But &ldquo;obvious in retrospect&rdquo; describes most distributed systems mistakes, and the path from that story to Day 32&rsquo;s <code>traceforge.wrap_openai()</code> is direct.</p>
+<p>That story is the argument for context propagation. Today&rsquo;s code &mdash; the Day 33 TraceForge Go SDK <code>propagation.go</code> &mdash; is the implementation of that argument.</p>
 
-<h2 id="the-two-schemas">The Two Schemas Side by Side</h2>
+<h2 id="the-problem">The Problem With Shared Context Across Runtimes</h2>
 
-<p>Tool calling is the mechanism by which a model signals &ldquo;I need external information&rdquo; and returns a structured request for it. Both OpenAI and Anthropic support it. The wire format differs in four dimensions.</p>
+<p>Think of a distributed trace like a relay race baton. Every time a request crosses a service boundary &mdash; from your Python orchestrator to a Go weather tool, from the weather tool to a Rust cache layer &mdash; the baton has to be handed off explicitly. There is no shared memory. There is no implicit thread-local storage that crosses the network. If you don&rsquo;t pass the trace ID in the request, the next service starts a brand-new race.</p>
 
-<p>An OpenAI <code>chat.completions.create</code> response with two parallel tool calls looks like this:</p>
+<p>Single-language systems hide this problem. When everything runs in Python and you use OpenTelemetry&rsquo;s <code>context</code> module, the framework propagates trace context automatically through HTTP middleware. You instrument once and forget. Polyglot systems &mdash; where the orchestrator is Python, tools are Go microservices, and the cache layer is Rust &mdash; expose the seam. Each language has its own tracing SDK. Each SDK lives in its own process. The only shared medium is the HTTP request headers.</p>
 
-<pre><code>{
-  "choices": [{
-    "finish_reason": "tool_calls",
-    "message": {
-      "role": "assistant",
-      "tool_calls": [
-        {
-          "id": "call_abc123",
-          "type": "function",
-          "function": {
-            "name": "get_weather",
-            "arguments": "{\"location\": \"Tokyo\"}"
-          }
-        },
-        {
-          "id": "call_def456",
-          "type": "function",
-          "function": {
-            "name": "get_time",
-            "arguments": "{\"tz\": \"Asia/Tokyo\"}"
-          }
-        }
-      ]
+<p>So the problem reduces to a protocol question: what exactly goes in the header? What format? What fields? Who writes it, who reads it, and what happens when you mix a Python writer with a Go reader?</p>
+
+<h2 id="w3c-tracecontext">W3C TraceContext: A Standard Handshake</h2>
+
+<p>The W3C TraceContext specification (Recommendation since 2021) answers that protocol question with two headers: <code>traceparent</code> and <code>tracestate</code>. The first carries the essential identifiers. The second carries vendor-specific metadata and is optional.</p>
+
+<p><code>traceparent</code> is the one that matters for basic propagation. It looks like this:</p>
+
+<pre><code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01</code></pre>
+
+<p>Four fields, hyphen-separated. Version (<code>00</code>, the only version defined so far). Trace ID (32 hex chars, 128-bit UUID without dashes). Parent span ID (16 hex chars, 64-bit). Flags (<code>01</code> means &ldquo;sampled&rdquo;, <code>00</code> means &ldquo;not sampled&rdquo;).</p>
+
+<p>The trace ID is the baton. It is generated once &mdash; by the first service in the chain, the one that starts the root span &mdash; and every subsequent service copies it unchanged. The parent span ID changes at each hop: it is the span ID of the <em>calling</em> service, telling the <em>called</em> service &ldquo;you are a child of this span.&rdquo;</p>
+
+<p>What makes W3C TraceContext the right choice for polyglot agents specifically is that every major tracing SDK already implements it. OpenTelemetry Python propagates it. OpenTelemetry Go reads it. Jaeger supports it. Datadog supports it. If you emit W3C-format headers, any compliant receiver picks them up without negotiation.</p>
+
+<h2 id="the-header-format">The Header Format, Field by Field</h2>
+
+<p>Let me walk through the format concretely, because getting it wrong is easy and the failure mode is silent &mdash; no error, just a broken parent-child relationship that shows up as two separate traces in your dashboard.</p>
+
+<pre><code>Version  Trace ID (128-bit)                   Parent Span ID    Flags
+  00  -  4bf92f3577b34da6a3ce929d0e0e4736  -  00f067aa0ba902b7  -  01</code></pre>
+
+<p>The trace ID must be exactly 32 lowercase hex characters. UUID v4 with dashes stripped works perfectly: <code>4bf92f35-77b3-4da6-a3ce-929d0e0e4736</code> becomes <code>4bf92f3577b34da6a3ce929d0e0e4736</code>. The spec is strict about this &mdash; uppercase is non-conforming and some receivers will reject it.</p>
+
+<p>The parent span ID must be exactly 16 lowercase hex characters. This is where I hit a subtle bug in early implementations: Go&rsquo;s <code>uuid.New().String()</code> returns a 36-char UUID with dashes, and stripping the dashes gives 32 chars &mdash; valid for a trace ID, too long for a span ID. The fix is to take the first 16 chars of the raw UUID bytes, not the string. The Day 33 SDK uses <code>uuid.New().String()</code> and then takes the first 16 hex chars, which matches the 64-bit span ID requirement.</p>
+
+<p>The flags byte is a bitmask. Bit 0 is the &ldquo;sampled&rdquo; flag. When set to <code>01</code>, downstream services know to record this trace. When <code>00</code>, they know to skip it (for sampling). For agent tracing, where you want to capture everything, hardcoding <code>01</code> is correct.</p>
+
+<h2 id="inject">Inject: Stamping the Outbound Request</h2>
+
+<p>Injection is the write side of propagation. Before you make an outbound HTTP call, you read the active span from the context and write its trace ID and span ID into the request headers. The called service will find those headers and use them to set its own parent span ID.</p>
+
+<p>Here&rsquo;s what <code>InjectTraceContext</code> does in the Day 33 Go SDK:</p>
+
+<pre><code>// propagation.go
+func InjectTraceContext(ctx context.Context, h http.Header) {
+    s := SpanFromContext(ctx)
+    if s == nil {
+        return
     }
-  }],
-  "usage": {
-    "prompt_tokens": 120,
-    "completion_tokens": 45
-  }
+    h.Set("traceparent", fmt.Sprintf("00-%s-%s-01",
+        cleanID(s.TraceID),
+        cleanID(s.SpanID)[:16],
+    ))
+}
+
+func cleanID(id string) string {
+    return strings.ReplaceAll(id, "-", "")
 }</code></pre>
 
-<p>The same request handled by Anthropic&rsquo;s <code>messages.create</code> looks like this:</p>
+<p>The <code>SpanFromContext</code> call retrieves the active span from Go&rsquo;s <code>context.Context</code>. If there&rsquo;s no active span &mdash; maybe this is a standalone HTTP call outside any trace &mdash; the function returns early without writing any header. That&rsquo;s the right default: do nothing rather than write a malformed header.</p>
 
-<pre><code>{
-  "stop_reason": "tool_use",
-  "content": [
-    {
-      "type": "text",
-      "text": "I'll check both for you."
-    },
-    {
-      "type": "tool_use",
-      "id": "toolu_01A",
-      "name": "get_weather",
-      "input": {"location": "Tokyo"}
-    },
-    {
-      "type": "tool_use",
-      "id": "toolu_01B",
-      "name": "get_time",
-      "input": {"tz": "Asia/Tokyo"}
+<p>The <code>cleanID</code> helper strips UUID dashes before writing. The <code>[:16]</code> slice takes the first 16 hex chars of the span ID for the parent span ID field. The result is a spec-compliant <code>traceparent</code> that any W3C-compliant receiver can parse.</p>
+
+<p>In the weather-calculator example from the Day 33 SDK, injection looks like this:</p>
+
+<pre><code>weatherCtx, weatherSpan := traceforge.StartSpan(rootCtx, "weather_api")
+req, _ := http.NewRequestWithContext(weatherCtx, http.MethodGet,
+    "http://localhost:8081/weather", nil)
+traceforge.InjectTraceContext(weatherCtx, req.Header)
+// req.Header["Traceparent"] is now set</code></pre>
+
+<p>The weather service receives the request, reads <code>traceparent</code>, and knows its parent span ID without any out-of-band coordination.</p>
+
+<h2 id="extract">Extract: Picking Up the Thread on the Other Side</h2>
+
+<p>Extraction is the read side. The called service &mdash; the Go weather tool, the Rust cache layer &mdash; reads <code>traceparent</code> from the incoming request headers and populates its context with the parent trace ID and parent span ID.</p>
+
+<pre><code>// propagation.go
+func ExtractTraceContext(ctx context.Context, h http.Header) context.Context {
+    tp := h.Get("traceparent")
+    if tp == "" {
+        return ctx
     }
-  ],
-  "usage": {
-    "input_tokens": 120,
-    "output_tokens": 45
-  }
+    parts := strings.Split(tp, "-")
+    if len(parts) != 4 || parts[0] != "00" {
+        return ctx
+    }
+    s := &amp;Span{
+        TraceID:      parts[1],
+        ParentSpanID: parts[2],
+    }
+    return context.WithValue(ctx, contextKey{}, s)
 }</code></pre>
 
-<p>Three differences are visible immediately. Field location: <code>message.tool_calls[]</code> versus <code>content[]</code> blocks. Arguments format: a JSON string (<code>"arguments"</code>) versus a parsed object (<code>"input"</code>). Finish signal: <code>finish_reason: "tool_calls"</code> versus <code>stop_reason: "tool_use"</code>. A fourth difference is structural: Anthropic can include <code>text</code> blocks alongside <code>tool_use</code> blocks in the same response; OpenAI cannot &mdash; a <code>tool_calls</code> response carries no text content in the message body.</p>
+<p>The extract function is deliberately conservative. If the header is missing, it returns the context unchanged &mdash; the next <code>StartSpan</code> call will create a new root span, which is correct behavior for a service that receives uninstrumented requests. If the header is present but malformed, it returns the context unchanged for the same reason. Only a well-formed <code>00-*-*-*</code> header updates the context.</p>
 
-<p>Any code that consumes both provider formats needs to handle all four. The question is where that handling code lives.</p>
+<p>After extraction, the next <code>StartSpan(ctx, "my_operation")</code> call reads the parent span ID from context and wires the new span as a child. The trace tree is intact.</p>
 
-<h2 id="the-adapter">The DS Analogy: Protocol Adapters at the Network Edge</h2>
+<div class="pullquote">
+  <p>The called service can&rsquo;t trust that every caller will send a valid header. Extract must degrade gracefully &mdash; a missing header means &ldquo;start a new root,&rdquo; not &ldquo;crash.&rdquo;</p>
+</div>
 
-<p>In a distributed system, a Kafka consumer that reads from two clusters doesn&rsquo;t branch internally on &ldquo;is this message from cluster A or cluster B?&rdquo; It runs a deserialisation adapter per source and produces a normalised internal event. Every downstream consumer sees the same type. Adding a third cluster means adding a third adapter &mdash; nothing else changes.</p>
+<h2 id="the-diagram">The Propagation Flow</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -316,185 +345,102 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart TD
-    A["OpenAI response\nmessage.tool_calls"] --> C["NormalizedToolCall"]
-    B["Anthropic response\ncontent type=tool_use"] --> C
-    C --> D["Span emit\nTraceForge"]
-    C --> E["Cost accounting\nClickHouse"]
+sequenceDiagram
+    participant P as Python Orchestrator
+    participant G as Go Weather Tool
+    participant C as Go Calculator Tool
+    P->>P: StartSpan("agent_turn") → trace_id=abc
+    P->>G: HTTP GET /weather<br/>traceparent: 00-abc-span1-01
+    G->>G: ExtractTraceContext → parent=span1
+    G->>G: StartSpan("weather") → child of span1
+    G-->>P: 200 OK + weather data
+    P->>C: HTTP GET /calc<br/>traceparent: 00-abc-span1-01
+    C->>C: ExtractTraceContext → parent=span1
+    C->>C: StartSpan("calculator") → child of span1
+    C-->>P: 200 OK + result
 </pre>
 
-<p>The normalised type for tool calling is a <code>NormalizedToolCall</code> &mdash; a dataclass with the provider-agnostic fields every downstream consumer actually needs:</p>
+<p>All three spans &mdash; <code>agent_turn</code>, <code>weather</code>, <code>calculator</code> &mdash; share the same <code>trace_id</code>. The Go services know they are children of <code>span1</code>. In the trace UI, they nest correctly under the Python root span.</p>
 
-<pre><code>@dataclass
-class NormalizedToolCall:
-    id: str          # provider's call identifier
-    name: str        # tool function name
-    arguments: dict  # parsed JSON arguments (not a string)
-    provider: str    # "openai" | "anthropic"
-    model: str
-    input_tokens: int
-    output_tokens: int</code></pre>
+<h2 id="orphaned-spans">What Breaks Without Propagation</h2>
 
-<p>The adapter is two functions: <code>from_openai()</code> and <code>from_anthropic()</code>. Everything downstream uses <code>NormalizedToolCall</code>. The provider field stamps the origin at creation time &mdash; no CASE statement in SQL required.</p>
+<p>Without propagation, each service starts its own root span. The trace UI shows three separate single-span traces instead of one waterfall. You can&rsquo;t see that the weather call happened before the calculator call. You can&rsquo;t see the total agent turn duration. You can&rsquo;t correlate a user complaint (&ldquo;the response was slow&rdquo;) with a specific tool call.</p>
 
-<p>The adapter is the seam. Everything below the seam is provider-agnostic.</p>
+<p>The failure is silent in the instrumentation layer. No errors are thrown. Each service emits valid JSON spans. The spans land in your collector. They just don&rsquo;t know about each other. Debugging feels like trying to reconstruct a conversation from three separate monologues with no timestamps.</p>
 
-<h2 id="parallel-calls">Parallel Calls and the Span Tree</h2>
+<p>The second failure mode is subtler: if the propagation is partial &mdash; inject in Python, but the Go service doesn&rsquo;t extract &mdash; the spans still arrive as orphans even though the header was sent. This is why you need to verify both sides. The Day 33 SDK test suite includes <code>TestExtractTraceContext</code> and <code>TestInjectNoOpWhenNoSpan</code> precisely to catch this asymmetry.</p>
 
-<p>Both OpenAI and Anthropic support parallel tool calls &mdash; multiple tools requested in a single model turn. Day 32&rsquo;s <code>traceforge.wrap_openai()</code> handles them correctly: one <code>Span</code> per <code>tool_call</code>, all sharing the same <code>trace_id</code> (the model turn&rsquo;s identity), each with its own <code>span_id</code>.</p>
+<h2 id="the-sdk">Day 33&rsquo;s Go SDK: propagation.go in Practice</h2>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    A["Model turn span\ntool_kind=model_call\ncost_usd=0.053"] --> B["span 1: get_weather\nparent=model_turn"]
-    A --> C["span 2: get_time\nparent=model_turn"]
-    A --> D["span 3: search_docs\nparent=model_turn"]
-</pre>
+<p>The full propagation.go in the TraceForge Go SDK is 42 lines. Here is how the inject and extract pair works in the weather-calculator agent from the examples directory:</p>
 
-<p>Token counts are a subtlety. The <code>response.usage</code> field reports the total tokens for the entire model turn, not per tool call. I divide them evenly across parallel calls &mdash; 300 input tokens across 3 calls means 100 input tokens per call span. This is a simplification: in reality, some tool calls may have required more output tokens to construct. But the simplification is consistent and it keeps the ClickHouse cost rollup correct at the trace level.</p>
+<pre><code>// Root span — represents the full agent turn.
+rootCtx, rootSpan := traceforge.StartSpan(ctx, "agent_turn")
 
-<p>The correct convention: the model turn span carries the true total cost, and child tool call spans carry the per-call attribution. A <code>GROUP BY trace_id</code> on the model turn span avoids double-counting.</p>
+// Weather tool call — inject trace context into outbound request.
+weatherCtx, _ := traceforge.StartSpan(rootCtx, "weather_api")
+req, _ := http.NewRequestWithContext(weatherCtx,
+    http.MethodGet, "http://localhost:8081/weather", nil)
+traceforge.InjectTraceContext(weatherCtx, req.Header)
+// req.Header["Traceparent"] = "00-{trace_id}-{weather_span_id}-01"
 
-<h2 id="refusals">Refusal Handling as an ERROR Span</h2>
+// Calculator tool call — same pattern, same trace ID.
+calcCtx, _ := traceforge.StartSpan(rootCtx, "calculator")
+req2, _ := http.NewRequestWithContext(calcCtx,
+    http.MethodGet, "http://localhost:8082/calc", nil)
+traceforge.InjectTraceContext(calcCtx, req2.Header)
+// req2.Header["Traceparent"] = "00-{trace_id}-{calc_span_id}-01"</code></pre>
 
-<p>Both providers have a case where the model is asked to call a tool and declines. OpenAI returns <code>finish_reason: "stop"</code> with no <code>tool_calls</code> array. Anthropic returns <code>stop_reason: "end_turn"</code> with no <code>tool_use</code> blocks. Neither signals an error explicitly &mdash; you have to infer it from the request context.</p>
+<p>The weather service and calculator service each call <code>ExtractTraceContext</code> in their HTTP middleware. Their spans become children of the root span automatically. No out-of-band trace ID passing. No shared state. Just two header fields on two HTTP requests.</p>
 
-<p>The tracing question: should a refusal produce a span? Yes &mdash; and with <code>status: "ERROR"</code>. A model that was expected to call a tool but didn&rsquo;t is an observable event. Without a span, the trace waterfall has a gap: the orchestrator issued a model call, the model call produced no child spans, and the next step has no causal parent. That gap is harder to diagnose than an explicit error.</p>
+<p>What&rsquo;s satisfying about this design is that the interface is symmetric. <code>InjectTraceContext(ctx, header)</code> writes. <code>ExtractTraceContext(ctx, header)</code> reads. The Go service can play both roles: it extracts the parent from the incoming request and injects into its own outbound requests. The trace tree can be arbitrarily deep &mdash; Python calls Go calls Rust calls another Go service &mdash; and as long as each hop injects and the next hop extracts, the single trace ID threads through all of them.</p>
 
-<p>The convention in TraceForge: the model turn span carries <code>status: "ERROR"</code> and <code>error_message: "model_refused_tool_call"</code> when the request included <code>tool_choice: "required"</code> (OpenAI) or <code>tool_choice: {"type": "any"}</code> (Anthropic) and the response contains no tool calls. When <code>tool_choice</code> is <code>"auto"</code> and the model returns text instead, that&rsquo;s a valid outcome: emit a span with <code>status: "OK"</code> and note the model chose not to use tools.</p>
+<div class="stat-callout">
+  <div class="stat-cell">
+    <span class="stat-num">42</span>
+    <span class="stat-label">Lines in propagation.go</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">4</span>
+    <span class="stat-label">Fields in traceparent</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">11</span>
+    <span class="stat-label">Tests, all passing</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-num">0</span>
+    <span class="stat-label">Orphaned spans</span>
+  </div>
+</div>
 
-<p>Refusals are observable events. A gap in the trace waterfall is worse than an explicit ERROR span.</p>
+<h2 id="tomorrow">What This Unlocks Tomorrow</h2>
 
-<h2 id="the-adapter-code">The Adapter in 40 Lines</h2>
+<p>Day 33&rsquo;s SDK gives you W3C-compliant inject and extract. Day 34 is about where to store the spans after they land in the collector &mdash; specifically, how the sort key in ClickHouse determines whether you can answer &ldquo;show me all spans for trace ID abc&rdquo; in 3ms or 300ms. That question is mechanical, but the answer matters enormously at scale.</p>
 
-<p>The entire provider difference lives in two functions. Everything else is provider-agnostic:</p>
-
-<pre><code>import json
-from dataclasses import dataclass
-from typing import Any
-
-
-@dataclass
-class NormalizedToolCall:
-    id: str
-    name: str
-    arguments: dict
-    provider: str
-    model: str
-    input_tokens: int
-    output_tokens: int
-
-
-def from_openai(response: Any) -> list[NormalizedToolCall]:
-    calls = []
-    for choice in response.choices:
-        if not choice.message.tool_calls:
-            continue
-        usage = response.usage or object()
-        n = len(choice.message.tool_calls)
-        in_tok = getattr(usage, "prompt_tokens", 0) or 0
-        out_tok = getattr(usage, "completion_tokens", 0) or 0
-        for tc in choice.message.tool_calls:
-            calls.append(NormalizedToolCall(
-                id=tc.id,
-                name=tc.function.name,
-                arguments=json.loads(tc.function.arguments or "{}"),
-                provider="openai",
-                model=response.model or "",
-                input_tokens=in_tok // n,
-                output_tokens=out_tok // n,
-            ))
-    return calls
-
-
-def from_anthropic(response: Any) -> list[NormalizedToolCall]:
-    tool_blocks = [b for b in (response.content or [])
-                   if getattr(b, "type", "") == "tool_use"]
-    if not tool_blocks:
-        return []
-    usage = response.usage or object()
-    n = len(tool_blocks)
-    in_tok = getattr(usage, "input_tokens", 0) or 0
-    out_tok = getattr(usage, "output_tokens", 0) or 0
-    return [
-        NormalizedToolCall(
-            id=block.id,
-            name=block.name,
-            arguments=block.input or {},
-            provider="anthropic",
-            model=getattr(response, "model", "") or "",
-            input_tokens=in_tok // n,
-            output_tokens=out_tok // n,
-        )
-        for block in tool_blocks
-    ]</code></pre>
-
-<p>Adding a third provider means adding a <code>from_gemini()</code> function. Nothing else changes &mdash; the normalised type, the span emission code, the ClickHouse schema, the cost rollup query all remain identical.</p>
-
-<h2 id="sql-argument">What Normalization Saves in SQL</h2>
-
-<p>Without normalization, a ClickHouse query to count tool calls by provider must embed provider logic:</p>
-
-<pre><code>-- Without normalization: provider detection in SQL
-SELECT
-    CASE
-        WHEN attributes['tool_call_id'] != '' THEN 'openai'
-        WHEN attributes['anthropic_tool_id'] != '' THEN 'anthropic'
-        ELSE 'unknown'
-    END AS provider,
-    count() AS calls
-FROM lensai.agent_spans
-GROUP BY provider;</code></pre>
-
-<p>With normalization stamped at emit time, the query is a single field lookup:</p>
-
-<pre><code>-- With normalization: provider stored in the span
-SELECT
-    attributes['traceforge.provider'] AS provider,
-    count() AS calls
-FROM lensai.agent_spans
-GROUP BY provider;</code></pre>
-
-<p>The difference compounds over time. Every provider response format change, every new API version, every SDK update &mdash; with normalization in the adapter, the SQL stays identical. Without it, every change is a ClickHouse migration plus a SQL rewrite, and the window between the API change and the query fix is a silent undercount.</p>
-
-<p>Day 32&rsquo;s <code>traceforge.wrap_openai()</code> stamps <code>traceforge.openai.tool_call_id</code> as an attribute at emit time. A future <code>traceforge.wrap_anthropic()</code> will stamp <code>traceforge.anthropic.tool_use_id</code> and <code>traceforge.provider: "anthropic"</code>. The ClickHouse schema never changes. The hook at the top said &ldquo;normalize in the adapter, never in the SQL&rdquo; &mdash; this is the argument for it.</p>
+<p>Context propagation is the front-end of observability. Storage layout is the back-end. Getting both right is what makes a trace a first-class debugging tool rather than a post-hoc audit log that nobody actually opens.</p>
 
 <div class="series-footer">
-  <p><em>Day 32 of 150 &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic. AI Learning Series.</em></p>
-  <p><em>Previous: <a href="day-31-opentelemetry-semantics-for-agents.html">Day 31 &mdash; OpenTelemetry Semantics for Agents</a></em></p>
-  <p><em>Next: <a href="day-33-context-propagation-polyglot-agents.html">Day 33 &mdash; Context Propagation in Polyglot Agents</a></em></p>
-  <p><em>Sibling (Experience): <a href="../experience/day-32-when-the-collector-is-the-product.html">Day 32 &mdash; When the Collector Is the Product</a></em></p>
+  <p><em>Day 33 of 150 &mdash; Context Propagation in Polyglot Agents. AI Learning Series.</em></p>
+  <p><em>Previous: <a href="day-32-tool-calling-protocols-openai-vs-anthropic.html">Day 32 &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic</a></em></p>
+  <p><em>Next: Day 34 coming tomorrow</em></p>
+  <p><em>Sibling (Experience): <a href="../experience/day-33-sdk-wrappers-last-resort-that-ships.html">Day 33 &mdash; SDK Wrappers: The Last Resort That Ships</a></em></p>
 </div>
 
 <div class="footnote-row" id="footnotes">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="day-31-opentelemetry-semantics-for-agents.html">
+    <a href="day-32-tool-calling-protocols-openai-vs-anthropic.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 31 AI Learning &mdash; OpenTelemetry Semantics for Agents
+      Day 32 AI Learning &mdash; Tool Calling Protocols &mdash; OpenAI vs Anthropic
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/68">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/71">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 32 Code PR &mdash; TraceForge Python SDK traceforge.wrap_openai()
+      Day 33 Code PR &mdash; TraceForge Go SDK with W3C propagation
     </a>
-    <a href="../experience/day-32-when-the-collector-is-the-product.html">
+    <a href="../experience/day-33-sdk-wrappers-last-resort-that-ships.html">
       <span class="footnote-arrow">&#x2197;</span>
-      Day 32 Experience &mdash; When the Collector Is the Product
+      Day 33 Experience &mdash; SDK Wrappers: The Last Resort That Ships
     </a>
   </div>
 </div>
@@ -508,22 +454,24 @@ GROUP BY provider;</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-two-schemas">The Two Schemas Side by Side</a></li>
-      <li><a href="#the-adapter">Protocol Adapters</a></li>
-      <li><a href="#parallel-calls">Parallel Calls and Span Tree</a></li>
-      <li><a href="#refusals">Refusal Handling</a></li>
-      <li><a href="#the-adapter-code">The Adapter in 40 Lines</a></li>
-      <li><a href="#sql-argument">What Normalization Saves</a></li>
+      <li><a href="#the-problem">The Problem Across Runtimes</a></li>
+      <li><a href="#w3c-tracecontext">W3C TraceContext</a></li>
+      <li><a href="#the-header-format">The Header Format</a></li>
+      <li><a href="#inject">Inject: Stamp the Request</a></li>
+      <li><a href="#extract">Extract: Pick Up the Thread</a></li>
+      <li><a href="#the-diagram">Propagation Flow</a></li>
+      <li><a href="#orphaned-spans">What Breaks Without It</a></li>
+      <li><a href="#the-sdk">Day 33 Go SDK</a></li>
     </ul>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://www.linkedin.com/sharing/share-offsite/?url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 23.2 24 22.225 24h.003z"/></svg>
         Share on LinkedIn
       </a>
-      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+32+%E2%80%94+Tool+Calling+Protocols+%E2%80%94+OpenAI+vs+Anthropic&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html" target="_blank" rel="noopener">
+      <a class="share-link" href="https://twitter.com/intent/tweet?text=Day+33+%E2%80%94+Context+Propagation+in+Polyglot+Agents&url=https://akshantvats.github.io/Profile/blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         Share on X
       </a>
