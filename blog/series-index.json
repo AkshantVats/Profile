@@ -276,6 +276,15 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html",
+          "kicker": "Experience · Day 33 of 150",
+          "title": "Day 33 — SDK Wrappers: The Last Resort That Ships",
+          "desc": "Wayfair PAS client library — making the correct write path shorter than the wrong one.",
+          "coverImage": "blog/assets/covers/day-33-sdk-wrappers-last-resort-that-ships.png",
+          "date": "2026-07-22",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html"
+        },
+        {
           "href": "blog/series/experience/day-32-when-the-collector-is-the-product.html",
           "kicker": "Experience · Day 32 of 150",
           "title": "Day 32 — When the Collector Is the Product",
