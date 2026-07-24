@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html",
+          "kicker": "AI Learning · Day 34 of 150",
+          "title": "Day 34 — Trace Storage Layout — Sort Keys Matter",
+          "subtitle": "ClickHouse MergeTree, ORDER BY (trace_id, start_time), ZSTD(3), projections",
+          "date": "2026-07-24",
+          "slug": "day-34-trace-storage-layout-sort-keys-matter",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html",
+          "coverImage": "blog/assets/covers/day-34-trace-storage-layout-sort-keys-matter.png",
+          "desc": "Optimize for trace_id lookup first; global analytics second. MergeTree sorts rows by your ORDER BY keys at merge time — choose wrong and every waterfall query scans 5 million rows instead of 12."
+        },
+        {
           "href": "blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html",
           "kicker": "AI Learning · Day 33 of 150",
           "title": "Day 33 — Context Propagation in Polyglot Agents",
@@ -287,6 +299,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html",
+          "kicker": "Experience · Day 34 of 150",
+          "title": "Day 34 — ClickHouse for Traces: Not Just Metrics",
+          "desc": "Agoda WhiteFalcon taught me that sort keys are a bet on your query pattern. TraceForge validated it: ORDER BY (trace_id, start_time) cut waterfall latency from full scans to single-granule reads.",
+          "coverImage": "blog/assets/covers/day-34-clickhouse-for-traces-not-just-metrics.png",
+          "date": "2026-07-24",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html"
+        },
         {
           "href": "blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html",
           "kicker": "Experience · Day 33 of 150",
