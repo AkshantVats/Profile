@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 33 &mdash; SDK Wrappers: The Last Resort That Ships | Experience Series</title>
-<meta name="description" content="At Wayfair the pricing platform was live and correct. The adoption problem nearly made it irrelevant. 73 lines of Java solved what docs never could.">
-<meta property="og:title" content="Day 33 &mdash; SDK Wrappers: The Last Resort That Ships">
-<meta property="og:description" content="At Wayfair the pricing platform was live and correct. The adoption problem nearly made it irrelevant. 73 lines of Java solved what docs never could.">
+<title>Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter | AI Learning Series</title>
+<meta name="description" content="Why ORDER BY (trace_id, start_time) is not obvious — and why it makes your waterfall query 500× faster.">
+<meta property="og:title" content="Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter">
+<meta property="og:description" content="Why ORDER BY (trace_id, start_time) is not obvious — and why it makes your waterfall query 500× faster.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-33-sdk-wrappers-last-resort-that-ships.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-trace-storage-layout-sort-keys-matter.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-33-sdk-wrappers-last-resort-that-ships.png">
-<meta property="article:published_time" content="2026-07-22">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-trace-storage-layout-sort-keys-matter.png">
+<meta property="article:published_time" content="2026-07-24">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,136 +185,196 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 33 of 150</span>
-    <span class="tag">Wayfair</span>
-    <span class="tag">Pricing Platform</span>
-    <span class="tag">SDK Design</span>
-    <span class="tag">Distributed Systems</span>
+    <span class="tag accent">AI Learning &middot; Day 34 of 150</span>
+    <span class="tag">ClickHouse</span>
+    <span class="tag">Storage Layout</span>
+    <span class="tag">MergeTree</span>
+    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 33 &mdash; SDK Wrappers: The Last Resort That Ships</h1>
-  <p class="post-subtitle">At Wayfair the pricing platform was live and correct. The adoption problem nearly made it irrelevant. 73 lines of Java solved what two months of documentation never could.</p>
+  <h1 class="post-title">Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter</h1>
+  <p class="post-subtitle">Why <code>ORDER BY (trace_id, start_time)</code> is not obvious &mdash; and why it makes your waterfall query 500&times; faster.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 33 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 34 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 22, 2026</span>
+    <span class="meta-item">July 24, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">11 min read</span>
+    <span class="meta-item">13 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-33-sdk-wrappers-last-resort-that-ships.png" alt="Day 33 — SDK Wrappers: The Last Resort That Ships" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-34-trace-storage-layout-sort-keys-matter.png" alt="Day 34 — Trace Storage Layout — Sort Keys Matter" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The pricing platform was working. 20,000+ suppliers submitting cost updates. Delphi computing retail prices at sub-second latency. Aletheia serving 21K RPS from Bigtable with a 13K average QPS on the cost-adjustment read model. The system was correct, fast, and well-tested.</p>
+<p>You&rsquo;ve got 5 million agent spans in ClickHouse. Someone pastes a trace ID into Grafana and asks for the waterfall. If your table is <code>ORDER BY (start_time)</code>, ClickHouse reads 5 million rows. If it&rsquo;s <code>ORDER BY (trace_id, start_time)</code>, it reads 12.</p>
 
-<p>Then I pulled a ticket about a data consistency issue on a supplier&rsquo;s price override. The on-call trace pointed to a CloudSQL replica. Not to the PAS GraphQL API. Not to the Bigtable projection pipeline. To a raw JDBC connection going directly to the <code>overrides</code> table on the PostgreSQL replica. It had been running like that for six months.</p>
-
-<p>The team that owned the connection had read the PAS documentation. They understood the correct write path existed. They chose not to use it because the GraphQL mutation required 80 lines of boilerplate they hadn&rsquo;t been able to prioritise. The data consistency issue was the bill coming due.</p>
-
-<h2 id="the-adoption-gap">Why teams bypass your API</h2>
-
-<div class="attr-box mine">
-  <div class="attr-label">My scope at Wayfair</div>
-  Sr. Software Engineer III at Wayfair Bengaluru, Nov 2024&ndash;Mar 2026. Led the PAS (Price Adjustment System) and Pricing Promotions &amp; Discounts teams. PAS is a Java + GraphQL/REST service using CQRS with Bigtable as the read model. The system handled ~295M daily hits with 15,263 peak RPS on the GraphQL endpoint and served 250k+ SKU updates per supplier in near real-time.
-</div>
-
-<p>The PAS GraphQL API was the correct write path for price overrides. A mutation validated the schema, wrote to PostgreSQL, and fired the Bigtable projection event that propagated the change to Aletheia and Barter within seconds. Skip the API and write directly to the table, and the Bigtable projection event never fires &mdash; the read model goes stale, prices diverge, and the anomaly surfaces hours later during a pricing run.</p>
-
-<p>Why did the team go direct? The GraphQL schema had 14 fields with 9 that were &ldquo;optional-but-not-really&rdquo; &mdash; fields that the validation would accept empty but that downstream systems depended on. The auth boilerplate was 40 lines of GCP Workload Identity token refresh that every team had to write for themselves. The retry logic was documented in a runbook but not enforced anywhere.</p>
+<h2 id="filing-cabinet">The filing cabinet model</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">Non-software analogy &mdash; loading dock vs kitchen door</div>
-  A commercial kitchen has a loading dock for deliveries. The dock exists for good reasons: weight limits, food hygiene, separation from customer areas. But the kitchen is on the third floor and the loading dock requires a card, a ramp, and a scheduled timeslot. The kitchen staff start carrying boxes through the customer entrance. Not because they don&rsquo;t know the rules &mdash; because the correct path costs more than the wrong one at the moment of the decision.
+  <div class="attr-label">DS analogy &mdash; the filing cabinet</div>
+  A filing cabinet with folders sorted alphabetically by last name, then first name. To find all documents for &ldquo;Smith, John,&rdquo; you walk to the S drawer, flip to Smith, then to John. You read one contiguous section. You don&rsquo;t open every drawer in the building.
 </div>
 
-<p>When the right path requires more effort than the wrong path at the call site, the wrong path wins. This is not a documentation problem. It is a path-of-least-resistance problem, and documentation does not change the path.</p>
+<p>ClickHouse MergeTree &mdash; the table engine used in today&rsquo;s <code>agent_spans</code> schema &mdash; is not a B-tree index. It&rsquo;s a sorted flat file. When you create a table with <code>ORDER BY (col_a, col_b)</code>, ClickHouse physically writes rows to disk in sorted order. Rows with the same leading key values end up in consecutive disk blocks called granules (each granule holds 8,192 rows by default).</p>
 
-<h2 id="73-lines">The 73 lines of Java that solved the adoption problem</h2>
+<p>When you query <code>WHERE trace_id = 'abc'</code>, ClickHouse binary-searches for the first granule where <code>trace_id = 'abc'</code> and reads forward until <code>trace_id</code> changes. If those granules are physically adjacent &mdash; because <code>trace_id</code> leads the sort key &mdash; the read is one short seek. The sort key isn&rsquo;t just a hint to the query planner; it&rsquo;s the physical layout of the file on disk.</p>
 
-<p>The fix was not a new documentation page. It was a client library: <code>pas-java-client</code>. A single artifact, one Maven dependency, one environment variable.</p>
+<h2 id="wrong-sort-key">Why <code>ORDER BY (start_time)</code> fails for traces</h2>
 
-<pre><code>// Before: 80 lines of auth, retry, schema, error handling
-// After:
-var client = PasClient.fromEnv(); // reads PAS_ENDPOINT from env
-var result = client.applyOverride(skuId, -500, "flash_sale");
-</code></pre>
+<p>Almost every observability tutorial starts with <code>ORDER BY (start_time)</code>. For a global time-range query like &ldquo;show me all spans in the last 5 minutes,&rdquo; it&rsquo;s correct. Every span from that window is stored together, and the read is a short scan over a single time block.</p>
 
-<p>The library encapsulated the GraphQL mutation behind a single method call. Auth was handled via GCP Workload Identity and cached with auto-refresh. Retry was three attempts with exponential backoff and jitter. The typed <code>OverrideResult</code> returned the Bigtable row key to poll if the caller needed to confirm propagation. No optional-but-not-really fields &mdash; the method signature made the required fields required.</p>
+<p>For a trace waterfall &mdash; &ldquo;show me all spans for trace ID <code>abc</code>&rdquo; &mdash; it&rsquo;s a disaster. Spans from the same trace are scattered across the entire table, interleaved by arrival time with spans from hundreds of other traces. ClickHouse cannot binary-search for them; it reads the full table to gather them.</p>
+
+<p>At 5 million spans and an average of 8 spans per trace, a full-scan waterfall query reads 5,000,000 rows to retrieve 8. That&rsquo;s not a minor performance problem. It&rsquo;s the wrong data structure for the access pattern.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates per supplier</span></div>
-  <div class="stat-cell"><span class="stat-num">99.99%</span><span class="stat-label">availability target on PAS</span></div>
-  <div class="stat-cell"><span class="stat-num">sub-second</span><span class="stat-label">price propagation to Bigtable</span></div>
-  <div class="stat-cell"><span class="stat-num">20k+</span><span class="stat-label">suppliers on the correct write path</span></div>
+  <div class="stat-cell"><span class="stat-num">5M</span><span class="stat-label">rows read (time sort)</span></div>
+  <div class="stat-cell"><span class="stat-num">12</span><span class="stat-label">rows read (trace sort)</span></div>
+  <div class="stat-cell"><span class="stat-num">8192</span><span class="stat-label">rows per granule</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">granule scanned (correct)</span></div>
 </div>
 
-<p>What happened after the library shipped: the team that had been doing direct SQL switched within a week. Two other teams adopted the client in the same sprint without being asked. One quarter later, direct SQL writes to the <code>overrides</code> table were zero. The price propagation that had been taking hours to surface in Bigtable for teams using the wrong path now arrived in sub-seconds for everyone.</p>
+<h2 id="correct-sort-key">Optimize for the primary lookup, not the secondary</h2>
 
-<div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; circuit breaker in a fuse box</div>
-  The correct behaviour on electrical overload is to cut the circuit before the wiring burns. You could document this in a manual and trust every appliance to self-limit. Or you could put a fuse box between the mains and the appliances. The fuse box doesn&rsquo;t add new capability &mdash; the overload protection existed before. It makes the correct behaviour happen automatically, without requiring the appliance to know about it.
-</div>
+<p>The correct sort key for a trace store is <code>ORDER BY (trace_id, start_time)</code>. The leading key <code>trace_id</code> groups all spans for the same trace into contiguous granules. The trailing key <code>start_time</code> orders spans within a trace chronologically &mdash; exactly what Grafana needs to render a waterfall without client-side sorting.</p>
 
-<p>The wrapper didn&rsquo;t add new capability to PAS. It made existing capability safe to reach without 80 lines of boilerplate. That&rsquo;s the whole value proposition.</p>
-
-<h2 id="three-properties">The three properties of a wrapper that gets adopted</h2>
-
-<p>There is a class of SDK wrappers that teams adopt immediately and a class that sits in an internal repo with two stars. The difference comes down to three properties.</p>
-
-<p><strong>Same interface.</strong> The underlying API still works. The wrapper is additive, not a replacement. Teams that need escape hatches can still call the raw GraphQL API. The wrapper is for the common case, not the exhaustive case. If adopting the wrapper requires unlearning the API, the migration cost is too high and the wrapper will not ship.</p>
-
-<p><strong>Thin layer.</strong> No new concepts. If the raw API takes a <code>skuId</code>, the wrapper takes a <code>skuId</code>. Not a <code>ProductReference</code> with a builder pattern that requires another doc to understand. Every abstraction the wrapper introduces is a thing the caller has to learn before the call site shrinks to three lines. Keep the layer thin.</p>
-
-<p><strong>One environment variable.</strong> The setup cost must be a single <code>PAS_ENDPOINT</code> in the deployment config. Not a config file with ten fields. Not a Kubernetes secret with a custom schema. Teams will not adopt a client library that requires a configuration migration as a prerequisite. The path of least resistance must be genuinely short or the problem reproduces itself.</p>
-
-<h2 id="wrapping-is-product-thinking">Wrapping isn&rsquo;t surrender &mdash; it&rsquo;s product thinking</h2>
-
-<p>The instinct when you find a team bypassing your API is to fix the documentation. Sometimes the instinct is to add an API linter or a runtime validation that rejects the wrong path. Both of these put the compliance burden on the consumer. A wrapper moves the burden into your own code: you enforce the correct behaviour by making it easier than the wrong behaviour.</p>
-
-<p>This is product thinking applied to internal infrastructure. Your API is the product. The teams calling it are the users. If the users are consistently doing something wrong, the interface has a usability problem, not the users. The SDK wrapper is the fix.</p>
-
-<div class="pullquote">
-  <p>When the right path requires more effort than the wrong path at the call site, the wrong path wins. This is not a documentation problem.</p>
-</div>
-
-<p>The TraceForge Go SDK from today&rsquo;s build applies the same lesson to agent observability. The correct path for emitting a span from a Go tool is <code>StartSpan</code> / <code>EndSpan</code>. Auth is environment-variable-driven. Emit is fire-and-forget. The wrong path &mdash; not instrumenting at all &mdash; produces disconnected Grafana waterfalls that cost an hour of debugging to parse. The wrapper exists to make the correct path shorter than the wrong one.</p>
-
-<h2 id="today">Today&rsquo;s Go SDK</h2>
-
-<p>The <code>traceforge-go</code> SDK in <code>traceforge/sdk/go/</code> implements <code>StartSpan</code>/<code>EndSpan</code> with <code>context.Context</code> propagation, W3C <code>traceparent</code> inject/extract across HTTP boundaries, and fire-and-forget span emission over HTTP + Kafka. The setup is one environment variable: <code>TRACEFORGE_COLLECTOR_URL</code>. The call site is two lines.</p>
-
-<pre><code>ctx, span := traceforge.StartSpan(ctx, "weather_api")
-defer traceforge.EndSpan(ctx, span, traceforge.StatusOK, nil)
+<pre><code>CREATE TABLE agent_spans
+(
+    trace_id    String,
+    span_id     String,
+    tool_name   String,
+    start_time  DateTime64(3, 'UTC'),
+    latency_ms  Int64,
+    cost_usd    Float64,
+    -- ... other columns
+)
+ENGINE = MergeTree()
+ORDER BY (trace_id, start_time)   -- primary access: waterfall by trace
+SETTINGS compress_by = 'ZSTD(3)';
 </code></pre>
 
-<p>The pattern is identical to <code>pas-java-client.applyOverride</code>. The system being wrapped is different. The principle &mdash; make the correct path shorter than the wrong one &mdash; is the same.</p>
+<p>Secondary patterns &mdash; find spans from the last hour, find the slowest spans globally &mdash; go against this sort order. ClickHouse will do a full scan for those queries. That&rsquo;s the explicit trade-off: the waterfall query is 99% of the load, and secondary patterns can be served by projections instead.</p>
+
+<h2 id="compression">The compression choice is also a sort key consequence</h2>
+
+<p>Once rows are physically sorted by <code>trace_id</code>, adjacent rows share the same 32-character trace ID, the same <code>tool_kind</code> (one of five enum values), and the same <code>status</code> (one of three). Compression algorithms exploit run-length similarity in adjacent bytes.</p>
+
+<p>Zstandard (ZSTD) at level 3 delivers roughly 4&ndash;6&times; compression on well-sorted columnar data. Snappy, ClickHouse&rsquo;s other common codec, targets decompression speed: it compresses less aggressively but decompresses faster. For trace data where reads are infrequent per span and disk I/O is the bottleneck, ZSTD is the right choice.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    A["INSERT agent spans"] --> B["MergeTree sort\nORDER BY trace_id, time"]
+    B --> C["Disk block: trace abc\nspans 1&rarr;8, sorted by time"]
+    B --> D["Disk block: trace xyz\nspans 1&rarr;6, sorted by time"]
+    C --> E["Waterfall query\ntrace_id='abc'\nreads 1 granule ✅"]
+    B --> F["ZSTD(3) compression\nhigh run-length\n4× ratio ✅"]
+</pre>
+
+<p>The sort key made the data compressible; ZSTD capitalizes on that. If you swap to <code>ORDER BY (start_time)</code>, adjacent rows have different trace IDs. Compression ratio drops because the dominant columns &mdash; <code>trace_id</code>, <code>tool_kind</code>, <code>status</code> &mdash; vary on every row.</p>
+
+<h2 id="projections">When the sort key is wrong for a query, add a projection</h2>
+
+<p>A projection is a secondary copy of the table data, stored alongside the primary data, sorted differently. ClickHouse automatically selects the right projection for each query &mdash; you don&rsquo;t write separate queries for different projections; the optimizer picks the best one.</p>
+
+<p>The <code>agent_spans</code> schema adds one projection for the common secondary pattern: finding the slowest spans across all traces.</p>
+
+<pre><code>ALTER TABLE agent_spans
+    ADD PROJECTION proj_slow_spans
+    (
+        SELECT trace_id, span_id, tool_name, latency_ms, cost_usd, start_time
+        ORDER BY (latency_ms DESC, trace_id)
+    );
+</code></pre>
+
+<p>A query <code>ORDER BY latency_ms DESC LIMIT 20</code> now reads a small projection block instead of the full <code>agent_spans</code> table. The storage cost is a secondary copy of those six columns &mdash; acceptable for a monitoring use case where that query runs frequently.</p>
+
+<p>Don&rsquo;t add a projection for every possible secondary sort order. Add one when a secondary pattern is both frequent and expensive enough that the storage cost is justified by the read savings.</p>
+
+<h2 id="materialized-view">Aggregation without re-scanning: materialized views</h2>
+
+<p>The <code>trace_cost_rollup</code> table uses <code>AggregatingMergeTree</code> with a materialized view (MV). Every time spans are inserted into <code>agent_spans</code>, the MV updates the rollup with partial aggregate state. Cost-per-trace queries read from the rollup; they never scan <code>agent_spans</code>.</p>
+
+<pre><code>-- Without MV: scans all spans for every cost query
+SELECT trace_id, sum(cost_usd)
+FROM agent_spans
+GROUP BY trace_id;
+
+-- With MV + AggregatingMergeTree: reads pre-aggregated rows
+SELECT trace_id, sumMerge(cost_usd)
+FROM trace_cost_rollup
+GROUP BY trace_id;
+</code></pre>
+
+<p>MVs shift aggregation cost from read time to write time. Writes become slightly heavier (two tables updated per INSERT) but reads for high-cardinality aggregations drop by orders of magnitude. This is the right trade when reads vastly outnumber schema-changing writes.</p>
+
+<h2 id="card-catalog">The card catalog in the library</h2>
+
+<div class="attr-box team">
+  <div class="attr-label">DS analogy &mdash; the card catalog</div>
+  Before electronic search, libraries kept card catalogs: physical drawers of index cards sorted by author, title, and subject. To find every book by Hemingway, you went to the author drawer, found &ldquo;Hemingway, Ernest,&rdquo; and pulled out his cards. A catalog sorted by &ldquo;last acquisitions date&rdquo; would make recent-additions queries fast but author lookups slow. The right catalog depends entirely on how the library is used.
+</div>
+
+<p>MergeTree&rsquo;s sort key is the card catalog for your data. The sort order you choose is the catalog you build. Choose it by asking: &ldquo;what drawer do users reach for most often?&rdquo; For traces, the answer is always the trace ID.</p>
+
+<p>Projections are the secondary card catalogs. You add them when a second access pattern is frequent enough to justify storing a second sorted copy. But you build the primary catalog first, and you build it for the primary use.</p>
+
+<div class="pullquote">
+  <p>A sort key is a bet on the primary access pattern. Make the bet explicitly, not by copying a tutorial.</p>
+</div>
+
+<h2 id="three-decisions">Three decisions that compound</h2>
+
+<p>The <code>agent_spans</code> schema makes three decisions that reinforce each other. The sort key <code>(trace_id, start_time)</code> means a waterfall query reads one granule instead of 5 million rows. ZSTD(3) compression achieves 4&times; ratio because adjacent rows share sort-key prefixes &mdash; it wouldn&rsquo;t work nearly as well on a time-sorted table. The <code>proj_slow_spans</code> projection handles the secondary pattern without giving up the primary sort.</p>
+
+<p>None of these decisions is exotic. They are the straightforward application of &ldquo;choose your primary access pattern, then optimize for it at every layer.&rdquo; The failure mode is copying a generic observability schema optimized for metrics and wondering why trace queries are slow. The fix is always the sort key.</p>
+
+<p>The Go SDK emits spans. The collector ingests them. ClickHouse stores them correctly with <code>ORDER BY (trace_id, start_time)</code>. Grafana renders the waterfall in one granule scan. The observability loop is closed.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 33 of 150 &mdash; SDK Wrappers: The Last Resort That Ships</p>
-  <p><em>Next up: <a href="day-34-clickhouse-for-traces-not-just-metrics.html">Day 34 &mdash; ClickHouse for Traces: Not Just Metrics</a></em></p>
+  <p>AI Learning &middot; Day 34 of 150 &mdash; Trace Storage Layout &mdash; Sort Keys Matter</p>
+  <p><em>Next up:</em> Day 35 &mdash; Alerting on Cost: Budget Thresholds for Agent Runs</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://cloud.google.com/bigtable/docs/schema-design">
+    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Cloud Bigtable schema design — row key design for CQRS read models</span>
+      <span>ClickHouse MergeTree engine &mdash; primary key, sort key, and granule design</span>
     </a>
-    <a href="https://w3c.github.io/trace-context/">
+    <a href="https://clickhouse.com/docs/en/sql-reference/statements/alter/projection">
       <span class="footnote-arrow">&rarr;</span>
-      <span>W3C Trace Context specification — traceparent header format</span>
+      <span>ClickHouse projections &mdash; secondary sort keys for alternative access patterns</span>
+    </a>
+    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/aggregatingmergetree">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>AggregatingMergeTree &mdash; incremental aggregation via materialized views</span>
     </a>
   </div>
 </div>
@@ -325,22 +385,25 @@ defer traceforge.EndSpan(ctx, span, traceforge.StatusOK, nil)
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-adoption-gap">Why teams bypass your API</a></li>
-      <li><a href="#73-lines">73 lines of Java</a></li>
-      <li><a href="#three-properties">Three properties of adoption</a></li>
-      <li><a href="#wrapping-is-product-thinking">Wrapping is product thinking</a></li>
-      <li><a href="#today">Today&rsquo;s Go SDK</a></li>
+      <li><a href="#filing-cabinet">The filing cabinet model</a></li>
+      <li><a href="#wrong-sort-key">Why time-sort fails for traces</a></li>
+      <li><a href="#correct-sort-key">The correct sort key</a></li>
+      <li><a href="#compression">Compression &amp; sort keys</a></li>
+      <li><a href="#projections">Projections for secondary patterns</a></li>
+      <li><a href="#materialized-view">Materialized views</a></li>
+      <li><a href="#card-catalog">The card catalog analogy</a></li>
+      <li><a href="#three-decisions">Three decisions that compound</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-33-sdk-wrappers-last-resort-that-ships.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-34-trace-storage-layout-sort-keys-matter.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=SDK+Wrappers%3A+The+Last+Resort+That+Ships+%E2%80%94+Experience+%C2%B7+Day+33+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-33-sdk-wrappers-last-resort-that-ships.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Trace+Storage+Layout+%E2%80%94+Sort+Keys+Matter+%E2%80%94+AI+Learning+%C2%B7+Day+34+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-34-trace-storage-layout-sort-keys-matter.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -349,21 +412,21 @@ defer traceforge.EndSpan(ctx, span, traceforge.StatusOK, nil)
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">Experience Series</div>
-      <div class="series-title">150 days of building in public</div>
+      <div class="series-label">AI Learning Series</div>
+      <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D32</span> Experience</div>
-          <a href="day-32-when-the-collector-is-the-product.html" class="series-post-title">When the Collector Is the Product</a>
+          <div class="series-post-kicker"><span class="series-post-num">D33</span> AI Learning</div>
+          <a href="day-33-context-propagation-polyglot-agents.html" class="series-post-title">Context Propagation in Polyglot Agents</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D33</span> Experience &middot; now</div>
-          <div class="series-post-title">SDK Wrappers: The Last Resort That Ships</div>
-          <div class="series-post-desc">Wayfair PAS client library &mdash; making the correct write path shorter than the wrong one</div>
+          <div class="series-post-kicker"><span class="series-post-num">D34</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Trace Storage Layout &mdash; Sort Keys Matter</div>
+          <div class="series-post-desc">ORDER BY (trace_id, start_time) is not obvious &mdash; and why it matters</div>
         </div>
         <div class="series-post series-post--draft">
-          <div class="series-post-kicker"><span class="series-post-num">D34</span> Experience</div>
-          <div class="series-post-title">Trace Storage Layout — Sort Keys Matter</div>
+          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning</div>
+          <div class="series-post-title">Alerting on Cost: Budget Thresholds</div>
         </div>
       </div>
     </div>
