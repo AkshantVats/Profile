@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter | AI Learning Series</title>
-<meta name="description" content="Why ORDER BY (trace_id, start_time) is not obvious — and why it makes your waterfall query 500× faster.">
-<meta property="og:title" content="Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter">
-<meta property="og:description" content="Why ORDER BY (trace_id, start_time) is not obvious — and why it makes your waterfall query 500× faster.">
+<title>Day 35 &mdash; Silent Failures in Multi-Step Agents | AI Learning Series</title>
+<meta name="description" content="Alert on zero-byte tool responses — they're the new 500. Three failure modes that look like success, and how to surface them with TraceForge spans.">
+<meta property="og:title" content="Day 35 &mdash; Silent Failures in Multi-Step Agents">
+<meta property="og:description" content="Alert on zero-byte tool responses — they're the new 500. Three failure modes that look like success, and how to surface them with TraceForge spans.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-trace-storage-layout-sort-keys-matter.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-silent-failures-multi-step-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-trace-storage-layout-sort-keys-matter.png">
-<meta property="article:published_time" content="2026-07-24">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-silent-failures-multi-step-agents.png">
+<meta property="article:published_time" content="2026-07-25">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,91 +185,102 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 34 of 150</span>
-    <span class="tag">ClickHouse</span>
-    <span class="tag">Storage Layout</span>
-    <span class="tag">MergeTree</span>
+    <span class="tag accent">AI Learning &middot; Day 35 of 150</span>
+    <span class="tag">Agents</span>
     <span class="tag">Observability</span>
+    <span class="tag">TraceForge</span>
+    <span class="tag">Silent Failures</span>
   </div>
-  <h1 class="post-title">Day 34 &mdash; Trace Storage Layout &mdash; Sort Keys Matter</h1>
-  <p class="post-subtitle">Why <code>ORDER BY (trace_id, start_time)</code> is not obvious &mdash; and why it makes your waterfall query 500&times; faster.</p>
+  <h1 class="post-title">Day 35 &mdash; Silent Failures in Multi-Step Agents</h1>
+  <p class="post-subtitle">Empty tool results, swallowed exceptions, max iterations &mdash; and why alerting on zero-byte tool responses is the new 500.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 34 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 35 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 24, 2026</span>
+    <span class="meta-item">July 25, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">13 min read</span>
+    <span class="meta-item">12 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-34-trace-storage-layout-sort-keys-matter.png" alt="Day 34 — Trace Storage Layout — Sort Keys Matter" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-35-silent-failures-multi-step-agents.png" alt="Day 35 — Silent Failures in Multi-Step Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>You&rsquo;ve got 5 million agent spans in ClickHouse. Someone pastes a trace ID into Grafana and asks for the waterfall. If your table is <code>ORDER BY (start_time)</code>, ClickHouse reads 5 million rows. If it&rsquo;s <code>ORDER BY (trace_id, start_time)</code>, it reads 12.</p>
+<p>A timeout raises an exception. An exception shows up in your error tracker. A 500 triggers your alert. But when a tool in step 7 of a 10-step ReAct agent returns an empty string &mdash; no exception, no log line, exit code 0 &mdash; nothing fires. The agent continues to step 8 with corrupted context, produces a plausible-looking answer, and charges you for 8 LLM calls. You discover the problem when a customer emails.</p>
 
-<h2 id="filing-cabinet">The filing cabinet model</h2>
+<p>This is the class of failure I call a silent failure: an operation that completes without error but produces no output. Traditional observability is blind to it. A span exists, the latency is recorded, the status is <code>OK</code>. But <code>result_bytes: 0</code> tells the real story.</p>
 
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the filing cabinet</div>
-  A filing cabinet with folders sorted alphabetically by last name, then first name. To find all documents for &ldquo;Smith, John,&rdquo; you walk to the S drawer, flip to Smith, then to John. You read one contiguous section. You don&rsquo;t open every drawer in the building.
-</div>
+<h2 id="three-modes">Three modes of silence</h2>
 
-<p>ClickHouse MergeTree &mdash; the table engine used in today&rsquo;s <code>agent_spans</code> schema &mdash; is not a B-tree index. It&rsquo;s a sorted flat file. When you create a table with <code>ORDER BY (col_a, col_b)</code>, ClickHouse physically writes rows to disk in sorted order. Rows with the same leading key values end up in consecutive disk blocks called granules (each granule holds 8,192 rows by default).</p>
+<p>Silent failures in multi-step agents cluster into three patterns. Each looks different in code but produces the same observable symptom: the agent moves to the next step with less information than it started with.</p>
 
-<p>When you query <code>WHERE trace_id = 'abc'</code>, ClickHouse binary-searches for the first granule where <code>trace_id = 'abc'</code> and reads forward until <code>trace_id</code> changes. If those granules are physically adjacent &mdash; because <code>trace_id</code> leads the sort key &mdash; the read is one short seek. The sort key isn&rsquo;t just a hint to the query planner; it&rsquo;s the physical layout of the file on disk.</p>
+<p>The first is the <strong>empty tool result</strong>. The tool executes, returns a value, but the value is <code>""</code>, <code>None</code>, <code>[]</code>, or <code>{}</code>. No exception is raised. The agent receives the empty value, cannot parse anything useful from it, treats it as &ldquo;no data available,&rdquo; and continues. The currency converter in today&rsquo;s demo does exactly this on step 7: it hits a mocked rate limit, returns <code>""</code>, and the orchestrator logs nothing.</p>
 
-<h2 id="wrong-sort-key">Why <code>ORDER BY (start_time)</code> fails for traces</h2>
+<p>The second is the <strong>swallowed exception</strong>. The tool wraps its work in a broad <code>except Exception: return None</code>. The exception is gone. The caller receives <code>None</code>, which it handles the same way as &ldquo;no data.&rdquo; This pattern is common in wrapper functions around external APIs, where engineers add catch-all handlers to avoid crashing the caller &mdash; not realising they&rsquo;ve turned every API error into invisible data loss.</p>
 
-<p>Almost every observability tutorial starts with <code>ORDER BY (start_time)</code>. For a global time-range query like &ldquo;show me all spans in the last 5 minutes,&rdquo; it&rsquo;s correct. Every span from that window is stored together, and the read is a short scan over a single time block.</p>
-
-<p>For a trace waterfall &mdash; &ldquo;show me all spans for trace ID <code>abc</code>&rdquo; &mdash; it&rsquo;s a disaster. Spans from the same trace are scattered across the entire table, interleaved by arrival time with spans from hundreds of other traces. ClickHouse cannot binary-search for them; it reads the full table to gather them.</p>
-
-<p>At 5 million spans and an average of 8 spans per trace, a full-scan waterfall query reads 5,000,000 rows to retrieve 8. That&rsquo;s not a minor performance problem. It&rsquo;s the wrong data structure for the access pattern.</p>
+<p>The third is <strong>max iterations without finish</strong>. The agent hits its loop limit while still reasoning. It never calls <code>finish()</code>. It exits with whatever partial answer it had at the time. The caller receives a truncated response, and the truncation leaves no fingerprint in the standard logs.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5M</span><span class="stat-label">rows read (time sort)</span></div>
-  <div class="stat-cell"><span class="stat-num">12</span><span class="stat-label">rows read (trace sort)</span></div>
-  <div class="stat-cell"><span class="stat-num">8192</span><span class="stat-label">rows per granule</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">granule scanned (correct)</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">silent failure modes</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">exceptions raised</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">HTTP error codes</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">log lines emitted</span></div>
 </div>
 
-<h2 id="correct-sort-key">Optimize for the primary lookup, not the secondary</h2>
+<h2 id="why-hard">Why they&rsquo;re hard to detect classically</h2>
 
-<p>The correct sort key for a trace store is <code>ORDER BY (trace_id, start_time)</code>. The leading key <code>trace_id</code> groups all spans for the same trace into contiguous granules. The trailing key <code>start_time</code> orders spans within a trace chronologically &mdash; exactly what Grafana needs to render a waterfall without client-side sorting.</p>
+<div class="attr-box team">
+  <div class="attr-label">DS analogy &mdash; the library book</div>
+  Imagine ordering a book from the library. The librarian confirms the order, marks it complete, charges your account, and hands you an empty bag. No error. The transaction succeeded. You only notice the problem when you open the bag at home.
+</div>
 
-<pre><code>CREATE TABLE agent_spans
-(
-    trace_id    String,
-    span_id     String,
-    tool_name   String,
-    start_time  DateTime64(3, 'UTC'),
-    latency_ms  Int64,
-    cost_usd    Float64,
-    -- ... other columns
+<p>Classical observability monitors the transaction. The order was placed, confirmed, and completed &mdash; all green. It has no concept of &ldquo;but the bag should contain a book.&rdquo; To detect the empty bag, you need to inspect the output, not just the operation.</p>
+
+<p>HTTP APIs make this easy: a 204 is a deliberate &ldquo;no content,&rdquo; a 200 with empty body is suspicious, and a 500 is unmistakably wrong. Agent tool calls have none of this vocabulary. They return arbitrary Python values. There is no protocol-level concept of &ldquo;this result is unexpectedly empty.&rdquo;</p>
+
+<p>The fix is to add that vocabulary at the instrumentation layer. Every tool call that produces an output should record <code>result_bytes</code>. A TraceForge span with <code>result_bytes: 0</code> is the 500 that empty tool results never raise.</p>
+
+<h2 id="instrument">Instrumenting with ManualSpan</h2>
+
+<p>TraceForge&rsquo;s <code>wrap_openai()</code> decorator handles LLM calls automatically. But tool calls inside the agent loop &mdash; Python functions, API clients, subprocess calls &mdash; are not LLM calls. They need manual instrumentation.</p>
+
+<p>The <code>start_span()</code> SDK extension added in today&rsquo;s commit provides this. It returns a <code>ManualSpan</code> that you set attributes on and call <code>end()</code> when the work is done. The span emits to the same ClickHouse pipeline as the automatic LLM spans, giving you a single waterfall view across both.</p>
+
+<pre><code>import traceforge
+
+span = traceforge.start_span(
+    "tool_call",
+    trace_id=trace_id,
+    parent_span_id=root_span_id,
 )
-ENGINE = MergeTree()
-ORDER BY (trace_id, start_time)   -- primary access: waterfall by trace
-SETTINGS compress_by = 'ZSTD(3)';
+span.set_attribute("tool_name", tool_name)
+span.set_attribute("step", step_num)
+
+observation = tool_fn(*args)
+
+span.set_attribute("result_bytes", len(observation.encode()) if observation else 0)
+span.set_attribute(
+    "status",
+    "EMPTY_RESPONSE" if not observation else "OK"
+)
+span.end()
 </code></pre>
 
-<p>Secondary patterns &mdash; find spans from the last hour, find the slowest spans globally &mdash; go against this sort order. ClickHouse will do a full scan for those queries. That&rsquo;s the explicit trade-off: the waterfall query is 99% of the load, and secondary patterns can be served by projections instead.</p>
+<p>Two attributes do the work: <code>result_bytes</code> quantifies the output size, and <code>status: EMPTY_RESPONSE</code> is the searchable label. The rest of the waterfall infrastructure &mdash; ClickHouse queries, Grafana panels, materialized views &mdash; treats this span exactly like any other.</p>
 
-<h2 id="compression">The compression choice is also a sort key consequence</h2>
+<h2 id="waterfall">What the waterfall shows</h2>
 
-<p>Once rows are physically sorted by <code>trace_id</code>, adjacent rows share the same 32-character trace ID, the same <code>tool_kind</code> (one of five enum values), and the same <code>status</code> (one of three). Compression algorithms exploit run-length similarity in adjacent bytes.</p>
-
-<p>Zstandard (ZSTD) at level 3 delivers roughly 4&ndash;6&times; compression on well-sorted columnar data. Snappy, ClickHouse&rsquo;s other common codec, targets decompression speed: it compresses less aggressively but decompresses faster. For trace data where reads are infrequent per span and disk I/O is the bottleneck, ZSTD is the right choice.</p>
+<p>With instrumentation in place, a trace where step 7 fails silently looks like this in the Grafana waterfall. Eight spans appear in chronological order. Seven have <code>status: OK</code> and <code>result_bytes &gt; 0</code>. One &mdash; step 7 &mdash; has <code>status: EMPTY_RESPONSE</code> and <code>result_bytes: 0</code>. The span is amber; the others are green.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -289,92 +300,67 @@ SETTINGS compress_by = 'ZSTD(3)';
   }
 }}%%
 flowchart TD
-    A["INSERT agent spans"] --> B["MergeTree sort\nORDER BY trace_id, time"]
-    B --> C["Disk block: trace abc\nspans 1&rarr;8, sorted by time"]
-    B --> D["Disk block: trace xyz\nspans 1&rarr;6, sorted by time"]
-    C --> E["Waterfall query\ntrace_id='abc'\nreads 1 granule ✅"]
-    B --> F["ZSTD(3) compression\nhigh run-length\n4× ratio ✅"]
+    A["Step 1-6: OK\nresult_bytes &gt; 0"] --> B["Step 7: EMPTY_RESPONSE\nresult_bytes = 0"]
+    B --> C["Step 8: finish()\ncorrupted context"]
+    B --> D["Alert fires\n&lt;10 min MTTD"]
 </pre>
 
-<p>The sort key made the data compressible; ZSTD capitalizes on that. If you swap to <code>ORDER BY (start_time)</code>, adjacent rows have different trace IDs. Compression ratio drops because the dominant columns &mdash; <code>trace_id</code>, <code>tool_kind</code>, <code>status</code> &mdash; vary on every row.</p>
+<p>The span exists before the alert. Before TraceForge, the span did not exist &mdash; you had LLM call spans with no tool call spans, and no way to correlate the missing Tokyo conversion with any specific step. The waterfall collapsed the mean time to diagnose from hours to under ten minutes in the demo.</p>
 
-<h2 id="projections">When the sort key is wrong for a query, add a projection</h2>
+<h2 id="alert">The alert rule</h2>
 
-<p>A projection is a secondary copy of the table data, stored alongside the primary data, sorted differently. ClickHouse automatically selects the right projection for each query &mdash; you don&rsquo;t write separate queries for different projections; the optimizer picks the best one.</p>
+<p>Once <code>result_bytes</code> is in ClickHouse, writing the alert is a five-line SQL query. Grafana can run this every 60 seconds against a ClickHouse data source and fire a webhook when the count crosses zero.</p>
 
-<p>The <code>agent_spans</code> schema adds one projection for the common secondary pattern: finding the slowest spans across all traces.</p>
-
-<pre><code>ALTER TABLE agent_spans
-    ADD PROJECTION proj_slow_spans
-    (
-        SELECT trace_id, span_id, tool_name, latency_ms, cost_usd, start_time
-        ORDER BY (latency_ms DESC, trace_id)
-    );
-</code></pre>
-
-<p>A query <code>ORDER BY latency_ms DESC LIMIT 20</code> now reads a small projection block instead of the full <code>agent_spans</code> table. The storage cost is a secondary copy of those six columns &mdash; acceptable for a monitoring use case where that query runs frequently.</p>
-
-<p>Don&rsquo;t add a projection for every possible secondary sort order. Add one when a secondary pattern is both frequent and expensive enough that the storage cost is justified by the read savings.</p>
-
-<h2 id="materialized-view">Aggregation without re-scanning: materialized views</h2>
-
-<p>The <code>trace_cost_rollup</code> table uses <code>AggregatingMergeTree</code> with a materialized view (MV). Every time spans are inserted into <code>agent_spans</code>, the MV updates the rollup with partial aggregate state. Cost-per-trace queries read from the rollup; they never scan <code>agent_spans</code>.</p>
-
-<pre><code>-- Without MV: scans all spans for every cost query
-SELECT trace_id, sum(cost_usd)
+<pre><code>-- Grafana alert: silent failures in the last 15 minutes
+SELECT count() AS silent_count
 FROM agent_spans
-GROUP BY trace_id;
-
--- With MV + AggregatingMergeTree: reads pre-aggregated rows
-SELECT trace_id, sumMerge(cost_usd)
-FROM trace_cost_rollup
-GROUP BY trace_id;
+WHERE status = 'EMPTY_RESPONSE'
+  AND start_time &gt; now() - INTERVAL 15 MINUTE;
 </code></pre>
 
-<p>MVs shift aggregation cost from read time to write time. Writes become slightly heavier (two tables updated per INSERT) but reads for high-cardinality aggregations drop by orders of magnitude. This is the right trade when reads vastly outnumber schema-changing writes.</p>
-
-<h2 id="card-catalog">The card catalog in the library</h2>
-
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the card catalog</div>
-  Before electronic search, libraries kept card catalogs: physical drawers of index cards sorted by author, title, and subject. To find every book by Hemingway, you went to the author drawer, found &ldquo;Hemingway, Ernest,&rdquo; and pulled out his cards. A catalog sorted by &ldquo;last acquisitions date&rdquo; would make recent-additions queries fast but author lookups slow. The right catalog depends entirely on how the library is used.
-</div>
-
-<p>MergeTree&rsquo;s sort key is the card catalog for your data. The sort order you choose is the catalog you build. Choose it by asking: &ldquo;what drawer do users reach for most often?&rdquo; For traces, the answer is always the trace ID.</p>
-
-<p>Projections are the secondary card catalogs. You add them when a second access pattern is frequent enough to justify storing a second sorted copy. But you build the primary catalog first, and you build it for the primary use.</p>
+<p>The alert fires on the first occurrence. There is no threshold to tune, no percentile to pick. Zero-byte tool responses are always wrong &mdash; there is no valid case where a tool should return empty and the agent should continue as if nothing happened. Alert on count &gt; 0, not count &gt; some-threshold.</p>
 
 <div class="pullquote">
-  <p>A sort key is a bet on the primary access pattern. Make the bet explicitly, not by copying a tutorial.</p>
+  <p>Alert on zero-byte tool responses &mdash; they&rsquo;re the new 500. A timeout raises an exception; a silent empty response looks like success.</p>
 </div>
 
-<h2 id="three-decisions">Three decisions that compound</h2>
+<h2 id="max-iter">The max-iterations case</h2>
 
-<p>The <code>agent_spans</code> schema makes three decisions that reinforce each other. The sort key <code>(trace_id, start_time)</code> means a waterfall query reads one granule instead of 5 million rows. ZSTD(3) compression achieves 4&times; ratio because adjacent rows share sort-key prefixes &mdash; it wouldn&rsquo;t work nearly as well on a time-sorted table. The <code>proj_slow_spans</code> projection handles the secondary pattern without giving up the primary sort.</p>
+<p>Max iterations is easier to detect but equally easy to miss. The agent has a loop counter. When it reaches the limit, the loop exits. If you don&rsquo;t instrument that exit explicitly, no span records it. The agent produced some output &mdash; whatever partial answer it had &mdash; so from the caller&rsquo;s perspective, it succeeded.</p>
 
-<p>None of these decisions is exotic. They are the straightforward application of &ldquo;choose your primary access pattern, then optimize for it at every layer.&rdquo; The failure mode is copying a generic observability schema optimized for metrics and wondering why trace queries are slow. The fix is always the sort key.</p>
+<p>The fix is a sentinel span at the loop exit. When the loop exhausts without calling <code>finish()</code>, emit a span with <code>status: MAX_ITERATIONS</code> and <code>step: &lt;limit&gt;</code>. The ClickHouse query for max-iteration traces is the same shape as the empty-response query; only the status string changes. You can count both with a single <code>WHERE status IN ('EMPTY_RESPONSE', 'MAX_ITERATIONS')</code> clause.</p>
 
-<p>The Go SDK emits spans. The collector ingests them. ClickHouse stores them correctly with <code>ORDER BY (trace_id, start_time)</code>. Grafana renders the waterfall in one granule scan. The observability loop is closed.</p>
+<h2 id="cost">The cost dimension</h2>
+
+<p>Silent failures are not just correctness problems. They are billing problems. In today&rsquo;s demo, the agent completes 8 LLM calls. Step 7&rsquo;s tool failure does not shorten the loop &mdash; the agent cannot detect the failure, so it reasons forward to step 8 as planned. You pay for 8 calls to produce an answer that is missing the Tokyo conversion.</p>
+
+<p>The <code>trace_cost_rollup</code> materialized view already tracks <code>cost_usd</code> per trace. Adding <code>countIf(result_bytes = 0) AS empty_calls</code> to the rollup gives you a cost-per-empty-call breakdown across all traces. A trace that spent $0.003 and had one empty call is recoverable. A batch job that ran 500 traces and had 200 empty calls charged you $1.50 for corrupted answers. The alert on the second scenario is the same SQL query with a different time window.</p>
+
+<h2 id="three-decisions">The three-attribute contract</h2>
+
+<p>Silent failure detection reduces to three span attributes that every tool call span must carry. <code>result_bytes</code> quantifies output. <code>status</code> classifies the outcome: <code>OK</code>, <code>EMPTY_RESPONSE</code>, or <code>MAX_ITERATIONS</code>. <code>step</code> locates the failure in the agent loop. Everything else &mdash; the alert, the waterfall, the cost query &mdash; is downstream of those three fields.</p>
+
+<p>The investment is one <code>start_span()</code> call and four <code>set_attribute()</code> calls per tool invocation. The return is the ability to alert on a class of failure that previously produced no signal at all. That is the deal TraceForge&rsquo;s <code>ManualSpan</code> extension is designed to make cheap.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 34 of 150 &mdash; Trace Storage Layout &mdash; Sort Keys Matter</p>
-  <p><em>Next up:</em> <a href="day-35-silent-failures-multi-step-agents.html">Day 35 &mdash; Silent Failures in Multi-Step Agents</a></p>
+  <p>AI Learning &middot; Day 35 of 150 &mdash; Silent Failures in Multi-Step Agents</p>
+  <p><em>Next up:</em> Day 36 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree">
+    <a href="https://arxiv.org/abs/2210.03629">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ClickHouse MergeTree engine &mdash; primary key, sort key, and granule design</span>
+      <span>ReAct: Synergizing Reasoning and Acting in Language Models &mdash; Yao et al., 2022</span>
     </a>
-    <a href="https://clickhouse.com/docs/en/sql-reference/statements/alter/projection">
+    <a href="https://opentelemetry.io/docs/specs/otel/trace/api/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ClickHouse projections &mdash; secondary sort keys for alternative access patterns</span>
+      <span>OpenTelemetry Trace API &mdash; Span, SpanContext, and attribute semantics</span>
     </a>
-    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/aggregatingmergetree">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>AggregatingMergeTree &mdash; incremental aggregation via materialized views</span>
+      <span>Experience Day 35 &mdash; The Demo Agent That Always Dies on Step 7</span>
     </a>
   </div>
 </div>
@@ -385,25 +371,25 @@ GROUP BY trace_id;
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#filing-cabinet">The filing cabinet model</a></li>
-      <li><a href="#wrong-sort-key">Why time-sort fails for traces</a></li>
-      <li><a href="#correct-sort-key">The correct sort key</a></li>
-      <li><a href="#compression">Compression &amp; sort keys</a></li>
-      <li><a href="#projections">Projections for secondary patterns</a></li>
-      <li><a href="#materialized-view">Materialized views</a></li>
-      <li><a href="#card-catalog">The card catalog analogy</a></li>
-      <li><a href="#three-decisions">Three decisions that compound</a></li>
+      <li><a href="#three-modes">Three modes of silence</a></li>
+      <li><a href="#why-hard">Why they're hard to detect</a></li>
+      <li><a href="#instrument">Instrumenting with ManualSpan</a></li>
+      <li><a href="#waterfall">What the waterfall shows</a></li>
+      <li><a href="#alert">The alert rule</a></li>
+      <li><a href="#max-iter">The max-iterations case</a></li>
+      <li><a href="#cost">The cost dimension</a></li>
+      <li><a href="#three-decisions">The three-attribute contract</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-34-trace-storage-layout-sort-keys-matter.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-35-silent-failures-multi-step-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Trace+Storage+Layout+%E2%80%94+Sort+Keys+Matter+%E2%80%94+AI+Learning+%C2%B7+Day+34+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-34-trace-storage-layout-sort-keys-matter.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Silent+Failures+in+Multi-Step+Agents+%E2%80%94+AI+Learning+%C2%B7+Day+35+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-35-silent-failures-multi-step-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -416,17 +402,17 @@ GROUP BY trace_id;
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D33</span> AI Learning</div>
-          <a href="day-33-context-propagation-polyglot-agents.html" class="series-post-title">Context Propagation in Polyglot Agents</a>
+          <div class="series-post-kicker"><span class="series-post-num">D34</span> AI Learning</div>
+          <a href="day-34-trace-storage-layout-sort-keys-matter.html" class="series-post-title">Trace Storage Layout &mdash; Sort Keys Matter</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D34</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Trace Storage Layout &mdash; Sort Keys Matter</div>
-          <div class="series-post-desc">ORDER BY (trace_id, start_time) is not obvious &mdash; and why it matters</div>
+          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Silent Failures in Multi-Step Agents</div>
+          <div class="series-post-desc">Empty tool results, swallowed exceptions, max iterations &mdash; and the three-attribute contract</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning</div>
-          <a href="day-35-silent-failures-multi-step-agents.html" class="series-post-title">Silent Failures in Multi-Step Agents</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D36</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>

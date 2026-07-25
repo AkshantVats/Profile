@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html",
+          "kicker": "AI Learning · Day 35 of 150",
+          "title": "Day 35 — Silent Failures in Multi-Step Agents",
+          "subtitle": "Empty tool results, swallowed exceptions, max iterations",
+          "date": "2026-07-25",
+          "slug": "day-35-silent-failures-multi-step-agents",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html",
+          "coverImage": "blog/assets/covers/day-35-silent-failures-multi-step-agents.png",
+          "desc": "Alert on zero-byte tool responses — they're the new 500. Three silent failure modes that look like success, and how TraceForge's ManualSpan surfaces them with result_bytes and status: EMPTY_RESPONSE."
+        },
+        {
           "href": "blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html",
           "kicker": "AI Learning · Day 34 of 150",
           "title": "Day 34 — Trace Storage Layout — Sort Keys Matter",
