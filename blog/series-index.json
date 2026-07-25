@@ -300,6 +300,15 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-35-demo-agent-silent-step-7.html",
+          "kicker": "Experience · Day 35 of 150",
+          "title": "Day 35 — The Demo Agent That Always Dies on Step 7",
+          "desc": "Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.",
+          "coverImage": "blog/assets/covers/day-35-demo-agent-silent-step-7.png",
+          "date": "2026-07-25",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html"
+        },
+        {
           "href": "blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html",
           "kicker": "Experience · Day 34 of 150",
           "title": "Day 34 — ClickHouse for Traces: Not Just Metrics",
