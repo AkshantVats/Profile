@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 34 &mdash; ClickHouse for Traces: Not Just Metrics | Experience Series</title>
-<meta name="description" content="At Agoda, we stored 1.5T events/day in a TSDB. The hardest lesson wasn't throughput — it was sort order.">
-<meta property="og:title" content="Day 34 &mdash; ClickHouse for Traces: Not Just Metrics">
-<meta property="og:description" content="At Agoda, we stored 1.5T events/day in a TSDB. The hardest lesson wasn't throughput — it was sort order.">
+<title>Day 35 &mdash; The Demo Agent That Always Dies on Step 7 | Experience Series</title>
+<meta name="description" content="Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.">
+<meta property="og:title" content="Day 35 &mdash; The Demo Agent That Always Dies on Step 7">
+<meta property="og:description" content="Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-clickhouse-for-traces-not-just-metrics.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-demo-agent-silent-step-7.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-34-clickhouse-for-traces-not-just-metrics.png">
-<meta property="article:published_time" content="2026-07-24">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-demo-agent-silent-step-7.png">
+<meta property="article:published_time" content="2026-07-25">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,113 +185,90 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 34 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">ClickHouse</span>
-    <span class="tag">Storage Layout</span>
-    <span class="tag">Distributed Systems</span>
+    <span class="tag accent">Experience &middot; Day 35 of 150</span>
+    <span class="tag">TraceForge</span>
+    <span class="tag">Silent Failures</span>
+    <span class="tag">Multi-Tenant</span>
+    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 34 &mdash; ClickHouse for Traces: Not Just Metrics</h1>
-  <p class="post-subtitle">At Agoda, we stored 1.5T events/day in a TSDB. The hardest lesson wasn&rsquo;t throughput &mdash; it was sort order.</p>
+  <h1 class="post-title">Day 35 &mdash; The Demo Agent That Always Dies on Step 7</h1>
+  <p class="post-subtitle">Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system &mdash; and a TraceForge waterfall to reproduce it in a demo.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 34 of 150</span>
+    <span class="meta-item">Experience &middot; Day 35 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 24, 2026</span>
+    <span class="meta-item">July 25, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">11 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-34-clickhouse-for-traces-not-just-metrics.png" alt="Day 34 — ClickHouse for Traces: Not Just Metrics" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-35-demo-agent-silent-step-7.png" alt="Day 35 — The Demo Agent That Always Dies on Step 7" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>We migrated 60+ TB of cold-tier Parquet files from Snappy to Zstd at Agoda. Storage shrank 15&ndash;20%. Read latency barely moved &mdash; under 1% regression. The migration took a week to design, half a day to run, and revealed something I hadn&rsquo;t expected: we&rsquo;d been leaving compression savings on the table because of how the data was sorted.</p>
+<p>We had a multi-tenant ordering system at a stealth startup that processed hundreds of pipeline steps per day. For weeks, one tenant&rsquo;s orders completed with incorrect summaries and no error. The logs were clean. HTTP status 200 on every call. The problem was in step 7 of a processing chain &mdash; an event that arrived empty and continued as if it hadn&rsquo;t.</p>
 
-<h2 id="why-we-changed">Why we changed compression</h2>
+<h2 id="the-failure">Step 7 drops a message and keeps moving</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">My scope at Agoda</div>
-  Senior Engineer for ~5 months on Agoda&rsquo;s WhiteFalcon TSDB &mdash; an in-house time-series database, inspired by Apache Druid, processing 1.5T events per day via Kafka. I contributed to the cross-tier query engine extension, the Kubernetes tag cardinality dimension, and the Snappy&rarr;Zstd compression migration on the cold tier. The core WhiteFalcon architecture was the Agoda team&rsquo;s design.
+  <div class="attr-label">My scope at the stealth startup</div>
+  Consulting engineer on a pre-launch multi-tenant ordering platform. I worked on the pipeline orchestration layer and the observability infrastructure. The ordering pipeline had discrete steps: ingest, validate, enrich, route, price, confirm, notify (step 7), and fulfill. I did not design the core platform architecture.
 </div>
 
-<p>WhiteFalcon&rsquo;s cold tier stored time-series data as Parquet files on Ceph-backed S3, partitioned by datetime and compressed with Snappy. Snappy is a sensible default for Parquet: fast decompression, moderate ratio, no configuration tuning required. For data that gets read constantly, that trade is fine.</p>
+<p>The notification service at step 7 occasionally received an empty enrichment payload from an upstream service. It checked the payload, found nothing to dispatch, returned an empty response, and the orchestrator logged <code>step_7: ok</code> before advancing to step 8. Technically, step 7 completed. Semantically, it did nothing.</p>
 
-<p>Cold-tier data at Agoda got read infrequently and sequentially &mdash; debug queries, historical dashboards, cross-tier quantile merges that needed the full distribution. At 1.5T events per day and months of cold-tier retention, the storage bill was real. Zstd level 3 offers roughly twice the compression ratio of Snappy with a decompression overhead under 10% at our read volumes. For this workload, that trade was clearly favorable.</p>
+<p>What made this a multi-tenant problem: the orchestrator&rsquo;s context window held the last N steps for all active orders. The empty step 7 observation corrupted the context that step 8 used to fulfill adjacent orders. One tenant&rsquo;s silent failure was degrading another tenant&rsquo;s output quality &mdash; silently, across a shared execution boundary.</p>
 
-<p>The migration itself was not complicated: rewrite Parquet files in place, swap the codec, verify checksums. What was interesting was what the measurements revealed afterward.</p>
+<p>Shared orchestration context is a failure blast radius multiplier. One tenant&rsquo;s silent step becomes everyone&rsquo;s incorrect output.</p>
 
-<h2 id="files-that-didnt-shrink">The files that didn&rsquo;t shrink</h2>
+<h2 id="why-hard">Healthy logs, wrong answers</h2>
 
-<p>The compression improvement wasn&rsquo;t uniform. Some files shrank dramatically. Others barely moved. The pattern was not random.</p>
+<p>For weeks, every debugging session started with the logs. The logs showed nothing useful. Step 7 emitted <code>[INFO] notification_dispatch: dispatched 0 events</code>, which looked identical to a valid dispatch that genuinely had zero notifications to send. There was no ERROR. No timeout. No retry.</p>
 
-<p>The metrics that benefited most from Zstd were the ones with high temporal locality. WhiteFalcon&rsquo;s compaction pipeline merged hourly files into 3-hour files and then daily files. Within a compacted daily file, the same label sets appeared across thousands of consecutive rows: the same metric name, the same cluster tag, the same service tag, row after row. Zstd had long runs of near-identical content to exploit. The ratio was exceptional.</p>
+<p>The HTTP responses were equally unhelpful. Every upstream call returned 200. The enrichment service returned 200 with an empty body &mdash; which is a legitimate REST pattern for &ldquo;no results.&rdquo; The orchestrator treated empty-body-200 as success, because it was correct HTTP behavior for the service contract at the time.</p>
 
-<p>The metrics that benefited least came from high-cardinality namespaces where many different tag combinations interleaved in the same file. Each row had different values in almost every column. Zstd found nothing to exploit &mdash; no repeated prefix, no run-length similarity. The compression ratio was close to Snappy&rsquo;s.</p>
+<p>The break came from a support ticket: a merchant asked why their order confirmation email was missing a price breakdown. That&rsquo;s a step-8 output that depends on step-7 data. Following the thread backward, filtering for orders where step-8 output was shorter than expected, we eventually found the pattern &mdash; a specific enrichment service call that returned an empty body when a particular product category was involved.</p>
+
+<p>You cannot search logs for what isn&rsquo;t there. The signal was absence of data, and absence is invisible to regex.</p>
+
+<h2 id="debugging-moment">When silence is the answer</h2>
+
+<p>Finding it required adding a single metric: <code>step_output_bytes</code>. Not a new log line &mdash; a counter. We instrumented each step to record the byte count of its output before passing it to the next step. Within six hours of deploying that metric, Grafana showed a consistent spike to zero bytes at step 7 for orders containing the affected product category.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Non-software analogy &mdash; the dictionary vs. the novel</div>
-  Imagine zipping a dictionary and a novel of the same byte size. The novel compresses dramatically better: thousands of common words repeat at scale, sentences share structure, paragraphs have rhythm. The dictionary has near-unique content on every page &mdash; each entry is distinct, adjacent entries share little. Your storage layout determines which one you hand the compression algorithm.
+  <div class="attr-label">Non-software analogy &mdash; the empty envelope</div>
+  A postal worker delivers 200 envelopes and marks each one &ldquo;delivered.&rdquo; The delivery log looks perfect. But if some envelopes are empty, the recipients still log a complaint. The postal system tracked delivery, not contents. <code>step_output_bytes</code> is the equivalent of checking that the envelope has something in it before marking it delivered.
 </div>
 
-<p>Compression ratio is a symptom of sort order. If Zstd isn&rsquo;t helping, the data probably isn&rsquo;t sorted for the access pattern you thought you were optimizing.</p>
+<p>The debugging session that followed was ten minutes. Query: <code>WHERE step = 7 AND output_bytes = 0</code>. Filter by tenant. Cross-reference with the product category in step 2&rsquo;s enrichment call. Pattern was immediate. Three weeks of debugging. Six hours to reproduce after adding one metric.</p>
 
-<h2 id="two-access-patterns">Time ranges versus series lookups</h2>
+<p>The metric that mattered was not status or latency &mdash; it was output size. The failure was semantic, not operational.</p>
 
-<p>WhiteFalcon had two dominant query patterns, and they wanted opposite sort orders.</p>
+<h2 id="reproduce">DEMO.md is the proof of concept</h2>
 
-<p>The first was the dashboard pattern: &ldquo;show me all metrics for the last 5 minutes.&rdquo; This wants data sorted by time &mdash; all rows for minute 14:22 together, then 14:23, and so on. Sequential reads, high throughput, simple seek. The hot tier in Redis served this pattern exactly: time-windowed buckets, per-hour granularity, last 3&ndash;7 days.</p>
+<p>After we fixed the enrichment service, I wrote a postmortem. The postmortem had a section called &ldquo;reproduce&rdquo; &mdash; a minimal script that demonstrated the failure mode with fake data: an ordering pipeline with step 7 returning empty, and a final output that was wrong but showed no error. No exceptions, no logs, status 0.</p>
 
-<p>The second was the debug pattern: &ldquo;show me latency for service X over the last 6 hours.&rdquo; This wants data sorted by series identity &mdash; the label combination that identifies service X. Without a series-aligned sort, a 6-hour debug query reads data for every service in those 6 hours to extract one service&rsquo;s rows. At 1.5T events per day, that&rsquo;s a lot of bytes read to answer one question.</p>
-
-<p>You cannot optimally serve both patterns from a single sort key. WhiteFalcon&rsquo;s answer was tiering: hot data sorted by time for dashboard freshness; cold data sorted by series identity and compaction window for debug efficiency. Two storage layers, two sort orders, two access patterns served correctly.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day via Kafka</span></div>
-  <div class="stat-cell"><span class="stat-num">15&ndash;20%</span><span class="stat-label">storage reduction, Zstd</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;1%</span><span class="stat-label">read latency regression</span></div>
-  <div class="stat-cell"><span class="stat-num">3&ndash;7 days</span><span class="stat-label">hot tier retention</span></div>
-</div>
-
-<h2 id="sort-keys-are-a-bet">Sort keys are a bet on the primary query</h2>
-
-<p>Agent traces have one dominant primary query: give me all spans for trace ID X. This is the waterfall query. Everything else &mdash; find the slowest spans across all traces, show me error rate by tool in the last hour &mdash; is secondary.</p>
-
-<p>The right sort key for agent spans is <code>ORDER BY (trace_id, start_time)</code>. It groups all spans for the same trace into a contiguous disk block. The primary query becomes a range scan on the primary key: O(k) where k is the number of spans in that trace, not O(n) where n is the whole table. For secondary patterns, ClickHouse projections provide pre-sorted secondary copies &mdash; the same principle as WhiteFalcon&rsquo;s tiering, at a fraction of the scale.</p>
-
-<pre><code>-- Primary query: waterfall for trace X
--- Reads only the block containing trace X's spans
-SELECT span_id, tool_name, start_time, latency_ms
-FROM agent_spans
-WHERE trace_id = 'abc-123'
-ORDER BY start_time ASC;
-
--- Secondary query: slowest spans across all traces
--- Uses proj_slow_spans projection (pre-sorted by latency DESC)
-SELECT trace_id, span_id, tool_name, latency_ms
-FROM agent_spans
-ORDER BY latency_ms DESC
-LIMIT 20;
+<pre><code># Before the fix — no tracing, no output_bytes metric:
+Step 7: Action: notify() → Observation: [empty]
+Final answer: Order confirmed.   # wrong: missing price breakdown
+Exit code: 0                     # looks like success
 </code></pre>
 
-<p>When I designed the TraceForge ClickHouse schema today, the sort key decision was immediate. Not because ClickHouse documentation prescribed it. Because I&rsquo;d already resolved this at a different scale: you sort for the primary access pattern and build escape hatches for the secondary ones.</p>
+<p>That script became the demo. Not because I planned it that way &mdash; because when I tried to explain the problem to the team, words weren&rsquo;t enough. Running the demo and watching the orchestrator print a confident-sounding wrong answer with no errors landed in two minutes what a thirty-minute explanation couldn&rsquo;t.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">Non-software analogy &mdash; bookshelf vs. card catalog</div>
-  A physical library keeps books sorted by subject on the shelves &mdash; that&rsquo;s the primary sort. The card catalog is a secondary index sorted by author, title, and ISBN. You don&rsquo;t reorganize all the shelves when someone needs to find books by author; you add a card catalog. ClickHouse projections are card catalogs for storage-level queries.
-</div>
+<p>Today&rsquo;s <code>traceforge/examples/react_agent/DEMO.md</code> is that script, updated for TraceForge. The failure mode is identical: step 7 returns an empty string, the agent continues, the final answer is wrong. The difference is that the TraceForge waterfall now makes the failure visible in the first thirty seconds of running the demo &mdash; <code>result_bytes: 0</code>, <code>status: EMPTY_RESPONSE</code>, exact span ID, exact cost charged for a step that produced nothing.</p>
 
-<p>The lesson from 1.5T events/day scales down without modification to 10,000 agent spans/day. The physics of disk locality don&rsquo;t change with volume.</p>
+<p>A demo that reproduces the problem is worth more than a fix that prevents it, because the demo proves the fix was necessary and creates shared understanding of the failure mode.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -310,60 +287,60 @@ LIMIT 20;
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart LR
-    subgraph WF ["WhiteFalcon (Agoda)"]
-        A["Hot: Redis\ntime sort\ndashboard freshness"]
-        B["Cold: S3 Parquet\nseries+date sort\ndebug efficiency"]
-    end
-    subgraph TF ["TraceForge (today)"]
-        C["agent_spans\ntrace_id+time sort\nwaterfall query"]
-        D["proj_slow_spans\nlatency DESC sort\nsecondary escape"]
-    end
-    A -->|"same principle"| C
-    B -->|"secondary structure"| D
+flowchart TD
+    A["Step 6: summarize\nresult_bytes: 120\nstatus: OK"]
+    B["Step 7: notify\nresult_bytes: 0\nstatus: EMPTY_RESPONSE"]
+    C["Step 8: fulfill\ncorrupted context\nwrong output"]
+    D["TraceForge\nwaterfall"]
+    A --> B
+    B --> C
+    D -->|"catches\nresult_bytes=0"| B
 </pre>
 
-<h2 id="after-the-fact">Changing sort keys in production</h2>
+<h2 id="alerts">Alerting on zero-output steps</h2>
 
-<p>ClickHouse&rsquo;s MergeTree does not allow changing <code>ORDER BY</code> on an existing table. To change the sort key, you create a new table, backfill all historical data, atomically rename, and drop the original &mdash; a multi-day operation at production scale, and that&rsquo;s at the scale of TraceForge. At Agoda&rsquo;s scale, retroactively sorting petabytes of cold-tier Parquet was off the table.</p>
+<p>We added two alerts after the postmortem. The first: <code>step_output_bytes = 0</code> for any step that historically produced non-zero output, sustained for more than two consecutive occurrences. The second: per-tenant step-output distribution drift &mdash; if a tenant&rsquo;s average step-7 output drops below their historical baseline, alert before downstream effects reach the customer.</p>
 
-<p>What we could change after the fact was the compression codec. Snappy to Zstd is a file-level metadata operation: rewrite each file&rsquo;s bytes with a different codec, update the Parquet footer. The data&rsquo;s sort order doesn&rsquo;t change. The schema doesn&rsquo;t change. You&rsquo;re only changing how the bytes are packed on disk.</p>
-
-<p>Sort order and compression codec look like the same category of &ldquo;storage configuration,&rdquo; but they have completely different remediation costs. Codec is a surface-level change. Sort order is structural: it determines the physical layout of every byte on disk and cannot be adjusted without rewriting all of it.</p>
-
-<div class="pullquote">
-  <p>The time to reason carefully about sort keys is before the first byte is written, not after the first petabyte.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">false positive alerts in 6 mo.</span></div>
+  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">to reproduce with one metric</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">silent failure modes caught</span></div>
+  <div class="stat-cell"><span class="stat-num">&lt;10 min</span><span class="stat-label">debug session after metric</span></div>
 </div>
 
-<p>The 15&ndash;20% storage reduction we got from Zstd was real and worthwhile. But if the cold-tier files had been better sorted by series identity from the start, the Zstd ratio would have been higher still. We were optimizing layer 2 on top of a suboptimal layer 1.</p>
+<p>Both alerts fired zero times in the months after we added them. Not because the failure never recurred &mdash; but because the enrichment service fix and the upstream input validation we added following the reproduce-then-fix process prevented it. The alerts were there as a backstop. They never needed to fire because we&rsquo;d closed the root cause.</p>
 
-<h2 id="hot-key-thinking">Hot-key thinking travels</h2>
+<p>Add alerts that match the failure mode&rsquo;s actual signature, not the monitoring infrastructure you already have. Alerting on HTTP status for this system would have fired zero times regardless &mdash; because HTTP status was never the signal. <code>output_bytes = 0</code> was the signal.</p>
 
-<p>The engineers who designed WhiteFalcon&rsquo;s hot/cold tier architecture were solving 1.5T events per day across Grafana dashboards used by hundreds of engineers. TraceForge will serve thousands of agent spans per day to a single panel. The scale is three orders of magnitude apart.</p>
+<h2 id="reproduce-script">The reproduce script outlived the fix</h2>
 
-<p>The underlying principle is identical: understand the dominant query, arrange the data physically to answer it cheaply, and add secondary structures for everything else. Hot tier for time-range freshness, cold tier for series-identity debug. <code>agent_spans</code> for trace waterfall, <code>proj_slow_spans</code> for global latency ranking.</p>
+<p>The enrichment service fix took four hours to implement and deploy. The reproduce script &mdash; the one that became DEMO.md &mdash; became the most-visited file in the internal wiki for the next year. Every new engineer&rsquo;s onboarding included running the demo. Every stakeholder question about step-level observability investment was answered by running the demo.</p>
 
-<p>What I took from Agoda wasn&rsquo;t a specific tool or schema. It was the habit of asking &ldquo;what is the dominant query, and is the data physically arranged to answer it cheaply?&rdquo; before writing the first <code>CREATE TABLE</code>. That question is worth asking at any scale &mdash; and it costs nothing to ask early, while it costs weeks to answer late.</p>
+<div class="pullquote">
+  <p>A reproduce script that demonstrates a silent failure is not just a debugging artifact. It&rsquo;s a proof of necessity.</p>
+</div>
+
+<p>That&rsquo;s what today&rsquo;s TraceForge demo does. The agent that dies on step 7 isn&rsquo;t a contrived example. It&rsquo;s a pattern I&rsquo;ve seen in distributed systems at multiple employers, now reproduced in a ten-step ReAct loop. The failure mode is real. The instrumentation is the product.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 34 of 150 &mdash; ClickHouse for Traces: Not Just Metrics</p>
-  <p><em>Next up:</em> <a href="day-35-demo-agent-silent-step-7.html">Day 35 &mdash; The Demo Agent That Always Dies on Step 7</a></p>
+  <p>Experience &middot; Day 35 of 150 &mdash; The Demo Agent That Always Dies on Step 7</p>
+  <p><em>Next up:</em> Day 36 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree">
+    <a href="https://arxiv.org/abs/2210.03629">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ClickHouse MergeTree engine &mdash; sort key design and projections</span>
+      <span>ReAct: Synergizing Reasoning and Acting in Language Models &mdash; Yao et al., 2022</span>
     </a>
-    <a href="https://parquet.apache.org/docs/file-format/data-pages/compression/">
+    <a href="https://opentelemetry.io/docs/concepts/signals/traces/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Apache Parquet compression specifications &mdash; Snappy and Zstd codecs</span>
+      <span>OpenTelemetry Traces &mdash; spans, trace context, and semantic conventions</span>
     </a>
-    <a href="https://facebook.github.io/zstd/">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Zstandard compression algorithm &mdash; ratio vs. speed tradeoffs</span>
+      <span>Day 34 &mdash; ClickHouse for Traces: Not Just Metrics (sort order + cost MV)</span>
     </a>
   </div>
 </div>
@@ -374,23 +351,23 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-we-changed">Why we changed compression</a></li>
-      <li><a href="#files-that-didnt-shrink">The files that didn&rsquo;t shrink</a></li>
-      <li><a href="#two-access-patterns">Time ranges vs. series lookups</a></li>
-      <li><a href="#sort-keys-are-a-bet">Sort keys are a bet</a></li>
-      <li><a href="#after-the-fact">Changing sort keys in production</a></li>
-      <li><a href="#hot-key-thinking">Hot-key thinking travels</a></li>
+      <li><a href="#the-failure">Step 7 drops a message</a></li>
+      <li><a href="#why-hard">Healthy logs, wrong answers</a></li>
+      <li><a href="#debugging-moment">When silence is the answer</a></li>
+      <li><a href="#reproduce">DEMO.md is the proof</a></li>
+      <li><a href="#alerts">Alerting on zero-output steps</a></li>
+      <li><a href="#reproduce-script">The script outlived the fix</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-34-clickhouse-for-traces-not-just-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-35-demo-agent-silent-step-7.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=ClickHouse+for+Traces%3A+Not+Just+Metrics+%E2%80%94+Experience+%C2%B7+Day+34+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-34-clickhouse-for-traces-not-just-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=The+Demo+Agent+That+Always+Dies+on+Step+7+%E2%80%94+Experience+%C2%B7+Day+35+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-35-demo-agent-silent-step-7.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -403,17 +380,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D33</span> Experience</div>
-          <a href="day-33-sdk-wrappers-last-resort-that-ships.html" class="series-post-title">SDK Wrappers: The Last Resort That Ships</a>
+          <div class="series-post-kicker"><span class="series-post-num">D34</span> Experience</div>
+          <a href="day-34-clickhouse-for-traces-not-just-metrics.html" class="series-post-title">ClickHouse for Traces: Not Just Metrics</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D34</span> Experience &middot; now</div>
-          <div class="series-post-title">ClickHouse for Traces: Not Just Metrics</div>
-          <div class="series-post-desc">Agoda WhiteFalcon &mdash; what a compression migration taught me about sort order</div>
+          <div class="series-post-kicker"><span class="series-post-num">D35</span> Experience &middot; now</div>
+          <div class="series-post-title">The Demo Agent That Always Dies on Step 7</div>
+          <div class="series-post-desc">Multi-tenant silent failure &mdash; reproduce before you fix</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D35</span> Experience</div>
-          <a href="day-35-demo-agent-silent-step-7.html" class="series-post-title">The Demo Agent That Always Dies on Step 7</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D36</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
