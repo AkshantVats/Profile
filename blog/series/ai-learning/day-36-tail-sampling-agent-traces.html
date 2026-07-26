@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 35 &mdash; Silent Failures in Multi-Step Agents | AI Learning Series</title>
-<meta name="description" content="Alert on zero-byte tool responses — they're the new 500. Three failure modes that look like success, and how to surface them with TraceForge spans.">
-<meta property="og:title" content="Day 35 &mdash; Silent Failures in Multi-Step Agents">
-<meta property="og:description" content="Alert on zero-byte tool responses — they're the new 500. Three failure modes that look like success, and how to surface them with TraceForge spans.">
+<title>Day 36 &mdash; Tail Sampling for Agent Traces | AI Learning Series</title>
+<meta name="description" content="Head sample the happy path; tail sample the expensive path. How combined head+tail sampling keeps all error traces without distorting SLO error rates.">
+<meta property="og:title" content="Day 36 &mdash; Tail Sampling for Agent Traces">
+<meta property="og:description" content="Head sample the happy path; tail sample the expensive path. How combined head+tail sampling keeps all error traces without distorting SLO error rates.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-silent-failures-multi-step-agents.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-36-tail-sampling-agent-traces.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-tail-sampling-agent-traces.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-silent-failures-multi-step-agents.png">
-<meta property="article:published_time" content="2026-07-25">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-tail-sampling-agent-traces.png">
+<meta property="article:published_time" content="2026-07-26">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,102 +185,149 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 35 of 150</span>
-    <span class="tag">Agents</span>
+    <span class="tag accent">AI Learning &middot; Day 36 of 150</span>
+    <span class="tag">Sampling</span>
     <span class="tag">Observability</span>
     <span class="tag">TraceForge</span>
-    <span class="tag">Silent Failures</span>
+    <span class="tag">SLO Integrity</span>
   </div>
-  <h1 class="post-title">Day 35 &mdash; Silent Failures in Multi-Step Agents</h1>
-  <p class="post-subtitle">Empty tool results, swallowed exceptions, max iterations &mdash; and why alerting on zero-byte tool responses is the new 500.</p>
+  <h1 class="post-title">Day 36 &mdash; Tail Sampling for Agent Traces</h1>
+  <p class="post-subtitle">Head sample the happy path; tail sample the expensive path. Why head-only sampling silently breaks your SLO error rate &mdash; and how combined sampling fixes it.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 35 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 36 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 25, 2026</span>
+    <span class="meta-item">July 26, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">11 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-35-silent-failures-multi-step-agents.png" alt="Day 35 — Silent Failures in Multi-Step Agents" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-36-tail-sampling-agent-traces.png" alt="Day 36 — Tail Sampling for Agent Traces" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A timeout raises an exception. An exception shows up in your error tracker. A 500 triggers your alert. But when a tool in step 7 of a 10-step ReAct agent returns an empty string &mdash; no exception, no log line, exit code 0 &mdash; nothing fires. The agent continues to step 8 with corrupted context, produces a plausible-looking answer, and charges you for 8 LLM calls. You discover the problem when a customer emails.</p>
+<p>Imagine you&rsquo;re a quality inspector on a factory floor. Your job is to check products before they leave the building. The floor is too busy to check everything, so you spot-check 10% at random. That&rsquo;s fine for the good parts. But then a batch of defective parts slips through &mdash; and because you only checked 10%, only about one in ten defective parts got flagged. Your defect rate looks like 0.1%, but the true rate is 1%.</p>
 
-<p>This is the class of failure I call a silent failure: an operation that completes without error but produces no output. Traditional observability is blind to it. A span exists, the latency is recorded, the status is <code>OK</code>. But <code>result_bytes: 0</code> tells the real story.</p>
+<p>Head sampling does exactly this to your SLO error rate. At 10% head sampling, a real 1% error rate looks like 0.1% in your stored traces. The math is right &mdash; you sampled randomly and stored the fraction. But the SLO burn calculation is wrong, because it&rsquo;s working from distorted input.</p>
 
-<h2 id="three-modes">Three modes of silence</h2>
+<p>Today I implemented TraceForge&rsquo;s combined head+tail sampler. The head samples the happy path. The tail unconditionally keeps every error, retry, and timeout trace. Together they give you storage efficiency and SLO integrity &mdash; without having to choose between the two.</p>
 
-<p>Silent failures in multi-step agents cluster into three patterns. Each looks different in code but produces the same observable symptom: the agent moves to the next step with less information than it started with.</p>
+<h2 id="what-head-sampling-does">What head sampling actually does</h2>
 
-<p>The first is the <strong>empty tool result</strong>. The tool executes, returns a value, but the value is <code>""</code>, <code>None</code>, <code>[]</code>, or <code>{}</code>. No exception is raised. The agent receives the empty value, cannot parse anything useful from it, treats it as &ldquo;no data available,&rdquo; and continues. The currency converter in today&rsquo;s demo does exactly this on step 7: it hits a mocked rate limit, returns <code>""</code>, and the orchestrator logs nothing.</p>
+<p>Head sampling makes its keep-or-drop decision at the moment the first span of a trace arrives. It has seen no downstream outcome. It doesn&rsquo;t know whether this trace will error in step 7, time out in step 3, or complete successfully. The decision is purely probabilistic.</p>
 
-<p>The second is the <strong>swallowed exception</strong>. The tool wraps its work in a broad <code>except Exception: return None</code>. The exception is gone. The caller receives <code>None</code>, which it handles the same way as &ldquo;no data.&rdquo; This pattern is common in wrapper functions around external APIs, where engineers add catch-all handlers to avoid crashing the caller &mdash; not realising they&rsquo;ve turned every API error into invisible data loss.</p>
+<p>For the happy path, that&rsquo;s fine. The distribution of happy-path traces is roughly uniform: most are short, most succeed, and the few that are slow or expensive don&rsquo;t carry disproportionate diagnostic information. Sampling 10% of them and storing 10% is a reasonable trade.</p>
 
-<p>The third is <strong>max iterations without finish</strong>. The agent hits its loop limit while still reasoning. It never calls <code>finish()</code>. It exits with whatever partial answer it had at the time. The caller receives a truncated response, and the truncation leaves no fingerprint in the standard logs.</p>
+<p>For error traces, it&rsquo;s exactly wrong. Error traces are rare by definition &mdash; if they weren&rsquo;t, you&rsquo;d be paged already. Applying a 10% sample to a 1% error population gives you 0.1% stored. Your SLO burn alert, which fires at 2% error rate, never fires. The SLO silently burns.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">silent failure modes</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">exceptions raised</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">HTTP error codes</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">log lines emitted</span></div>
+  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">head sample rate</span></div>
+  <div class="stat-cell"><span class="stat-num">1%</span><span class="stat-label">true error rate</span></div>
+  <div class="stat-cell"><span class="stat-num">0.1%</span><span class="stat-label">stored error rate</span></div>
+  <div class="stat-cell"><span class="stat-num">10&times;</span><span class="stat-label">SLO burn undercount</span></div>
 </div>
 
-<h2 id="why-hard">Why they&rsquo;re hard to detect classically</h2>
+<h2 id="the-tail-sampling-idea">The tail sampling idea</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the library book</div>
-  Imagine ordering a book from the library. The librarian confirms the order, marks it complete, charges your account, and hands you an empty bag. No error. The transaction succeeded. You only notice the problem when you open the bag at home.
+  <div class="attr-label">DS analogy &mdash; the triage nurse</div>
+  A triage nurse does not randomly see 10% of patients. They see everyone briefly, route healthy patients to the waiting room, and immediately escort critical patients to a bed. Tail sampling is that routing decision: fast path for the healthy, guaranteed attention for the critical.
 </div>
 
-<p>Classical observability monitors the transaction. The order was placed, confirmed, and completed &mdash; all green. It has no concept of &ldquo;but the bag should contain a book.&rdquo; To detect the empty bag, you need to inspect the output, not just the operation.</p>
+<p>Tail sampling looks at span metadata after the fact. It asks: did this trace signal a non-OK outcome? If the status is error, retry, or timeout, keep it unconditionally. If it&rsquo;s OK, apply the head rate. The decision is made per span, not per trace, which means you can apply it at the collector layer without needing to buffer entire traces.</p>
 
-<p>HTTP APIs make this easy: a 204 is a deliberate &ldquo;no content,&rdquo; a 200 with empty body is suspicious, and a 500 is unmistakably wrong. Agent tool calls have none of this vocabulary. They return arbitrary Python values. There is no protocol-level concept of &ldquo;this result is unexpectedly empty.&rdquo;</p>
+<p>The cost is simple: you store more data when your error rate spikes. That is exactly the behaviour you want. Errors are the traces you most need to keep, so paying more storage for them is the correct trade-off.</p>
 
-<p>The fix is to add that vocabulary at the instrumentation layer. Every tool call that produces an output should record <code>result_bytes</code>. A TraceForge span with <code>result_bytes: 0</code> is the 500 that empty tool results never raise.</p>
+<h2 id="combined-sampler">The combined sampler</h2>
 
-<h2 id="instrument">Instrumenting with ManualSpan</h2>
+<p>TraceForge&rsquo;s <code>CombinedSampler</code> runs both strategies in parallel and uses OR logic: if either the head or the tail says <code>Keep</code>, the span is kept. A span only gets dropped if both samplers say <code>Drop</code>.</p>
 
-<p>TraceForge&rsquo;s <code>wrap_openai()</code> decorator handles LLM calls automatically. But tool calls inside the agent loop &mdash; Python functions, API clients, subprocess calls &mdash; are not LLM calls. They need manual instrumentation.</p>
-
-<p>The <code>start_span()</code> SDK extension added in today&rsquo;s commit provides this. It returns a <code>ManualSpan</code> that you set attributes on and call <code>end()</code> when the work is done. The span emits to the same ClickHouse pipeline as the automatic LLM spans, giving you a single waterfall view across both.</p>
-
-<pre><code>import traceforge
-
-span = traceforge.start_span(
-    "tool_call",
-    trace_id=trace_id,
-    parent_span_id=root_span_id,
-)
-span.set_attribute("tool_name", tool_name)
-span.set_attribute("step", step_num)
-
-observation = tool_fn(*args)
-
-span.set_attribute("result_bytes", len(observation.encode()) if observation else 0)
-span.set_attribute(
-    "status",
-    "EMPTY_RESPONSE" if not observation else "OK"
-)
-span.end()
+<pre><code>// Sample returns Keep if either head or tail decides to keep the span.
+func (c *CombinedSampler) Sample(s schema.Span) Decision {
+    if c.Head.Sample(s) == Keep {
+        return Keep
+    }
+    if c.Tail.Sample(s) == Keep {
+        return Keep
+    }
+    return Drop
+}
 </code></pre>
 
-<p>Two attributes do the work: <code>result_bytes</code> quantifies the output size, and <code>status: EMPTY_RESPONSE</code> is the searchable label. The rest of the waterfall infrastructure &mdash; ClickHouse queries, Grafana panels, materialized views &mdash; treats this span exactly like any other.</p>
+<p>The <code>ErrorTailSampler</code> handles three status values: <code>error</code>, <code>retry</code>, and <code>timeout</code>. Retry and timeout traces are as diagnostic as error traces &mdash; a retry trace shows you the exact conditions under which the agent needed a second attempt, and timeout traces are the most expensive spans you generate. You want all of them.</p>
 
-<h2 id="waterfall">What the waterfall shows</h2>
+<pre><code>func (e *ErrorTailSampler) Sample(s schema.Span) Decision {
+    switch s.Status {
+    case schema.StatusError, schema.StatusRetry, schema.StatusTimeout:
+        return Keep
+    default:
+        return Drop
+    }
+}
+</code></pre>
 
-<p>With instrumentation in place, a trace where step 7 fails silently looks like this in the Grafana waterfall. Eight spans appear in chronological order. Seven have <code>status: OK</code> and <code>result_bytes &gt; 0</code>. One &mdash; step 7 &mdash; has <code>status: EMPTY_RESPONSE</code> and <code>result_bytes: 0</code>. The span is amber; the others are green.</p>
+<h2 id="trace-determinism">Trace-deterministic head sampling</h2>
+
+<p>There is a subtle problem with probabilistic head sampling that most introductions skip. If you use a fresh random number for each span, spans within the same trace get independent decisions. You keep span A, drop span B, keep span C &mdash; and your trace is broken in storage. A waterfall built from partial traces is worse than no waterfall at all. It shows a trace that looks complete but has gaps, and you cannot tell if the gap is a bug or a sampling artifact.</p>
+
+<p>The fix is to hash the <code>TraceID</code> instead of drawing a fresh random. Every span in the same trace has the same <code>TraceID</code>, so they all hash to the same value and get the same keep-or-drop decision. The head rate becomes a trace-level gate, not a span-level gate. Either the whole trace is stored, or none of it is.</p>
+
+<pre><code>func (h *HeadSampler) Sample(s schema.Span) Decision {
+    hash := traceHash(s.TraceID)
+    threshold := uint64(h.Rate * float64(^uint64(0)))
+    if hash &lt; threshold {
+        return Keep
+    }
+    return Drop
+}
+
+// FNV-1a: cheap, non-cryptographic, good distribution
+func traceHash(traceID string) uint64 {
+    var h uint64 = 14695981039346656037
+    for i := 0; i &lt; len(traceID); i++ {
+        h ^= uint64(traceID[i])
+        h *= 1099511628211
+    }
+    return h
+}
+</code></pre>
+
+<p>FNV-1a is intentionally cheap: no allocations, no cryptographic overhead, a single loop over the string. At ~2.8M spans/sec in benchmarks, the hash is not the bottleneck. The threshold comparison converts the rate to a uint64 range and checks whether the hash falls below it, which produces the correct probability for any rate between 0.0 and 1.0.</p>
+
+<h2 id="pii-ordering">PII scrubbing before sampling</h2>
+
+<div class="pullquote">
+  <p>Scrub before you sample. Even a dropped span touches the collector&rsquo;s memory. If that memory can be logged or dumped, raw PII is in the blast radius.</p>
+</div>
+
+<p>There is a sequencing question that feels minor but is actually a compliance question: should PII scrubbing happen before or after sampling? The answer is always before. A dropped span never reaches downstream storage, but it does exist briefly in the collector&rsquo;s process memory. If the collector logs spans for debugging, writes them to a buffer before the sampling decision, or produces a core dump on crash, the raw metadata is in the blast radius.</p>
+
+<p>TraceForge&rsquo;s <code>ScrubAndFilter</code> function encodes this ordering as a contract. You cannot call it in the wrong order &mdash; it does both operations, in the correct sequence, and returns only the kept spans.</p>
+
+<pre><code>func ScrubAndFilter(
+    scrubber *PIIScrubber,
+    sampler Sampler,
+    spans []schema.Span,
+    stats *Stats,
+) []schema.Span {
+    scrubbed := scrubber.ScrubBatch(spans)
+    return FilterBatch(sampler, scrubbed, stats)
+}
+</code></pre>
+
+<p>The PII scrubber applies three regex patterns to each span&rsquo;s <code>Metadata</code> field: email addresses (RFC 5322-ish), phone numbers (common formats including international prefixes), and credit card numbers (13&ndash;16 digit sequences). Each match is replaced with <code>[REDACTED]</code>. The performance cost is one regex pass per span &mdash; negligible at low PII density, ~420k spans/sec at high density (every span has email+phone in metadata).</p>
+
+<h2 id="sampling-flow">The full pipeline</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -299,68 +346,74 @@ span.end()
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart TD
-    A["Step 1-6: OK\nresult_bytes &gt; 0"] --> B["Step 7: EMPTY_RESPONSE\nresult_bytes = 0"]
-    B --> C["Step 8: finish()\ncorrupted context"]
-    B --> D["Alert fires\n&lt;10 min MTTD"]
+flowchart LR
+    A["POST /v1/spans"] --> B["PII Scrub"]
+    B --> C["Head Sampler\n10% of OK spans"]
+    B --> D["Tail Sampler\n100% errors"]
+    C --> E["OR: Keep?"]
+    D --> E
+    E -->|"yes"| F["OTLP Export"]
+    E -->|"no"| G["Drop"]
 </pre>
 
-<p>The span exists before the alert. Before TraceForge, the span did not exist &mdash; you had LLM call spans with no tool call spans, and no way to correlate the missing Tokyo conversion with any specific step. The waterfall collapsed the mean time to diagnose from hours to under ten minutes in the demo.</p>
+<p>The collector wires this together in <code>ScrubAndFilter</code>: every inbound span gets scrubbed, then evaluated by the combined sampler, then either exported or dropped. The <code>Stats</code> object accumulates <code>traceforge_spans_kept_total</code> and <code>traceforge_spans_dropped_total</code> counters, exposed at <code>/metrics/sampling</code> in Prometheus exposition format.</p>
 
-<h2 id="alert">The alert rule</h2>
+<h2 id="effective-rate">The effective rate metric</h2>
 
-<p>Once <code>result_bytes</code> is in ClickHouse, writing the alert is a five-line SQL query. Grafana can run this every 60 seconds against a ClickHouse data source and fire a webhook when the count crosses zero.</p>
+<p>Effective rate is the fraction of spans that were kept: <code>kept / (kept + dropped)</code>. It is the number you care about operationally, because it tells you how much storage you&rsquo;re using and how far your stored counts have drifted from true counts.</p>
 
-<pre><code>-- Grafana alert: silent failures in the last 15 minutes
-SELECT count() AS silent_count
-FROM agent_spans
-WHERE status = 'EMPTY_RESPONSE'
-  AND start_time &gt; now() - INTERVAL 15 MINUTE;
+<p>At a steady-state 0% error rate, effective rate should hover near 10% &mdash; the head rate. When errors spike, effective rate rises because error spans are kept unconditionally. A sharp rise in effective rate while error rate also rises is the expected signature of the tail sampler working correctly. A flat effective rate during an error spike would mean the tail sampler is broken and errors are being dropped.</p>
+
+<p>The <code>/metrics/sampling</code> endpoint exposes this directly:</p>
+
+<pre><code>traceforge_spans_kept_total 1247
+traceforge_spans_dropped_total 10581
+traceforge_sampling_effective_rate 0.1054
 </code></pre>
 
-<p>The alert fires on the first occurrence. There is no threshold to tune, no percentile to pick. Zero-byte tool responses are always wrong &mdash; there is no valid case where a tool should return empty and the agent should continue as if nothing happened. Alert on count &gt; 0, not count &gt; some-threshold.</p>
+<p>The 10.54% effective rate reflects a low error environment. Wire this to a Grafana panel and alert if effective rate stays below 10% during a known error incident &mdash; that is the signal that error traces are being dropped when they should not be.</p>
 
-<div class="pullquote">
-  <p>Alert on zero-byte tool responses &mdash; they&rsquo;re the new 500. A timeout raises an exception; a silent empty response looks like success.</p>
-</div>
+<h2 id="throughput">Throughput at the 5k target</h2>
 
-<h2 id="max-iter">The max-iterations case</h2>
+<p>The load test target for TraceForge&rsquo;s collector pipeline is 5,000 HTTP spans/sec sustained. I benchmarked the sampler in isolation using Go&rsquo;s <code>testing.B</code> harness on 5,000-span batches:</p>
 
-<p>Max iterations is easier to detect but equally easy to miss. The agent has a loop counter. When it reaches the limit, the loop exits. If you don&rsquo;t instrument that exit explicitly, no span records it. The agent produced some output &mdash; whatever partial answer it had &mdash; so from the caller&rsquo;s perspective, it succeeded.</p>
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Spans/sec</th><th>Headroom vs. 5k target</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Head 10% only</td><td>~2.8M</td><td>560&times;</td></tr>
+    <tr><td>Combined head+tail</td><td>~2.6M</td><td>520&times;</td></tr>
+    <tr><td>PII scrub + combined (no PII)</td><td>~1.4M</td><td>280&times;</td></tr>
+    <tr><td>PII scrub + combined (email+phone)</td><td>~420k</td><td>84&times;</td></tr>
+  </tbody>
+</table>
 
-<p>The fix is a sentinel span at the loop exit. When the loop exhausts without calling <code>finish()</code>, emit a span with <code>status: MAX_ITERATIONS</code> and <code>step: &lt;limit&gt;</code>. The ClickHouse query for max-iteration traces is the same shape as the empty-response query; only the status string changes. You can count both with a single <code>WHERE status IN ('EMPTY_RESPONSE', 'MAX_ITERATIONS')</code> clause.</p>
-
-<h2 id="cost">The cost dimension</h2>
-
-<p>Silent failures are not just correctness problems. They are billing problems. In today&rsquo;s demo, the agent completes 8 LLM calls. Step 7&rsquo;s tool failure does not shorten the loop &mdash; the agent cannot detect the failure, so it reasons forward to step 8 as planned. You pay for 8 calls to produce an answer that is missing the Tokyo conversion.</p>
-
-<p>The <code>trace_cost_rollup</code> materialized view already tracks <code>cost_usd</code> per trace. Adding <code>countIf(result_bytes = 0) AS empty_calls</code> to the rollup gives you a cost-per-empty-call breakdown across all traces. A trace that spent $0.003 and had one empty call is recoverable. A batch job that ran 500 traces and had 200 empty calls charged you $1.50 for corrupted answers. The alert on the second scenario is the same SQL query with a different time window.</p>
-
-<h2 id="three-decisions">The three-attribute contract</h2>
-
-<p>Silent failure detection reduces to three span attributes that every tool call span must carry. <code>result_bytes</code> quantifies output. <code>status</code> classifies the outcome: <code>OK</code>, <code>EMPTY_RESPONSE</code>, or <code>MAX_ITERATIONS</code>. <code>step</code> locates the failure in the agent loop. Everything else &mdash; the alert, the waterfall, the cost query &mdash; is downstream of those three fields.</p>
-
-<p>The investment is one <code>start_span()</code> call and four <code>set_attribute()</code> calls per tool invocation. The return is the ability to alert on a class of failure that previously produced no signal at all. That is the deal TraceForge&rsquo;s <code>ManualSpan</code> extension is designed to make cheap.</p>
+<p>At the 5k/sec target, the sampler is not the bottleneck under any realistic PII density. The 84&times; headroom at the worst case means the actual constraint will be network I/O to the OTLP endpoint and ClickHouse ingest latency, not the in-process sampling loop.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 35 of 150 &mdash; Silent Failures in Multi-Step Agents</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-36-tail-sampling-agent-traces.html">Day 36 &mdash; Tail Sampling for Agent Traces</a></p>
+  <p>AI Learning &middot; Day 36 of 150 &mdash; Tail Sampling for Agent Traces</p>
+  <p><em>Next up:</em> Day 37 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://arxiv.org/abs/2210.03629">
+    <a href="https://opentelemetry.io/docs/concepts/sampling/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ReAct: Synergizing Reasoning and Acting in Language Models &mdash; Yao et al., 2022</span>
+      <span>OpenTelemetry Sampling &mdash; head vs. tail, probabilistic and rule-based strategies</span>
     </a>
-    <a href="https://opentelemetry.io/docs/specs/otel/trace/api/">
+    <a href="https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function">
       <span class="footnote-arrow">&rarr;</span>
-      <span>OpenTelemetry Trace API &mdash; Span, SpanContext, and attribute semantics</span>
+      <span>FNV hash function &mdash; Fowler&ndash;Noll&ndash;Vo non-cryptographic hash</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 35 &mdash; The Demo Agent That Always Dies on Step 7</span>
+      <span>Experience Day 36 &mdash; Sampling Without Lying (Agoda WhiteFalcon SLO story)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 35 &mdash; Silent Failures in Multi-Step Agents</span>
     </a>
   </div>
 </div>
@@ -371,25 +424,25 @@ WHERE status = 'EMPTY_RESPONSE'
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#three-modes">Three modes of silence</a></li>
-      <li><a href="#why-hard">Why they're hard to detect</a></li>
-      <li><a href="#instrument">Instrumenting with ManualSpan</a></li>
-      <li><a href="#waterfall">What the waterfall shows</a></li>
-      <li><a href="#alert">The alert rule</a></li>
-      <li><a href="#max-iter">The max-iterations case</a></li>
-      <li><a href="#cost">The cost dimension</a></li>
-      <li><a href="#three-decisions">The three-attribute contract</a></li>
+      <li><a href="#what-head-sampling-does">What head sampling does</a></li>
+      <li><a href="#the-tail-sampling-idea">The tail sampling idea</a></li>
+      <li><a href="#combined-sampler">The combined sampler</a></li>
+      <li><a href="#trace-determinism">Trace-deterministic head sampling</a></li>
+      <li><a href="#pii-ordering">PII scrubbing before sampling</a></li>
+      <li><a href="#sampling-flow">The full pipeline</a></li>
+      <li><a href="#effective-rate">The effective rate metric</a></li>
+      <li><a href="#throughput">Throughput at 5k target</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-35-silent-failures-multi-step-agents.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-36-tail-sampling-agent-traces.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Silent+Failures+in+Multi-Step+Agents+%E2%80%94+AI+Learning+%C2%B7+Day+35+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-35-silent-failures-multi-step-agents.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Tail+Sampling+for+Agent+Traces+%E2%80%94+AI+Learning+%C2%B7+Day+36+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-36-tail-sampling-agent-traces.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -402,21 +455,22 @@ WHERE status = 'EMPTY_RESPONSE'
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D34</span> AI Learning</div>
-          <a href="day-34-trace-storage-layout-sort-keys-matter.html" class="series-post-title">Trace Storage Layout &mdash; Sort Keys Matter</a>
+          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning</div>
+          <a href="day-35-silent-failures-multi-step-agents.html" class="series-post-title">Silent Failures in Multi-Step Agents</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Silent Failures in Multi-Step Agents</div>
-          <div class="series-post-desc">Empty tool results, swallowed exceptions, max iterations &mdash; and the three-attribute contract</div>
+          <div class="series-post-kicker"><span class="series-post-num">D36</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Tail Sampling for Agent Traces</div>
+          <div class="series-post-desc">Head sample the happy path; tail sample the expensive path &mdash; combined strategy for SLO integrity</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D36</span> AI Learning</div>
-          <a href="day-36-tail-sampling-agent-traces.html" class="series-post-title">Tail Sampling for Agent Traces</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D37</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
   </div>
+
 </aside>
 </div>
 
@@ -425,7 +479,7 @@ WHERE status = 'EMPTY_RESPONSE'
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
+      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
@@ -438,20 +492,17 @@ WHERE status = 'EMPTY_RESPONSE'
 
 <script>
 (function(){
-  var t=document.getElementById('theme-toggle');
-  function apply(d){document.documentElement.setAttribute('data-theme',d);localStorage.setItem('theme',d);}
-  if(t)t.addEventListener('click',function(){apply(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');});
-  var tl=document.querySelector('.toc-list');
-  if(tl){
-    var as=tl.querySelectorAll('a');
-    var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
-    document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
-  }
+  var btn=document.getElementById('theme-toggle');
+  if(!btn)return;
+  btn.addEventListener('click',function(){
+    var html=document.documentElement;
+    var isDark=html.getAttribute('data-theme')==='dark';
+    if(isDark){html.removeAttribute('data-theme');localStorage.setItem('theme','light');}
+    else{html.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');}
+  });
 })();
 </script>
-<script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-mermaid.initialize({startOnLoad:true,theme:'base'});
-</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </body>
 </html>

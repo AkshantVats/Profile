@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-36-tail-sampling-agent-traces.html",
+          "kicker": "AI Learning \u00b7 Day 36 of 150",
+          "title": "Day 36 \u2014 Tail Sampling for Agent Traces",
+          "subtitle": "Head sample the happy path; tail sample the expensive path",
+          "date": "2026-07-26",
+          "slug": "day-36-tail-sampling-agent-traces",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-36-tail-sampling-agent-traces.html",
+          "coverImage": "blog/assets/covers/day-36-tail-sampling-agent-traces.png",
+          "desc": "Head sample the happy path; tail sample the expensive path. How combined head+tail sampling keeps all error traces without distorting SLO error rates. TraceForge CombinedSampler + FNV-1a trace-deterministic head sampling."
+        },
+        {
           "href": "blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html",
           "kicker": "AI Learning \u00b7 Day 35 of 150",
           "title": "Day 35 \u2014 Silent Failures in Multi-Step Agents",
