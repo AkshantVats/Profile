@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 35 &mdash; The Demo Agent That Always Dies on Step 7 | Experience Series</title>
-<meta name="description" content="Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.">
-<meta property="og:title" content="Day 35 &mdash; The Demo Agent That Always Dies on Step 7">
-<meta property="og:description" content="Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.">
+<title>Day 36 &mdash; Sampling Without Lying | Experience Series</title>
+<meta name="description" content="Head-only sampling makes your SLO dashboard lie. At Agoda's 1.5T-events-per-day scale, I learned why you must tail-sample every error — the alternative is a P99 that hides the failures your users feel.">
+<meta property="og:title" content="Day 36 &mdash; Sampling Without Lying">
+<meta property="og:description" content="Head-only sampling makes your SLO dashboard lie. At Agoda's 1.5T-events-per-day scale, I learned why you must tail-sample every error — the alternative is a P99 that hides the failures your users feel.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-demo-agent-silent-step-7.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-sampling-without-lying.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-35-demo-agent-silent-step-7.png">
-<meta property="article:published_time" content="2026-07-25">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-sampling-without-lying.png">
+<meta property="article:published_time" content="2026-07-26">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,23 +185,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 35 of 150</span>
+    <span class="tag accent">Experience &middot; Day 36 of 150</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Sampling</span>
+    <span class="tag">SLO Integrity</span>
     <span class="tag">TraceForge</span>
-    <span class="tag">Silent Failures</span>
-    <span class="tag">Multi-Tenant</span>
-    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 35 &mdash; The Demo Agent That Always Dies on Step 7</h1>
-  <p class="post-subtitle">Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system &mdash; and a TraceForge waterfall to reproduce it in a demo.</p>
+  <h1 class="post-title">Day 36 &mdash; Sampling Without Lying</h1>
+  <p class="post-subtitle">Head-only sampling makes your SLO dashboard lie. At Agoda&rsquo;s 1.5T-events-per-day scale, I learned why you must tail-sample every error &mdash; the alternative is a P99 that hides the failures your users feel.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 35 of 150</span>
+    <span class="meta-item">Experience &middot; Day 36 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 25, 2026</span>
+    <span class="meta-item">July 26, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">11 min read</span>
   </div>
@@ -209,66 +209,44 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-35-demo-agent-silent-step-7.png" alt="Day 35 — The Demo Agent That Always Dies on Step 7" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-36-sampling-without-lying.png" alt="Day 36 — Sampling Without Lying" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>We had a multi-tenant ordering system at a stealth startup that processed hundreds of pipeline steps per day. For weeks, one tenant&rsquo;s orders completed with incorrect summaries and no error. The logs were clean. HTTP status 200 on every call. The problem was in step 7 of a processing chain &mdash; an event that arrived empty and continued as if it hadn&rsquo;t.</p>
+<p>When Agoda&rsquo;s WhiteFalcon team first explained the ingest pipeline to me, the number that kept coming up was 1.5 trillion events per day. That is the volume the Rust consumers read from Kafka and write into Redis hot tier. Not requests. Not API calls. Events &mdash; one per metric sample, across every service, every host, every Grafana panel refresh. Storing all of them at full resolution forever is not a choice anyone makes.</p>
 
-<h2 id="the-failure">Step 7 drops a message and keeps moving</h2>
+<p>Sampling is the decision you make about which events to keep. Get it wrong, and the events you discard are exactly the ones your SLOs are trying to measure.</p>
+
+<h2 id="what-head-sampling-does">What head sampling actually does to your data</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">My scope at the stealth startup</div>
-  Consulting engineer on a pre-launch multi-tenant ordering platform. I worked on the pipeline orchestration layer and the observability infrastructure. The ordering pipeline had discrete steps: ingest, validate, enrich, route, price, confirm, notify (step 7), and fulfill. I did not design the core platform architecture.
+  <div class="attr-label">My scope at Agoda &mdash; WhiteFalcon</div>
+  Contributing engineer for ~5 months on the WhiteFalcon time-series database. The Agoda team designed the core sampling and storage architecture. My contributions were in the cross-tier query engine and a new cardinality dimension for Kubernetes infrastructure tags. I did not design the Kafka pipeline or the Rust consumer layer.
 </div>
 
-<p>The notification service at step 7 occasionally received an empty enrichment payload from an upstream service. It checked the payload, found nothing to dispatch, returned an empty response, and the orchestrator logged <code>step_7: ok</code> before advancing to step 8. Technically, step 7 completed. Semantically, it did nothing.</p>
+<p>Head sampling picks a random fraction of incoming events and discards the rest. At 10% rate, you keep roughly 150 billion events per day from WhiteFalcon&rsquo;s ingest volume. Your storage bill drops by 90%. Your dashboards still show trends. Your P50 and P95 still look right.</p>
 
-<p>What made this a multi-tenant problem: the orchestrator&rsquo;s context window held the last N steps for all active orders. The empty step 7 observation corrupted the context that step 8 used to fulfill adjacent orders. One tenant&rsquo;s silent failure was degrading another tenant&rsquo;s output quality &mdash; silently, across a shared execution boundary.</p>
+<p>Then someone asks why their hotel search returned a timeout. You look at the error trace. It isn&rsquo;t there. It was in the 90% you discarded.</p>
 
-<p>Shared orchestration context is a failure blast radius multiplier. One tenant&rsquo;s silent step becomes everyone&rsquo;s incorrect output.</p>
+<p>Here is the math that makes this dangerous: if your error rate is 0.1% and you head-sample at 10%, your stored error rate drops to 0.01%. That is not a smaller version of the real error rate. That is a number that triggers no alert, feeds no SLO burn calculation, and appears in no oncall dashboard. Your P99 latency looks clean because the slow outliers &mdash; which are usually errors &mdash; never made it into the sample.</p>
 
-<h2 id="why-hard">Healthy logs, wrong answers</h2>
-
-<p>For weeks, every debugging session started with the logs. The logs showed nothing useful. Step 7 emitted <code>[INFO] notification_dispatch: dispatched 0 events</code>, which looked identical to a valid dispatch that genuinely had zero notifications to send. There was no ERROR. No timeout. No retry.</p>
-
-<p>The HTTP responses were equally unhelpful. Every upstream call returned 200. The enrichment service returned 200 with an empty body &mdash; which is a legitimate REST pattern for &ldquo;no results.&rdquo; The orchestrator treated empty-body-200 as success, because it was correct HTTP behavior for the service contract at the time.</p>
-
-<p>The break came from a support ticket: a merchant asked why their order confirmation email was missing a price breakdown. That&rsquo;s a step-8 output that depends on step-7 data. Following the thread backward, filtering for orders where step-8 output was shorter than expected, we eventually found the pattern &mdash; a specific enrichment service call that returned an empty body when a particular product category was involved.</p>
-
-<p>You cannot search logs for what isn&rsquo;t there. The signal was absence of data, and absence is invisible to regex.</p>
-
-<h2 id="debugging-moment">When silence is the answer</h2>
-
-<p>Finding it required adding a single metric: <code>step_output_bytes</code>. Not a new log line &mdash; a counter. We instrumented each step to record the byte count of its output before passing it to the next step. Within six hours of deploying that metric, Grafana showed a consistent spike to zero bytes at step 7 for orders containing the affected product category.</p>
+<h2 id="the-slo-integrity-problem">The SLO integrity problem</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">Non-software analogy &mdash; the empty envelope</div>
-  A postal worker delivers 200 envelopes and marks each one &ldquo;delivered.&rdquo; The delivery log looks perfect. But if some envelopes are empty, the recipients still log a complaint. The postal system tracked delivery, not contents. <code>step_output_bytes</code> is the equivalent of checking that the envelope has something in it before marking it delivered.
+  <div class="attr-label">Non-software analogy &mdash; the quality inspector</div>
+  Imagine a factory quality inspector who checks one in every ten products. That is head sampling. Now imagine that defective products are slightly smaller and fall through a gap in the conveyor before the inspector arrives. The inspector never sees them. The defect rate in the inspector&rsquo;s report is zero &mdash; not because defects aren&rsquo;t happening, but because the sampling mechanism systematically excluded them. Your SLO percentage is the inspector&rsquo;s report.
 </div>
 
-<p>The debugging session that followed was ten minutes. Query: <code>WHERE step = 7 AND output_bytes = 0</code>. Filter by tenant. Cross-reference with the product category in step 2&rsquo;s enrichment call. Pattern was immediate. Three weeks of debugging. Six hours to reproduce after adding one metric.</p>
+<p>SLOs measure the fraction of requests that succeed within a latency budget. An SLO of 99.9% availability means at most one in a thousand requests can fail in a given window. If you head-sample that window at 10%, you see one in ten thousand failures in your data. Your burn rate calculation is off by a factor of ten. You think you have 100 error budget minutes remaining. You actually have 10.</p>
 
-<p>The metric that mattered was not status or latency &mdash; it was output size. The failure was semantic, not operational.</p>
+<p>The SLO integrity problem is not a logging problem or a metrics problem. It is a sampling strategy problem. The fix is not to keep more events &mdash; you cannot afford that at 1.5T per day. The fix is to change which events you keep.</p>
 
-<h2 id="reproduce">DEMO.md is the proof of concept</h2>
+<h2 id="tail-sampling">What tail sampling corrects</h2>
 
-<p>After we fixed the enrichment service, I wrote a postmortem. The postmortem had a section called &ldquo;reproduce&rdquo; &mdash; a minimal script that demonstrated the failure mode with fake data: an ordering pipeline with step 7 returning empty, and a final output that was wrong but showed no error. No exceptions, no logs, status 0.</p>
-
-<pre><code># Before the fix — no tracing, no output_bytes metric:
-Step 7: Action: notify() → Observation: [empty]
-Final answer: Order confirmed.   # wrong: missing price breakdown
-Exit code: 0                     # looks like success
-</code></pre>
-
-<p>That script became the demo. Not because I planned it that way &mdash; because when I tried to explain the problem to the team, words weren&rsquo;t enough. Running the demo and watching the orchestrator print a confident-sounding wrong answer with no errors landed in two minutes what a thirty-minute explanation couldn&rsquo;t.</p>
-
-<p>Today&rsquo;s <code>traceforge/examples/react_agent/DEMO.md</code> is that script, updated for TraceForge. The failure mode is identical: step 7 returns an empty string, the agent continues, the final answer is wrong. The difference is that the TraceForge waterfall now makes the failure visible in the first thirty seconds of running the demo &mdash; <code>result_bytes: 0</code>, <code>status: EMPTY_RESPONSE</code>, exact span ID, exact cost charged for a step that produced nothing.</p>
-
-<p>A demo that reproduces the problem is worth more than a fix that prevents it, because the demo proves the fix was necessary and creates shared understanding of the failure mode.</p>
+<p>Tail sampling inverts the head sampling decision for a specific subset of events: instead of sampling randomly, you look at the outcome first and keep all events that signal a failure. Every error, every timeout, every retry. You still head-sample the happy path &mdash; the 99.9% of requests that complete normally &mdash; and keep just 10% of those. But the 0.1% that fail? You keep all of them.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -288,59 +266,82 @@ Exit code: 0                     # looks like success
   }
 }}%%
 flowchart TD
-    A["Step 6: summarize\nresult_bytes: 120\nstatus: OK"]
-    B["Step 7: notify\nresult_bytes: 0\nstatus: EMPTY_RESPONSE"]
-    C["Step 8: fulfill\ncorrupted context\nwrong output"]
-    D["TraceForge\nwaterfall"]
+    A["Incoming spans\n1.5T events/day"]
+    B{"Status check"}
+    C["Head sampler\nkeep 10% randomly"]
+    D["Always keep\nerror / retry / timeout"]
+    E["Storage\n~100B events/day"]
+    F["Drop\n90% happy path"]
     A --> B
-    B --> C
-    D -->|"catches\nresult_bytes=0"| B
+    B -->|"status: ok"| C
+    B -->|"status: error/retry/timeout"| D
+    C -->|"sampled"| E
+    C -->|"not sampled"| F
+    D --> E
 </pre>
 
-<h2 id="alerts">Alerting on zero-output steps</h2>
+<p>The storage savings are almost identical to pure head sampling in practice, because errors are rare. At 0.1% error rate, tail sampling forces you to keep 0.1% of all events unconditionally. That is 1.5 billion events per day &mdash; a rounding error on the 150 billion you&rsquo;d keep anyway at 10% head rate. Your total storage is essentially unchanged. Your error data is now 100% complete.</p>
 
-<p>We added two alerts after the postmortem. The first: <code>step_output_bytes = 0</code> for any step that historically produced non-zero output, sustained for more than two consecutive occurrences. The second: per-tenant step-output distribution drift &mdash; if a tenant&rsquo;s average step-7 output drops below their historical baseline, alert before downstream effects reach the customer.</p>
+<h2 id="why-errors-concentrate-in-the-tail">Why errors concentrate in the tail</h2>
+
+<p>There is a second reason to tail-sample errors that is less obvious than SLO integrity. Errors are not uniformly distributed across request latency. They cluster in the tail of the latency distribution. A request that times out takes longer than a request that succeeds. A request that triggers a retry is at least twice as long as a request that does not. The events you would discard under pure head sampling are disproportionately the events that inflate your P99.</p>
+
+<p>This is why P99 looked too good at Agoda when I first read the dashboards. The compaction jobs ran on hourly windows. Within a window, if 10% of events were sampled randomly and errors clustered in the slow requests, the P99 of the stored sample excluded most of the slow tail. Not all of it &mdash; some slow requests succeeded &mdash; but enough that the P99 from the stored data was 15&ndash;20% lower than what the alert threshold was calibrated to.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">false positive alerts in 6 mo.</span></div>
-  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">to reproduce with one metric</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">silent failure modes caught</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;10 min</span><span class="stat-label">debug session after metric</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day through WhiteFalcon</span></div>
+  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">head sample rate</span></div>
+  <div class="stat-cell"><span class="stat-num">100%</span><span class="stat-label">error/retry/timeout kept</span></div>
+  <div class="stat-cell"><span class="stat-num">~0%</span><span class="stat-label">storage cost increase</span></div>
 </div>
 
-<p>Both alerts fired zero times in the months after we added them. Not because the failure never recurred &mdash; but because the enrichment service fix and the upstream input validation we added following the reproduce-then-fix process prevented it. The alerts were there as a backstop. They never needed to fire because we&rsquo;d closed the root cause.</p>
+<h2 id="the-implementation">From lesson to code</h2>
 
-<p>Add alerts that match the failure mode&rsquo;s actual signature, not the monitoring infrastructure you already have. Alerting on HTTP status for this system would have fired zero times regardless &mdash; because HTTP status was never the signal. <code>output_bytes = 0</code> was the signal.</p>
+<p>Today&rsquo;s <code>traceforge/pkg/sampling</code> package implements this strategy in two types. <code>HeadSampler</code> takes a rate between 0 and 1 and uses FNV hashing on the trace ID to make the decision deterministic per trace &mdash; all spans in a trace share the same fate, so you never get a partial trace in storage. <code>ErrorTailSampler</code> keeps any span with status <code>error</code>, <code>retry</code>, or <code>timeout</code> unconditionally.</p>
 
-<h2 id="reproduce-script">The reproduce script outlived the fix</h2>
+<p><code>CombinedSampler</code> wires them together with an OR decision: if either the head or tail sampler says keep, the span is kept. At 10% head rate, a trace where all spans are <code>ok</code> has roughly a 10% chance of being stored. A trace with even one error span is stored in full, because the tail sampler fires on that span and keeps all spans sharing its trace ID.</p>
 
-<p>The enrichment service fix took four hours to implement and deploy. The reproduce script &mdash; the one that became DEMO.md &mdash; became the most-visited file in the internal wiki for the next year. Every new engineer&rsquo;s onboarding included running the demo. Every stakeholder question about step-level observability investment was answered by running the demo.</p>
+<pre><code>// DefaultCombined returns the production strategy:
+// 10% head + 100% error/retry/timeout tail.
+func DefaultCombined() *CombinedSampler {
+    return &amp;CombinedSampler{
+        Head: &amp;HeadSampler{Rate: 0.10},
+        Tail: &amp;ErrorTailSampler{},
+    }
+}
+</code></pre>
+
+<p>The collector now exposes <code>/metrics/sampling</code> in Prometheus exposition format: <code>traceforge_spans_kept_total</code>, <code>traceforge_spans_dropped_total</code>, and <code>traceforge_sampling_effective_rate</code>. At 0.1% error rate, the effective rate on a production workload should read approximately 10.09% &mdash; 10% from head sampling plus the 0.09% tail contribution from errors. If the effective rate ever reads significantly above that, your error rate is higher than your SLO budget assumed.</p>
+
+<h2 id="pii-before-sampling">PII scrubbing must run before sampling</h2>
+
+<p>There is one sequencing constraint that is easy to get wrong. PII scrubbing must run before the sampling decision, not after. If you sample first and scrub only the kept spans, you have created a path where PII in a dropped span never touched your scrubber &mdash; but the span was still decoded and processed in memory by your collector before being dropped. Whether that constitutes a compliance boundary violation depends on your data classification policy. The safer design is to scrub every span before any sampling decision, so PII never survives past the ingest boundary regardless of sampling outcome.</p>
 
 <div class="pullquote">
-  <p>A reproduce script that demonstrates a silent failure is not just a debugging artifact. It&rsquo;s a proof of necessity.</p>
+  <p>Tail sampling costs almost nothing in storage. The events you must keep unconditionally are the rare ones &mdash; errors, retries, timeouts. The savings come from the happy path, which is exactly where you can afford to sample.</p>
 </div>
 
-<p>That&rsquo;s what today&rsquo;s TraceForge demo does. The agent that dies on step 7 isn&rsquo;t a contrived example. It&rsquo;s a pattern I&rsquo;ve seen in distributed systems at multiple employers, now reproduced in a ten-step ReAct loop. The failure mode is real. The instrumentation is the product.</p>
+<p>The lesson from WhiteFalcon is not specific to time-series databases. Any sampling layer that discards errors is building a dashboard that actively hides the failures your users feel. Head sample the happy path. Tail sample the expensive path. The two strategies cost the same in storage and produce completely different answers about system health.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 35 of 150 &mdash; The Demo Agent That Always Dies on Step 7</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html">Day 36 &mdash; Sampling Without Lying</a></p>
+  <p>Experience &middot; Day 36 of 150 &mdash; Sampling Without Lying</p>
+  <p><em>Next up:</em> Day 37 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://arxiv.org/abs/2210.03629">
+    <a href="https://opentelemetry.io/docs/concepts/sampling/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ReAct: Synergizing Reasoning and Acting in Language Models &mdash; Yao et al., 2022</span>
-    </a>
-    <a href="https://opentelemetry.io/docs/concepts/signals/traces/">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>OpenTelemetry Traces &mdash; spans, trace context, and semantic conventions</span>
+      <span>OpenTelemetry Sampling — head vs tail sampling concepts and collector configuration</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 34 &mdash; ClickHouse for Traces: Not Just Metrics (sort order + cost MV)</span>
+      <span>Day 34 &mdash; ClickHouse for Traces: Not Just Metrics (the storage layer sampling feeds into)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 35 &mdash; The Demo Agent That Always Dies on Step 7 (silent failures that tail sampling surfaces)</span>
     </a>
   </div>
 </div>
@@ -351,23 +352,23 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-failure">Step 7 drops a message</a></li>
-      <li><a href="#why-hard">Healthy logs, wrong answers</a></li>
-      <li><a href="#debugging-moment">When silence is the answer</a></li>
-      <li><a href="#reproduce">DEMO.md is the proof</a></li>
-      <li><a href="#alerts">Alerting on zero-output steps</a></li>
-      <li><a href="#reproduce-script">The script outlived the fix</a></li>
+      <li><a href="#what-head-sampling-does">What head sampling does</a></li>
+      <li><a href="#the-slo-integrity-problem">The SLO integrity problem</a></li>
+      <li><a href="#tail-sampling">What tail sampling corrects</a></li>
+      <li><a href="#why-errors-concentrate-in-the-tail">Why errors concentrate in tail</a></li>
+      <li><a href="#the-implementation">From lesson to code</a></li>
+      <li><a href="#pii-before-sampling">PII before sampling</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-35-demo-agent-silent-step-7.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-36-sampling-without-lying.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=The+Demo+Agent+That+Always+Dies+on+Step+7+%E2%80%94+Experience+%C2%B7+Day+35+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-35-demo-agent-silent-step-7.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Sampling+Without+Lying+%E2%80%94+Experience+%C2%B7+Day+36+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-36-sampling-without-lying.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -380,17 +381,17 @@ flowchart TD
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D34</span> Experience</div>
-          <a href="day-34-clickhouse-for-traces-not-just-metrics.html" class="series-post-title">ClickHouse for Traces: Not Just Metrics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D35</span> Experience</div>
+          <a href="day-35-demo-agent-silent-step-7.html" class="series-post-title">The Demo Agent That Always Dies on Step 7</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D35</span> Experience &middot; now</div>
-          <div class="series-post-title">The Demo Agent That Always Dies on Step 7</div>
-          <div class="series-post-desc">Multi-tenant silent failure &mdash; reproduce before you fix</div>
+          <div class="series-post-kicker"><span class="series-post-num">D36</span> Experience &middot; now</div>
+          <div class="series-post-title">Sampling Without Lying</div>
+          <div class="series-post-desc">Head sampling hides errors &mdash; tail sampling is the correction</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D36</span> Experience</div>
-          <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html" class="series-post-title">Sampling Without Lying</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D37</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
