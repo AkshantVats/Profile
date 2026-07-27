@@ -7,9 +7,21 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-37-tool-taxonomies-ontology.html",
+          "kicker": "AI Learning · Day 37 of 150",
+          "title": "Day 37 — Tool Taxonomies — Ontology Before Metrics",
+          "subtitle": "http.search vs db.query vs code.exec — build the taxonomy first",
+          "date": "2026-07-27",
+          "slug": "day-37-tool-taxonomies-ontology",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-37-tool-taxonomies-ontology.html",
+          "coverImage": "blog/assets/covers/day-37-tool-taxonomies-ontology.png",
+          "desc": "Five semantic categories — http, db, code, file, agent — ordered priority rules, and a test that enforces exhaustiveness. Build the taxonomy before the dashboard, not after."
+        },
+        {
           "href": "blog/series/ai-learning/day-36-tail-sampling-agent-traces.html",
-          "kicker": "AI Learning \u00b7 Day 36 of 150",
-          "title": "Day 36 \u2014 Tail Sampling for Agent Traces",
+          "kicker": "AI Learning · Day 36 of 150",
+          "title": "Day 36 — Tail Sampling for Agent Traces",
           "subtitle": "Head sample the happy path; tail sample the expensive path",
           "date": "2026-07-26",
           "slug": "day-36-tail-sampling-agent-traces",
@@ -20,32 +32,32 @@
         },
         {
           "href": "blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html",
-          "kicker": "AI Learning \u00b7 Day 35 of 150",
-          "title": "Day 35 \u2014 Silent Failures in Multi-Step Agents",
+          "kicker": "AI Learning · Day 35 of 150",
+          "title": "Day 35 — Silent Failures in Multi-Step Agents",
           "subtitle": "Empty tool results, swallowed exceptions, max iterations",
           "date": "2026-07-25",
           "slug": "day-35-silent-failures-multi-step-agents",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html",
           "coverImage": "blog/assets/covers/day-35-silent-failures-multi-step-agents.png",
-          "desc": "Alert on zero-byte tool responses \u2014 they're the new 500. Three silent failure modes that look like success, and how TraceForge's ManualSpan surfaces them with result_bytes and status: EMPTY_RESPONSE."
+          "desc": "Alert on zero-byte tool responses — they're the new 500. Three silent failure modes that look like success, and how TraceForge's ManualSpan surfaces them with result_bytes and status: EMPTY_RESPONSE."
         },
         {
           "href": "blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html",
-          "kicker": "AI Learning \u00b7 Day 34 of 150",
-          "title": "Day 34 \u2014 Trace Storage Layout \u2014 Sort Keys Matter",
+          "kicker": "AI Learning · Day 34 of 150",
+          "title": "Day 34 — Trace Storage Layout — Sort Keys Matter",
           "subtitle": "ClickHouse MergeTree, ORDER BY (trace_id, start_time), ZSTD(3), projections",
           "date": "2026-07-24",
           "slug": "day-34-trace-storage-layout-sort-keys-matter",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html",
           "coverImage": "blog/assets/covers/day-34-trace-storage-layout-sort-keys-matter.png",
-          "desc": "Optimize for trace_id lookup first; global analytics second. MergeTree sorts rows by your ORDER BY keys at merge time \u2014 choose wrong and every waterfall query scans 5 million rows instead of 12."
+          "desc": "Optimize for trace_id lookup first; global analytics second. MergeTree sorts rows by your ORDER BY keys at merge time — choose wrong and every waterfall query scans 5 million rows instead of 12."
         },
         {
           "href": "blog/series/ai-learning/day-33-context-propagation-polyglot-agents.html",
-          "kicker": "AI Learning \u00b7 Day 33 of 150",
-          "title": "Day 33 \u2014 Context Propagation in Polyglot Agents",
+          "kicker": "AI Learning · Day 33 of 150",
+          "title": "Day 33 — Context Propagation in Polyglot Agents",
           "subtitle": "W3C TraceContext, traceparent header, inject/extract in Go",
           "date": "2026-07-22",
           "slug": "day-33-context-propagation-polyglot-agents",
@@ -56,8 +68,8 @@
         },
         {
           "href": "blog/series/ai-learning/day-32-tool-calling-protocols-openai-vs-anthropic.html",
-          "kicker": "AI Learning \u00b7 Day 32 of 150",
-          "title": "Day 32 \u2014 Tool Calling Protocols \u2014 OpenAI vs Anthropic",
+          "kicker": "AI Learning · Day 32 of 150",
+          "title": "Day 32 — Tool Calling Protocols — OpenAI vs Anthropic",
           "subtitle": "NormalizedToolCall adapter, parallel spans, refusal handling",
           "date": "2026-07-04",
           "slug": "day-32-tool-calling-protocols-openai-vs-anthropic",
@@ -68,55 +80,55 @@
         },
         {
           "href": "blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html",
-          "kicker": "AI Learning \u00b7 Day 31 of 150",
-          "title": "Day 31 \u2014 OpenTelemetry Semantics for Agents",
+          "kicker": "AI Learning · Day 31 of 150",
+          "title": "Day 31 — OpenTelemetry Semantics for Agents",
           "subtitle": "Span kinds, attributes, and what to standardise now",
           "date": "2026-07-03",
           "slug": "day-31-opentelemetry-semantics-for-agents",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-31-opentelemetry-semantics-for-agents.html",
           "coverImage": "blog/assets/covers/day-31-opentelemetry-semantics-for-agents.png",
-          "desc": "OTel gives you identity and SpanKind for free \u2014 the waterfall works before you add a single agent-specific attribute. The question is which three attributes to lock into your ClickHouse schema before the GenAI SIG spec ships."
+          "desc": "OTel gives you identity and SpanKind for free — the waterfall works before you add a single agent-specific attribute. The question is which three attributes to lock into your ClickHouse schema before the GenAI SIG spec ships."
         },
         {
           "href": "blog/series/ai-learning/day-30-react-loops-distributed-workflows.html",
-          "kicker": "AI Learning \u00b7 Day 30 of 150",
-          "title": "Day 30 \u2014 ReAct Loops as Distributed Workflows",
-          "subtitle": "Planner \u2192 tools \u2192 memory \u2014 state machine, not magic",
+          "kicker": "AI Learning · Day 30 of 150",
+          "title": "Day 30 — ReAct Loops as Distributed Workflows",
+          "subtitle": "Planner → tools → memory — state machine, not magic",
           "date": "2026-07-03",
           "slug": "day-30-react-loops-distributed-workflows",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-30-react-loops-distributed-workflows.html",
           "coverImage": "blog/assets/covers/day-30-react-loops-distributed-workflows.png",
-          "desc": "A ReAct loop is a distributed saga \u2014 each tool call is a compensatable step, memory is the durable log, and agent observability is OTel tracing with four extra span fields."
+          "desc": "A ReAct loop is a distributed saga — each tool call is a compensatable step, memory is the durable log, and agent observability is OTel tracing with four extra span fields."
         },
         {
           "href": "blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html",
-          "kicker": "AI Learning \u00b7 Day 29 of 150",
-          "title": "Day 29 \u2014 The AI Infrastructure Stack \u2014 Full Map",
-          "subtitle": "Training \u2192 inference \u2192 observability \u2192 agents \u2014 where you fit",
+          "kicker": "AI Learning · Day 29 of 150",
+          "title": "Day 29 — The AI Infrastructure Stack — Full Map",
+          "subtitle": "Training → inference → observability → agents — where you fit",
           "date": "2026-07-02",
           "slug": "day-29-ai-infrastructure-stack-full-map",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html",
           "coverImage": "blog/assets/covers/day-29-ai-infrastructure-stack-full-map.png",
-          "desc": "The full AI infrastructure stack \u2014 training, model registry, inference serving, observability, agent orchestration \u2014 where each layer is hard and where LensAI fits."
+          "desc": "The full AI infrastructure stack — training, model registry, inference serving, observability, agent orchestration — where each layer is hard and where LensAI fits."
         },
         {
           "href": "blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html",
-          "kicker": "AI Learning \u00b7 Day 28 of 150",
-          "title": "Day 28 \u2014 Competitor Teardown: LensAI Positioning",
-          "subtitle": "Datadog LLM Observability vs Helicone vs Langfuse \u2014 honest gaps",
+          "kicker": "AI Learning · Day 28 of 150",
+          "title": "Day 28 — Competitor Teardown: LensAI Positioning",
+          "subtitle": "Datadog LLM Observability vs Helicone vs Langfuse — honest gaps",
           "date": "2026-06-12",
           "slug": "day-28-competitor-teardown-lensai-positioning",
           "series": "ai-learning",
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html",
           "coverImage": "blog/assets/covers/day-28-competitor-teardown-lensai-positioning.png",
-          "desc": "Honest teardown of Datadog LLM Observability, Helicone, and Langfuse \u2014 where each falls short and where LensAI fills the gap."
+          "desc": "Honest teardown of Datadog LLM Observability, Helicone, and Langfuse — where each falls short and where LensAI fills the gap."
         },
         {
           "href": "blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html",
-          "title": "Day 27 \u2014 OpenTelemetry Collector as Integration Hub",
+          "title": "Day 27 — OpenTelemetry Collector as Integration Hub",
           "subtitle": "Exporters, processors, and why LensAI speaks OTel natively",
           "date": "2026-06-12",
           "slug": "day-27-opentelemetry-collector-integration-hub",
@@ -127,9 +139,9 @@
         },
         {
           "href": "blog/series/ai-learning/day-26-fine-tuning-rag-prompting-infra-cost.html",
-          "kicker": "AI Learning \u00b7 Day 26 of 150",
-          "title": "Day 26 \u2014 Fine-Tuning vs RAG vs Prompting \u2014 Infra Cost View",
-          "subtitle": "Staff engineers pick the cheapest path that meets SLO \u2014 not the coolest paper",
+          "kicker": "AI Learning · Day 26 of 150",
+          "title": "Day 26 — Fine-Tuning vs RAG vs Prompting — Infra Cost View",
+          "subtitle": "Staff engineers pick the cheapest path that meets SLO — not the coolest paper",
           "date": "2026-06-11",
           "slug": "day-26-fine-tuning-rag-prompting-infra-cost",
           "series": "ai-learning",
@@ -139,19 +151,19 @@
         },
         {
           "href": "blog/series/ai-learning/day-25-cost-models-llm-gateways.html",
-          "kicker": "AI Learning \u00b7 Day 25 of 150",
-          "title": "Day 25 \u2014 Cost Models for LLM Gateways",
-          "desc": "Cache hit rate \u00d7 cheaper model route \u00d7 prompt cache \u2014 building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics to drive model routing decisions."
+          "kicker": "AI Learning · Day 25 of 150",
+          "title": "Day 25 — Cost Models for LLM Gateways",
+          "desc": "Cache hit rate × cheaper model route × prompt cache — building the cost model spreadsheet before writing the Rust. How LensAI tracks token economics to drive model routing decisions."
         },
         {
           "href": "blog/series/ai-learning/day-24-gpu-scheduling-resource-management.html",
-          "kicker": "AI Learning \u00b7 Day 24 of 150",
-          "title": "Day 24 \u2014 GPU Scheduling as Resource Management",
-          "desc": "MIG, tensor parallelism, and Kubernetes extended resources \u2014 VRAM is finite, the scheduler needs to know it, and GPU topology is the distributed systems constraint that determines canary rollout cost accuracy."
+          "kicker": "AI Learning · Day 24 of 150",
+          "title": "Day 24 — GPU Scheduling as Resource Management",
+          "desc": "MIG, tensor parallelism, and Kubernetes extended resources — VRAM is finite, the scheduler needs to know it, and GPU topology is the distributed systems constraint that determines canary rollout cost accuracy."
         },
         {
           "href": "blog/series/ai-learning/day-23-evaluations-as-event-streams.html",
-          "title": "Day 23 \u2014 Evaluations as Event Streams",
+          "title": "Day 23 — Evaluations as Event Streams",
           "subtitle": "LLM-as-judge as a Kafka producer, eval event schema, and the ClickHouse join that closes the cost-quality loop",
           "date": "2026-06-09",
           "slug": "day-23-evaluations-as-event-streams",
@@ -161,7 +173,7 @@
         },
         {
           "href": "blog/series/ai-learning/day-22-feature-flags-model-rollouts.html",
-          "title": "Day 22 \u2014 Feature Flags for Model Rollouts",
+          "title": "Day 22 — Feature Flags for Model Rollouts",
           "subtitle": "Deterministic hashing, audit logs, and the four-step canary sequence",
           "date": "2026-06-09",
           "slug": "day-22-feature-flags-model-rollouts",
@@ -171,7 +183,7 @@
         },
         {
           "href": "blog/series/ai-learning/day-21-production-reliability-llm-apis.html",
-          "title": "Day 21 \u2014 Production Reliability for LLM APIs",
+          "title": "Day 21 — Production Reliability for LLM APIs",
           "subtitle": "Four-bucket error classification: retry, circuit break, fallback, fail loud",
           "date": "2026-06-07",
           "slug": "day-21-production-reliability-llm-apis",
@@ -181,7 +193,7 @@
         },
         {
           "href": "blog/series/ai-learning/day-20-prompt-engineering-infra-optimization.html",
-          "title": "Day 20 \u2014 Prompt Engineering as Infra Optimization",
+          "title": "Day 20 — Prompt Engineering as Infra Optimization",
           "subtitle": "Prompt cache and prefix reuse in dollars per million requests",
           "date": "2026-06-07",
           "slug": "day-20-prompt-engineering-infra-optimization",
@@ -192,31 +204,31 @@
         {
           "href": "blog/series/ai-learning/day-19-agent-infrastructure-tools-memory-loops.html",
           "kicker": "Day 19 of 150",
-          "title": "Day 19 \u2014 Agent Infrastructure \u2014 Tools, Memory, Loops",
-          "desc": "Tool calling as RPC with hallucination risk, agent memory as tiered cache, durable loops \u2014 distributed systems primitives for production agents."
+          "title": "Day 19 — Agent Infrastructure — Tools, Memory, Loops",
+          "desc": "Tool calling as RPC with hallucination risk, agent memory as tiered cache, durable loops — distributed systems primitives for production agents."
         },
         {
           "href": "blog/series/ai-learning/day-18-quantization-model-optimization.html",
-          "kicker": "AI Learning \u00b7 Day 18 of 150",
-          "title": "Day 18 \u2014 Quantization and Model Optimization",
-          "desc": "GPTQ vs AWQ vs bitsandbytes \u2014 pick variants like a codec picks compression."
+          "kicker": "AI Learning · Day 18 of 150",
+          "title": "Day 18 — Quantization and Model Optimization",
+          "desc": "GPTQ vs AWQ vs bitsandbytes — pick variants like a codec picks compression."
         },
         {
           "href": "blog/series/ai-learning/day-17-llm-observability-what-actually-matters.html",
           "kicker": "Day 17 of 150",
-          "title": "Day 17 \u2014 LLM Observability: What Actually Matters",
+          "title": "Day 17 — LLM Observability: What Actually Matters",
           "desc": "Arize vs Langfuse vs Helicone schema diff against eBPF-captured events."
         },
         {
           "href": "blog/series/ai-learning/day-16-the-mental-model-llm-infra-click.html",
           "kicker": "Day 16 of 150",
-          "title": "Day 16 \u2014 The Mental Model That Made LLM Infra Click",
+          "title": "Day 16 — The Mental Model That Made LLM Infra Click",
           "desc": "Prefill as batch write, decode as serial consumer."
         },
         {
           "href": "blog/series/ai-learning/day-15-multi-model-routing-strategies.html",
           "kicker": "Day 15 of 150",
-          "title": "Day 15 \u2014 Multi-Model Routing Strategies",
+          "title": "Day 15 — Multi-Model Routing Strategies",
           "desc": "Cost-first vs quality-first vs latency-first routing."
         },
         {
@@ -227,8 +239,8 @@
         },
         {
           "href": "blog/series/ai-learning/day-13-embeddings-as-dense-time-series-ids.html",
-          "kicker": "AI Learning \u00b7 Day 13 of N",
-          "title": "Day 13 \u2014 Embeddings as Dense Time-Series IDs",
+          "kicker": "AI Learning · Day 13 of N",
+          "title": "Day 13 — Embeddings as Dense Time-Series IDs",
           "subtitle": "Operating the pipeline: freshness, model version migration, and SLOs for vector search",
           "date": "2026-06-12",
           "slug": "day-13-embeddings-as-dense-time-series-ids",
@@ -324,27 +336,36 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-37-langchain-four-vendors.html",
+          "kicker": "Experience · Day 37 of 150",
+          "title": "Day 37 — LangChain Is Four Vendors in a Trenchcoat",
+          "desc": "Delivery Hero’s Route Service consumed four SQS event formats; the canonical Route object stabilized everything downstream. LangChain does the same for AI providers — and hides the cost metadata that observability needs.",
+          "coverImage": "blog/assets/covers/day-37-langchain-four-vendors.png",
+          "date": "2026-07-27",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-37-langchain-four-vendors.html"
+        },
+        {
           "href": "blog/series/experience/day-36-sampling-without-lying.html",
-          "kicker": "Experience \u00b7 Day 36 of 150",
-          "title": "Day 36 \u2014 Sampling Without Lying",
-          "desc": "Head sampling drops 90% of spans, but distorts error rates. Agoda WhiteFalcon taught me that tail sampling every error is not a luxury \u2014 it is SLO integrity.",
+          "kicker": "Experience · Day 36 of 150",
+          "title": "Day 36 — Sampling Without Lying",
+          "desc": "Head sampling drops 90% of spans, but distorts error rates. Agoda WhiteFalcon taught me that tail sampling every error is not a luxury — it is SLO integrity.",
           "coverImage": "blog/assets/covers/day-36-sampling-without-lying.png",
           "date": "2026-07-26",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html"
         },
         {
           "href": "blog/series/experience/day-35-demo-agent-silent-step-7.html",
-          "kicker": "Experience \u00b7 Day 35 of 150",
-          "title": "Day 35 \u2014 The Demo Agent That Always Dies on Step 7",
-          "desc": "Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system \u2014 and a TraceForge waterfall to reproduce it in a demo.",
+          "kicker": "Experience · Day 35 of 150",
+          "title": "Day 35 — The Demo Agent That Always Dies on Step 7",
+          "desc": "Step 7 always fails silently. It took weeks to find in a multi-tenant ordering system — and a TraceForge waterfall to reproduce it in a demo.",
           "coverImage": "blog/assets/covers/day-35-demo-agent-silent-step-7.png",
           "date": "2026-07-25",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-35-demo-agent-silent-step-7.html"
         },
         {
           "href": "blog/series/experience/day-34-clickhouse-for-traces-not-just-metrics.html",
-          "kicker": "Experience \u00b7 Day 34 of 150",
-          "title": "Day 34 \u2014 ClickHouse for Traces: Not Just Metrics",
+          "kicker": "Experience · Day 34 of 150",
+          "title": "Day 34 — ClickHouse for Traces: Not Just Metrics",
           "desc": "Agoda WhiteFalcon taught me that sort keys are a bet on your query pattern. TraceForge validated it: ORDER BY (trace_id, start_time) cut waterfall latency from full scans to single-granule reads.",
           "coverImage": "blog/assets/covers/day-34-clickhouse-for-traces-not-just-metrics.png",
           "date": "2026-07-24",
@@ -352,77 +373,77 @@
         },
         {
           "href": "blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html",
-          "kicker": "Experience \u00b7 Day 33 of 150",
-          "title": "Day 33 \u2014 SDK Wrappers: The Last Resort That Ships",
-          "desc": "Wayfair PAS client library \u2014 making the correct write path shorter than the wrong one.",
+          "kicker": "Experience · Day 33 of 150",
+          "title": "Day 33 — SDK Wrappers: The Last Resort That Ships",
+          "desc": "Wayfair PAS client library — making the correct write path shorter than the wrong one.",
           "coverImage": "blog/assets/covers/day-33-sdk-wrappers-last-resort-that-ships.png",
           "date": "2026-07-22",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-33-sdk-wrappers-last-resort-that-ships.html"
         },
         {
           "href": "blog/series/experience/day-32-when-the-collector-is-the-product.html",
-          "kicker": "Experience \u00b7 Day 32 of 150",
-          "title": "Day 32 \u2014 When the Collector Is the Product",
-          "subtitle": "Walmart Labs \u00b7 WeIoT \u00b7 OTel Collector as batch/drop/retry layer",
+          "kicker": "Experience · Day 32 of 150",
+          "title": "Day 32 — When the Collector Is the Product",
+          "subtitle": "Walmart Labs · WeIoT · OTel Collector as batch/drop/retry layer",
           "date": "2026-07-04",
           "slug": "day-32-when-the-collector-is-the-product",
           "series": "experience",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-32-when-the-collector-is-the-product.html",
           "coverImage": "blog/assets/covers/day-32-when-the-collector-is-the-product.png",
-          "desc": "At Walmart Labs WeIoT, the IoT data collector was the product \u2014 every batch/drop/retry decision was a business rule. The OTel Collector is the same system with a different logo."
+          "desc": "At Walmart Labs WeIoT, the IoT data collector was the product — every batch/drop/retry decision was a business rule. The OTel Collector is the same system with a different logo."
         },
         {
           "href": "blog/series/experience/day-31-tool-calls-are-rpcs-with-marketing.html",
-          "kicker": "Experience \u00b7 Day 31 of 150",
-          "title": "Day 31 \u2014 Tool Calls Are RPCs With Marketing",
-          "subtitle": "Agoda \u00b7 fan-out \u00b7 retries \u00b7 cost attribution",
+          "kicker": "Experience · Day 31 of 150",
+          "title": "Day 31 — Tool Calls Are RPCs With Marketing",
+          "subtitle": "Agoda · fan-out · retries · cost attribution",
           "date": "2026-07-03",
           "slug": "day-31-tool-calls-are-rpcs-with-marketing",
           "series": "experience",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-31-tool-calls-are-rpcs-with-marketing.html",
           "coverImage": "blog/assets/covers/day-31-tool-calls-are-rpcs-with-marketing.png",
-          "desc": "LLM tool calls are structurally identical to gRPC sub-requests \u2014 the only new field is cost_usd. Lessons from Agoda\u2019s WhiteFalcon cross-tier fan-out on retry double-counting and what TraceForge learned from it."
+          "desc": "LLM tool calls are structurally identical to gRPC sub-requests — the only new field is cost_usd. Lessons from Agoda’s WhiteFalcon cross-tier fan-out on retry double-counting and what TraceForge learned from it."
         },
         {
           "href": "blog/series/experience/day-30-step-7-failed-silently-no-span.html",
-          "kicker": "Experience \u00b7 Day 30 of 150",
-          "title": "Day 30 \u2014 Step 7 Failed Silently \u2014 And Nobody Had a Span",
-          "subtitle": "How a silent Route Consumer deduplication failure cost two hours of diagnosis \u2014 and shaped TraceForge\u2019s span schema",
+          "kicker": "Experience · Day 30 of 150",
+          "title": "Day 30 — Step 7 Failed Silently — And Nobody Had a Span",
+          "subtitle": "How a silent Route Consumer deduplication failure cost two hours of diagnosis — and shaped TraceForge’s span schema",
           "date": "2026-07-03",
           "slug": "day-30-step-7-failed-silently-no-span",
           "series": "experience",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-30-step-7-failed-silently-no-span.html",
           "coverImage": "blog/assets/covers/day-30-step-7-failed-silently-no-span.png",
-          "desc": "How a silent deduplication failure in the Delivery Hero Route Consumer \u2014 Step 7 acknowledged the SQS message and never called OSRM \u2014 took two hours to diagnose without spans."
+          "desc": "How a silent deduplication failure in the Delivery Hero Route Consumer — Step 7 acknowledged the SQS message and never called OSRM — took two hours to diagnose without spans."
         },
         {
           "href": "blog/series/experience/day-29-thirty-days-lensai-month-one.html",
-          "kicker": "Experience \u00b7 Day 29 of 150",
-          "title": "Day 29 \u2014 Thirty Days of Building \u2014 What Shipped vs What Matters",
-          "subtitle": "LensAI month-one \u00b7 public proof",
+          "kicker": "Experience · Day 29 of 150",
+          "title": "Day 29 — Thirty Days of Building — What Shipped vs What Matters",
+          "subtitle": "LensAI month-one · public proof",
           "date": "2026-07-02",
           "slug": "day-29-thirty-days-lensai-month-one",
           "series": "experience",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html",
           "coverImage": "blog/assets/covers/day-29-thirty-days-lensai-month-one.png",
-          "desc": "Month-one retrospective on LensAI: four repos, one smoke test, three things I'd redo \u2014 and the Agoda go-live checklist that gave me the launch criteria framework."
+          "desc": "Month-one retrospective on LensAI: four repos, one smoke test, three things I'd redo — and the Agoda go-live checklist that gave me the launch criteria framework."
         },
         {
           "href": "blog/series/experience/day-28-integration-tests-launch-criteria.html",
-          "kicker": "Experience \u00b7 Day 28 of 150",
-          "title": "Day 28 \u2014 Integration Tests \u2014 The Only Launch Criteria I Trust",
-          "subtitle": "Agoda \u00b7 staging discipline \u00b7 compose on clean laptop",
+          "kicker": "Experience · Day 28 of 150",
+          "title": "Day 28 — Integration Tests — The Only Launch Criteria I Trust",
+          "subtitle": "Agoda · staging discipline · compose on clean laptop",
           "date": "2026-06-12",
           "slug": "day-28-integration-tests-launch-criteria",
           "series": "experience",
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html",
           "coverImage": "blog/assets/covers/day-28-integration-tests-launch-criteria.png",
-          "desc": "How staging discipline at Agoda shaped LensAI's smoke test \u2014 the cross-tier histogram compaction bug that only integration tests could find."
+          "desc": "How staging discipline at Agoda shaped LensAI's smoke test — the cross-tier histogram compaction bug that only integration tests could find."
         },
         {
           "href": "blog/series/experience/day-27-redesign-wayfair-2026-eyes.html",
-          "title": "Day 27 \u2014 What I'd Redesign at Wayfair With 2026 Eyes",
-          "subtitle": "Ownership \u00b7 leading two teams \u00b7 pricing platform",
+          "title": "Day 27 — What I'd Redesign at Wayfair With 2026 Eyes",
+          "subtitle": "Ownership · leading two teams · pricing platform",
           "date": "2026-06-12",
           "slug": "day-27-redesign-wayfair-2026-eyes",
           "series": "experience",
@@ -432,8 +453,8 @@
         },
         {
           "href": "blog/series/experience/day-26-systems-outlast-architects-walmart.html",
-          "kicker": "Experience \u00b7 Day 26 of 150",
-          "title": "Day 26 \u2014 Systems That Outlast Their Architects \u2014 Walmart Lessons",
+          "kicker": "Experience · Day 26 of 150",
+          "title": "Day 26 — Systems That Outlast Their Architects — Walmart Lessons",
           "subtitle": "What Walmart's IoT platform taught me about building for operators you'll never meet",
           "date": "2026-06-11",
           "slug": "day-26-systems-outlast-architects-walmart",
@@ -444,20 +465,20 @@
         },
         {
           "href": "blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html",
-          "kicker": "Experience \u00b7 Day 25 of 150",
-          "title": "Day 25 \u2014 Distributed Redis Rate Limits \u2014 Lua Scripts and Race Conditions",
+          "kicker": "Experience · Day 25 of 150",
+          "title": "Day 25 — Distributed Redis Rate Limits — Lua Scripts and Race Conditions",
           "desc": "Wayfair PAS: why Redis INCR+EXPIRE fails under concurrent load, how Lua scripts fix the race condition atomically."
         },
         {
           "href": "blog/series/experience/day-24-bigquery-streaming-batch-burst-truth.html",
-          "kicker": "Experience \u00b7 Day 24 of 150",
-          "title": "Day 24 \u2014 BigQuery Streaming vs Batch \u2014 Burst Traffic Truth",
+          "kicker": "Experience · Day 24 of 150",
+          "title": "Day 24 — BigQuery Streaming vs Batch — Burst Traffic Truth",
           "desc": "Wayfair PAS analytics: slot exhaustion under burst pricing runs."
         },
         {
           "href": "blog/series/experience/day-23-osrm-5000-events-eta-infrastructure.html",
-          "title": "Day 23 \u2014 OSRM at 5000 Events/sec \u2014 When ETA Becomes Infrastructure",
-          "subtitle": "Delivery Hero \u00b7 route recompute budget \u00b7 when ETA becomes infrastructure",
+          "title": "Day 23 — OSRM at 5000 Events/sec — When ETA Becomes Infrastructure",
+          "subtitle": "Delivery Hero · route recompute budget · when ETA becomes infrastructure",
           "date": "2026-06-09",
           "slug": "day-23-osrm-5000-events-eta-infrastructure",
           "series": "experience",
@@ -466,8 +487,8 @@
         },
         {
           "href": "blog/series/experience/day-22-h3-geospatial-indexing-surge-detection.html",
-          "title": "Day 22 \u2014 H3 vs Bounding Boxes \u2014 Geospatial Indexing That Scales",
-          "subtitle": "Delivery Hero \u00b7 surge detection \u00b7 why naive geo fails",
+          "title": "Day 22 — H3 vs Bounding Boxes — Geospatial Indexing That Scales",
+          "subtitle": "Delivery Hero · surge detection · why naive geo fails",
           "date": "2026-06-09",
           "slug": "day-22-h3-geospatial-indexing-surge-detection",
           "series": "experience",
@@ -476,8 +497,8 @@
         },
         {
           "href": "blog/series/experience/day-21-launchdarkly-build-vs-buy-flagd.html",
-          "title": "Day 21 \u2014 LaunchDarkly Money \u2014 Why We Build flagd Ourselves",
-          "subtitle": "Delivery Hero config propagation patterns \u00b7 etcd + gRPC \u00b7 AI model rollouts",
+          "title": "Day 21 — LaunchDarkly Money — Why We Build flagd Ourselves",
+          "subtitle": "Delivery Hero config propagation patterns · etcd + gRPC · AI model rollouts",
           "date": "2026-06-07",
           "slug": "day-21-launchdarkly-build-vs-buy-flagd",
           "series": "experience",
@@ -486,8 +507,8 @@
         },
         {
           "href": "blog/series/experience/day-20-route-consumer-lag-keda.html",
-          "title": "Day 20 \u2014 Route Consumer Lag \u2014 Why CPU-Based HPA Failed at Lunch Rush",
-          "subtitle": "Delivery Hero \u00b7 Route Consumers \u00b7 Order SQS depth as the scale signal",
+          "title": "Day 20 — Route Consumer Lag — Why CPU-Based HPA Failed at Lunch Rush",
+          "subtitle": "Delivery Hero · Route Consumers · Order SQS depth as the scale signal",
           "date": "2026-06-07",
           "slug": "day-20-route-consumer-lag-keda",
           "series": "experience",
@@ -497,97 +518,97 @@
         {
           "href": "blog/series/experience/day-19-kafka-redis-tiering-query-latency.html",
           "kicker": "Day 19 of 150",
-          "title": "Day 19 \u2014 Kafka + Redis Tiering \u2014 Query Latency by Temperature",
+          "title": "Day 19 — Kafka + Redis Tiering — Query Latency by Temperature",
           "desc": "WhiteFalcon at Agoda: why SLOs that average across storage temperatures lie."
         },
         {
           "href": "blog/series/experience/day-18-supplier-rate-limiting.html",
-          "kicker": "Experience \u00b7 Day 18 of 150",
-          "title": "Day 18 \u2014 Rate Limiting at the Supplier Boundary",
+          "kicker": "Experience · Day 18 of 150",
+          "title": "Day 18 — Rate Limiting at the Supplier Boundary",
           "desc": "70,000 active suppliers, 250k+ SKU updates each, one ingestion boundary."
         },
         {
           "href": "blog/series/experience/building-in-public-blog-post-that-outlives-linkedin.html",
           "kicker": "Experience 16 of N",
-          "title": "Building in Public \u2014 The Blog Post That Outlives LinkedIn",
+          "title": "Building in Public — The Blog Post That Outlives LinkedIn",
           "desc": "Architecture posts as durable hiring signals."
         },
         {
           "href": "blog/series/experience/cross-tier-query-latency-hot-redis-cold-ceph.html",
           "kicker": "Experience 15 of N",
-          "title": "Cross-Tier Query Latency \u2014 Hot Redis, Cold Ceph",
+          "title": "Cross-Tier Query Latency — Hot Redis, Cold Ceph",
           "desc": "WhiteFalcon histogram-based storage cross-tier quantile queries."
         },
         {
           "href": "blog/series/experience/order-sqs-route-consumers-delivery-hero.html",
-          "kicker": "Experience \u00b7 Delivery Hero",
-          "title": "Order SQS \u2192 Route Consumers: Decoupling Map-Match from Status",
+          "kicker": "Experience · Delivery Hero",
+          "title": "Order SQS → Route Consumers: Decoupling Map-Match from Status",
           "desc": "Decoupling OSRM route calculation from order status updates."
         },
         {
           "href": "blog/series/experience/high-cardinality-metrics-prometheus-wall.html",
           "kicker": "Experience 13 of N",
-          "title": "High-Cardinality Metrics \u2014 The Prometheus Wall We Hit",
+          "title": "High-Cardinality Metrics — The Prometheus Wall We Hit",
           "desc": "Label explosion at Agoda WhiteFalcon."
         },
         {
           "href": "blog/series/experience/two-weeks-one-readme-hiring-committees-scroll.html",
           "kicker": "Experience 12 of N",
-          "title": "Two Weeks, One README \u2014 What Hiring Committees Actually Scroll",
+          "title": "Two Weeks, One README — What Hiring Committees Actually Scroll",
           "desc": "A hiring-committee README playbook."
         },
         {
           "href": "blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html",
           "kicker": "Experience 11 of N",
-          "title": "OTA at Scale \u2014 At-Least-Once Is a Feature, Not a Bug",
+          "title": "OTA at Scale — At-Least-Once Is a Feature, Not a Bug",
           "desc": "Walmart WeIoT OTA under flaky networks."
         },
         {
           "href": "blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html",
           "kicker": "Experience 10 of N",
-          "title": "Reading VictoriaMetrics Source at 11pm \u2014 OSS as Interview Prep",
+          "title": "Reading VictoriaMetrics Source at 11pm — OSS as Interview Prep",
           "desc": "Four-pass OSS reading for Staff interviews."
         },
         {
           "href": "blog/series/experience/we-killed-redpanda-on-purpose-chaos-as-commit-message.html",
           "kicker": "Experience 9 of N",
-          "title": "We Killed Redpanda on Purpose \u2014 Chaos as Commit Message",
+          "title": "We Killed Redpanda on Purpose — Chaos as Commit Message",
           "desc": "Agoda WhiteFalcon at 1.5T/day chaos testing."
         },
         {
           "href": "blog/series/experience/delphi-aletheia-feed-sub-second-price-visibility.html",
           "kicker": "Experience 8 of N",
-          "title": "Delphi \u2192 Aletheia Feed \u2014 Sub-Second Price Visibility",
+          "title": "Delphi → Aletheia Feed — Sub-Second Price Visibility",
           "desc": "Wayfair pricing: Delphi, Aletheia (~21k RPS), Kafka pricing_refresh on 40 partitions."
         },
         {
           "href": "blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html",
           "kicker": "Experience 7 of N",
-          "title": "Ten Thousand Concurrent Requests \u2014 EKS Patterns That Actually Helped",
+          "title": "Ten Thousand Concurrent Requests — EKS Patterns That Actually Helped",
           "desc": "Delivery Hero peak on AWS EKS."
         },
         {
           "href": "blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html",
           "kicker": "Experience 6 of N",
-          "title": "Supplier APIs and Token Buckets \u2014 Wayfair's Real Circuit Breaker",
+          "title": "Supplier APIs and Token Buckets — Wayfair's Real Circuit Breaker",
           "desc": "Per-supplier token buckets in Redis, circuit breakers on downstream failure."
         },
         {
           "href": "blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html",
           "kicker": "Experience 5 of N",
-          "title": "Cardinality Is the Silent Killer \u2014 RoaringBitmap Lessons",
+          "title": "Cardinality Is the Silent Killer — RoaringBitmap Lessons",
           "desc": "Agoda-scale series explosion, RoaringBitmap indexing."
         },
         {
           "href": "blog/series/experience/five-thousand-geo-events-per-second.html",
           "kicker": "Experience 4 of N",
-          "title": "Five Thousand Geo-Events Per Second \u2014 Shape of the Stream",
+          "title": "Five Thousand Geo-Events Per Second — Shape of the Stream",
           "desc": "Delivery Hero rider-tracking at 5k+ geo-events/s."
         },
         {
           "href": "blog/series/experience/seven-million-iot-sensors-failure-modes.html",
           "kicker": "Experience 3 of N",
-          "title": "Seven Million IoT Sensors \u2014 Failure Modes Textbooks Skip",
+          "title": "Seven Million IoT Sensors — Failure Modes Textbooks Skip",
           "desc": "Walmart SmartBuildings at 7M+ data points."
         },
         {
@@ -599,7 +620,7 @@
         {
           "href": "blog/series/experience/building-tsdb-at-agoda.html",
           "kicker": "Experience 1 of N",
-          "title": "1.5T events/day \u2014 what I worked on at Agoda",
+          "title": "1.5T events/day — what I worked on at Agoda",
           "desc": "WhiteFalcon context, team vs contribution boundaries."
         }
       ]
@@ -612,9 +633,9 @@
       "posts": [
         {
           "href": "blog/series/inference-ai-project/building-ai-inference-observability.html",
-          "kicker": "LensAI \u00b7 Product",
+          "kicker": "LensAI · Product",
           "title": "Building a Production-Grade AI Inference Observability Pipeline",
-          "desc": "Architecture, tradeoffs, benchmarks \u2014 Rust, Kafka, ClickHouse, Grafana."
+          "desc": "Architecture, tradeoffs, benchmarks — Rust, Kafka, ClickHouse, Grafana."
         }
       ]
     }
