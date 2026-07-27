@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 36 &mdash; Tail Sampling for Agent Traces | AI Learning Series</title>
-<meta name="description" content="Head sample the happy path; tail sample the expensive path. How combined head+tail sampling keeps all error traces without distorting SLO error rates.">
-<meta property="og:title" content="Day 36 &mdash; Tail Sampling for Agent Traces">
-<meta property="og:description" content="Head sample the happy path; tail sample the expensive path. How combined head+tail sampling keeps all error traces without distorting SLO error rates.">
+<title>Day 37 &mdash; Tool Taxonomies &mdash; Ontology Before Metrics | AI Learning Series</title>
+<meta name="description" content="http.search vs db.query vs code.exec are not just labels — they're the unit of analysis. Build the taxonomy first. Build the dashboard second. Bad taxonomy makes every dashboard lie gently.">
+<meta property="og:title" content="Day 37 &mdash; Tool Taxonomies &mdash; Ontology Before Metrics">
+<meta property="og:description" content="http.search vs db.query vs code.exec are not just labels — they're the unit of analysis. Build the taxonomy first. Build the dashboard second.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-36-tail-sampling-agent-traces.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-tail-sampling-agent-traces.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-37-tool-taxonomies-ontology.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-37-tool-taxonomies-ontology.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-36-tail-sampling-agent-traces.png">
-<meta property="article:published_time" content="2026-07-26">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-37-tool-taxonomies-ontology.png">
+<meta property="article:published_time" content="2026-07-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,23 +185,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 36 of 150</span>
-    <span class="tag">Sampling</span>
+    <span class="tag accent">AI Learning &middot; Day 37 of 150</span>
+    <span class="tag">Tool Taxonomy</span>
     <span class="tag">Observability</span>
     <span class="tag">TraceForge</span>
-    <span class="tag">SLO Integrity</span>
+    <span class="tag">ClickHouse</span>
   </div>
-  <h1 class="post-title">Day 36 &mdash; Tail Sampling for Agent Traces</h1>
-  <p class="post-subtitle">Head sample the happy path; tail sample the expensive path. Why head-only sampling silently breaks your SLO error rate &mdash; and how combined sampling fixes it.</p>
+  <h1 class="post-title">Day 37 &mdash; Tool Taxonomies &mdash; Ontology Before Metrics</h1>
+  <p class="post-subtitle">http.search vs db.query vs code.exec are not just labels &mdash; they&rsquo;re the unit of analysis. Build the taxonomy first. Build the dashboard second.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 36 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 37 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 26, 2026</span>
+    <span class="meta-item">July 27, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">11 min read</span>
   </div>
@@ -209,125 +209,56 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-36-tail-sampling-agent-traces.png" alt="Day 36 — Tail Sampling for Agent Traces" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-37-tool-taxonomies-ontology.png" alt="Day 37 — Tool Taxonomies — Ontology Before Metrics" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Imagine you&rsquo;re a quality inspector on a factory floor. Your job is to check products before they leave the building. The floor is too busy to check everything, so you spot-check 10% at random. That&rsquo;s fine for the good parts. But then a batch of defective parts slips through &mdash; and because you only checked 10%, only about one in ten defective parts got flagged. Your defect rate looks like 0.1%, but the true rate is 1%.</p>
+<p><code>tool_call.latency</code> at P99 is 4.2 seconds. Your agent takes 4.2 seconds per tool call &mdash; that&rsquo;s slow, and you should probably fix it. Except the 4.2 seconds is an average across weather API calls (200ms), code execution (8 seconds), and vector database lookups (50ms). The metric is not wrong; it&rsquo;s faithfully representing a number that has no meaning. Fix the taxonomy first.</p>
 
-<p>Head sampling does exactly this to your SLO error rate. At 10% head sampling, a real 1% error rate looks like 0.1% in your stored traces. The math is right &mdash; you sampled randomly and stored the fraction. But the SLO burn calculation is wrong, because it&rsquo;s working from distorted input.</p>
+<h2 id="the-alert-that-fires-wrong">The alert that always fires on the wrong thing</h2>
 
-<p>Today I implemented TraceForge&rsquo;s combined head+tail sampler. The head samples the happy path. The tail unconditionally keeps every error, retry, and timeout trace. Together they give you storage efficiency and SLO integrity &mdash; without having to choose between the two.</p>
+<p>Without taxonomy, every tool call metric is an average over a heterogeneous population. P99 latency spikes during a period when the agent runs more code execution calls &mdash; not because anything broke, but because the mix of tool types shifted. The oncall engineer pages in, investigates, and finds nothing wrong. The false alarm cost thirty minutes and a pager notification at 3am.</p>
 
-<h2 id="what-head-sampling-does">What head sampling actually does</h2>
+<p>This is the quiet version of bad taxonomy: it doesn&rsquo;t break anything, it just erodes trust in your dashboards. When P99 spikes every time the agent runs more <code>code_exec</code> calls and fewer <code>http_fetch</code> calls, engineers start ignoring the P99 alert. The alert is still firing when a real regression happens, and nobody notices because everybody learned the alert doesn&rsquo;t mean anything.</p>
 
-<p>Head sampling makes its keep-or-drop decision at the moment the first span of a trace arrives. It has seen no downstream outcome. It doesn&rsquo;t know whether this trace will error in step 7, time out in step 3, or complete successfully. The decision is purely probabilistic.</p>
+<p>The louder version is incorrect cost attribution. If you track <code>tool_call.cost_usd</code> without knowing which tool type the cost came from, you can&rsquo;t tell the difference between an expensive code execution tool and an expensive LLM-powered search tool. Bad taxonomy doesn&rsquo;t cause failures &mdash; it prevents you from seeing them.</p>
 
-<p>For the happy path, that&rsquo;s fine. The distribution of happy-path traces is roughly uniform: most are short, most succeed, and the few that are slow or expensive don&rsquo;t carry disproportionate diagnostic information. Sampling 10% of them and storing 10% is a reasonable trade.</p>
+<h2 id="why-libraries-dont-shelve-by-title">Why libraries don&rsquo;t shelve books by title</h2>
 
-<p>For error traces, it&rsquo;s exactly wrong. Error traces are rare by definition &mdash; if they weren&rsquo;t, you&rsquo;d be paged already. Applying a 10% sample to a 1% error population gives you 0.1% stored. Your SLO burn alert, which fires at 2% error rate, never fires. The SLO silently burns.</p>
+<p>A library that shelved books alphabetically by title would be usable but hard to browse. To find books about distributed systems, you&rsquo;d need to know all the titles in advance. The Dewey Decimal System assigns every book to a hierarchical category before it reaches the shelf &mdash; the category is determined by content, not by arbitrary identifiers.</p>
+
+<p>AI tool taxonomies face the same challenge. Tool names are arbitrary identifiers chosen by the developer: <code>search_web</code>, <code>web_search</code>, <code>google_search</code>, <code>bing_search_v2</code>, <code>tool_1</code>. A metrics system that tracks <code>tool_name=search_web</code> separately from <code>tool_name=web_search</code> is shelving two copies of the same book in different sections because their titles start with different words.</p>
+
+<p>The correct approach is to classify by semantic type, not by name. <code>search_web</code>, <code>web_search</code>, and <code>google_search</code> all belong to <code>category=http</code> because they all make outbound HTTP requests and return textual results. The dashboard metric is <code>http.latency</code>, not <code>search_web.latency</code> &mdash; and it stays stable when the tool name changes. Taxonomy should be defined by semantic behavior, not by the string someone typed in a config file.</p>
+
+<h2 id="five-categories">Why five and not fifty</h2>
+
+<p>The goal of a tool taxonomy is not exhaustive classification &mdash; it&rsquo;s useful grouping for operational metrics. Five categories cover the operational dimensions that matter for an agent observability stack.</p>
+
+<p><strong>http</strong> covers any tool that makes an outbound network request. Latency is dominated by network round-trip time and external API response time. Alert on P99 &gt; 5 seconds, timeouts, and 4xx/5xx rates. <strong>db</strong> covers any tool that queries or writes to a data store. Latency is dominated by query complexity and index health; alert on query latency spikes. <strong>code</strong> covers any tool that executes or analyzes code. Latency is dominated by sandbox startup time; cost can be high. <strong>file</strong> covers any tool that reads or writes to a filesystem or object store. <strong>agent</strong> covers any tool that delegates to another agent or model &mdash; latency is dominated by the sub-agent&rsquo;s turn time, and recursive LLM cost accumulates fast.</p>
+
+<p>Five categories because they represent five distinct operational profiles: different latency distributions, different cost drivers, different alert conditions. Adding more categories &mdash; splitting <code>http</code> into <code>search</code> and <code>api</code> &mdash; adds dashboard cardinality without adding operational clarity. The categories are not about what the tool does conceptually; they are about which knobs you turn when it breaks.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">head sample rate</span></div>
-  <div class="stat-cell"><span class="stat-num">1%</span><span class="stat-label">true error rate</span></div>
-  <div class="stat-cell"><span class="stat-num">0.1%</span><span class="stat-label">stored error rate</span></div>
-  <div class="stat-cell"><span class="stat-num">10&times;</span><span class="stat-label">SLO burn undercount</span></div>
+  <div class="stat-cell"><span class="stat-num">http</span><span class="stat-label">outbound network calls</span></div>
+  <div class="stat-cell"><span class="stat-num">db</span><span class="stat-label">data store reads/writes</span></div>
+  <div class="stat-cell"><span class="stat-num">code</span><span class="stat-label">code execution</span></div>
+  <div class="stat-cell"><span class="stat-num">file</span><span class="stat-label">filesystem &amp; object store</span></div>
+  <div class="stat-cell"><span class="stat-num">agent</span><span class="stat-label">sub-agent delegation</span></div>
 </div>
 
-<h2 id="the-tail-sampling-idea">The tail sampling idea</h2>
+<h2 id="taxonomy-drift">When the name changes but the category doesn&rsquo;t</h2>
 
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the triage nurse</div>
-  A triage nurse does not randomly see 10% of patients. They see everyone briefly, route healthy patients to the waiting room, and immediately escort critical patients to a bed. Tail sampling is that routing decision: fast path for the healthy, guaranteed attention for the critical.
-</div>
+<p>Tool names change. A developer refactors <code>search_web</code> to <code>web_search</code> to match their naming convention. An A/B test introduces <code>search_web_v2</code> alongside <code>search_web</code>. All of these tools belong to <code>category=http</code>. Without a taxonomy layer, each name change creates a new metric series and the historical data for the old name is abandoned.</p>
 
-<p>Tail sampling looks at span metadata after the fact. It asks: did this trace signal a non-OK outcome? If the status is error, retry, or timeout, keep it unconditionally. If it&rsquo;s OK, apply the head rate. The decision is made per span, not per trace, which means you can apply it at the collector layer without needing to buffer entire traces.</p>
+<p>Taxonomy drift is the failure mode where the category assignment is wrong after a rename. If the rule is <code>name == "search_web" → http</code>, then <code>web_search</code> gets assigned no category. If the rule is <code>name contains "search" → http</code>, then <code>search_db_records</code> gets incorrectly assigned to <code>http</code> instead of <code>db</code>. The correct rule structure is an ordered priority check: database keywords first, code execution keywords second, file keywords third, agent keywords fourth, then default to <code>http</code> for everything else.</p>
 
-<p>The cost is simple: you store more data when your error rate spikes. That is exactly the behaviour you want. Errors are the traces you most need to keep, so paying more storage for them is the correct trade-off.</p>
+<p>The default is <code>http</code> because the majority of tool calls make outbound requests, and false-positives on <code>http</code> are less harmful than false-negatives on <code>code</code> or <code>agent</code>. Ordered priority rules with a safe default are more robust than exact-match rules &mdash; design the fallback before you design the happy path.</p>
 
-<h2 id="combined-sampler">The combined sampler</h2>
-
-<p>TraceForge&rsquo;s <code>CombinedSampler</code> runs both strategies in parallel and uses OR logic: if either the head or the tail says <code>Keep</code>, the span is kept. A span only gets dropped if both samplers say <code>Drop</code>.</p>
-
-<pre><code>// Sample returns Keep if either head or tail decides to keep the span.
-func (c *CombinedSampler) Sample(s schema.Span) Decision {
-    if c.Head.Sample(s) == Keep {
-        return Keep
-    }
-    if c.Tail.Sample(s) == Keep {
-        return Keep
-    }
-    return Drop
-}
-</code></pre>
-
-<p>The <code>ErrorTailSampler</code> handles three status values: <code>error</code>, <code>retry</code>, and <code>timeout</code>. Retry and timeout traces are as diagnostic as error traces &mdash; a retry trace shows you the exact conditions under which the agent needed a second attempt, and timeout traces are the most expensive spans you generate. You want all of them.</p>
-
-<pre><code>func (e *ErrorTailSampler) Sample(s schema.Span) Decision {
-    switch s.Status {
-    case schema.StatusError, schema.StatusRetry, schema.StatusTimeout:
-        return Keep
-    default:
-        return Drop
-    }
-}
-</code></pre>
-
-<h2 id="trace-determinism">Trace-deterministic head sampling</h2>
-
-<p>There is a subtle problem with probabilistic head sampling that most introductions skip. If you use a fresh random number for each span, spans within the same trace get independent decisions. You keep span A, drop span B, keep span C &mdash; and your trace is broken in storage. A waterfall built from partial traces is worse than no waterfall at all. It shows a trace that looks complete but has gaps, and you cannot tell if the gap is a bug or a sampling artifact.</p>
-
-<p>The fix is to hash the <code>TraceID</code> instead of drawing a fresh random. Every span in the same trace has the same <code>TraceID</code>, so they all hash to the same value and get the same keep-or-drop decision. The head rate becomes a trace-level gate, not a span-level gate. Either the whole trace is stored, or none of it is.</p>
-
-<pre><code>func (h *HeadSampler) Sample(s schema.Span) Decision {
-    hash := traceHash(s.TraceID)
-    threshold := uint64(h.Rate * float64(^uint64(0)))
-    if hash &lt; threshold {
-        return Keep
-    }
-    return Drop
-}
-
-// FNV-1a: cheap, non-cryptographic, good distribution
-func traceHash(traceID string) uint64 {
-    var h uint64 = 14695981039346656037
-    for i := 0; i &lt; len(traceID); i++ {
-        h ^= uint64(traceID[i])
-        h *= 1099511628211
-    }
-    return h
-}
-</code></pre>
-
-<p>FNV-1a is intentionally cheap: no allocations, no cryptographic overhead, a single loop over the string. At ~2.8M spans/sec in benchmarks, the hash is not the bottleneck. The threshold comparison converts the rate to a uint64 range and checks whether the hash falls below it, which produces the correct probability for any rate between 0.0 and 1.0.</p>
-
-<h2 id="pii-ordering">PII scrubbing before sampling</h2>
-
-<div class="pullquote">
-  <p>Scrub before you sample. Even a dropped span touches the collector&rsquo;s memory. If that memory can be logged or dumped, raw PII is in the blast radius.</p>
-</div>
-
-<p>There is a sequencing question that feels minor but is actually a compliance question: should PII scrubbing happen before or after sampling? The answer is always before. A dropped span never reaches downstream storage, but it does exist briefly in the collector&rsquo;s process memory. If the collector logs spans for debugging, writes them to a buffer before the sampling decision, or produces a core dump on crash, the raw metadata is in the blast radius.</p>
-
-<p>TraceForge&rsquo;s <code>ScrubAndFilter</code> function encodes this ordering as a contract. You cannot call it in the wrong order &mdash; it does both operations, in the correct sequence, and returns only the kept spans.</p>
-
-<pre><code>func ScrubAndFilter(
-    scrubber *PIIScrubber,
-    sampler Sampler,
-    spans []schema.Span,
-    stats *Stats,
-) []schema.Span {
-    scrubbed := scrubber.ScrubBatch(spans)
-    return FilterBatch(sampler, scrubbed, stats)
-}
-</code></pre>
-
-<p>The PII scrubber applies three regex patterns to each span&rsquo;s <code>Metadata</code> field: email addresses (RFC 5322-ish), phone numbers (common formats including international prefixes), and credit card numbers (13&ndash;16 digit sequences). Each match is replaced with <code>[REDACTED]</code>. The performance cost is one regex pass per span &mdash; negligible at low PII density, ~420k spans/sec at high density (every span has email+phone in metadata).</p>
-
-<h2 id="sampling-flow">The full pipeline</h2>
+<h3>Diagram 1: DB and Code branches</h3>
 
 <pre class="mermaid">
 %%{init: {
@@ -346,74 +277,90 @@ func traceHash(traceID string) uint64 {
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart LR
-    A["POST /v1/spans"] --> B["PII Scrub"]
-    B --> C["Head Sampler\n10% of OK spans"]
-    B --> D["Tail Sampler\n100% errors"]
-    C --> E["OR: Keep?"]
-    D --> E
-    E -->|"yes"| F["OTLP Export"]
-    E -->|"no"| G["Drop"]
+flowchart TD
+    A["Tool name arrives"]
+    B{"DB keywords?\nsql query db\nvector redis"}
+    C["category = db"]
+    D{"Code keywords?\nrun exec python\nbash compile"}
+    E["category = code"]
+    F["&rarr; see Part 2"]
+    A --> B
+    B -->|"yes"| C
+    B -->|"no"| D
+    D -->|"yes"| E
+    D -->|"no"| F
 </pre>
 
-<p>The collector wires this together in <code>ScrubAndFilter</code>: every inbound span gets scrubbed, then evaluated by the combined sampler, then either exported or dropped. The <code>Stats</code> object accumulates <code>traceforge_spans_kept_total</code> and <code>traceforge_spans_dropped_total</code> counters, exposed at <code>/metrics/sampling</code> in Prometheus exposition format.</p>
+<h3>Diagram 2: File, Agent, and HTTP default</h3>
 
-<h2 id="effective-rate">The effective rate metric</h2>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart TD
+    F["From Part 1"]
+    G{"File keywords?\nfile read write\ndir s3 fs"}
+    H["category = file"]
+    I{"Agent keywords?\nagent delegate\nllm chain"}
+    J["category = agent"]
+    K["category = http\n(default)"]
+    F --> G
+    G -->|"yes"| H
+    G -->|"no"| I
+    I -->|"yes"| J
+    I -->|"no"| K
+</pre>
 
-<p>Effective rate is the fraction of spans that were kept: <code>kept / (kept + dropped)</code>. It is the number you care about operationally, because it tells you how much storage you&rsquo;re using and how far your stored counts have drifted from true counts.</p>
+<h2 id="toolcategory-type">ToolCategory: five constants, one ordering</h2>
 
-<p>At a steady-state 0% error rate, effective rate should hover near 10% &mdash; the head rate. When errors spike, effective rate rises because error spans are kept unconditionally. A sharp rise in effective rate while error rate also rises is the expected signature of the tail sampler working correctly. A flat effective rate during an error spike would mean the tail sampler is broken and errors are being dropped.</p>
+<p>Today&rsquo;s <code>pkg/types/tool_call.go</code> defines <code>ToolCategory</code> as a Go string type with five constants: <code>CategoryHTTP</code>, <code>CategoryDB</code>, <code>CategoryCode</code>, <code>CategoryFile</code>, <code>CategoryAgent</code>. The type is intentionally a string alias &mdash; not <code>iota</code> &mdash; so the values are readable in JSON, Kafka messages, and Grafana labels without mapping tables.</p>
 
-<p>The <code>/metrics/sampling</code> endpoint exposes this directly:</p>
+<p>The <code>AllCategories</code> slice in the same file enables exhaustiveness tests: if a sixth category is added without updating tests, the test suite catches it immediately. This is the taxonomy equivalent of a golden file &mdash; you declare what the correct set of values is, and tests verify that the implementation matches the declaration. The <code>ToolCall</code> struct carries <code>Category ToolCategory</code> as a required field; adapters (Day 38) assign the category during normalization, before the <code>ToolCall</code> is emitted to Kafka. Downstream consumers in ClickHouse and Grafana can safely assume <code>category</code> is always one of the five known values and use it as a low-cardinality label.</p>
 
-<pre><code>traceforge_spans_kept_total 1247
-traceforge_spans_dropped_total 10581
-traceforge_sampling_effective_rate 0.1054
-</code></pre>
+<div class="pullquote">
+  <p>The five-category taxonomy isn&rsquo;t a compromise &mdash; it&rsquo;s a deliberate design. Fewer categories means lower cardinality in dashboards, stable alert thresholds, and a test you can write in ten lines.</p>
+</div>
 
-<p>The 10.54% effective rate reflects a low error environment. Wire this to a Grafana panel and alert if effective rate stays below 10% during a known error incident &mdash; that is the signal that error traces are being dropped when they should not be.</p>
+<h2 id="ontology-before-metrics">Ontology before metrics</h2>
 
-<h2 id="throughput">Throughput at the 5k target</h2>
+<p>The right time to build a tool taxonomy is before you write the first metric. A dashboard built on raw tool names accumulates technical debt proportional to the number of tools your agents use. Every new tool is a new metric series. Every rename breaks a Grafana panel. Every time a developer renames <code>search_web</code> to <code>web_search</code>, someone&rsquo;s alert threshold is wrong.</p>
 
-<p>The load test target for TraceForge&rsquo;s collector pipeline is 5,000 HTTP spans/sec sustained. I benchmarked the sampler in isolation using Go&rsquo;s <code>testing.B</code> harness on 5,000-span batches:</p>
+<p>Build the taxonomy first: five categories, ordered priority rules, a safe default, and a test that enforces exhaustiveness. Then build the dashboard on category labels, not tool names. When the tool name changes, the category assignment absorbs the change. The dashboard stays stable. The alert threshold stays correct.</p>
 
-<table>
-  <thead>
-    <tr><th>Scenario</th><th>Spans/sec</th><th>Headroom vs. 5k target</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Head 10% only</td><td>~2.8M</td><td>560&times;</td></tr>
-    <tr><td>Combined head+tail</td><td>~2.6M</td><td>520&times;</td></tr>
-    <tr><td>PII scrub + combined (no PII)</td><td>~1.4M</td><td>280&times;</td></tr>
-    <tr><td>PII scrub + combined (email+phone)</td><td>~420k</td><td>84&times;</td></tr>
-  </tbody>
-</table>
-
-<p>At the 5k/sec target, the sampler is not the bottleneck under any realistic PII density. The 84&times; headroom at the worst case means the actual constraint will be network I/O to the OTLP endpoint and ClickHouse ingest latency, not the in-process sampling loop.</p>
+<p>Bad taxonomy makes every dashboard lie gently. Ontology before metrics.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 36 of 150 &mdash; Tail Sampling for Agent Traces</p>
-  <p><em>Next up:</em> <a href="day-37-tool-taxonomies-ontology.html">Day 37 &mdash; Tool Taxonomies &mdash; Ontology Before Metrics</a></p>
+  <p>AI Learning &middot; Day 37 of 150 &mdash; Tool Taxonomies &mdash; Ontology Before Metrics</p>
+  <p><em>Next up:</em> Day 38 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://opentelemetry.io/docs/concepts/sampling/">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-37-langchain-four-vendors.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>OpenTelemetry Sampling &mdash; head vs. tail, probabilistic and rule-based strategies</span>
+      <span>Experience Day 37 &mdash; LangChain Is Four Vendors in a Trenchcoat (why normalization matters for observability)</span>
     </a>
-    <a href="https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-36-tail-sampling-agent-traces.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>FNV hash function &mdash; Fowler&ndash;Noll&ndash;Vo non-cryptographic hash</span>
+      <span>Day 36 &mdash; Tail Sampling for Agent Traces (what good taxonomy feeds downstream)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html">
+    <a href="https://en.wikipedia.org/wiki/Dewey_Decimal_Classification">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 36 &mdash; Sampling Without Lying (Agoda WhiteFalcon SLO story)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-35-silent-failures-multi-step-agents.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 35 &mdash; Silent Failures in Multi-Step Agents</span>
+      <span>Dewey Decimal Classification &mdash; the original hierarchical content taxonomy</span>
     </a>
   </div>
 </div>
@@ -424,25 +371,23 @@ traceforge_sampling_effective_rate 0.1054
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-head-sampling-does">What head sampling does</a></li>
-      <li><a href="#the-tail-sampling-idea">The tail sampling idea</a></li>
-      <li><a href="#combined-sampler">The combined sampler</a></li>
-      <li><a href="#trace-determinism">Trace-deterministic head sampling</a></li>
-      <li><a href="#pii-ordering">PII scrubbing before sampling</a></li>
-      <li><a href="#sampling-flow">The full pipeline</a></li>
-      <li><a href="#effective-rate">The effective rate metric</a></li>
-      <li><a href="#throughput">Throughput at 5k target</a></li>
+      <li><a href="#the-alert-that-fires-wrong">Alert that fires on the wrong thing</a></li>
+      <li><a href="#why-libraries-dont-shelve-by-title">Why libraries classify by content</a></li>
+      <li><a href="#five-categories">Why five and not fifty</a></li>
+      <li><a href="#taxonomy-drift">Taxonomy drift</a></li>
+      <li><a href="#toolcategory-type">ToolCategory type</a></li>
+      <li><a href="#ontology-before-metrics">Ontology before metrics</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-36-tail-sampling-agent-traces.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-37-tool-taxonomies-ontology.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Tail+Sampling+for+Agent+Traces+%E2%80%94+AI+Learning+%C2%B7+Day+36+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-36-tail-sampling-agent-traces.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Tool+Taxonomies+%E2%80%94+Ontology+Before+Metrics+%E2%80%94+AI+Learning+%C2%B7+Day+37+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-37-tool-taxonomies-ontology.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -455,22 +400,21 @@ traceforge_sampling_effective_rate 0.1054
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D35</span> AI Learning</div>
-          <a href="day-35-silent-failures-multi-step-agents.html" class="series-post-title">Silent Failures in Multi-Step Agents</a>
+          <div class="series-post-kicker"><span class="series-post-num">D36</span> AI Learning</div>
+          <a href="day-36-tail-sampling-agent-traces.html" class="series-post-title">Tail Sampling for Agent Traces</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D36</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Tail Sampling for Agent Traces</div>
-          <div class="series-post-desc">Head sample the happy path; tail sample the expensive path &mdash; combined strategy for SLO integrity</div>
+          <div class="series-post-kicker"><span class="series-post-num">D37</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Tool Taxonomies &mdash; Ontology Before Metrics</div>
+          <div class="series-post-desc">Five semantic categories, ordered priority rules, and a test that catches drift</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D37</span> AI Learning</div>
-          <a href="day-37-tool-taxonomies-ontology.html" class="series-post-title">Tool Taxonomies &mdash; Ontology Before Metrics</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D38</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
   </div>
-
 </aside>
 </div>
 
