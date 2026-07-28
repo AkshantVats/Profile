@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 37 &mdash; LangChain Is Four Vendors in a Trenchcoat | Experience Series</title>
-<meta name="description" content="LangChain unifies four AI providers under one interface. The interface hides the drift. The adapter is the thing that keeps the system honest — a lesson from Delivery Hero's Route Service.">
-<meta property="og:title" content="Day 37 &mdash; LangChain Is Four Vendors in a Trenchcoat">
-<meta property="og:description" content="LangChain unifies four AI providers under one interface. The interface hides the drift. The adapter is the thing that keeps the system honest — a lesson from Delivery Hero's Route Service.">
+<title>Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift | Experience Series</title>
+<meta name="description" content="Supplier APIs change constantly at Wayfair. Golden files are the contract test layer that catches drift before it reaches the pricing engine. Built at 250k+ SKUs per supplier.">
+<meta property="og:title" content="Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift">
+<meta property="og:description" content="Supplier APIs change constantly at Wayfair. Golden files are the contract test layer that catches drift before it reaches the pricing engine.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-37-langchain-four-vendors.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-37-langchain-four-vendors.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-golden-files-supplier-api-drift.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-37-langchain-four-vendors.png">
-<meta property="article:published_time" content="2026-07-27">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-golden-files-supplier-api-drift.png">
+<meta property="article:published_time" content="2026-07-28">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,119 +185,117 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 37 of 150</span>
-    <span class="tag">Delivery Hero</span>
-    <span class="tag">Normalization</span>
-    <span class="tag">Schema Drift</span>
-    <span class="tag">TraceForge</span>
+    <span class="tag accent">Experience &middot; Day 38 of 150</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Contract Tests</span>
+    <span class="tag">Golden Files</span>
+    <span class="tag">API Drift</span>
   </div>
-  <h1 class="post-title">Day 37 &mdash; LangChain Is Four Vendors in a Trenchcoat</h1>
-  <p class="post-subtitle">The framework unifies four AI providers under one interface. The interface hides the drift. The adapter is the thing that keeps the system honest.</p>
+  <h1 class="post-title">Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift</h1>
+  <p class="post-subtitle">Supplier APIs at Wayfair changed without warning. Golden files were the contract test layer between the raw HTTP response and the pricing engine &mdash; the only thing that kept 250k+ SKUs accurate.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 37 of 150</span>
+    <span class="meta-item">Experience &middot; Day 38 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 27, 2026</span>
+    <span class="meta-item">July 28, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">11 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-37-langchain-four-vendors.png" alt="Day 37 — LangChain Is Four Vendors in a Trenchcoat" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-38-golden-files-supplier-api-drift.png" alt="Day 38 — Golden Files — How Platforms Survive API Drift" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>At Delivery Hero, the Route Service consumed lifecycle events from Order SQS in four distinct formats. PICKED UP events carried a rider ID and timestamp. RIDER ENQUE events carried a rider ID, order ID, and a geolocation. PLACED events carried an order ID and a destination. RIDER PICKED UP events carried all of the above plus a duration estimate. Every consumer downstream of Route Service had to handle all four formats, or receive a canonical Route object from an adapter that did.</p>
+<p>At Wayfair, the pricing engine processed 250,000+ SKUs per supplier per run. The cost data feeding those runs came from supplier APIs &mdash; hundreds of them, maintained by external partners who had no obligation to version their responses. A supplier update their catalog format during a sandbox migration. The change was undocumented. The next pricing run used three-week-old numbers. Nobody noticed for five days.</p>
 
-<p>The adapter choice was the only thing that kept downstream code readable. Without it, every consumer was a <code>switch</code> statement on event type, and every time Order SQS added a new field, the switch statement grew in three places instead of one.</p>
+<p>That incident taught me what golden files actually protect against: not bugs in your code, but drift in someone else&rsquo;s code that you have no control over. The fix wasn&rsquo;t a better parser. It was a recorded snapshot of what the response looked like before, and a test that fired the moment the snapshot stopped matching.</p>
 
-<h2 id="the-field-that-moved-at-2am">The field that moved at 2am</h2>
+<h2 id="the-sandwich-model">The sandwich model of supplier data</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">My scope at Delivery Hero &mdash; Route Service</div>
-  Contributing engineer on the Route Consumer pipeline. The Route Service normalization architecture and canonical Route object schema were team designs. My work was in the consumer layer — reading from Order SQS, running events through the adapter, and feeding normalized output to OSRM and the Revisit Order System.
+  <div class="attr-label">My scope at Wayfair &mdash; Pricing Platform</div>
+  Contributing engineer on the Cost Aggregation layer. The overall platform architecture &mdash; UCMS, SPCS, Delphi &mdash; was a team design spanning multiple squads. My work was in the supplier data ingestion and normalization pipeline: reading supplier API responses, running them through contract tests, and feeding normalized cost inputs to the pricing run orchestrator.
 </div>
 
-<p>When OSRM was upgraded to a new major version, the route geometry response changed. The field that returned estimated travel time in seconds was renamed — and the unit changed. Code that had been stable for eight months silently started reporting travel times 1000x larger because it was reading milliseconds and treating them as seconds. The Route Service adapter caught it immediately, because the adapter was the only code that read the raw OSRM response. Everything downstream consumed the normalized Route object, which had a <code>DurationSeconds</code> field computed from whatever the source provided.</p>
+<p>Think of supplier data as a sandwich. The bread is your system &mdash; the ingestion job, the normalization adapter, the pricing engine. The filling is whatever the supplier decided to return today. Your bread holds its shape; the filling changes whenever the supplier ships an update. Without a protective layer between them, every supplier change bleeds directly into the bread.</p>
 
-<p>This is the value of the normalization layer: you centralize the blast radius of upstream schema changes. Without an adapter, a field rename propagates to every consumer. With an adapter, a field rename requires one change in one place, and the tests for that adapter catch it before production. The adapter is only as protective as the boundary is maintained — enforce it at code review, not at runtime.</p>
+<p>Golden files are that protective layer. Record a real supplier response. Normalize it through your adapter. Record the normalized output. Every future test run re-sends the fixture through the adapter and asserts that the output still matches. When the supplier changes their response format, the golden file comparison fails immediately &mdash; before that change reaches the pricing run.</p>
 
-<h2 id="postal-code-normalization">Postal code normalization</h2>
+<h2 id="why-schema-validation-alone-isnt-enough">Why schema validation alone isn&rsquo;t enough</h2>
+
+<p>The first instinct when a supplier API starts behaving differently is to add JSON Schema validation. The response still validates against the schema, so the test passes. The catch: many real-world API drift scenarios don&rsquo;t violate the schema. A supplier adds a new field. A numeric field switches from <code>int</code> to <code>float</code>. A discount field changes its representation from an absolute amount to a percentage. The schema stays valid. The semantics change completely.</p>
+
+<p>At Wayfair, we had a supplier cost field that was documented as &ldquo;unit cost in USD.&rdquo; During a catalog migration, the supplier started returning base cost plus a markup factor, not the final unit cost. The value was still a positive decimal, still within the schema type. The pricing engine used it as if it were the final cost, and the SKUs came out overpriced by whatever the markup factor happened to be.</p>
+
+<p>Schema validation catches structural changes. Golden files catch semantic drift. You need both, but golden files are the test layer that catches the class of failures schema validation cannot see.</p>
+
+<h2 id="the-three-file-pattern">The three-file pattern</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the postal system</div>
-  A postal system that accepts "NYC", "New York City", "New York, NY", "10001", and "10001-1234" has a normalization step before delivery routing. Without it, the routing engine has to handle five representations of the same destination and update every time a new variant appears. With it, the routing engine sees only ZIP codes, and all variants are adapter concerns.
+  <div class="attr-label">DS analogy &mdash; court reporter</div>
+  A court reporter takes verbatim transcripts of testimony. The transcript is the golden file: what was actually said, in the exact words it was said. If someone later claims the witness said something different, you pull the transcript. The court doesn&rsquo;t rely on the reporter&rsquo;s memory or interpretation &mdash; it relies on the recorded verbatim output. Your supplier API golden file is the transcript of what the API said last time it was working correctly.
 </div>
 
-<p>Distributed systems have the same problem with identifiers and formats. The &ldquo;postal code normalizer&rdquo; in Route Service was the adapter layer that took four SQS event formats and produced one Route object. The routing logic &mdash; OSRM, travel time, ETA calculation &mdash; never saw the raw SQS events. It only saw Route objects.</p>
+<p>The pattern that worked for us at Wayfair was three files per supplier integration. First: a raw fixture, the actual API response with sensitive values scrubbed (pricing data anonymized, supplier identifiers hashed). Second: the normalized output &mdash; what the adapter produces from that raw fixture. Third: a test that reads the raw fixture, runs it through the adapter, and asserts byte-for-byte equality with the normalized output file.</p>
 
-<p>The key insight from postal normalization is that it is lossy by design. When you convert an OSRM geometry response to a Route object, you discard the raw GeoJSON and keep only the fields you need. The canonical form is not a superset of all source formats &mdash; it is a purpose-built projection for downstream consumers. Design the canonical struct for the consumers, not for the source formats.</p>
-
-<h2 id="the-consumer-never-touched-order-sqs">The consumer never touched Order SQS</h2>
-
-<p>The Route Consumers at Delivery Hero read from Order SQS and passed raw events to an adapter before any business logic ran. Consumer code never contained a <code>switch</code> on event type &mdash; that logic lived entirely in the adapter. The adapter&rsquo;s job was to produce a normalized intermediate representation that Route Service could use for OSRM calls and Route object construction.</p>
-
-<p>The practical benefit showed up during a period when Order SQS event formats evolved as the mobile apps were updated. New fields were added, existing fields got additional values, and one event type gained an optional geolocation that wasn&rsquo;t present in the original spec. Each of these changes required an adapter update and a test. Zero changes were required in the Route Service business logic or the Revisit Order System.</p>
-
-<p>The test strategy was golden files: each adapter had a directory of recorded raw SQS events (anonymized) and the expected normalized output. When the adapter was updated, the golden files either passed or caught the regression. This made adapter changes safe to deploy independently of Route Service releases. The adapter test surface is exactly the area of risk during a provider change — golden files make that risk explicit and auditable.</p>
+<p>When a supplier changes their response, the test fails and tells you exactly which fields changed. You update the raw fixture to match the new response, re-run the adapter, and deliberately update the normalized output. The commit diff in the normalized output file is the audit trail: this field changed from this value to this value on this date because the supplier changed their format. That audit trail is worth more than any comment in the code.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">SQS event formats</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">canonical Route object</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">consumer switch statements</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">place a field rename lands</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">files per integration</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">schema-valid but wrong</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">place drift is caught</span></div>
+  <div class="stat-cell"><span class="stat-num">∞</span><span class="stat-label">audit trail in git</span></div>
 </div>
 
-<h2 id="four-vendors-one-interface">Four vendors, one interface, zero transparency</h2>
+<h2 id="the-supplier-who-changed-on-friday">The supplier who changed on Friday</h2>
 
-<p>LangChain provides a unified tool call interface over multiple LLM providers. From the developer&rsquo;s perspective, this looks like vendor abstraction. From the operations perspective, it looks like hidden schema drift.</p>
+<p>The incident that really cemented this for me happened on a Friday afternoon. A supplier pushed a catalog update &mdash; their internal ERP migration &mdash; and changed three fields in their cost API response. No changelog, no email. The pricing run that night used the new response format without understanding it. Over the weekend, that supplier&rsquo;s SKUs were repriced with incorrect cost data.</p>
 
-<p>When OpenAI added <code>tool_calls</code> as a replacement for the legacy <code>function_call</code> field, LangChain updated its OpenAI adapter and the change was invisible to application code. When Anthropic uses <code>tool_use</code> blocks instead of <code>function_call</code>, LangChain handles the translation. This is the adapter pattern working correctly &mdash; exactly what Route Service did for Order SQS events.</p>
+<p>We caught it Monday morning when a pricing analyst noticed the margins looked wrong on a specific category. By then, five days of pricing data had been computed from bad inputs. The recovery was painful &mdash; we had to reprocess the entire supplier catalog from archived supplier data and re-run the affected pricing periods.</p>
 
-<p>The problem appears when you want to observe what happened. The tool call that appears in your Grafana dashboard came from a LangChain <code>AgentAction</code>, which was translated from an Anthropic <code>tool_use</code> block, which had a <code>name</code> field and an <code>input</code> object instead of the OpenAI <code>function.arguments</code> string. The cost attribution, the input token count, and the retry semantics are all buried under the abstraction. You are looking at what LangChain decided to surface, not at what the provider actually returned.</p>
+<p>After that, we added golden file tests to every supplier integration. The next time that same supplier changed their response format &mdash; three months later &mdash; the test caught it during the nightly run before the pricing job started. The on-call engineer got a failing test notification, not a pricing anomaly report five days later.</p>
 
 <div class="pullquote">
-  <p>LangChain&rsquo;s abstraction makes development faster and observability harder. The adapter layer that protects you from schema drift is exactly the layer that hides the metadata you need for correct cost dashboards.</p>
+  <p>A failing golden file test is a supplier notification you never had to ask for. It tells you exactly what changed, in exact byte terms, before that change reaches production.</p>
 </div>
 
-<p>To build correct cost dashboards, you need the canonical ToolCall struct &mdash; and you need adapters that preserve cost and retry metadata through the normalization. LangChain is four vendors in a trenchcoat: helpful for shipping, opaque for operating.</p>
+<h2 id="golden-files-in-ai-tool-adapters">Golden files in AI vendor adapters</h2>
 
-<h2 id="one-struct-to-normalize-them-all">One struct to normalize them all</h2>
+<p>Today&rsquo;s <code>tool-call-analyzer</code> code applies the same pattern to AI vendor APIs. OpenAI, Anthropic, and LangChain all have their own tool call response formats &mdash; and all of them have changed at least once. OpenAI added <code>tool_calls</code> as a replacement for the legacy <code>function_call</code> field. Anthropic uses <code>tool_use</code> content blocks instead. LangChain wraps both under <code>AgentAction</code>.</p>
 
-<p>Today&rsquo;s <code>pkg/types/tool_call.go</code> in tool-call-analyzer defines the canonical <code>ToolCall</code> struct using the lessons from the Route Service adapter pattern. Every field is there because a downstream consumer needs it: the Grafana waterfall needs <code>trace_id</code> and <code>span_id</code>; the cost alert needs <code>cost.cost_usd</code>; the retry dashboard needs <code>retries.retry_count</code> and <code>retries.total_cost_usd</code>; the taxonomy dashboard needs <code>category</code>.</p>
+<p>Each vendor adapter has a <code>testdata/</code> directory of golden fixtures: a raw vendor response JSON and the expected normalized <code>ToolCall</code> output. When any vendor changes their response format &mdash; and they will &mdash; the test fails immediately. You update the fixture, re-run the adapter, and the commit diff is the changelog. The pricing engine lesson from Wayfair applied to AI observability infrastructure.</p>
 
-<p>The <code>Adapter</code> interface in <code>pkg/adapter/adapter.go</code> enforces the same boundary that Route Service enforced: raw vendor payloads go in, canonical <code>ToolCall</code> structs come out, and no consumer ever reads vendor-specific fields directly. The <code>ErrNilInput</code>, <code>ErrUnknownFormat</code>, and <code>ErrMissingField</code> sentinels give consumers typed errors rather than panics or opaque JSON parse failures.</p>
-
-<p>The cost model is the detail that has no equivalent in Route Service: <code>EstimateCost(inputTokens, outputTokens, modelName)</code> computes per-call LLM cost, and <code>NewRetryMeta(retryCount, attemptCostUSD, ...)</code> computes total cost attribution across retries. This is the piece that LangChain does not surface &mdash; you see the final result, but not how many retries it took and what each one cost. The adapter layer makes that metadata visible again.</p>
+<p>The test structure is identical: read the raw fixture from disk, run it through the adapter&rsquo;s <code>Parse()</code> method, assert the result matches the expected output. The only difference is what&rsquo;s in the fixture files. The principle is unchanged: record what the provider said, verify you still understand it the same way.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 37 of 150 &mdash; LangChain Is Four Vendors in a Trenchcoat</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html">Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift</a></p>
+  <p>Experience &middot; Day 38 of 150 &mdash; Golden Files &mdash; How Platforms Survive API Drift</p>
+  <p><em>Next up:</em> Day 39 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-37-tool-taxonomies-ontology.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>AI Learning Day 37 &mdash; Tool Taxonomies: Ontology Before Metrics (the ToolCategory enum that ships with this adapter contract)</span>
+      <span>AI Learning Day 38 &mdash; Adapter Pattern for Vendor Drift (the Go code this golden file pattern protects)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-36-sampling-without-lying.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-37-langchain-four-vendors.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 36 &mdash; Sampling Without Lying (the tail sampling story this normalization layer feeds into)</span>
+      <span>Day 37 &mdash; LangChain Is Four Vendors in a Trenchcoat (why normalization matters before golden files can work)</span>
     </a>
-    <a href="https://python.langchain.com/docs/concepts/tool_calling/">
+    <a href="https://web.archive.org/web/2024/https://martinfowler.com/bliki/GoldenMaster.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>LangChain Tool Calling &mdash; how LangChain normalizes tool calls across providers</span>
+      <span>Martin Fowler &mdash; Golden Master testing pattern</span>
     </a>
   </div>
 </div>
@@ -308,22 +306,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-field-that-moved-at-2am">The field that moved at 2am</a></li>
-      <li><a href="#postal-code-normalization">Postal code normalization</a></li>
-      <li><a href="#the-consumer-never-touched-order-sqs">The consumer and Order SQS</a></li>
-      <li><a href="#four-vendors-one-interface">Four vendors, one interface</a></li>
-      <li><a href="#one-struct-to-normalize-them-all">One struct to normalize them all</a></li>
+      <li><a href="#the-sandwich-model">The sandwich model</a></li>
+      <li><a href="#why-schema-validation-alone-isnt-enough">Why schema validation isn&rsquo;t enough</a></li>
+      <li><a href="#the-three-file-pattern">The three-file pattern</a></li>
+      <li><a href="#the-supplier-who-changed-on-friday">The supplier who changed on Friday</a></li>
+      <li><a href="#golden-files-in-ai-tool-adapters">Golden files in AI tool adapters</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-37-langchain-four-vendors.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-38-golden-files-supplier-api-drift.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=LangChain+Is+Four+Vendors+in+a+Trenchcoat+%E2%80%94+Experience+%C2%B7+Day+37+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-37-langchain-four-vendors.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Golden+Files+%E2%80%94+How+Platforms+Survive+API+Drift+%E2%80%94+Experience+%C2%B7+Day+38+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-38-golden-files-supplier-api-drift.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -336,16 +334,16 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D36</span> Experience</div>
-          <a href="day-36-sampling-without-lying.html" class="series-post-title">Sampling Without Lying</a>
+          <div class="series-post-kicker"><span class="series-post-num">D37</span> Experience</div>
+          <a href="day-37-langchain-four-vendors.html" class="series-post-title">LangChain Is Four Vendors in a Trenchcoat</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D37</span> Experience &middot; now</div>
-          <div class="series-post-title">LangChain Is Four Vendors in a Trenchcoat</div>
-          <div class="series-post-desc">Delivery Hero &rsquo;s Route Service adapter lesson &mdash; applied to AI tool call normalization</div>
+          <div class="series-post-kicker"><span class="series-post-num">D38</span> Experience &middot; now</div>
+          <div class="series-post-title">Golden Files &mdash; How Platforms Survive API Drift</div>
+          <div class="series-post-desc">Wayfair supplier APIs, contract tests, and the golden file pattern that caught Friday&rsquo;s silent schema change</div>
         </div>
         <div class="series-post series-post--draft">
-          <div class="series-post-kicker"><span class="series-post-num">D38</span> Experience</div>
+          <div class="series-post-kicker"><span class="series-post-num">D39</span> Experience</div>
           <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
