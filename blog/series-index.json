@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html",
+          "kicker": "AI Learning · Day 38 of 150",
+          "title": "Day 38 — Adapter Pattern for Vendor Drift",
+          "subtitle": "Three vendor JSON shapes, one canonical ToolCall, zero schema changes in the Kafka consumer",
+          "date": "2026-07-28",
+          "slug": "day-38-adapter-pattern-vendor-drift",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html",
+          "coverImage": "blog/assets/covers/day-38-adapter-pattern-vendor-drift.png",
+          "desc": "Golden files are your contract tests when OpenAI changes JSON. Three vendor adapters (OpenAI, Anthropic, LangChain) converge to one ToolCall struct, six golden fixtures catch drift before it reaches Kafka."
+        },
+        {
           "href": "blog/series/ai-learning/day-37-tool-taxonomies-ontology.html",
           "kicker": "AI Learning · Day 37 of 150",
           "title": "Day 37 — Tool Taxonomies — Ontology Before Metrics",
@@ -335,6 +347,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-38-golden-files-supplier-api-drift.html",
+          "kicker": "Experience · Day 38 of 150",
+          "title": "Day 38 — Golden Files — How Platforms Survive API Drift",
+          "desc": "Wayfair’s Cost Aggregation layer tested supplier APIs with golden files — raw fixture, normalized output, diff test. The same pattern applies to AI vendor adapters: when OpenAI changes tool_call JSON, a golden file fails before your Kafka consumer does.",
+          "coverImage": "blog/assets/covers/day-38-golden-files-supplier-api-drift.png",
+          "date": "2026-07-28",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html"
+        },
         {
           "href": "blog/series/experience/day-37-langchain-four-vendors.html",
           "kicker": "Experience · Day 37 of 150",
