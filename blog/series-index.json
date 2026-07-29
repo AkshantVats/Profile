@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-39-exclusive-time-wall-time.html",
+          "kicker": "AI Learning · Day 39 of 150",
+          "title": "Day 39 — Exclusive Time vs Wall Time",
+          "subtitle": "Why summing span durations double-counts",
+          "date": "2026-07-29",
+          "slug": "day-39-exclusive-time-wall-time",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html",
+          "coverImage": "blog/assets/covers/day-39-exclusive-time-wall-time.png",
+          "desc": "Sum every span duration in a trace and you get a number bigger than the wall clock. Exclusive time is the metric that partitions correctly — and it's why the tool-call-analyzer duration alert divides by wall time, not by the sum of every span."
+        },
+        {
           "href": "blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html",
           "kicker": "AI Learning · Day 38 of 150",
           "title": "Day 38 — Adapter Pattern for Vendor Drift",
@@ -347,6 +359,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-39-tool-ate-your-margin.html",
+          "kicker": "Experience · Day 39 of 150",
+          "title": "Day 39 — The Tool That Ate Your Margin",
+          "desc": "At Agoda, attribution meant finding which label exploded the RoaringBitmap index. In tool-call-analyzer, it means finding which tool ate the LLM budget — same GROUP BY, different bill, and a zero-cost LangChain row is a gap, not a bargain.",
+          "coverImage": "blog/assets/covers/day-39-tool-ate-your-margin.png",
+          "date": "2026-07-29",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html"
+        },
         {
           "href": "blog/series/experience/day-38-golden-files-supplier-api-drift.html",
           "kicker": "Experience · Day 38 of 150",
