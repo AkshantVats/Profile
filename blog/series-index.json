@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-40-graph-algorithms-on-traces.html",
+          "kicker": "AI Learning · Day 40 of 150",
+          "title": "Day 40 — Graph Algorithms on Traces",
+          "subtitle": "DAG validation, cycle detection, N+1 alerts",
+          "date": "2026-07-29",
+          "slug": "day-40-graph-algorithms-on-traces",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-40-graph-algorithms-on-traces.html",
+          "coverImage": "blog/assets/covers/day-40-graph-algorithms-on-traces.png",
+          "desc": "N+1 tool calls are SELECT in a loop, but agents have never had a linter to catch them. Model a trace as a directed graph and cycle detection, topological sort, and N+1 lint all fall out of algorithms that are decades old."
+        },
+        {
           "href": "blog/series/ai-learning/day-39-exclusive-time-wall-time.html",
           "kicker": "AI Learning · Day 39 of 150",
           "title": "Day 39 — Exclusive Time vs Wall Time",
@@ -359,6 +371,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html",
+          "kicker": "Experience · Day 40 of 150",
+          "title": "Day 40 — N+1 Tool Calls — The SELECT * of Agents",
+          "desc": "At Walmart, seven million sensors hammering Azure IoT Hub at once taught me fan-out amplification. In tool-call-analyzer, the same pattern shows up as an agent calling search_web four times in a row — and the fix is the same edge pre-aggregation trick.",
+          "coverImage": "blog/assets/covers/day-40-n1-tool-calls-select-star-of-agents.png",
+          "date": "2026-07-29",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html"
+        },
         {
           "href": "blog/series/experience/day-39-tool-ate-your-margin.html",
           "kicker": "Experience · Day 39 of 150",

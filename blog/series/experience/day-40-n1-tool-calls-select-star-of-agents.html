@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 39 &mdash; The Tool That Ate Your Margin | Experience Series</title>
-<meta name="description" content="At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget. Same GROUP BY, different bill.">
-<meta property="og:title" content="Day 39 &mdash; The Tool That Ate Your Margin">
-<meta property="og:description" content="At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget.">
+<title>Day 40 &mdash; N+1 Tool Calls &mdash; The SELECT * of Agents | Experience Series</title>
+<meta name="description" content="At Walmart, seven million sensors hammering Azure IoT Hub at once taught me fan-out amplification. In tool-call-analyzer, the same pattern shows up as an agent calling search_web four times in a row.">
+<meta property="og:title" content="Day 40 &mdash; N+1 Tool Calls &mdash; The SELECT * of Agents">
+<meta property="og:description" content="Seven million sensors hammering Azure IoT Hub at once taught me fan-out amplification. Today's tool-call-analyzer CLI detects the same pattern in agent tool calls.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-tool-ate-your-margin.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-40-n1-tool-calls-select-star-of-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-tool-ate-your-margin.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-40-n1-tool-calls-select-star-of-agents.png">
 <meta property="article:published_time" content="2026-07-29">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,21 +185,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 39 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">Cost Attribution</span>
-    <span class="tag">Cardinality</span>
-    <span class="tag">ClickHouse</span>
+    <span class="tag accent">Experience &middot; Day 40 of 150</span>
+    <span class="tag">Walmart</span>
+    <span class="tag">Azure IoT Hub</span>
+    <span class="tag">Edge Filtering</span>
+    <span class="tag">Fan-Out</span>
   </div>
-  <h1 class="post-title">Day 39 &mdash; The Tool That Ate Your Margin</h1>
-  <p class="post-subtitle">At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget. Same question, same <code>GROUP BY</code>, different bill.</p>
+  <h1 class="post-title">Day 40 &mdash; N+1 Tool Calls &mdash; The SELECT * of Agents</h1>
+  <p class="post-subtitle">At Walmart, seven million sensors hammering Azure IoT Hub at once taught me what fan-out amplification looks like at 3am. In tool-call-analyzer, the same shape shows up as an agent calling <code>search_web</code> four times for one question.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 39 of 150</span>
+    <span class="meta-item">Experience &middot; Day 40 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 29, 2026</span>
     <div class="meta-divider"></div>
@@ -209,115 +209,116 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-39-tool-ate-your-margin.png" alt="Day 39 — The Tool That Ate Your Margin" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-40-n1-tool-calls-select-star-of-agents.png" alt="Day 40 — N+1 Tool Calls — The SELECT * of Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>At Agoda, the WhiteFalcon indexing team never got a bill in dollars. Their bill was index memory: how many bits the inverted index consumed per metric, per label value. When a new Kubernetes label landed on a fleet metric, the index grew as the product of every existing label dimension &mdash; and the team found out when Grafana scrape latency crept up, not when the label was deployed.</p>
+<p>The first time I saw N+1 in production, it wasn&rsquo;t in a database. It was in a firmware update. We&rsquo;d push a config change to seven million sensors on Azure IoT Hub, and every device on the network would independently poll the cloud API to check whether it had one waiting.</p>
 
-<p>The question that followed was always the same. Not &ldquo;how big is the index now,&rdquo; but &ldquo;which single label is responsible for most of that growth.&rdquo; That question needs per-dimension attribution, and attribution needs a cost model that can disaggregate a total into its contributors.</p>
+<p>Seven million HTTP calls landed in the first ninety seconds. Azure IoT Hub&rsquo;s rate limiter didn&rsquo;t care that each call was legitimate &mdash; it just saw a thundering herd and started dropping requests. We fixed it with edge pre-aggregation: filter and batch at the edge before the cloud ever sees the traffic.</p>
 
-<p>Today&rsquo;s <code>tool_stats_1m_mv</code> and <code>tool_cost_rollup_mv</code> in <code>tool-call-analyzer</code> answer that same question for AI tool calls instead of time-series labels.</p>
+<p>Fifteen years of distributed systems later, I&rsquo;m building TraceForge, and agents have the same problem. An agent calls <code>search_web</code> four times in a row, each call unaware of the others, each burning tokens and adding latency.</p>
 
-<h2 id="the-attribution-problem-at-agoda-scale">The attribution problem at Agoda scale</h2>
-
-<p>WhiteFalcon ingested roughly 1.5T events per day through Kafka into Rust consumers, which wrote into a Redis hot tier before compacting down to Ceph and S3. Series were indexed by a RoaringBitmap structure &mdash; the Agoda team&rsquo;s design, not mine &mdash; where each distinct label value maps to the set of series IDs that carry it.</p>
+<p>The pattern has a name. The fix has been known since the ORM wars of 2008. We just haven&rsquo;t applied it to LLMs yet.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">My scope at Agoda &mdash; WhiteFalcon indexing, ~5 months</div>
-  I contributed to the cross-tier query engine (correct P95 merges across the Redis/S3 boundary) and added a new cardinality dimension &mdash; Kubernetes infrastructure tags &mdash; to the indexing layer, plus 2&ndash;3 new Grafana query types. The RoaringBitmap engine, the Kafka pipeline, and the storage tiering were the Agoda team&rsquo;s design; I built on top of it as a contributing engineer, not its architect.
+  <div class="attr-label">My role &mdash; Walmart Labs, WeIoT SmartBuildings Platform, Aug 2018&ndash;May 2021</div>
+  Software Engineer II on the ingestion layer for a platform automating HVAC control loops across 50+ global facilities via Azure Stream Analytics, on top of 7M+ sensors sending tens of millions of telemetry points per minute through Azure IoT Hub, plus the edge-to-cloud OTA firmware framework that pushed config updates to those same devices.
 </div>
 
-<p>The reason attribution is hard here is that the cost of adding one label is never the label&rsquo;s own bitmap size. It is that size multiplied by every other label dimension it intersects with.</p>
+<h2 id="the-thundering-herd-on-azure-iot-hub">The thundering herd on Azure IoT Hub</h2>
 
-<p>A metric already carrying <code>model_id</code> (200 values) and <code>tenant_id</code> (500 values) sits at 100,000 series before you touch it. Add a 50-value <code>pod</code> label and the ceiling for that metric jumps toward 5,000,000 series &mdash; from one label addition.</p>
+<p>When a firmware config update went out to the WeIoT SmartBuildings platform, the OTA framework sent a push notification to every affected device: there is an update, check now. Every device interpreted that literally. Tens of thousands of devices in the same facility, all sharing the same network egress, hit the Azure IoT Hub HTTP endpoint at once.</p>
 
-<p>Before adding the Kubernetes tag dimension, I ran that cross-product analysis by hand: a spreadsheet modeling label cardinality against existing series counts. There was no automated per-label cost attribution tool at the time. You estimated, and you hoped the estimate held.</p>
+<p>No single device was doing anything wrong. Each one followed its protocol correctly. But the aggregate behavior was indistinguishable from a denial-of-service attack, and the rate limiter treated it exactly that way.</p>
 
-<p>It didn&rsquo;t always hold for other teams. A <code>pod</code> label got added to a high-cardinality fleet metric by a team that owned the service but not the metric schema. Prometheus scrape duration crept up over several days.</p>
+<p>This is fan-out amplification: one event at the producer becomes N events at the consumer. In database terms it&rsquo;s N+1 &mdash; one query returns N records, and then N queries fetch related data for each one. The shape is identical, and so is the root cause: every consumer acts independently, with no awareness of what the others are doing at the same moment.</p>
 
-<p>The alert built to catch stack degradation was itself consuming too much resource to run reliably &mdash; it went dark before anyone noticed the underlying problem, and no alert fired until scrape targets started failing outright.</p>
+<p>Fan-out amplification never looks like a bug in any individual component. It looks like a capacity problem, and blaming the rate limiter for it is like blaming a database for slow N+1 queries. The fix belongs in the architecture, not the infrastructure underneath it.</p>
 
-<p>The lesson from that incident was never &ldquo;stop adding labels.&rdquo; Labels are how you slice a metric to find a problem in the first place. The lesson was that without a cost model telling you, after the fact, which label contributed which share of the growth, cardinality controls are just restrictions with no enforcement behind them.</p>
+<h2 id="the-edge-pre-aggregation-fix">The edge pre-aggregation fix</h2>
 
-<h2 id="the-shape-of-per-dimension-cost">The shape of per-dimension cost</h2>
+<p>The OTA framework was redesigned around a two-tier check. At the edge &mdash; a local gateway per facility &mdash; devices registered their current firmware version with a local coordinator. When a config push arrived, the coordinator asked one question on their behalf: which devices in this facility actually need this update?</p>
+
+<p>Instead of fifty thousand individual HTTP calls from one large facility, the coordinator sent a single batched request listing the roughly 3,200 device IDs that actually needed it. Azure IoT Hub saw one API call instead of fifty thousand, and the thundering herd disappeared entirely.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the submetered apartment building</div>
-  A landlord who bills every unit the same average electricity charge has no way to tell which apartment is running a space heater all winter. A submeter on each unit turns one shared bill into an attributed one &mdash; usage grouped by the thing that caused it. <code>tool_cost_rollup_mv</code> is a submeter for LLM spend: it groups cost by the tool and vendor that actually incurred it, instead of leaving the whole trace holding one undifferentiated total.
+  <div class="attr-label">DS analogy &mdash; the permission slip</div>
+  A school with fifty thousand students all needing a signed permission slip has two ways to collect them. The N+1 way: every student walks to the principal&rsquo;s office individually. The batched way: the teacher collects every slip in the classroom and delivers one stack. Same total information, a fraction of the trips.
 </div>
 
-<p>Good attribution answers one question: of everything you&rsquo;re spending, what fraction came from each distinct contributor? In WhiteFalcon terms, that&rsquo;s a rollup over the series catalog &mdash; series count per label value, times average bitmap memory per series. In <code>tool-call-analyzer</code>, it&rsquo;s <code>sum(cost_usd) GROUP BY tool_name, vendor</code> over a time window.</p>
+<p>The coordinator itself had to be fault-tolerant, because the complexity didn&rsquo;t vanish &mdash; it moved. If it crashed mid-update, devices could be left half-updated with no record of who&rsquo;d already received the push.</p>
 
-<p>Any cost attribution system is fundamentally a <code>GROUP BY</code> with a cost function attached. The sophistication lives entirely in how you define that cost function &mdash; not in the grouping itself, which is almost always the easy part.</p>
+<p>We solved that with coordinator state persistence in Azure Cosmos DB, checkpointed per device ID, so a crashed coordinator could resume without re-pushing to devices that had already updated. Edge pre-aggregation is an architectural pattern, not a specific technology; the tools are replaceable, but the insight &mdash; aggregate before you fan out, not after &mdash; is not.</p>
 
-<p>The 40% duration alert works the same way as an outlier signal. A single tool consuming more than 40% of a trace&rsquo;s wall time is disproportionate for a multi-tool agent, the same way a single label contributing more than roughly 30% of a metric&rsquo;s week-over-week index growth was the signal at Agoda that something needed a closer look. The exact threshold is tunable; the shape of the signal &mdash; one contributor eating an outsized share &mdash; is not.</p>
+<h2 id="the-same-pattern-in-agent-traces">The same pattern in agent traces</h2>
 
-<p><code>tool_cost_rollup_mv</code> uses a <code>SummingMergeTree</code> because cost sums are additive and merge-safe: ClickHouse&rsquo;s background merges accumulate partial sums automatically, so a dashboard query reads pre-summed aggregates instead of scanning raw rows. That&rsquo;s the same reason WhiteFalcon&rsquo;s hot-tier rollups favored pre-aggregation over recomputing from raw series on every query.</p>
+<p>An agent given a research task &mdash; find recent papers on attention mechanisms in transformers &mdash; calls <code>search_web("attention mechanisms transformers 2024")</code>, reads the result, then calls <code>search_web("self-attention transformer papers")</code>, reads that, then calls <code>search_web("multi-head attention recent research")</code>. Three sequential searches, overlapping in intent, none of them batched.</p>
 
-<h2 id="what-made-the-incident-preventable">What made the Agoda incident preventable</h2>
+<p>The model doesn&rsquo;t know that three separate tool invocations for related queries is expensive. It&rsquo;s just following its own reasoning chain, one step at a time, the same way each IoT device correctly followed its own protocol.</p>
 
-<p>The team that added the <code>pod</code> label owned the service emitting it, but not the metric schema it was writing into &mdash; schemas were shared infrastructure, and nobody ran the cross-product check before shipping. For a metric already at 100,000 series, a 50-value <code>pod</code> label pushed the ceiling toward 5,000,000. The index could absorb that; it just meant every future pod deployment added series silently, with no signal until scrape latency made it visible.</p>
+<p>The agent is the firmware coordinator that never got the pre-aggregation fix. Each call is independent, each one burns tokens, each one adds latency, and the total cost is N times a single call&rsquo;s cost when a smarter design would make it one batched call. The structure is identical to the fan-out at Walmart; the fix is identical too &mdash; detect the N+1 pattern, then either batch the calls or redesign the tool to accept multiple inputs at once.</p>
 
-<p>After the incident, the team added a series-count budget per metric, enforced at ingest by the Rust consumer. Each metric got a maximum series ceiling, and samples that would push a metric past its budget were rejected outright &mdash; with the rejection counted in a Prometheus counter, not silently dropped.</p>
+<p>At Walmart the thundering herd was immediate: fifty thousand calls in ninety seconds, impossible to miss. In an agent, N+1 is diffuse &mdash; four tool calls spread across two seconds of reasoning, repeated across thousands of daily invocations, each instance too small to notice on its own.</p>
 
-<p>That counter is what made the fix actionable: <code>series_rejected_cardinality_budget_total</code>, incremented once per rejected sample, alerting on <code>rate(...) &gt; 0</code>. Simple, binary, and pointed at the team that caused it rather than the team running the database.</p>
+<p>The patterns that broke distributed infrastructure in 2018 are reappearing in AI agent infrastructure in 2026. The context changed &mdash; LLM token budgets instead of IoT rate limits &mdash; but the underlying shape didn&rsquo;t.</p>
+
+<h2 id="what-todays-code-does-about-it">What today&rsquo;s code does about it</h2>
+
+<p><code>traceforge graph --trace-id &lt;id&gt;</code> reads every tool call span for a trace from ClickHouse, builds a dependency graph with spans as nodes and parent-child relationships as edges, and runs cycle detection and N+1 analysis over it. The report is one line when it finds something:</p>
+
+<pre><code>N+1 alerts (threshold=3):
+  &#9888;  search_web called 4 times — possible N+1 pattern</code></pre>
+
+<p>That single line is what six weeks of OTA redesign work at Walmart eventually distilled into: a signal that says this call pattern is costing more than it should, before the bill makes that obvious on its own.</p>
+
+<p>The threshold is 3, matching the consensus from ORM lint tools like Django&rsquo;s <code>nplusone</code> and Rails&rsquo; <code>bullet</code>. One call is intentional, two might be a retry, but three sequential calls to the same tool inside one trace almost always represents a loop that should have been a batch.</p>
+
+<p>The CLI reports after the fact, which is a real limit &mdash; the eventual goal is pre-flight detection: analyze an agent&rsquo;s planned tool calls before executing them, flag the pattern, and let the agent restructure before it spends anything. That&rsquo;s the edge coordinator for LLMs, filtering before the calls hit the API instead of after. Today&rsquo;s code builds the detection layer; the prevention layer is a later day.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day into WhiteFalcon</span></div>
-  <div class="stat-cell"><span class="stat-num">5M</span><span class="stat-label">series from one label add</span></div>
-  <div class="stat-cell"><span class="stat-num">40%</span><span class="stat-label">tool-duration alert threshold</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">GROUP BY at the core of both</span></div>
+  <div class="stat-cell"><span class="stat-num">7M</span><span class="stat-label">sensors on Azure IoT Hub</span></div>
+  <div class="stat-cell"><span class="stat-num">50,000&rarr;1</span><span class="stat-label">calls after batching</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">calls = N+1 threshold</span></div>
+  <div class="stat-cell"><span class="stat-num">14</span><span class="stat-label">graph package tests</span></div>
 </div>
 
-<p>Attribution wasn&rsquo;t just reporting after the fact &mdash; it was the precondition for enforcement. You can&rsquo;t cap cardinality per label until you know which label is responsible for what, the same way you can&rsquo;t optimize a tool&rsquo;s cost until you know which tool owns which fraction of the budget.</p>
+<h2 id="the-lint-rule-that-doesnt-exist-yet">The lint rule that doesn&rsquo;t exist yet</h2>
 
-<h2 id="the-same-thinking-applied-to-ai-tools">The same thinking applied to AI tools</h2>
+<p>Every serious ORM ecosystem has an N+1 lint tool. Django has <code>nplusone</code>, Rails has <code>bullet</code>, Laravel has its debug bar warnings. They fire in development, the moment the pattern appears, instead of waiting for production traffic to teach the same lesson the expensive way.</p>
 
-<p>An agent with several tools accumulates cost the same way a fleet of metrics accumulates label cardinality: unevenly, and usually invisibly until someone asks. Each tool call carries token spend, latency, and an error rate, and the agent&rsquo;s owner rarely knows offhand which tool is responsible for most of it.</p>
+<p>Agents have nothing equivalent today. If an agent calls the same tool twelve times inside one trace, the only signal is the invoice at the end of the month &mdash; no lint rule, no dev-mode warning, no topological view of the call graph showing you the fan-out as it happens.</p>
 
-<p><code>tool_cost_rollup_mv</code> answers that directly &mdash; of all LLM spend in a given window, how much came from <code>search_web</code> versus <code>bash</code> versus <code>code_interpreter</code>. It&rsquo;s the same structure as asking how much of an index&rsquo;s memory came from <code>pod</code> versus <code>model_id</code>, just with a different unit of cost.</p>
+<p><code>traceforge graph</code> is the first step toward closing that gap: detect the pattern in a completed trace. The next step, a materialized view over the same ClickHouse adjacency data, turns it into a metric &mdash; N+1 rate per agent persona, per tool, per hour &mdash; so a spike tells you a new agent behavior is generating expensive fan-out before it shows up on the bill.</p>
 
-<p>The 40% duration alert is the enforcement half of that same pattern: when one tool eats more than 40% of a trace&rsquo;s wall time, it&rsquo;s the AI equivalent of a single label pushing a metric past its cardinality budget, surfaced before it becomes a cost crisis instead of after.</p>
-
-<p>One thing is genuinely different. AI tool cost is pay-per-call and easier to model up front than cardinality explosion ever was &mdash; you can estimate expected token spend per tool per call and set a ceiling directly. WhiteFalcon&rsquo;s cardinality cost was harder to bound because it depended on the combinatorial interaction of every other label dimension already on the metric, not a single predictable rate.</p>
-
-<p>Today&rsquo;s code has its own version of an attribution gap: LangChain tool calls come back with <code>cost_usd: 0</code>, because LangChain doesn&rsquo;t emit token usage the way OpenAI and Anthropic do. That&rsquo;s not the tool being free &mdash; it&rsquo;s the instrumentation being absent, the same way a service emitting metrics with no labels isn&rsquo;t cheap, it&rsquo;s just unmeasured. Treating a zero as &ldquo;this is fine&rdquo; instead of &ldquo;this is unmeasured&rdquo; is exactly the mistake that let the <code>pod</code> label slip through without a cross-product check.</p>
+<p>Lint rules don&rsquo;t prevent bugs by being clever. They prevent bugs by being early, and the earlier N+1 is caught in an agent&rsquo;s tool use, the cheaper the fix. The infrastructure for that earliness is what today&rsquo;s code starts building.</p>
 
 <div class="pullquote">
-  <p>A zero-cost entry in a dashboard is not proof something is free. It&rsquo;s a gap in attribution wearing the shape of a good number.</p>
+  <p>Seven million sensors taught me that no individual call has to be wrong for the aggregate to be a disaster. Agents are about to relearn that lesson one token bill at a time.</p>
 </div>
 
-<h2 id="the-question-finance-asks">The question Finance asks</h2>
-
-<p>At Agoda, when the index grew 40% in a month, Finance asked what changed. Platform couldn&rsquo;t answer without per-label attribution already built &mdash; the incident forced a retroactive reconstruction, pulling audit logs and estimating each label&rsquo;s share after the fact.</p>
-
-<p>When an AI platform&rsquo;s monthly LLM bill grows 40%, Finance asks the identical question. With <code>tool_cost_rollup_mv</code> already running, the answer is one ClickHouse query and about thirty seconds. Without it, the answer is days of log archaeology that still might not be accurate.</p>
-
-<p>Build the attribution layer before the growth happens, not after. The moment you need it is exactly the moment you have no time left to build it.</p>
-
 <div class="series-footer">
-  <p>Experience &middot; Day 39 of 150 &mdash; The Tool That Ate Your Margin</p>
-  <p><em>Next up:</em> <a href="day-40-n1-tool-calls-select-star-of-agents.html">Day 40 &mdash; N+1 Tool Calls &mdash; The SELECT * of Agents</a></p>
+  <p>Experience &middot; Day 40 of 150 &mdash; N+1 Tool Calls &mdash; The SELECT * of Agents</p>
+  <p><em>Next up:</em> Day 41 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-40-graph-algorithms-on-traces.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>AI Learning Day 39 &mdash; Exclusive Time vs Wall Time (the duration math behind today&rsquo;s alert MV)</span>
+      <span>AI Learning Day 40 &mdash; Graph Algorithms on Traces (the DFS and Kahn&rsquo;s-algorithm math behind today&rsquo;s graph package)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift</span>
+      <span>Day 39 &mdash; The Tool That Ate Your Margin</span>
     </a>
-    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/summingmergetree">
+    <a href="https://learn.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-quotas-throttling">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ClickHouse docs &mdash; SummingMergeTree</span>
+      <span>Azure IoT Hub docs &mdash; quotas and throttling</span>
     </a>
   </div>
 </div>
@@ -328,22 +329,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-attribution-problem-at-agoda-scale">The attribution problem at Agoda scale</a></li>
-      <li><a href="#the-shape-of-per-dimension-cost">The shape of per-dimension cost</a></li>
-      <li><a href="#what-made-the-incident-preventable">What made the incident preventable</a></li>
-      <li><a href="#the-same-thinking-applied-to-ai-tools">The same thinking applied to AI tools</a></li>
-      <li><a href="#the-question-finance-asks">The question Finance asks</a></li>
+      <li><a href="#the-thundering-herd-on-azure-iot-hub">The thundering herd on Azure IoT Hub</a></li>
+      <li><a href="#the-edge-pre-aggregation-fix">The edge pre-aggregation fix</a></li>
+      <li><a href="#the-same-pattern-in-agent-traces">The same pattern in agent traces</a></li>
+      <li><a href="#what-todays-code-does-about-it">What today&rsquo;s code does about it</a></li>
+      <li><a href="#the-lint-rule-that-doesnt-exist-yet">The lint rule that doesn&rsquo;t exist yet</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-39-tool-ate-your-margin.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-40-n1-tool-calls-select-star-of-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=The+Tool+That+Ate+Your+Margin+%E2%80%94+Experience+%C2%B7+Day+39+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-39-tool-ate-your-margin.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=N%2B1+Tool+Calls+%E2%80%94+The+SELECT+%2A+of+Agents+%E2%80%94+Experience+%C2%B7+Day+40+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-40-n1-tool-calls-select-star-of-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -356,17 +357,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D38</span> Experience</div>
-          <a href="day-38-golden-files-supplier-api-drift.html" class="series-post-title">Golden Files &mdash; How Platforms Survive API Drift</a>
+          <div class="series-post-kicker"><span class="series-post-num">D39</span> Experience</div>
+          <a href="day-39-tool-ate-your-margin.html" class="series-post-title">The Tool That Ate Your Margin</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D39</span> Experience &middot; now</div>
-          <div class="series-post-title">The Tool That Ate Your Margin</div>
-          <div class="series-post-desc">Agoda cardinality attribution, cost rollups, and why a zero-cost entry is a gap, not a bargain</div>
+          <div class="series-post-kicker"><span class="series-post-num">D40</span> Experience &middot; now</div>
+          <div class="series-post-title">N+1 Tool Calls &mdash; The SELECT * of Agents</div>
+          <div class="series-post-desc">Azure IoT Hub fan-out, edge pre-aggregation, and why agent tool calls need an N+1 lint rule</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D40</span> Experience</div>
-          <a href="day-40-n1-tool-calls-select-star-of-agents.html" class="series-post-title">N+1 Tool Calls &mdash; The SELECT * of Agents</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D41</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
