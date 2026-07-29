@@ -12,6 +12,7 @@ Email: akshant3@gmail.com
 
 Learning AI Inference as a Distributed Systems Engineer — 30 posts published (Day 0–29 of 150). Topics: KV cache, continuous batching, GPU scheduling, RAG pipelines, feature flags for model rollouts, eBPF tracing, OTel Collector, LLM observability, agent infrastructure.
 
+- [Day 39 — Exclusive Time vs Wall Time](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html): Why summing span durations double-counts, and why the tool-duration alert divides by trace wall time instead.
 - [Day 29 — The AI Infrastructure Stack — Full Map](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html): Five layers from training pipeline to agent orchestration — where each is hard and where LensAI fits.
 - [Day 28 — Competitor Teardown: LensAI Positioning](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-28-competitor-teardown-lensai-positioning.html): Honest teardown of Datadog LLM Observability, Helicone, and Langfuse — where each falls short.
 - [Day 27 — OpenTelemetry Collector as Integration Hub](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-27-opentelemetry-collector-integration-hub.html): Processors as middleware, exporters as adapters, and why LensAI speaks OTel natively.
@@ -47,6 +48,7 @@ Learning AI Inference as a Distributed Systems Engineer — 30 posts published (
 
 Production war stories from large-scale engineering: Agoda (WhiteFalcon in-house TSDB, 1.5T events/day), Delivery Hero (rider tracking at 5k geo-events/s), Wayfair (pricing platform, 70k+ suppliers), Walmart Labs (7M+ IoT sensors, 50+ facilities).
 
+- [Day 39 — The Tool That Ate Your Margin](https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html): Agoda cardinality attribution mapped onto tool-call-analyzer's cost rollup — same GROUP BY, different bill.
 - [Day 29 — Thirty Days of Building — What Shipped vs What Matters](https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html): LensAI month-one retrospective — four repos, one smoke test, three things to redo.
 - [Day 28 — Integration Tests — The Only Launch Criteria I Trust](https://akshantvats.github.io/Profile/blog/series/experience/day-28-integration-tests-launch-criteria.html): Agoda staging discipline mapped to LensAI's smoke test launch gate.
 - [Day 27 — What I'd Redesign at Wayfair With 2026 Eyes](https://akshantvats.github.io/Profile/blog/series/experience/day-27-redesign-wayfair-2026-eyes.html): Schema ownership contracts, cost attribution at event level, event-sourced pricing inputs.
