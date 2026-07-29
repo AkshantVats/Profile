@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 38 &mdash; Adapter Pattern for Vendor Drift | AI Learning Series</title>
-<meta name="description" content="Golden files are your contract tests when OpenAI changes JSON. The adapter pattern puts versioned normalizers behind a stable interface so schema drift never reaches downstream consumers.">
-<meta property="og:title" content="Day 38 &mdash; Adapter Pattern for Vendor Drift">
-<meta property="og:description" content="Golden files are your contract tests when OpenAI changes JSON. Versioned normalizers behind a stable interface so vendor drift never reaches consumers.">
+<title>Day 39 &mdash; The Tool That Ate Your Margin | Experience Series</title>
+<meta name="description" content="At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget. Same GROUP BY, different bill.">
+<meta property="og:title" content="Day 39 &mdash; The Tool That Ate Your Margin">
+<meta property="og:description" content="At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-adapter-pattern-vendor-drift.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-tool-ate-your-margin.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-adapter-pattern-vendor-drift.png">
-<meta property="article:published_time" content="2026-07-28">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-tool-ate-your-margin.png">
+<meta property="article:published_time" content="2026-07-29">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,185 +185,139 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 38 of 150</span>
-    <span class="tag">Adapter Pattern</span>
-    <span class="tag">Golden Files</span>
-    <span class="tag">Vendor Drift</span>
-    <span class="tag">TraceForge</span>
+    <span class="tag accent">Experience &middot; Day 39 of 150</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Cost Attribution</span>
+    <span class="tag">Cardinality</span>
+    <span class="tag">ClickHouse</span>
   </div>
-  <h1 class="post-title">Day 38 &mdash; Adapter Pattern for Vendor Drift</h1>
-  <p class="post-subtitle">Golden files are your contract tests when OpenAI changes JSON. Three adapters behind one stable interface &mdash; so schema drift from any vendor lands in one place, not in every consumer downstream.</p>
+  <h1 class="post-title">Day 39 &mdash; The Tool That Ate Your Margin</h1>
+  <p class="post-subtitle">At Agoda, attribution meant finding which label exploded the index. In tool-call-analyzer, it means finding which tool ate the LLM budget. Same question, same <code>GROUP BY</code>, different bill.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 38 of 150</span>
+    <span class="meta-item">Experience &middot; Day 39 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 28, 2026</span>
+    <span class="meta-item">July 29, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">9 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-38-adapter-pattern-vendor-drift.png" alt="Day 38 — Adapter Pattern for Vendor Drift" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-39-tool-ate-your-margin.png" alt="Day 39 — The Tool That Ate Your Margin" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>OpenAI released <code>tool_calls</code> to replace <code>function_call</code>. If your observability code was reading <code>response.choices[0].message.function_call.name</code>, it silently returned <code>None</code> for every tool call after the migration. No exception, no error log &mdash; just missing data. The adapter layer is what would have caught it. The golden file is what would have told you exactly what changed.</p>
+<p>At Agoda, the WhiteFalcon indexing team never got a bill in dollars. Their bill was index memory: how many bits the inverted index consumed per metric, per label value. When a new Kubernetes label landed on a fleet metric, the index grew as the product of every existing label dimension &mdash; and the team found out when Grafana scrape latency crept up, not when the label was deployed.</p>
 
-<h2 id="why-vendors-change-their-json">Why vendors change their JSON</h2>
+<p>The question that followed was always the same. Not &ldquo;how big is the index now,&rdquo; but &ldquo;which single label is responsible for most of that growth.&rdquo; That question needs per-dimension attribution, and attribution needs a cost model that can disaggregate a total into its contributors.</p>
 
-<p>AI API vendors are evolving faster than almost any other infrastructure class. OpenAI ships major capability changes every few months. Anthropic redesigned the content block schema when it added extended thinking. LangChain updates its <code>AgentAction</code> format when the underlying provider APIs change beneath it. Your code that works today against OpenAI&rsquo;s tool calling format will be outdated inside of 18 months.</p>
+<p>Today&rsquo;s <code>tool_stats_1m_mv</code> and <code>tool_cost_rollup_mv</code> in <code>tool-call-analyzer</code> answer that same question for AI tool calls instead of time-series labels.</p>
 
-<p>This is not a criticism of the vendors &mdash; the field is moving fast and backward compatibility is expensive. It is a design constraint you have to plan around. The constraint has a name: vendor drift. Schema changes in a provider&rsquo;s API that were not part of your contract, were not communicated in advance, and reach your code as runtime surprises. The question is not whether your AI infrastructure will experience vendor drift. It is whether you have built the layer that contains the blast radius when it happens.</p>
+<h2 id="the-attribution-problem-at-agoda-scale">The attribution problem at Agoda scale</h2>
 
-<h2 id="power-outlet-analogy">The power outlet that moved</h2>
+<p>WhiteFalcon ingested roughly 1.5T events per day through Kafka into Rust consumers, which wrote into a Redis hot tier before compacting down to Ceph and S3. Series were indexed by a RoaringBitmap structure &mdash; the Agoda team&rsquo;s design, not mine &mdash; where each distinct label value maps to the set of series IDs that carry it.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">My scope at Agoda &mdash; WhiteFalcon indexing, ~5 months</div>
+  I contributed to the cross-tier query engine (correct P95 merges across the Redis/S3 boundary) and added a new cardinality dimension &mdash; Kubernetes infrastructure tags &mdash; to the indexing layer, plus 2&ndash;3 new Grafana query types. The RoaringBitmap engine, the Kafka pipeline, and the storage tiering were the Agoda team&rsquo;s design; I built on top of it as a contributing engineer, not its architect.
+</div>
+
+<p>The reason attribution is hard here is that the cost of adding one label is never the label&rsquo;s own bitmap size. It is that size multiplied by every other label dimension it intersects with.</p>
+
+<p>A metric already carrying <code>model_id</code> (200 values) and <code>tenant_id</code> (500 values) sits at 100,000 series before you touch it. Add a 50-value <code>pod</code> label and the ceiling for that metric jumps toward 5,000,000 series &mdash; from one label addition.</p>
+
+<p>Before adding the Kubernetes tag dimension, I ran that cross-product analysis by hand: a spreadsheet modeling label cardinality against existing series counts. There was no automated per-label cost attribution tool at the time. You estimated, and you hoped the estimate held.</p>
+
+<p>It didn&rsquo;t always hold for other teams. A <code>pod</code> label got added to a high-cardinality fleet metric by a team that owned the service but not the metric schema. Prometheus scrape duration crept up over several days.</p>
+
+<p>The alert built to catch stack degradation was itself consuming too much resource to run reliably &mdash; it went dark before anyone noticed the underlying problem, and no alert fired until scrape targets started failing outright.</p>
+
+<p>The lesson from that incident was never &ldquo;stop adding labels.&rdquo; Labels are how you slice a metric to find a problem in the first place. The lesson was that without a cost model telling you, after the fact, which label contributed which share of the growth, cardinality controls are just restrictions with no enforcement behind them.</p>
+
+<h2 id="the-shape-of-per-dimension-cost">The shape of per-dimension cost</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; power outlet standards</div>
-  Different countries have different plug formats: Type A, Type B, Type G, Type C. When you travel internationally, you use an adapter that converts your plug to the local socket standard. The adapter is replaceable &mdash; you swap out the adapter for each country, but the device stays the same. The adapter absorbs the format difference so the device does not have to. Vendor adapters in AI infrastructure work the same way: each vendor is a different socket standard, and the adapter converts to the stable plug format your downstream code expects.
+  <div class="attr-label">DS analogy &mdash; the submetered apartment building</div>
+  A landlord who bills every unit the same average electricity charge has no way to tell which apartment is running a space heater all winter. A submeter on each unit turns one shared bill into an attributed one &mdash; usage grouped by the thing that caused it. <code>tool_cost_rollup_mv</code> is a submeter for LLM spend: it groups cost by the tool and vendor that actually incurred it, instead of leaving the whole trace holding one undifferentiated total.
 </div>
 
-<p>Without an adapter, changing the vendor changes the device. Your dashboard code, your cost attribution logic, your Kafka consumer &mdash; all of them have to learn the new socket format. With an adapter, only the adapter changes. The device &mdash; your downstream code &mdash; still sees the same plug format it always expected.</p>
+<p>Good attribution answers one question: of everything you&rsquo;re spending, what fraction came from each distinct contributor? In WhiteFalcon terms, that&rsquo;s a rollup over the series catalog &mdash; series count per label value, times average bitmap memory per series. In <code>tool-call-analyzer</code>, it&rsquo;s <code>sum(cost_usd) GROUP BY tool_name, vendor</code> over a time window.</p>
 
-<p>Today&rsquo;s <code>tool-call-analyzer</code> build implements three adapters behind one stable <code>Adapter</code> interface. The interface is the standard plug format. The adapters are the country-specific converters. OpenAI ships a breaking change &mdash; the OpenAI adapter changes. Anthropic adds new fields to <code>tool_use</code> &mdash; the Anthropic adapter changes. The canonical <code>ToolCall</code> struct that flows downstream, the Kafka message that lands in ClickHouse, the Grafana dashboard that reads it &mdash; all stay the same.</p>
+<p>Any cost attribution system is fundamentally a <code>GROUP BY</code> with a cost function attached. The sophistication lives entirely in how you define that cost function &mdash; not in the grouping itself, which is almost always the easy part.</p>
 
-<h2 id="the-three-vendor-formats">The three vendor formats</h2>
+<p>The 40% duration alert works the same way as an outlier signal. A single tool consuming more than 40% of a trace&rsquo;s wall time is disproportionate for a multi-tool agent, the same way a single label contributing more than roughly 30% of a metric&rsquo;s week-over-week index growth was the signal at Agoda that something needed a closer look. The exact threshold is tunable; the shape of the signal &mdash; one contributor eating an outsized share &mdash; is not.</p>
 
-<p>OpenAI tool calls arrive as an array of objects under <code>tool_calls</code>, each with an <code>id</code>, <code>type: "function"</code>, and a nested <code>function</code> object containing <code>name</code> and <code>arguments</code> (a JSON string, not an object). Anthropic uses content blocks: objects with <code>type: "tool_use"</code>, an <code>id</code> prefixed with <code>toolu_</code>, a <code>name</code> field, and an <code>input</code> object (parsed JSON, not a string). LangChain wraps both under an <code>AgentAction</code> dict with <code>type: "AgentAction"</code>, a <code>tool</code> field, and a <code>tool_input</code> object.</p>
+<p><code>tool_cost_rollup_mv</code> uses a <code>SummingMergeTree</code> because cost sums are additive and merge-safe: ClickHouse&rsquo;s background merges accumulate partial sums automatically, so a dashboard query reads pre-summed aggregates instead of scanning raw rows. That&rsquo;s the same reason WhiteFalcon&rsquo;s hot-tier rollups favored pre-aggregation over recomputing from raw series on every query.</p>
 
-<p>Three formats, three differences that matter for parsing:</p>
+<h2 id="what-made-the-incident-preventable">What made the Agoda incident preventable</h2>
 
-<ol>
-  <li>OpenAI <code>arguments</code> is a JSON string that must be unmarshalled. Anthropic <code>input</code> is already a parsed object.</li>
-  <li>OpenAI IDs start with <code>call_</code>. Anthropic IDs start with <code>toolu_</code>. LangChain has no ID at all &mdash; LangChain is a framework, not a vendor, and it strips the underlying provider ID.</li>
-  <li>LangChain&rsquo;s <code>tool</code> field is semantically the same as OpenAI&rsquo;s <code>function.name</code> and Anthropic&rsquo;s <code>name</code>, but the key name is different.</li>
-</ol>
+<p>The team that added the <code>pod</code> label owned the service emitting it, but not the metric schema it was writing into &mdash; schemas were shared infrastructure, and nobody ran the cross-product check before shipping. For a metric already at 100,000 series, a 50-value <code>pod</code> label pushed the ceiling toward 5,000,000. The index could absorb that; it just meant every future pod deployment added series silently, with no signal until scrape latency made it visible.</p>
 
-<p>Each of these differences lives in exactly one adapter. The <code>Parse()</code> method on each adapter handles the vendor-specific parsing and returns a <code>ToolCall</code> with all three differences absorbed. No consumer downstream needs to know whether the original payload was OpenAI JSON or an Anthropic content block.</p>
+<p>After the incident, the team added a series-count budget per metric, enforced at ingest by the Rust consumer. Each metric got a maximum series ceiling, and samples that would push a metric past its budget were rejected outright &mdash; with the rejection counted in a Prometheus counter, not silently dropped.</p>
 
-<h3>Diagram 1: Vendor formats into the adapter layer</h3>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    OAI["OpenAI\ntool_calls[].function"]
-    ANT["Anthropic\ncontent type=tool_use"]
-    LC["LangChain\nAgentAction dict"]
-    OA["openai.Adapter\nParse()"]
-    AA["anthropic.Adapter\nParse()"]
-    LA["langchain.Adapter\nParse()"]
-    TC["ToolCall struct\nstable canonical form"]
-    OAI --> OA --> TC
-    ANT --> AA --> TC
-    LC --> LA --> TC
-</pre>
-
-<h3>Diagram 2: Registry auto-detection flow</h3>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    R["Raw payload bytes"]
-    P1{"Anthropic\nCanHandle?"}
-    P2{"OpenAI\nCanHandle?"}
-    P3{"LangChain\nCanHandle?"}
-    E["ErrUnknownFormat"]
-    OUT["ToolCall → Kafka"]
-    R --> P1
-    P1 -->|"yes"| OUT
-    P1 -->|"no"| P2
-    P2 -->|"yes"| OUT
-    P2 -->|"no"| P3
-    P3 -->|"yes"| OUT
-    P3 -->|"no"| E
-</pre>
-
-<h2 id="golden-files-as-adapter-contracts">Golden files as adapter contracts</h2>
-
-<p>The golden file pattern is how you turn &ldquo;the adapter parses correctly&rdquo; into a specific, falsifiable claim. Record a real payload from each vendor. Run it through the adapter. Record the output. Lock both into the repository. Every future CI run re-asserts that the same input produces the same output &mdash; and when a vendor ships a format change, the assertion fails immediately, not after five days of silent bad data in production.</p>
-
-<p>The test in <code>openai_test.go</code> reads <code>testdata/openai/search_web_call.json</code>, runs it through <code>openai.Adapter{}.Parse()</code>, and asserts that <code>tc.Vendor == "openai"</code>, <code>tc.Name == "search_web"</code>, and <code>tc.Category == types.CategoryHTTP</code>. If OpenAI changes <code>type: "function"</code> to <code>type: "tool"</code>, <code>CanHandle()</code> returns false, the registry falls through to the next adapter, and no <code>ToolCall</code> is produced &mdash; which is a loud, testable failure rather than a silent wrong result.</p>
-
-<div class="pullquote">
-  <p>A golden file is not just a test artifact. It is the last agreed-upon state of the interface between you and your vendor. When it fails, the failure message is the changelog.</p>
-</div>
-
-<h2 id="the-registry-and-priority-order">The registry and priority order</h2>
-
-<p>The registry probes adapters in a specific order: Anthropic first, then OpenAI, then LangChain. The ordering matters because LangChain is a meta-framework that can output payloads that contain partial signatures of either vendor format. Checking LangChain last prevents a LangChain payload that happens to contain a <code>name</code> field from being incorrectly matched by the OpenAI adapter.</p>
-
-<p>The <code>CanHandle()</code> method on each adapter probes the discriminating field unique to that format: Anthropic checks <code>type == "tool_use"</code>, OpenAI checks <code>type == "function"</code> with a non-empty function name, LangChain checks <code>type == "AgentAction"</code> with a non-empty <code>tool</code> field. These three type discriminators are the load-bearing structure of the auto-detection logic &mdash; they work as long as vendors keep the <code>type</code> field stable. If a vendor changes <code>type</code>, the discriminator fails loudly, which is the correct behavior.</p>
+<p>That counter is what made the fix actionable: <code>series_rejected_cardinality_budget_total</code>, incremented once per rejected sample, alerting on <code>rate(...) &gt; 0</code>. Simple, binary, and pointed at the team that caused it rather than the team running the database.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">vendor adapters</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">stable interface</span></div>
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">golden fixtures</span></div>
-  <div class="stat-cell"><span class="stat-num">18</span><span class="stat-label">tests passing</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day into WhiteFalcon</span></div>
+  <div class="stat-cell"><span class="stat-num">5M</span><span class="stat-label">series from one label add</span></div>
+  <div class="stat-cell"><span class="stat-num">40%</span><span class="stat-label">tool-duration alert threshold</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">GROUP BY at the core of both</span></div>
 </div>
 
-<h2 id="kafka-and-the-topic-contract">Kafka and the topic contract</h2>
+<p>Attribution wasn&rsquo;t just reporting after the fact &mdash; it was the precondition for enforcement. You can&rsquo;t cap cardinality per label until you know which label is responsible for what, the same way you can&rsquo;t optimize a tool&rsquo;s cost until you know which tool owns which fraction of the budget.</p>
 
-<p>The canonical <code>ToolCall</code> struct is the contract between the adapter layer and everything downstream. The Kafka publisher serializes that struct to JSON and sends it to <code>tools.normalized.v1</code>. The topic name encodes the contract version &mdash; <code>v1</code> signals that all messages on this topic conform to the current <code>ToolCall</code> schema. When the schema changes in a backward-incompatible way, the publisher moves to <code>tools.normalized.v2</code> and old consumers continue reading from <code>v1</code> until they migrate.</p>
+<h2 id="the-same-thinking-applied-to-ai-tools">The same thinking applied to AI tools</h2>
 
-<p>The message key is <code>TraceID</code> when present, falling back to <code>ID</code>. Using <code>TraceID</code> as the key ensures that all tool calls from the same request end up in the same Kafka partition, which simplifies the ClickHouse consumer that joins tool calls into trace timelines. The adapter pattern and the topic contract together form the boundary: vendor noise stays on one side, clean structured data flows out the other.</p>
+<p>An agent with several tools accumulates cost the same way a fleet of metrics accumulates label cardinality: unevenly, and usually invisibly until someone asks. Each tool call carries token spend, latency, and an error rate, and the agent&rsquo;s owner rarely knows offhand which tool is responsible for most of it.</p>
+
+<p><code>tool_cost_rollup_mv</code> answers that directly &mdash; of all LLM spend in a given window, how much came from <code>search_web</code> versus <code>bash</code> versus <code>code_interpreter</code>. It&rsquo;s the same structure as asking how much of an index&rsquo;s memory came from <code>pod</code> versus <code>model_id</code>, just with a different unit of cost.</p>
+
+<p>The 40% duration alert is the enforcement half of that same pattern: when one tool eats more than 40% of a trace&rsquo;s wall time, it&rsquo;s the AI equivalent of a single label pushing a metric past its cardinality budget, surfaced before it becomes a cost crisis instead of after.</p>
+
+<p>One thing is genuinely different. AI tool cost is pay-per-call and easier to model up front than cardinality explosion ever was &mdash; you can estimate expected token spend per tool per call and set a ceiling directly. WhiteFalcon&rsquo;s cardinality cost was harder to bound because it depended on the combinatorial interaction of every other label dimension already on the metric, not a single predictable rate.</p>
+
+<p>Today&rsquo;s code has its own version of an attribution gap: LangChain tool calls come back with <code>cost_usd: 0</code>, because LangChain doesn&rsquo;t emit token usage the way OpenAI and Anthropic do. That&rsquo;s not the tool being free &mdash; it&rsquo;s the instrumentation being absent, the same way a service emitting metrics with no labels isn&rsquo;t cheap, it&rsquo;s just unmeasured. Treating a zero as &ldquo;this is fine&rdquo; instead of &ldquo;this is unmeasured&rdquo; is exactly the mistake that let the <code>pod</code> label slip through without a cross-product check.</p>
+
+<div class="pullquote">
+  <p>A zero-cost entry in a dashboard is not proof something is free. It&rsquo;s a gap in attribution wearing the shape of a good number.</p>
+</div>
+
+<h2 id="the-question-finance-asks">The question Finance asks</h2>
+
+<p>At Agoda, when the index grew 40% in a month, Finance asked what changed. Platform couldn&rsquo;t answer without per-label attribution already built &mdash; the incident forced a retroactive reconstruction, pulling audit logs and estimating each label&rsquo;s share after the fact.</p>
+
+<p>When an AI platform&rsquo;s monthly LLM bill grows 40%, Finance asks the identical question. With <code>tool_cost_rollup_mv</code> already running, the answer is one ClickHouse query and about thirty seconds. Without it, the answer is days of log archaeology that still might not be accurate.</p>
+
+<p>Build the attribution layer before the growth happens, not after. The moment you need it is exactly the moment you have no time left to build it.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 38 of 150 &mdash; Adapter Pattern for Vendor Drift</p>
-  <p><em>Next up:</em> <a href="day-39-exclusive-time-wall-time.html">Day 39 &mdash; Exclusive Time vs Wall Time</a></p>
+  <p>Experience &middot; Day 39 of 150 &mdash; The Tool That Ate Your Margin</p>
+  <p><em>Next up:</em> Day 40 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>AI Learning Day 39 &mdash; Exclusive Time vs Wall Time (the duration math behind today&rsquo;s alert MV)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 38 &mdash; Golden Files: How Platforms Survive API Drift (the Wayfair origin of this pattern)</span>
+      <span>Day 38 &mdash; Golden Files &mdash; How Platforms Survive API Drift</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-37-tool-taxonomies-ontology.html">
+    <a href="https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/summingmergetree">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 37 &mdash; Tool Taxonomies: Ontology Before Metrics (the ToolCategory enum that adapters assign during normalization)</span>
-    </a>
-    <a href="https://platform.openai.com/docs/guides/function-calling">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>OpenAI Function Calling &mdash; the tool_calls format this adapter normalizes</span>
+      <span>ClickHouse docs &mdash; SummingMergeTree</span>
     </a>
   </div>
 </div>
@@ -374,23 +328,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-vendors-change-their-json">Why vendors change their JSON</a></li>
-      <li><a href="#power-outlet-analogy">The power outlet analogy</a></li>
-      <li><a href="#the-three-vendor-formats">Three vendor formats</a></li>
-      <li><a href="#golden-files-as-adapter-contracts">Golden files as adapter contracts</a></li>
-      <li><a href="#the-registry-and-priority-order">Registry and priority order</a></li>
-      <li><a href="#kafka-and-the-topic-contract">Kafka and the topic contract</a></li>
+      <li><a href="#the-attribution-problem-at-agoda-scale">The attribution problem at Agoda scale</a></li>
+      <li><a href="#the-shape-of-per-dimension-cost">The shape of per-dimension cost</a></li>
+      <li><a href="#what-made-the-incident-preventable">What made the incident preventable</a></li>
+      <li><a href="#the-same-thinking-applied-to-ai-tools">The same thinking applied to AI tools</a></li>
+      <li><a href="#the-question-finance-asks">The question Finance asks</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-38-adapter-pattern-vendor-drift.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-39-tool-ate-your-margin.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Adapter+Pattern+for+Vendor+Drift+%E2%80%94+AI+Learning+%C2%B7+Day+38+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-38-adapter-pattern-vendor-drift.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=The+Tool+That+Ate+Your+Margin+%E2%80%94+Experience+%C2%B7+Day+39+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-39-tool-ate-your-margin.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -399,21 +352,21 @@ flowchart TD
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D37</span> AI Learning</div>
-          <a href="day-37-tool-taxonomies-ontology.html" class="series-post-title">Tool Taxonomies &mdash; Ontology Before Metrics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D38</span> Experience</div>
+          <a href="day-38-golden-files-supplier-api-drift.html" class="series-post-title">Golden Files &mdash; How Platforms Survive API Drift</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D38</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Adapter Pattern for Vendor Drift</div>
-          <div class="series-post-desc">Three adapters, one stable interface, golden files as contract tests</div>
+          <div class="series-post-kicker"><span class="series-post-num">D39</span> Experience &middot; now</div>
+          <div class="series-post-title">The Tool That Ate Your Margin</div>
+          <div class="series-post-desc">Agoda cardinality attribution, cost rollups, and why a zero-cost entry is a gap, not a bargain</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D39</span> AI Learning</div>
-          <a href="day-39-exclusive-time-wall-time.html" class="series-post-title">Exclusive Time vs Wall Time</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D40</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
@@ -426,7 +379,7 @@ flowchart TD
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
+      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
@@ -439,14 +392,15 @@ flowchart TD
 
 <script>
 (function(){
-  var btn=document.getElementById('theme-toggle');
-  if(!btn)return;
-  btn.addEventListener('click',function(){
-    var html=document.documentElement;
-    var isDark=html.getAttribute('data-theme')==='dark';
-    if(isDark){html.removeAttribute('data-theme');localStorage.setItem('theme','light');}
-    else{html.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');}
-  });
+  var t=document.getElementById('theme-toggle');
+  function apply(d){document.documentElement.setAttribute('data-theme',d);localStorage.setItem('theme',d);}
+  if(t)t.addEventListener('click',function(){apply(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');});
+  var tl=document.querySelector('.toc-list');
+  if(tl){
+    var as=tl.querySelectorAll('a');
+    var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
+    document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
+  }
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>

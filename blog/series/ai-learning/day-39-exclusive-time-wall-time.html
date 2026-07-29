@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 38 &mdash; Adapter Pattern for Vendor Drift | AI Learning Series</title>
-<meta name="description" content="Golden files are your contract tests when OpenAI changes JSON. The adapter pattern puts versioned normalizers behind a stable interface so schema drift never reaches downstream consumers.">
-<meta property="og:title" content="Day 38 &mdash; Adapter Pattern for Vendor Drift">
-<meta property="og:description" content="Golden files are your contract tests when OpenAI changes JSON. Versioned normalizers behind a stable interface so vendor drift never reaches consumers.">
+<title>Day 39 &mdash; Exclusive Time vs Wall Time | AI Learning Series</title>
+<meta name="description" content="Sum every span duration in a trace and you get a number bigger than the wall clock. Exclusive time is the metric that partitions correctly — and it's why today's 40% alert fires on the right tool.">
+<meta property="og:title" content="Day 39 &mdash; Exclusive Time vs Wall Time">
+<meta property="og:description" content="Sum every span duration in a trace and you get a number bigger than the wall clock. Exclusive time is the metric that partitions correctly.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-adapter-pattern-vendor-drift.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-exclusive-time-wall-time.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-38-adapter-pattern-vendor-drift.png">
-<meta property="article:published_time" content="2026-07-28">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-39-exclusive-time-wall-time.png">
+<meta property="article:published_time" content="2026-07-29">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,71 +185,73 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 38 of 150</span>
-    <span class="tag">Adapter Pattern</span>
-    <span class="tag">Golden Files</span>
-    <span class="tag">Vendor Drift</span>
+    <span class="tag accent">AI Learning &middot; Day 39 of 150</span>
+    <span class="tag">Distributed Tracing</span>
+    <span class="tag">Observability</span>
     <span class="tag">TraceForge</span>
   </div>
-  <h1 class="post-title">Day 38 &mdash; Adapter Pattern for Vendor Drift</h1>
-  <p class="post-subtitle">Golden files are your contract tests when OpenAI changes JSON. Three adapters behind one stable interface &mdash; so schema drift from any vendor lands in one place, not in every consumer downstream.</p>
+  <h1 class="post-title">Day 39 &mdash; Exclusive Time vs Wall Time</h1>
+  <p class="post-subtitle">Sum every span duration in a trace and you get a number bigger than the wall clock &mdash; sometimes much bigger. Exclusive time is the metric that partitions correctly, and it's why today's 40% alert fires on the right tool.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 38 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 39 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 28, 2026</span>
+    <span class="meta-item">July 29, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">12 min read</span>
+    <span class="meta-item">9 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-38-adapter-pattern-vendor-drift.png" alt="Day 38 — Adapter Pattern for Vendor Drift" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-39-exclusive-time-wall-time.png" alt="Day 39 — Exclusive Time vs Wall Time" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>OpenAI released <code>tool_calls</code> to replace <code>function_call</code>. If your observability code was reading <code>response.choices[0].message.function_call.name</code>, it silently returned <code>None</code> for every tool call after the migration. No exception, no error log &mdash; just missing data. The adapter layer is what would have caught it. The golden file is what would have told you exactly what changed.</p>
+<p>If you sum up every span duration in a trace, you get a number larger than the wall clock time. Sometimes much larger. This trips up every engineer who looks at trace data for the first time &mdash; the trace took 400ms, but the spans add up to 720ms, so where did the extra 320ms go?</p>
 
-<h2 id="why-vendors-change-their-json">Why vendors change their JSON</h2>
+<p>They didn&rsquo;t go anywhere. They were counted twice. A child span&rsquo;s duration is already included inside its parent span&rsquo;s duration, so adding both counts the overlap once for the child and again for the parent.</p>
 
-<p>AI API vendors are evolving faster than almost any other infrastructure class. OpenAI ships major capability changes every few months. Anthropic redesigned the content block schema when it added extended thinking. LangChain updates its <code>AgentAction</code> format when the underlying provider APIs change beneath it. Your code that works today against OpenAI&rsquo;s tool calling format will be outdated inside of 18 months.</p>
+<p>Today&rsquo;s code in <code>tool-call-analyzer</code> computes <code>pct_of_trace</code> as <code>duration_ms / trace_duration_ms</code>, and that denominator has to be wall time, not the sum of every span. Exclusive time is how you find the tool that actually blocked completion &mdash; getting the denominator right is why the 40% alert fires on the tool that deserves it.</p>
 
-<p>This is not a criticism of the vendors &mdash; the field is moving fast and backward compatibility is expensive. It is a design constraint you have to plan around. The constraint has a name: vendor drift. Schema changes in a provider&rsquo;s API that were not part of your contract, were not communicated in advance, and reach your code as runtime surprises. The question is not whether your AI infrastructure will experience vendor drift. It is whether you have built the layer that contains the blast radius when it happens.</p>
+<h2 id="what-wall-time-actually-measures">What wall time actually measures</h2>
 
-<h2 id="power-outlet-analogy">The power outlet that moved</h2>
+<p>Wall time is <code>max(end_time)</code> across every span in the trace minus <code>min(start_time)</code> &mdash; which is just the trace root span&rsquo;s own duration. It answers one question: how long did the user actually wait? It does not answer how much total CPU or IO the trace consumed, and those two questions get confused constantly.</p>
+
+<p>For tools that run one after another, the sum of their durations equals wall time, because nothing overlaps. For tools that run concurrently, the sum exceeds wall time, because two clocks were ticking at once. For nested spans &mdash; an agent span containing a tool span containing an HTTP span &mdash; the sum exceeds wall time too, even with zero concurrency, because the child&rsquo;s duration is already baked into the parent&rsquo;s.</p>
+
+<p>That last case is the one people miss. Nesting, not concurrency, is the usual root cause of spans-don&rsquo;t-add-up confusion. A fully sequential agent &rarr; tool &rarr; sub-operation chain still triple-counts the sub-operation&rsquo;s time if you naively sum every span&rsquo;s duration, because that time is counted once in the sub-operation span, once inside the tool span, and once inside the agent span.</p>
+
+<h2 id="exclusive-time-the-correct-unit">Exclusive time &mdash; the metric that partitions correctly</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; power outlet standards</div>
-  Different countries have different plug formats: Type A, Type B, Type G, Type C. When you travel internationally, you use an adapter that converts your plug to the local socket standard. The adapter is replaceable &mdash; you swap out the adapter for each country, but the device stays the same. The adapter absorbs the format difference so the device does not have to. Vendor adapters in AI infrastructure work the same way: each vendor is a different socket standard, and the adapter converts to the stable plug format your downstream code expects.
+  <div class="attr-label">DS analogy &mdash; the one-chef kitchen</div>
+  One chef cooks a three-course meal in 90 minutes total &mdash; that's the wall clock. Timed separately, the starter runs 20 minutes, the main course 60, the dessert 15: those timers add up to 95 minutes, five more than the kitchen was actually occupied. The extra five minutes is overlap &mdash; dessert prep started during the last five minutes of the starter, so that slice got counted on both timers. Exclusive time is what's left on each timer after you subtract the time any nested sub-task already claimed.
 </div>
 
-<p>Without an adapter, changing the vendor changes the device. Your dashboard code, your cost attribution logic, your Kafka consumer &mdash; all of them have to learn the new socket format. With an adapter, only the adapter changes. The device &mdash; your downstream code &mdash; still sees the same plug format it always expected.</p>
+<p>Exclusive time answers a narrower, more useful question: how long did this span spend doing work that no child span already claimed credit for? The formula subtracts the sum of a span&rsquo;s direct children from its own duration.</p>
 
-<p>Today&rsquo;s <code>tool-call-analyzer</code> build implements three adapters behind one stable <code>Adapter</code> interface. The interface is the standard plug format. The adapters are the country-specific converters. OpenAI ships a breaking change &mdash; the OpenAI adapter changes. Anthropic adds new fields to <code>tool_use</code> &mdash; the Anthropic adapter changes. The canonical <code>ToolCall</code> struct that flows downstream, the Kafka message that lands in ClickHouse, the Grafana dashboard that reads it &mdash; all stay the same.</p>
+<pre><code>exclusive_time(span) = span.duration - sum(direct_child.duration)
 
-<h2 id="the-three-vendor-formats">The three vendor formats</h2>
+Agent span:    [0ms ─────────────────── 100ms]  duration = 100ms
+  Tool span:   [10ms ─────────────── 90ms]      duration = 80ms
+    HTTP span: [30ms ──────── 60ms]             duration = 30ms
 
-<p>OpenAI tool calls arrive as an array of objects under <code>tool_calls</code>, each with an <code>id</code>, <code>type: "function"</code>, and a nested <code>function</code> object containing <code>name</code> and <code>arguments</code> (a JSON string, not an object). Anthropic uses content blocks: objects with <code>type: "tool_use"</code>, an <code>id</code> prefixed with <code>toolu_</code>, a <code>name</code> field, and an <code>input</code> object (parsed JSON, not a string). LangChain wraps both under an <code>AgentAction</code> dict with <code>type: "AgentAction"</code>, a <code>tool</code> field, and a <code>tool_input</code> object.</p>
+exclusive_time(Agent) = 100 - 80 = 20ms   (before/after the tool call)
+exclusive_time(Tool)  = 80 - 30  = 50ms   (setup + post-processing)
+exclusive_time(HTTP)  = 30ms              (leaf — nothing to subtract)
 
-<p>Three formats, three differences that matter for parsing:</p>
+sum(exclusive_time) = 20 + 50 + 30 = 100ms = wall_time  ✓
+sum(durations)      = 100 + 80 + 30 = 210ms ≠ wall_time  ✗</code></pre>
 
-<ol>
-  <li>OpenAI <code>arguments</code> is a JSON string that must be unmarshalled. Anthropic <code>input</code> is already a parsed object.</li>
-  <li>OpenAI IDs start with <code>call_</code>. Anthropic IDs start with <code>toolu_</code>. LangChain has no ID at all &mdash; LangChain is a framework, not a vendor, and it strips the underlying provider ID.</li>
-  <li>LangChain&rsquo;s <code>tool</code> field is semantically the same as OpenAI&rsquo;s <code>function.name</code> and Anthropic&rsquo;s <code>name</code>, but the key name is different.</li>
-</ol>
-
-<p>Each of these differences lives in exactly one adapter. The <code>Parse()</code> method on each adapter handles the vendor-specific parsing and returns a <code>ToolCall</code> with all three differences absorbed. No consumer downstream needs to know whether the original payload was OpenAI JSON or an Anthropic content block.</p>
-
-<h3>Diagram 1: Vendor formats into the adapter layer</h3>
+<p>Exclusive-time slices partition the trace without double-counting. Sum them, at any depth of nesting, and you always land back on wall time exactly.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -269,101 +271,111 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-    OAI["OpenAI\ntool_calls[].function"]
-    ANT["Anthropic\ncontent type=tool_use"]
-    LC["LangChain\nAgentAction dict"]
-    OA["openai.Adapter\nParse()"]
-    AA["anthropic.Adapter\nParse()"]
-    LA["langchain.Adapter\nParse()"]
-    TC["ToolCall struct\nstable canonical form"]
-    OAI --> OA --> TC
-    ANT --> AA --> TC
-    LC --> LA --> TC
+    A["Agent span: 100ms total"]
+    B["Tool span: 80ms total"]
+    C["HTTP span: 30ms leaf"]
+    D["Exclusive sum equals wall time"]
+    E["Duration sum exceeds wall time"]
+    A --> B
+    B --> C
+    A & B & C --> D
+    A & B & C --> E
 </pre>
 
-<h3>Diagram 2: Registry auto-detection flow</h3>
+<p>If a cost model assigns spend proportional to duration, using exclusive time instead of raw duration means every millisecond of cost gets counted exactly once, not once per ancestor span it happened to sit inside.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart TD
-    R["Raw payload bytes"]
-    P1{"Anthropic\nCanHandle?"}
-    P2{"OpenAI\nCanHandle?"}
-    P3{"LangChain\nCanHandle?"}
-    E["ErrUnknownFormat"]
-    OUT["ToolCall → Kafka"]
-    R --> P1
-    P1 -->|"yes"| OUT
-    P1 -->|"no"| P2
-    P2 -->|"yes"| OUT
-    P2 -->|"no"| P3
-    P3 -->|"yes"| OUT
-    P3 -->|"no"| E
-</pre>
+<h2 id="the-double-count-problem">The double-count problem in practice</h2>
 
-<h2 id="golden-files-as-adapter-contracts">Golden files as adapter contracts</h2>
+<p>Take a concrete trace: a root span at 500ms, a tool span at 450ms nested inside it, and an HTTP span at 400ms nested inside the tool. Sum the three durations and you get 1350ms &mdash; but the trace only took 500ms of wall time.</p>
 
-<p>The golden file pattern is how you turn &ldquo;the adapter parses correctly&rdquo; into a specific, falsifiable claim. Record a real payload from each vendor. Run it through the adapter. Record the output. Lock both into the repository. Every future CI run re-asserts that the same input produces the same output &mdash; and when a vendor ships a format change, the assertion fails immediately, not after five days of silent bad data in production.</p>
+<p>A naive cost-per-millisecond model that divides total spend by 1350ms under-attributes cost by roughly 2.7&times;, because the HTTP span&rsquo;s 400ms was counted three separate times: once as itself, once inside the tool span, once inside the root span.</p>
 
-<p>The test in <code>openai_test.go</code> reads <code>testdata/openai/search_web_call.json</code>, runs it through <code>openai.Adapter{}.Parse()</code>, and asserts that <code>tc.Vendor == "openai"</code>, <code>tc.Name == "search_web"</code>, and <code>tc.Category == types.CategoryHTTP</code>. If OpenAI changes <code>type: "function"</code> to <code>type: "tool"</code>, <code>CanHandle()</code> returns false, the registry falls through to the next adapter, and no <code>ToolCall</code> is produced &mdash; which is a loud, testable failure rather than a silent wrong result.</p>
+<p>This is exactly why today&rsquo;s alert threshold in <code>tool-call-analyzer</code> divides by wall time, not by the sum of every span:</p>
 
-<div class="pullquote">
-  <p>A golden file is not just a test artifact. It is the last agreed-upon state of the interface between you and your vendor. When it fails, the failure message is the changelog.</p>
-</div>
+<pre><code>pct := (float64(durationMs) / float64(traceDurationMs)) * 100.0
+return pct &gt; 40.0</code></pre>
 
-<h2 id="the-registry-and-priority-order">The registry and priority order</h2>
-
-<p>The registry probes adapters in a specific order: Anthropic first, then OpenAI, then LangChain. The ordering matters because LangChain is a meta-framework that can output payloads that contain partial signatures of either vendor format. Checking LangChain last prevents a LangChain payload that happens to contain a <code>name</code> field from being incorrectly matched by the OpenAI adapter.</p>
-
-<p>The <code>CanHandle()</code> method on each adapter probes the discriminating field unique to that format: Anthropic checks <code>type == "tool_use"</code>, OpenAI checks <code>type == "function"</code> with a non-empty function name, LangChain checks <code>type == "AgentAction"</code> with a non-empty <code>tool</code> field. These three type discriminators are the load-bearing structure of the auto-detection logic &mdash; they work as long as vendors keep the <code>type</code> field stable. If a vendor changes <code>type</code>, the discriminator fails loudly, which is the correct behavior.</p>
+<p>With <code>durationMs</code> as the tool&rsquo;s own span duration (450ms) and <code>traceDurationMs</code> as the trace root duration (500ms), the result is 90% &mdash; the tool ate 90% of the user&rsquo;s wait. Divide by the sum-of-spans figure (1350ms) instead and you&rsquo;d get 33%, and a 40% alert would stay silent on a trace where one tool is obviously the entire bottleneck.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">vendor adapters</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">stable interface</span></div>
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">golden fixtures</span></div>
-  <div class="stat-cell"><span class="stat-num">18</span><span class="stat-label">tests passing</span></div>
+  <div class="stat-cell"><span class="stat-num">500ms</span><span class="stat-label">actual wall time</span></div>
+  <div class="stat-cell"><span class="stat-num">1350ms</span><span class="stat-label">naive duration sum</span></div>
+  <div class="stat-cell"><span class="stat-num">90%</span><span class="stat-label">correct pct_of_trace</span></div>
+  <div class="stat-cell"><span class="stat-num">33%</span><span class="stat-label">wrong pct_of_trace</span></div>
 </div>
 
-<h2 id="kafka-and-the-topic-contract">Kafka and the topic contract</h2>
+<div class="pullquote">
+  <p>The denominator is the alert design. Get it wrong and the alert doesn't just report a bad number &mdash; it stays quiet on exactly the trace it was built to catch.</p>
+</div>
 
-<p>The canonical <code>ToolCall</code> struct is the contract between the adapter layer and everything downstream. The Kafka publisher serializes that struct to JSON and sends it to <code>tools.normalized.v1</code>. The topic name encodes the contract version &mdash; <code>v1</code> signals that all messages on this topic conform to the current <code>ToolCall</code> schema. When the schema changes in a backward-incompatible way, the publisher moves to <code>tools.normalized.v2</code> and old consumers continue reading from <code>v1</code> until they migrate.</p>
+<h2 id="parallel-spans">When parallel spans make this interesting</h2>
 
-<p>The message key is <code>TraceID</code> when present, falling back to <code>ID</code>. Using <code>TraceID</code> as the key ensures that all tool calls from the same request end up in the same Kafka partition, which simplifies the ClickHouse consumer that joins tool calls into trace timelines. The adapter pattern and the topic contract together form the boundary: vendor noise stays on one side, clean structured data flows out the other.</p>
+<p>Sequential nesting is the easy case once you know to divide by wall time. Concurrent tool calls add a wrinkle: two tools running at once can each legitimately account for a large share of the same window.</p>
+
+<pre><code>Trace wall time: 100ms
+Tool A: [0ms → 80ms] = 80ms  (critical path — last to finish)
+Tool B: [0ms → 70ms] = 70ms  (running concurrently with A)
+
+pct_of_trace(A) = 80/100 = 80%   — alert fires
+pct_of_trace(B) = 70/100 = 70%   — alert also fires
+pct_of_trace(A) + pct_of_trace(B) = 150%   — and that's correct</code></pre>
+
+<p>Percentages summing past 100% is expected once work runs in parallel, not a bug. Each percentage answers &ldquo;what fraction of the user&rsquo;s wait did this tool account for,&rdquo; and when two tools overlap, both can honestly answer &ldquo;most of it.&rdquo;</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+    A["Trace root: 100ms wall"]
+    B["Tool call: 80ms duration"]
+    C["Correct: 80% alert fires"]
+    D["Wrong: 33% alert silent"]
+    A --> B
+    B --> C
+    B --> D
+</pre>
+
+<p>Tool A sits on the critical path here &mdash; making it faster shortens the whole trace. Speeding up Tool B alone does nothing unless it later becomes the bottleneck, but <code>pct_of_trace</code> by itself can&rsquo;t tell you that; determining the actual critical path needs the start and end timestamp of every span, not just each one&rsquo;s duration.</p>
+
+<h2 id="what-tomorrow-adds">What tomorrow adds &mdash; critical path analysis</h2>
+
+<p>Day 40 adds span start and end timestamps to the ClickHouse schema, which is what makes real critical-path analysis possible: the sequence of spans where delaying any single one delays the entire trace. A tool on that path answers &ldquo;yes&rdquo; to &ldquo;if I make this 50% faster, does the user see a 50% faster trace.&rdquo; A tool off that path answers &ldquo;no,&rdquo; at least until it becomes the new longest chain.</p>
+
+<p>Until then, <code>pct_of_trace</code> is a reliable stand-in. A tool eating 80% of wall time is almost certainly on the critical path in any agent design with fewer than five parallel branches, which covers most of what <code>tool-call-analyzer</code> is instrumenting today.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 38 of 150 &mdash; Adapter Pattern for Vendor Drift</p>
-  <p><em>Next up:</em> <a href="day-39-exclusive-time-wall-time.html">Day 39 &mdash; Exclusive Time vs Wall Time</a></p>
+  <p>AI Learning &middot; Day 39 of 150 &mdash; Exclusive Time vs Wall Time</p>
+  <p><em>Next up:</em> Day 40 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-38-golden-files-supplier-api-drift.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 38 &mdash; Golden Files: How Platforms Survive API Drift (the Wayfair origin of this pattern)</span>
+      <span>Experience Day 39 &mdash; The Tool That Ate Your Margin (the Agoda cardinality attribution problem this MV design mirrors)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-37-tool-taxonomies-ontology.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-38-adapter-pattern-vendor-drift.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 37 &mdash; Tool Taxonomies: Ontology Before Metrics (the ToolCategory enum that adapters assign during normalization)</span>
+      <span>Day 38 &mdash; Adapter Pattern for Vendor Drift (the ToolCall struct these stats aggregate over)</span>
     </a>
-    <a href="https://platform.openai.com/docs/guides/function-calling">
+    <a href="https://opentelemetry.io/docs/concepts/signals/traces/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>OpenAI Function Calling &mdash; the tool_calls format this adapter normalizes</span>
+      <span>OpenTelemetry &mdash; trace and span concepts</span>
     </a>
   </div>
 </div>
@@ -374,23 +386,22 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-vendors-change-their-json">Why vendors change their JSON</a></li>
-      <li><a href="#power-outlet-analogy">The power outlet analogy</a></li>
-      <li><a href="#the-three-vendor-formats">Three vendor formats</a></li>
-      <li><a href="#golden-files-as-adapter-contracts">Golden files as adapter contracts</a></li>
-      <li><a href="#the-registry-and-priority-order">Registry and priority order</a></li>
-      <li><a href="#kafka-and-the-topic-contract">Kafka and the topic contract</a></li>
+      <li><a href="#what-wall-time-actually-measures">What wall time actually measures</a></li>
+      <li><a href="#exclusive-time-the-correct-unit">Exclusive time — the correct unit</a></li>
+      <li><a href="#the-double-count-problem">The double-count problem</a></li>
+      <li><a href="#parallel-spans">When parallel spans get interesting</a></li>
+      <li><a href="#what-tomorrow-adds">What tomorrow adds</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-38-adapter-pattern-vendor-drift.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-39-exclusive-time-wall-time.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Adapter+Pattern+for+Vendor+Drift+%E2%80%94+AI+Learning+%C2%B7+Day+38+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-38-adapter-pattern-vendor-drift.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Exclusive+Time+vs+Wall+Time+%E2%80%94+AI+Learning+%C2%B7+Day+39+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-39-exclusive-time-wall-time.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -403,17 +414,17 @@ flowchart TD
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D37</span> AI Learning</div>
-          <a href="day-37-tool-taxonomies-ontology.html" class="series-post-title">Tool Taxonomies &mdash; Ontology Before Metrics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D38</span> AI Learning</div>
+          <a href="day-38-adapter-pattern-vendor-drift.html" class="series-post-title">Adapter Pattern for Vendor Drift</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D38</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Adapter Pattern for Vendor Drift</div>
-          <div class="series-post-desc">Three adapters, one stable interface, golden files as contract tests</div>
+          <div class="series-post-kicker"><span class="series-post-num">D39</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Exclusive Time vs Wall Time</div>
+          <div class="series-post-desc">Why summing span durations double-counts, and what actually belongs in the alert's denominator</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D39</span> AI Learning</div>
-          <a href="day-39-exclusive-time-wall-time.html" class="series-post-title">Exclusive Time vs Wall Time</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D40</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
