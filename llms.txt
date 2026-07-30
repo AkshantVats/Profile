@@ -12,6 +12,7 @@ Email: akshant3@gmail.com
 
 Learning AI Inference as a Distributed Systems Engineer — 30 posts published (Day 0–29 of 150). Topics: KV cache, continuous batching, GPU scheduling, RAG pipelines, feature flags for model rollouts, eBPF tracing, OTel Collector, LLM observability, agent infrastructure.
 
+- [Day 41 — Cost Waterfalls — CFO-Friendly Visuals](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html): Exclusive time, bottleneck ranking, and the ClickHouse-to-Grafana pipeline that turns per-tool cost into a chart a team acts on instead of a table it debates.
 - [Day 40 — Graph Algorithms on Traces](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-40-graph-algorithms-on-traces.html): Modeling a trace as a directed graph — DFS cycle detection, Kahn's-algorithm topological sort, and the N+1 lint rule agents have never had.
 - [Day 39 — Exclusive Time vs Wall Time](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html): Why summing span durations double-counts, and why the tool-duration alert divides by trace wall time instead.
 - [Day 29 — The AI Infrastructure Stack — Full Map](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-29-ai-infrastructure-stack-full-map.html): Five layers from training pipeline to agent orchestration — where each is hard and where LensAI fits.
@@ -49,6 +50,7 @@ Learning AI Inference as a Distributed Systems Engineer — 30 posts published (
 
 Production war stories from large-scale engineering: Agoda (WhiteFalcon in-house TSDB, 1.5T events/day), Delivery Hero (rider tracking at 5k geo-events/s), Wayfair (pricing platform, 70k+ suppliers), Walmart Labs (7M+ IoT sensors, 50+ facilities).
 
+- [Day 41 — Exclusive Time — Flame Graphs for Money](https://akshantvats.github.io/Profile/blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html): Delivery Hero's 340ms OSRM ETA pipeline hid its real bottleneck in an uninstrumented span — exclusive time found it, the same formula tool-call-analyzer now runs on every trace.
 - [Day 40 — N+1 Tool Calls — The SELECT * of Agents](https://akshantvats.github.io/Profile/blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html): Walmart's Azure IoT Hub fan-out at 7M sensors, the edge pre-aggregation fix, and why agent tool calls need the same fix.
 - [Day 39 — The Tool That Ate Your Margin](https://akshantvats.github.io/Profile/blog/series/experience/day-39-tool-ate-your-margin.html): Agoda cardinality attribution mapped onto tool-call-analyzer's cost rollup — same GROUP BY, different bill.
 - [Day 29 — Thirty Days of Building — What Shipped vs What Matters](https://akshantvats.github.io/Profile/blog/series/experience/day-29-thirty-days-lensai-month-one.html): LensAI month-one retrospective — four repos, one smoke test, three things to redo.
