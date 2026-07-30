@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 42 &mdash; One Dashboard for Inference and Tools | Experience Series</title>
-<meta name="description" content="At Agoda, WhiteFalcon served one query face over two storage tiers &mdash; Redis hot, S3 cold &mdash; merging histograms across the boundary. Today's dual-write in tool-call-analyzer builds the same shape for AI agent cost: one dashboard, two pipelines.">
-<meta property="og:title" content="Day 42 &mdash; One Dashboard for Inference and Tools">
-<meta property="og:description" content="WhiteFalcon's Scala query engine merged Redis and S3 into one answer. TraceForge's unified Grafana board does the same for inference and tool cost &mdash; one query face, two pipelines.">
+<title>Day 43 &mdash; Kafka as Shock Absorber &mdash; Again | Experience Series</title>
+<meta name="description" content="WhiteFalcon's Kafka pipeline absorbed every Redis slowdown as consumer lag, never as data loss. Today's chaos test in tool-call-analyzer proves the same shock absorber shape holds when ClickHouse gets slow.">
+<meta property="og:title" content="Day 43 &mdash; Kafka as Shock Absorber &mdash; Again">
+<meta property="og:description" content="On-call at Agoda, consumer lag climbing during Redis compaction was never an emergency &mdash; it was Kafka doing its job. The chaos test in tool-call-analyzer proves the same property at micro-scale.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-42-one-dashboard-inference-tools.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-42-one-dashboard-inference-tools.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-43-kafka-shock-absorber-again.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-kafka-shock-absorber-again.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-42-one-dashboard-inference-tools.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-kafka-shock-absorber-again.png">
 <meta property="article:published_time" content="2026-07-30">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,21 +185,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 42 of 150</span>
+    <span class="tag accent">Experience &middot; Day 43 of 150</span>
     <span class="tag">Agoda</span>
-    <span class="tag">WhiteFalcon</span>
-    <span class="tag">Unified Dashboard</span>
-    <span class="tag">Tenant Cost</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">Backpressure</span>
+    <span class="tag">Consumer Lag</span>
   </div>
-  <h1 class="post-title">Day 42 &mdash; One Dashboard for Inference and Tools</h1>
-  <p class="post-subtitle">At Agoda, WhiteFalcon served one query face over two storage tiers &mdash; Redis hot, S3 cold &mdash; and a Scala engine merged histograms across the boundary so Grafana never had to know the split existed. Today's dual-write in tool-call-analyzer builds the same shape for AI agent cost: one dashboard, two pipelines.</p>
+  <h1 class="post-title">Day 43 &mdash; Kafka as Shock Absorber &mdash; Again</h1>
+  <p class="post-subtitle">At Agoda, a slow Redis hot tier never dropped a single WhiteFalcon event &mdash; Kafka just let consumer lag grow and drain, quietly, every time compaction ran. Today's chaos test in tool-call-analyzer proves the same shock absorber shape holds when ClickHouse gets slow.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 42 of 150</span>
+    <span class="meta-item">Experience &middot; Day 43 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 30, 2026</span>
     <div class="meta-divider"></div>
@@ -209,140 +209,110 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-42-one-dashboard-inference-tools.png" alt="Day 42 — One Dashboard for Inference and Tools" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-43-kafka-shock-absorber-again.png" alt="Day 43 — Kafka as Shock Absorber — Again" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>WhiteFalcon had two storage tiers for the same metrics: Redis for the last three to seven days, S3 Parquet for everything older. From a Grafana user's perspective there was one dashboard, one query, one datasource.</p>
+<p>WhiteFalcon processed 1.5 trillion events per day through a Kafka pipeline the Agoda team had built. The Rust consumers sat between Kafka and Redis, reading from the topic and aggregating metrics into time-windowed buckets before writing to the hot tier. When the Redis hot tier got slow &mdash; compaction overhead, a cache flush, a noisy-neighbour latency spike &mdash; the Rust consumers slowed with it.</p>
 
-<p>The Scala query engine sitting in the middle was the piece that made that possible. It routed each time range to the right tier, fetched histogram bucket counts from both, merged them correctly, and returned a single result set &mdash; one query face, two pipelines. The user never needed to know which tier had actually answered their question.</p>
+<p>Consumer lag grew. The Kafka topic accumulated messages. Nothing dropped.</p>
 
-<p>I extended that engine to handle time ranges that crossed the hot/cold boundary, the case where neither tier alone had the full answer. That experience shaped how I think about unified observability now: the interface facing the user should be singular even when the storage underneath it is plural.</p>
+<p>The system had a shock absorber built in, and the shock absorber was Kafka itself. I watched this happen during on-call shifts and did not fully appreciate what I was seeing at first &mdash; a slow downstream component created observable lag without creating data loss. That is not a trivial guarantee, and most HTTP-based ingest pipelines do not have it.</p>
 
 <div class="attr-box mine">
   <div class="attr-label">My role &mdash; Agoda, Core Infrastructure, WhiteFalcon TSDB, Apr&ndash;Sep 2024, Bangkok</div>
-  Senior Software Engineer contributing to WhiteFalcon, Agoda's in-house Rust + Scala TSDB ingesting 1.5T+ events/day. Extended the Scala query engine for cross-tier Redis/S3 queries, solving the histogram merge problem needed for correct P95/P99 across arbitrary time ranges.
+  Senior Software Engineer contributing to WhiteFalcon, Agoda's in-house Rust + Scala TSDB ingesting 1.5T+ events/day on a Kafka pipeline the Agoda team designed and built. I was an operator of that pipeline through on-call rotations, not its architect &mdash; the backpressure behaviour described here is what I observed running it, not what I built.
 </div>
 
-<h2 id="whitefalcons-split-storage-problem">WhiteFalcon's split storage problem</h2>
+<h2 id="what-backpressure-actually-means-in-kafka">What backpressure actually means in Kafka</h2>
 
-<p>WhiteFalcon's hot tier held the last three to seven days of metrics in Redis, bucketed by time window at per-hour granularity. This was the query load that mattered most day to day &mdash; on-call engineers, live dashboards, alerting pipelines. The tier was sized for fast random access, not for storage efficiency.</p>
+<p>An HTTP-based ingest pipeline has a blunt failure mode: when the downstream is slow, the handler either queues requests in memory, risking an OOM, or rejects them with a 503, which is data loss. There is no free middle option. You pick between dropping requests at the boundary or growing an in-memory queue that will eventually exhaust heap.</p>
 
-<p>The cold tier sat behind Ceph and landed in S3 as Parquet, holding everything older than the hot window. Compaction merged files from hourly to three-hour to daily as data aged, trading granularity for storage efficiency. Once data left the hot window it was reachable only through this cold path.</p>
+<p>Kafka gives you a third option because it is disk-backed. The topic itself is the queue, and when consumers are slow, messages accumulate on disk &mdash; bounded by the topic's retention policy, not by heap. The producer does not need to know the consumer is slow; it writes to Kafka and moves on.</p>
 
-<p>Dashboards routinely asked for a fourteen-day window: &ldquo;show me API error rate for the last two weeks.&rdquo; That single request spans both tiers &mdash; days one through seven sit in Redis, days eight through fourteen sit in S3. Before cross-tier handling existed, a Grafana user had to split that into two manually configured queries and stitch the charts together by eye.</p>
-
-<p>That's not a dashboard. That's a research project with a deadline.</p>
-
-<p>Agoda's Scala query engine existed precisely to remove that seam. It took the full time range from Grafana, worked out which tiers it needed, fetched histogram bucket counts from each in parallel, and merged them into one result. The merge is where it gets interesting, because quantiles don't add the way counts do.</p>
-
-<p>You cannot compute P95 on the hot tier, compute P95 on the cold tier, and average the two together &mdash; that number describes nothing real, because the underlying distributions have different shapes. WhiteFalcon stored aggregations as histogram bucket counts rather than pre-computed percentiles, and that single design decision is what makes a correct merge possible at all.</p>
+<p>Consumer lag is the delta between the last offset the producer wrote and the last offset the consumer has processed. It grows when the consumer is slow and shrinks when the consumer catches up. At no point are messages deleted until the retention window expires.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Physical analogy &mdash; the librarian who checks both rooms</div>
-  Ask a librarian for every book published between 2010 and 2020, and a bad librarian tells you "new arrivals are in room A, the archive is in room B, go check both yourself." A good librarian checks both rooms and hands you one unified list. The request had one shape; the retrieval path had two branches, and the interface absorbed the difference.
+  <div class="attr-label">Physical analogy &mdash; the conveyor belt with a long buffer</div>
+  Picture a conveyor belt with a long buffer section between the assembly line and the packaging station. If packaging slows down, items pile up on the buffer, but the assembly line never stops. Consumer lag is just the length of that pile. A traditional HTTP queue is a packaging station with no buffer at all &mdash; if it slows, the line backs up or items fall on the floor.
 </div>
 
-<p>The single-query-face design was, in my view, the most important architectural decision behind WhiteFalcon. Grafana dashboards could be written without any knowledge of the tier split underneath them, and alerts could fire on thirty-day windows without anyone hand-configuring a dual-datasource query. The complexity was real, but it lived in one place instead of being copied into every dashboard that consumed the data.</p>
+<p>Consumer lag is not a problem in itself. It is information: it tells you the consumer is slower than the producer, not that data is being lost. The correct response to growing lag is to watch it as a signal and add consumer capacity if it stays elevated &mdash; restarting a healthy-but-slow consumer does not make the downstream any faster.</p>
 
-<h2 id="the-cross-tier-extension-i-built">The cross-tier extension I built</h2>
+<h2 id="watching-kafka-absorb-the-shock-at-agoda">Watching Kafka absorb the shock at Agoda</h2>
 
-<p>Before my contribution, the Scala engine only handled time ranges that fell entirely within one tier &mdash; fully in Redis for anything under seven days, fully in S3 for anything older. A range spanning day one through day fourteen fell into a gap nobody had built for. Engineers worked around it by querying each tier separately and adding the two results together.</p>
+<p>During shifts on WhiteFalcon, consumer lag on the Rust consumers was the first signal of downstream slowness. Redis compaction jobs ran on a schedule, and at their peak they made the hot tier respond slower than normal. Consumer write throughput dropped, and lag climbed &mdash; sometimes to tens of millions of messages on a high-volume topic.</p>
 
-<p>For quantile metrics, that workaround produces the wrong number. My first instinct, before I understood the histogram design underneath, was to query each tier, compute the quantile on each side, and return the larger value. If hot-tier P95 was 120ms and cold-tier P95 was 95ms, that instinct says take 120ms.</p>
+<p>The on-call runbook said: observe, do not panic, wait for compaction to finish, watch lag drain. That instruction only makes sense once you understand what the lag draining afterward actually proved.</p>
 
-<p>That's wrong, because the two distributions have different shapes, and the max of two quantiles is not the quantile of their union. The correct approach only becomes possible because WhiteFalcon stores histogram bucket counts instead of pre-computed percentiles &mdash; each bucket is additive on its own, so the count in a given latency bucket from Redis plus the count in that same bucket from S3 gives the true combined count for the full range.</p>
+<p>It proved that no messages were lost. The Kafka offset behaved as a commit log &mdash; every message that arrived was durably written before any consumer acknowledged it, so consumer slowness never put messages at risk. It only put them in a longer queue, and the on-call job during these windows was to make sure the lag was draining fast enough to clear before the retention window ran out.</p>
 
-<pre><code>WRONG:  max(P95(Redis, last 3d), P95(S3, days 4-14))
-        &rarr; mathematically incorrect, quantiles don't add
+<p>A slow consumer still makes progress: its committed offset keeps advancing, just not as fast as the producer's. A stuck consumer's committed offset stops moving entirely, and the two look similar on a short lag graph but diverge within minutes.</p>
 
-CORRECT:
-  1. Fetch histogram bucket counts from Redis (raw distribution)
-  2. Fetch histogram bucket counts from S3 (raw distribution)
-  3. Add corresponding bucket counts &mdash; merge the two distributions
-  4. Compute the quantile once, on the merged histogram</code></pre>
+<p>Slow consumers self-resolve once the downstream speeds up. Stuck consumers need intervention &mdash; check for a panic in the process, check downstream connectivity, restart if necessary. Conflating the two leads to restarting consumers that were never actually broken.</p>
 
-<p>What I built extended the Scala engine to detect when a requested range crossed the hot/cold boundary, fetch bucket counts from both tiers in parallel, add the corresponding buckets element-wise, and compute the requested quantile on the merged result. The response shape returned to Grafana was identical to a single-tier response: one time series, one point per hour, covering the full range.</p>
+<p>The backpressure story at Agoda was quiet precisely because Kafka made it quiet: events arrived, lag grew, events processed, lag drained, all without a single line of on-call action. I would not have understood how much that guarantee was worth if I hadn't watched it hold on every compaction cycle, which happened multiple times a day.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">events/day into WhiteFalcon</span></div>
-  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">hot tier retention window</span></div>
-  <div class="stat-cell"><span class="stat-num">~5mo</span><span class="stat-label">my tenure on WhiteFalcon</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">tiers merged per query</span></div>
-</div>
+<h2 id="the-same-lesson-in-tool-call-analyzer">The same lesson in tool-call-analyzer</h2>
 
-<p>The user-facing change was invisible: dashboards that already existed simply started returning correct fourteen-day results instead of an approximation nobody had flagged as wrong. That's the right outcome for infrastructure work &mdash; the win isn't a feature announcement, it's the quiet removal of an incorrect workaround that nobody knew they were relying on.</p>
+<p>Today's <code>pkg/ingest/chaos_test.go</code> in tool-call-analyzer simulates the Agoda pattern at micro-scale. A slow ClickHouse stub with 200ms of artificial latency per write stands in for the slow Redis hot tier, and the HTTP ingest handler's 100ms ClickHouse write deadline fires before the stub can respond.</p>
 
-<h2 id="what-one-query-face-costs">What "one query face" costs</h2>
+<p>Instead of dropping the span, the handler's Kafka fallback path in <code>pkg/kafka/producer.go</code> publishes the BillingEvent to the <code>tool-spans</code> topic. The chaos test fires 100 spans concurrently and asserts that all 100 land on that topic &mdash; zero dropped.</p>
 
-<p>Centralizing the tier-crossing logic in the query engine is the right trade. It keeps complexity in one place experts can manage, instead of spreading it across every team that writes a Grafana panel.</p>
+<p>A single-threaded test would not expose race conditions in that fallback path. Ten goroutines each sending 10 spans creates concurrent ClickHouse timeouts, concurrent Kafka produces, and concurrent JSON marshaling all at once, and a data race on the Kafka writer surfaces there before it ever reaches production.</p>
 
-<p>But it comes with a real cost: the query engine becomes a critical shared dependency, and any bug in the merge logic silently corrupts every metric that crosses the boundary. We caught regressions with a validation query that ran hourly against the window straddling the hot/cold boundary, computing the same metric three ways &mdash; Redis-only, S3-only, and the cross-tier merge.</p>
+<p>WhiteFalcon's shape was Kafka &rarr; Rust consumers &rarr; Redis. tool-call-analyzer's shape is HTTP ingest &rarr; ClickHouse &rarr; Kafka fallback. In both cases, Kafka sits between a fast ingest path and a slower storage path, and the consumer lag equivalent &mdash; the topic offset lag &mdash; is observable, not alarming.</p>
 
-<p>The merge result had to equal the Redis figure for the hot portion and the S3 figure for the cold portion, within histogram quantization error. The more consumers depend on a piece of shared infrastructure, the more carefully it has to be tested, not because the logic is complex but because failures there are invisible by design.</p>
+<p>The chaos test is not really a unit test of the Kafka producer. It is a proof of a system property &mdash; this ingest path does not drop spans when its downstream is slow &mdash; and proving that with a deterministic test means the property stays true as the codebase evolves, checked on every commit instead of trusted on faith.</p>
 
-<p>A dashboard showing a wrong P95 after a query engine regression doesn't crash or throw an error. It just shows a wrong number, silently, to everyone downstream who trusts it &mdash; and the alert that should have fired on the real number stays quiet too.</p>
+<h2 id="backpressure-as-a-design-discipline">Backpressure as a design discipline</h2>
 
-<p>One query face is still the right architecture. But it only stays right if the merge logic itself is the thing under test, not the downstream dashboards that assume it's correct: every dashboard that trusts the query engine is a test you are not writing.</p>
+<p>Backpressure gets treated as an emergency response more often than it should: the system is overwhelmed, add capacity, restart the slow service. That framing skips the real design question, which is not &ldquo;what do we do when the downstream is slow&rdquo; but &ldquo;where does the excess work go when the downstream is slow.&rdquo;</p>
 
-<h2 id="the-traceforge-connection">The TraceForge connection</h2>
+<p>An in-memory queue exhausts heap. An HTTP 503 loses data unless the caller retries. A Kafka topic absorbs the excess and lets the consumer catch up on its own schedule.</p>
 
-<p>Today's <code>pkg/dualwrite</code> package in tool-call-analyzer sends each tool span's BillingEvent to LensAI's ingest endpoint right after writing it to ClickHouse. LensAI tracks inference cost, tool-call-analyzer tracks tool-call cost, and the Grafana board joins them on <code>$tenant_id</code>.</p>
+<p>That choice belongs at design time, not during the incident.</p>
 
-<p>It's WhiteFalcon's architecture replayed one layer up the stack: two pipelines, one query face, one dashboard. In WhiteFalcon, hot meant Redis holding recent data and cold meant S3 holding history. In TraceForge, hot is tool-call-analyzer holding recent, granular tool-span data, and cold is LensAI holding the other half of the same bill &mdash; inference cost.</p>
+<p>WhiteFalcon's Kafka pipeline made this same choice at a different granularity than tool-call-analyzer does today. Raw metric events arrived on the ingest topic, and Rust consumers transformed them into time-windowed bucket counts before writing to Redis &mdash; the transformation happened in the consumer, not the producer, and the ingest topic's 1.5T events/day throughput was decoupled from aggregation throughput by the buffer sitting between them.</p>
 
-<p>The unified BillingEvent envelope plays the role the histogram bucket schema played at Agoda: the shared shape that makes merging possible at all. <code>tenant_id</code> plus <code>trace_id</code> is the join key here, the way bucket boundaries were the merge key there.</p>
+<p>Any time an ingest path needs higher throughput or lower latency than a downstream transformation can sustain, Kafka belongs between them. Consumer lag is the observable that tells you whether the two rates are matched: steady growth over days means the downstream is structurally slower, and a spike that drains on a schedule means it has a periodic bottleneck worth tuning.</p>
 
-<p>WhiteFalcon's Redis writes never waited on S3 writes completing. The hot tier took the event first, cold-tier compaction happened asynchronously on its own schedule, and Redis availability never depended on S3 availability. tool-call-analyzer's dual-write follows the same principle: the ClickHouse write path never waits on LensAI, so if LensAI is unreachable, tool spans still land in ClickHouse.</p>
+<h2 id="what-the-readme-and-openapi-spec-represent">What the README and OpenAPI spec represent</h2>
 
-<p>The secondary write is best-effort, the same way cold-tier compaction was best-effort relative to hot-tier ingest. The difference is where the merge actually happens.</p>
+<p>The tool-call-analyzer README and OpenAPI spec are not polish added after the chaos test passes &mdash; they are the interface contract that makes the system composable. The spec tells any future SDK or CLI consumer exactly what <code>POST /ingest</code> expects without requiring anyone to read the Go source.</p>
 
-<p>WhiteFalcon's query engine actively merged both tiers on read, inside the engine itself. TraceForge's unified board instead places two data sources side by side and lets the shared <code>$tenant_id</code> variable do the joining in the viewer's eye, not inside a query engine.</p>
+<p>WhiteFalcon's Grafana-facing API stayed stable because the Scala query engine enforced the contract, not because a wiki page described it accurately. If a wiki drifts, Grafana still works; if the engine drifts, Grafana breaks immediately.</p>
 
-<p>That's a deliberate trade: less infrastructure to build and run, at the cost of needing an actual ClickHouse table join whenever you want one true cross-system total instead of two numbers sitting next to each other. For a weekly budget review, visual juxtaposition is enough &mdash; for generating an invoice, only a SQL <code>UNION</code> over the billing events table gives the correct combined figure.</p>
-
-<p>The WhiteFalcon principle was never really about time-series databases. Two storage systems, one query interface, and a shared schema that makes merging possible &mdash; that applies to any observability system stitched together from heterogeneous sources, and TraceForge is applying the same principle to AI agent cost attribution.</p>
-
-<h2 id="building-for-the-cfo-and-the-on-call-engineer">Building for the CFO and the on-call engineer at once</h2>
-
-<p>An on-call engineer asks &ldquo;why is trace 7f3d9a2e costing $0.04?&rdquo; A CFO asks &ldquo;why did our AI bill increase 30% this week?&rdquo; Both questions get answered by the same rows, grouped differently.</p>
-
-<p>The engineer needs trace-level detail, the CFO needs a tenant-level weekly rollup, and it's one table with two <code>GROUP BY</code> clauses, not two systems. Row one of the unified board shows LensAI inference spend &mdash; token cost to the model provider. Row two shows TraceForge tool spend &mdash; cost to whichever APIs the agent called.</p>
-
-<p>Both rows filtered by the same <code>$tenant_id</code> means a customer success manager can open a tenant's dashboard in a weekly review and see in seconds whether their costs skew inference-heavy or tool-heavy. That's a product conversation happening inside Grafana instead of a spreadsheet passed around after the fact.</p>
-
-<p>At Agoda, the Grafana-facing API stayed identical no matter which tier answered a query, which meant dashboard configuration never had to change when the team adjusted retention windows or swapped a cold-tier storage format. The dashboard stayed stable because the interface contract stayed stable.</p>
-
-<p>TraceForge's board generator, <code>traceforge board</code>, codifies that same contract for this project: the two datasource UIDs are configuration, the panel layout is fixed, and adding a new inference model or switching ClickHouse clusters touches nothing but a UID.</p>
+<p>tool-call-analyzer's spec is not enforced by a code generator, but committing it alongside the handler tests creates a lightweight version of the same guarantee &mdash; if the tests pass and the spec matches what they exercise, the spec stays correct by construction rather than by discipline.</p>
 
 <div class="pullquote">
-  <p>WhiteFalcon taught me that unified observability is a product discipline, not a data-engineering exercise. Agree on the envelope, agree on the join key, then generate the interface from code so the agreement is machine-checkable instead of a convention people forget.</p>
+  <p>Kafka never made the Redis compaction jobs faster. It made their slowness someone else's problem to solve on a schedule instead of everyone's emergency to solve at 2am &mdash; and that reframing is the entire value of the shock absorber.</p>
 </div>
 
-<p>The query engine was that generated artifact at Agoda. The board generator is that artifact for TraceForge &mdash; and in both cases, the discipline is what lets one dashboard stand in for two pipelines without anyone downstream having to know it.</p>
+<p>Documentation and chaos tests are both proofs of a system property, just aimed at different audiences: the chaos test proves the ingest path does not drop spans, and the README proves a stranger can clone the repo and run it. Each one is a small, checkable commitment that the project intends to keep &mdash; the same kind of commitment WhiteFalcon's Kafka pipeline made to every consumer that ever fell behind it.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 42 of 150 &mdash; One Dashboard for Inference and Tools</p>
-  <p><em>Next up:</em> <a href="day-43-kafka-shock-absorber-again.html">Day 43 &mdash; Kafka as Shock Absorber &mdash; Again</a></p>
+  <p>Experience &middot; Day 43 of 150 &mdash; Kafka as Shock Absorber &mdash; Again</p>
+  <p><em>Next up:</em> Day 44 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>AI Learning Day 42 &mdash; Unified Billing Events: One Envelope (the schema behind today's dual-write)</span>
+      <span>AI Learning Day 43 &mdash; Backpressure on Analytics Pipelines (the split-topic design behind today's chaos test)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-42-one-dashboard-inference-tools.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 41 &mdash; Exclusive Time &mdash; Flame Graphs for Money</span>
+      <span>Day 42 &mdash; One Dashboard for Inference and Tools</span>
     </a>
-    <a href="https://druid.apache.org/">
+    <a href="https://kafka.apache.org/documentation/#design_compaction">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Apache Druid &mdash; the architecture WhiteFalcon drew its design from</span>
+      <span>Apache Kafka documentation &mdash; log design and retention (the disk-backed queue behind the shock absorber)</span>
     </a>
   </div>
 </div>
@@ -353,22 +323,22 @@ CORRECT:
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#whitefalcons-split-storage-problem">WhiteFalcon's split storage problem</a></li>
-      <li><a href="#the-cross-tier-extension-i-built">The cross-tier extension I built</a></li>
-      <li><a href="#what-one-query-face-costs">What "one query face" costs</a></li>
-      <li><a href="#the-traceforge-connection">The TraceForge connection</a></li>
-      <li><a href="#building-for-the-cfo-and-the-on-call-engineer">Building for the CFO and the on-call engineer</a></li>
+      <li><a href="#what-backpressure-actually-means-in-kafka">What backpressure actually means in Kafka</a></li>
+      <li><a href="#watching-kafka-absorb-the-shock-at-agoda">Watching Kafka absorb the shock at Agoda</a></li>
+      <li><a href="#the-same-lesson-in-tool-call-analyzer">The same lesson in tool-call-analyzer</a></li>
+      <li><a href="#backpressure-as-a-design-discipline">Backpressure as a design discipline</a></li>
+      <li><a href="#what-the-readme-and-openapi-spec-represent">What the README and OpenAPI spec represent</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-42-one-dashboard-inference-tools.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-43-kafka-shock-absorber-again.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=One+Dashboard+for+Inference+and+Tools+%E2%80%94+Experience+%C2%B7+Day+42+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-42-one-dashboard-inference-tools.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Kafka+as+Shock+Absorber+%E2%80%94+Again+%E2%80%94+Experience+%C2%B7+Day+43+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-43-kafka-shock-absorber-again.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -381,17 +351,17 @@ CORRECT:
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D41</span> Experience</div>
-          <a href="day-41-exclusive-time-flame-graphs-for-money.html" class="series-post-title">Exclusive Time &mdash; Flame Graphs for Money</a>
+          <div class="series-post-kicker"><span class="series-post-num">D42</span> Experience</div>
+          <a href="day-42-one-dashboard-inference-tools.html" class="series-post-title">One Dashboard for Inference and Tools</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D42</span> Experience &middot; now</div>
-          <div class="series-post-title">One Dashboard for Inference and Tools</div>
-          <div class="series-post-desc">Agoda WhiteFalcon's Scala query engine merging Redis and S3 into one answer, and the unified TraceForge Grafana board that does the same for inference and tool cost</div>
+          <div class="series-post-kicker"><span class="series-post-num">D43</span> Experience &middot; now</div>
+          <div class="series-post-title">Kafka as Shock Absorber &mdash; Again</div>
+          <div class="series-post-desc">Agoda WhiteFalcon's Kafka pipeline absorbing every Redis slowdown as consumer lag, never data loss, and the chaos test that proves the same shape in tool-call-analyzer</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D43</span> Experience</div>
-          <a href="day-43-kafka-shock-absorber-again.html" class="series-post-title">Kafka as Shock Absorber &mdash; Again</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D44</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>

@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html",
+          "kicker": "AI Learning · Day 43 of 150",
+          "title": "Day 43 — Backpressure on Analytics Pipelines",
+          "subtitle": "Kafka consumer lag on tool stats",
+          "date": "2026-07-30",
+          "slug": "day-43-backpressure-analytics-pipelines",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html",
+          "coverImage": "blog/assets/covers/day-43-backpressure-analytics-pipelines.png",
+          "desc": "Span ingest is a microsecond HTTP write; analytics aggregation is a millisecond database operation. Splitting tool-spans from tool-stats keeps a slow ClickHouse aggregator from ever stalling the fast path, and a chaos test proves it."
+        },
+        {
           "href": "blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html",
           "kicker": "AI Learning · Day 42 of 150",
           "title": "Day 42 — Unified Billing Events — One Envelope",
@@ -395,6 +407,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-43-kafka-shock-absorber-again.html",
+          "kicker": "Experience · Day 43 of 150",
+          "title": "Day 43 — Kafka as Shock Absorber — Again",
+          "desc": "At Agoda, WhiteFalcon's Kafka pipeline absorbed every Redis slowdown as consumer lag, never as data loss. The same shock absorber shape holds in tool-call-analyzer's chaos test, proving span ingest survives a slow ClickHouse aggregator.",
+          "coverImage": "blog/assets/covers/day-43-kafka-shock-absorber-again.png",
+          "date": "2026-07-30",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-43-kafka-shock-absorber-again.html"
+        },
         {
           "href": "blog/series/experience/day-42-one-dashboard-inference-tools.html",
           "kicker": "Experience · Day 42 of 150",

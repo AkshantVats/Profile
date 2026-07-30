@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 42 &mdash; Unified Billing Events &mdash; One Envelope | AI Learning Series</title>
-<meta name="description" content="An agent's cost comes from inference calls and tool calls, and they usually land in different tables that never JOIN. A single BillingEvent envelope, keyed on tenant_id and trace_id, makes the join possible.">
-<meta property="og:title" content="Day 42 &mdash; Unified Billing Events &mdash; One Envelope">
-<meta property="og:description" content="Same envelope, two sources: LensAI emits it for inference, tool-call-analyzer emits it for tools. tenant_id + trace_id turns two observability systems into one billing table.">
+<title>Day 43 &mdash; Backpressure on Analytics Pipelines | AI Learning Series</title>
+<meta name="description" content="A slow aggregator must not stall span ingest. Splitting the raw and rollup Kafka topics, plus a chaos test with a 200ms ClickHouse stub, is how tool-call-analyzer proves span ingest survives a slow downstream.">
+<meta property="og:title" content="Day 43 &mdash; Backpressure on Analytics Pipelines">
+<meta property="og:description" content="Consumer lag is the observable, not the emergency. Split tool-spans from tool-stats, and a slow aggregator never touches the ingest path's latency budget.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-42-unified-billing-events-one-envelope.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-backpressure-analytics-pipelines.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-42-unified-billing-events-one-envelope.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-backpressure-analytics-pipelines.png">
 <meta property="article:published_time" content="2026-07-30">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 42 of 150</span>
-    <span class="tag">Billing Events</span>
-    <span class="tag">ClickHouse</span>
+    <span class="tag accent">AI Learning &middot; Day 43 of 150</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">Consumer Lag</span>
     <span class="tag">TraceForge</span>
   </div>
-  <h1 class="post-title">Day 42 &mdash; Unified Billing Events &mdash; One Envelope</h1>
-  <p class="post-subtitle">Inference cost and tool cost usually land in two tables that were never designed to JOIN. A single BillingEvent envelope, keyed on tenant_id and trace_id, is the schema decision that turns an observability system into a billing system.</p>
+  <h1 class="post-title">Day 43 &mdash; Backpressure on Analytics Pipelines</h1>
+  <p class="post-subtitle">Span ingest is a microsecond HTTP write; analytics aggregation is a millisecond database operation. Splitting the raw and rollup Kafka topics is the schema decision that keeps a slow aggregator from ever stalling the fast path.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 42 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 43 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 30, 2026</span>
     <div class="meta-divider"></div>
@@ -208,61 +208,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-42-unified-billing-events-one-envelope.png" alt="Day 42 — Unified Billing Events — One Envelope" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-43-backpressure-analytics-pipelines.png" alt="Day 43 — Backpressure on Analytics Pipelines" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>An agent's cost comes from two places: inference calls to a model API and tool calls to external services. In most observability setups these land in different tables, different dashboards, and different budget owners &mdash; the inference team looks at token usage, the infrastructure team looks at tool latency.</p>
+<p>When an AI agent emits a tool call span into an analytics system, the analytics pipeline is almost always slower than the ingest path. Aggregating cost, computing exclusive time, and checking for N+1 patterns are CPU- and IO-bound operations, while span ingest is just a lightweight HTTP write.</p>
 
-<p>Nobody looks at a single trace and sees the total spend, because the join that would answer &ldquo;what did this one customer request actually cost us&rdquo; doesn't exist. It doesn't exist because the two systems never agreed on an envelope in the first place.</p>
+<p>If a slow aggregator can stall span ingest, every span the agent emits during that slow window is either lost or delayed at the worst possible time &mdash; when the system is already under load. Backpressure is the design property that prevents exactly that: a slow downstream must never stall a fast upstream.</p>
 
-<p>Today's code adds a BillingEvent struct that both systems emit, with <code>tenant_id</code> plus <code>trace_id</code> as the join key. One envelope is what makes the join possible.</p>
-
-<h2 id="why-two-systems-cant-share-a-dashboard-today">Why two systems can't share a dashboard today</h2>
-
-<p>LensAI tracks inference: model, token count, prompt tokens, completion tokens, cost in dollars, latency. tool-call-analyzer tracks tool calls: tool name, vendor, span ID, duration, cost in dollars, trace ID.</p>
-
-<p>Both have a cost field. Neither has the other's primary identifier, and you can't <code>JOIN</code> two tables without a shared key that both systems populate at write time.</p>
-
-<p>Multi-tenant agent systems need per-tenant cost breakdowns &mdash; &ldquo;how much did tenant T17 spend this week on inference versus tool calls?&rdquo; Without a unified envelope you run two queries, get two numbers, and add them in a spreadsheet. That's not a dashboard. That's manual accounting with extra steps.</p>
-
-<p>A unified envelope is a single JSON schema that both systems write into the same ClickHouse table, or into two tables with identical schemas. The fields that matter for cost attribution &mdash; tenant ID, trace ID, span ID, source, cost &mdash; stay the same whether the event came from a model API call or a web-search tool call.</p>
-
-<p>Everything else is optional context specific to the source. The shared keys are what make the join work at all.</p>
+<p>Today's chaos test in tool-call-analyzer proves this property holds for the TraceForge tool span pipeline, and a split-topic Kafka design is what makes the proof possible.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; two departments, one invoice number</div>
-  A company where shipping and manufacturing each keep their own spreadsheet can't answer "what did order #4471 actually cost us" until both spreadsheets agree to write the same order number on every row. The order number doesn't replace either spreadsheet's own columns. It just gives accounting one key to join on.
+  <div class="attr-label">DS analogy &mdash; the loading dock</div>
+  A warehouse has a receiving dock and a sorting floor. Trucks unload onto the dock regardless of how fast the floor is working, and packages simply stack up in the loading bay when the floor falls behind. No truck is ever turned away, and no package is lost &mdash; the bay is the shock absorber between two processes running at different speeds, and its stack height is exactly what consumer lag measures.
 </div>
 
-<p>Schema divergence between observability systems isn't a data engineering problem, it's an agreement problem. Once both teams agree on the envelope &mdash; even if the extra fields differ &mdash; every dashboard, query, and alert can be written once and applied to both sources at the same time.</p>
+<h2 id="why-analytics-pipelines-have-a-backpressure-problem">Why analytics pipelines have a backpressure problem</h2>
 
-<h2 id="the-billingevent-envelope-design">The BillingEvent envelope design</h2>
+<p>Span ingest is cheap: receive JSON, validate the schema, write to Kafka, return 202. On modern hardware that takes microseconds.</p>
 
-<p>The envelope carries nine fields, and the same struct serves both event types:</p>
+<p>Analytics aggregation is expensive: parse the span, look up its parent to compute exclusive time, check the last 100 spans in the trace for N+1 patterns, update a ClickHouse materialized view. That can take tens of milliseconds per span if a lookup requires a database read.</p>
 
-<pre><code>{
-  "tenant_id":    "t17",
-  "trace_id":     "7f3d9a2e-1234-5678-abcd-ef0123456789",
-  "span_id":      "a1b2c3d4",
-  "source":       "tool",
-  "tool_name":    "search_web",
-  "vendor":       "openai",
-  "cost_usd":     0.0031,
-  "duration_ms":  380,
-  "timestamp_ns": 1721234567890000000
-}</code></pre>
+<p>If the aggregator sits directly in the ingest path &mdash; the HTTP handler calling it synchronously &mdash; then the P99 latency of span ingest becomes the P99 latency of the aggregator. When the aggregator is slow, the AI SDK waiting on that 202 response spends time blocked that it should be spending on the agent's next tool call.</p>
 
-<p>For an inference event, <code>source</code> is <code>"inference"</code>, <code>tool_name</code> is empty, <code>vendor</code> names the model provider, and <code>cost_usd</code> is computed from token counts instead of a vendor invoice. The struct doesn't change shape &mdash; only the <code>source</code> field tells a downstream consumer which pipeline produced the row.</p>
+<p>Kafka breaks that synchronous coupling. The ingest handler writes to the <code>tool-spans</code> topic and returns 202 in under a millisecond, and the aggregator reads from that same topic at its own pace with nothing shared between the two processes except the topic offset.</p>
 
-<p>Separate tables feel cleaner right up until you need to query across them. A single table with a low-cardinality <code>source</code> discriminator column keeps every cost query a plain <code>WHERE tenant_id = ? AND trace_id = ?</code>, with no <code>UNION</code> required, and ClickHouse filters that column efficiently because it isn't a nullable type.</p>
+<p>The ingest path's latency budget is set by Kafka write latency, never by aggregation latency &mdash; the design principle is that the slowest downstream operation must never appear in the critical path of the fastest upstream one.</p>
 
-<p><code>trace_id</code> answers &ldquo;what happened in this request?&rdquo; <code>tenant_id</code> answers &ldquo;who owns this cost?&rdquo; For an agent platform, tenant is the billing unit &mdash; a single tenant can generate thousands of traces a day.</p>
+<h2 id="consumer-lag-as-the-observable">Consumer lag as the observable</h2>
 
-<p>Aggregating by <code>tenant_id</code> gives the invoice line item; joining on <code>trace_id</code> gives the individual request breakdown. Both are necessary, and neither is sufficient on its own.</p>
+<p>Consumer lag is the difference between the latest offset written to a topic and the latest offset a consumer group has committed. If the producer has written to offset 10,000 and the consumer has committed offset 9,500, lag is 500 messages, all safely on disk waiting to be processed.</p>
+
+<p>Rising lag means the aggregator is slower than the ingest rate right now. It does not mean messages are lost, and it does not mean the ingest path is degraded &mdash; it means work is accumulating in the buffer, which is exactly what the buffer is for.</p>
+
+<p>The correct response is to watch the rate of growth against the rate of drain. Lag that grows by 1,000 messages a minute and drains at 1,200 a minute after a load peak needs no action; lag that grows without ever draining means the aggregator is stuck, not slow, and needs investigation.</p>
+
+<p>Three metrics make that distinction operational: <code>consumer_lag_messages</code> (absolute lag, alert past half the topic's retention), <code>consumer_lag_seconds</code> (wall-time lag, alert past five minutes), and <code>consumer_commit_rate</code> (messages committed per second, alert if it hits zero for 60 seconds). Commit rate dropping to zero is the stuck-versus-slow detector &mdash; a slow aggregator still commits, just less often.</p>
+
+<h2 id="split-topics-ingest-vs-aggregation">Split topics: ingest vs aggregation</h2>
+
+<p>A single <code>tool-spans</code> topic serves two audiences with different needs. The aggregator needs every raw span, in order, to compute exclusive time and detect N+1 patterns; downstream consumers &mdash; billing, alerting, Grafana &mdash; only need the aggregated stats, not the raw spans that produced them.</p>
+
+<p>If downstream consumers read the raw topic directly, they process thousands of messages to derive one stat, and each one adds a consumer group competing for broker read throughput during a replay. Introducing a second topic, <code>tool-stats</code>, removes that waste: the aggregator reads <code>tool-spans</code>, computes rollups per trace and tenant, and publishes summaries to <code>tool-stats</code>, which billing, alerting, and Grafana read from instead.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -281,175 +271,91 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-graph LR
-  LensAI["LensAI SDK\nsource=inference"]
-  TA["tool-call-analyzer\nsource=tool"]
-  ENV["BillingEvent\ntenant_id + trace_id"]
-  CH["ClickHouse\nbilling_events"]
-  GR["Grafana Unified Board"]
+flowchart LR
+  SDK["AI SDK / LLM"]
+  Ingest["POST /ingest"]
+  Raw["tool-spans topic (raw)"]
+  Agg["Aggregator consumer"]
+  Stats["tool-stats topic (rollup)"]
+  CH["ClickHouse"]
 
-  LensAI -->|"emit"| ENV
-  TA -->|"dual-write"| ENV
-  ENV --> CH
-  CH --> GR
+  SDK --> Ingest
+  Ingest --> Raw
+  Raw --> Agg
+  Agg --> Stats
+  Agg --> CH
 </pre>
 
-<p>The envelope doesn't erase the difference between inference and tool calls &mdash; it makes the difference navigable. The <code>source</code> field tells you which system produced an event, and the shared fields let you aggregate across all of them regardless of source.</p>
+<p>The two topics carry different retention on purpose: raw spans are high-volume and short-lived, seven days is enough to replay if the aggregator has a bug, while aggregated stats are low-volume and need thirty days to support monthly billing reconciliation without a separate ClickHouse query. Splitting them lets each be configured for what it actually is.</p>
 
-<h2 id="dual-write-fire-and-forget">Dual-write: fire-and-forget</h2>
+<p>The boundary between the two topics is the aggregator, playing the same role WhiteFalcon's Rust consumers played at Agoda between the Kafka ingest topic and the Redis hot tier &mdash; the split-topic design is the Kafka equivalent of separating hot and cold storage.</p>
 
-<p>tool-call-analyzer's primary write path is ClickHouse, and adding LensAI ingest as a second destination must not gate that write. If LensAI is down, tool spans still have to land in ClickHouse; if LensAI is slow, the tool span write still has to complete in under fifty milliseconds.</p>
+<h2 id="chaos-testing-the-backpressure-property">Chaos testing the backpressure property</h2>
 
-<p>The dual-write is additive, not dependent, and Go's goroutines make that distinction easy to express directly in code:</p>
+<p>A chaos test proves a system property rather than a single unit's behaviour. The property here is: when the ClickHouse aggregator is slow, span ingest continues without data loss &mdash; and that can only be proven by exercising the full path, HTTP handler through ClickHouse write through Kafka fallback through the topic itself.</p>
 
-<pre><code>func Send(ev BillingEvent) {
-    url := os.Getenv("LENSAI_INGEST_URL")
-    if url == "" {
-        return
+<pre><code>func TestChaos_SlowClickHouse_NoSpanLoss(t *testing.T) {
+    stub := newSlowClickHouseStub(200 * time.Millisecond)
+    h := ingest.NewHandler(stub, kafkaProducer, 100*time.Millisecond)
+
+    var wg sync.WaitGroup
+    for i := 0; i < 100; i++ {
+        wg.Add(1)
+        go func(n int) {
+            defer wg.Done()
+            postSpan(h, fakeSpan(n))
+        }(i)
     }
-    go func() {
-        body, _ := json.Marshal(ev)
-        ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-        defer cancel()
-        req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-        req.Header.Set("Content-Type", "application/json")
-        resp, err := http.DefaultClient.Do(req)
-        if err != nil {
-            return
-        }
-        resp.Body.Close()
-    }()
+    wg.Wait()
+
+    got := drainTopic(t, "tool-spans", 100)
+    require.Len(t, got, 100) // zero dropped
 }</code></pre>
 
-<p>The goroutine carries a two-second context deadline. If LensAI doesn't respond in that window the goroutine exits cleanly on its own &mdash; no leak, no blocked caller waiting on a response nobody needs.</p>
+<p>The stub adds 200ms of artificial latency, the ingest handler's ClickHouse deadline is 100ms, and the deadline fires first every time. The Kafka fallback activates, and all 100 concurrently-fired spans arrive on <code>tool-spans</code>, deserializable and duplicate-free.</p>
 
-<p>LensAI ingest is idempotent, with <code>span_id</code> as the dedup key. A span that fails to arrive on the first attempt shows up as a gap in the tenant's inference-versus-tool breakdown, but it won't produce a duplicate cost entry if a retry happens to land later.</p>
+<p>100ms is not an arbitrary number. The AI SDK expects the ingest endpoint to respond in under 200ms, similar to a DNS lookup budget, so when ClickHouse takes 200ms the 100ms deadline fires first, the fallback writes to Kafka in under 10ms, and the handler still returns 202 fast. The SDK never sees the slow aggregation at all.</p>
 
-<p>The tradeoff is deliberate: occasional gaps at LensAI in exchange for never blocking the ClickHouse write path. For billing, gaps are visible and recoverable; latency spikes in the primary write path are invisible and compounding.</p>
+<p>The chaos test does not prove the eventual ClickHouse recovery consumer works, since that consumer isn't built yet, and it does not prove behaviour under sustained Kafka broker unavailability, since it assumes Kafka is healthy. It proves exactly one property, and proving one property precisely is more useful than gesturing at many.</p>
 
-<p>If <code>LENSAI_INGEST_URL</code> is unset, <code>Send()</code> returns immediately without spawning a goroutine at all. That makes the dual-write strictly optional &mdash; tool-call-analyzer works standalone with zero LensAI dependency, and only integrates once the environment variable is present.</p>
+<h2 id="what-the-openapi-spec-and-readme-add">What the OpenAPI spec and README add</h2>
 
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the accountant's copy</div>
-  Dual-write is like mailing a copy of every invoice to your accountant while the original goes straight to the client. The client's invoice is what matters, and the business doesn't stop if the accountant's copy gets lost in the post. You never delay the client's invoice to wait for a delivery receipt on the copy.
-</div>
+<p>The OpenAPI spec for <code>POST /ingest</code> is the machine-readable version of the claim &ldquo;this is how you send a tool span to tool-call-analyzer,&rdquo; and any future SDK wrapper or load test can generate a valid request from it without reading Go source.</p>
 
-<p>Fire-and-forget dual-write is the right pattern whenever the secondary destination is observability infrastructure rather than primary business data. Treating both writes identically &mdash; both blocking, both retried &mdash; couples your primary write path to a dependency's availability, and that's the wrong direction for that coupling to point.</p>
-
-<h2 id="the-unified-grafana-board">The unified Grafana board</h2>
-
-<p>The board has two rows, each fed by a different datasource but both filtered on the same template variable:</p>
-
-<pre><code>Row 1 — Inference (LensAI datasource)
-  [Stat]        Total inference cost today (filtered by $tenant_id)
-  [Bar Gauge]   Cost breakdown by model
-  [Time Series] Token usage over time
-
-Row 2 — Tools (TraceForge ClickHouse datasource)
-  [Bar Gauge]   Cost waterfall by tool name
-  [Time Series] Exclusive time P99 trend by tool
-  [Stat]        N+1 alerts fired today</code></pre>
-
-<p>Switch the <code>$tenant_id</code> variable to T17 and both rows update together: the inference row shows T17's model spend, the tool row shows T17's tool spend, and total cost for T17 is the sum of the two stat panels.</p>
-
-<p>Grafana panels from two datasources don't join inside a database. They join in the viewer's eye, because the shared <code>$tenant_id</code> variable makes both panels show the same tenant at the same time, and the user reads the total by adding two numbers.</p>
-
-<p>For most purposes &mdash; a team review, a budget conversation, spotting an anomaly &mdash; that visual juxtaposition is enough. A real SQL <code>JOIN</code> is only needed when you want one number from one query, which matters for invoice generation but not for the weekly dashboard.</p>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-graph TD
-  VAR["$tenant_id Grafana variable"]
-  R1["Row 1 — Inference\nLensAI datasource"]
-  R2["Row 2 — Tools\nTraceForge datasource"]
-  GR["Grafana Board"]
-
-  VAR --> R1
-  VAR --> R2
-  R1 --> GR
-  R2 --> GR
-</pre>
-
-<p>Grafana dashboards are JSON files under the hood, so a board with a deterministic shape &mdash; same panels, same datasource mapping, same variable, on every deployment &mdash; is a better fit for a generator than for click-and-drag editing. A change to the ClickHouse schema then triggers a change to the generator function, not a manual edit inside Grafana that nobody remembers to repeat on the next environment.</p>
-
-<p>Unified observability doesn't require a unified database. It requires a unified variable and two datasources registered in the same Grafana instance, and the board generator is the artifact that encodes that agreement as code instead of as a convention someone has to remember.</p>
-
-<h2 id="what-tenant-id-plus-trace-id-makes-possible">What tenant_id plus trace_id makes possible</h2>
-
-<p>Before the unified envelope, a per-tenant cost split was two queries and a manual sum. With both event types in one table, it's a single query with two filtered sums:</p>
-
-<pre><code>SELECT
-    tenant_id,
-    SUM(cost_usd) FILTER (WHERE source = 'inference') AS inference_cost,
-    SUM(cost_usd) FILTER (WHERE source = 'tool')      AS tool_cost,
-    SUM(cost_usd)                                      AS total_cost
-FROM billing_events
-WHERE tenant_id = 'T17'
-  AND toDate(timestamp_ns / 1e9) = today()
-GROUP BY tenant_id</code></pre>
-
-<p>The same shape works one level down, ranking traces instead of tenants:</p>
-
-<pre><code>SELECT
-    trace_id,
-    SUM(cost_usd) FILTER (WHERE source = 'inference') AS inference_cost,
-    SUM(cost_usd) FILTER (WHERE source = 'tool')      AS tool_cost
-FROM billing_events
-WHERE tenant_id = 'T17'
-ORDER BY (inference_cost + tool_cost) DESC
-LIMIT 10</code></pre>
-
-<p>That surfaces the ten most expensive traces for tenant T17 today, across both systems at once, and shows whether the expensive traces are inference-heavy, tool-heavy, or a mix of both. That breakdown points at two different optimizations, and you can't tell which one applies without the join.</p>
+<p>The spec says what the interface promises, and the chaos test says the implementation keeps that promise &mdash; committing them together means they are reviewed together and any drift between them is visible immediately, not discovered months later by a confused integrator.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">9</span><span class="stat-label">fields in BillingEvent</span></div>
-  <div class="stat-cell"><span class="stat-num">2s</span><span class="stat-label">dual-write context deadline</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">tables the query UNIONs</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">GROUP BY views, one table</span></div>
+  <div class="stat-cell"><span class="stat-num">100</span><span class="stat-label">concurrent spans in chaos test</span></div>
+  <div class="stat-cell"><span class="stat-num">100ms</span><span class="stat-label">ClickHouse write deadline</span></div>
+  <div class="stat-cell"><span class="stat-num">200ms</span><span class="stat-label">injected stub latency</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Kafka topics, split by role</span></div>
 </div>
 
-<p>When every API call a tenant makes produces a BillingEvent, the invoice becomes a <code>SELECT</code> instead of a monthly reconciliation job. There's no gap-filling script and no separate aggregation pass &mdash; the billing envelope is the invoice record, and the unified table is the billing database.</p>
-
-<p><code>tenant_id</code> plus <code>trace_id</code> isn't metadata bolted on afterward. It's the schema decision that turns an observability system into a billing system, and it does that without touching either LensAI's or tool-call-analyzer's primary write path.</p>
+<p>A system with a chaos test but no spec proves it works without telling anyone how to use it. A system with a spec but no chaos test describes what it promises without proving it keeps that promise, and Day 43 ships both together on purpose.</p>
 
 <div class="pullquote">
-  <p>The envelope doesn't make inference and tools the same thing. It makes them addable &mdash; and addable is the only property a billing system actually needs.</p>
+  <p>Consumer lag is not the alarm. It is the readout &mdash; the number that tells you the buffer is doing exactly what it was built to do.</p>
 </div>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 42 of 150 &mdash; Unified Billing Events &mdash; One Envelope</p>
-  <p><em>Next up:</em> <a href="day-43-backpressure-analytics-pipelines.html">Day 43 &mdash; Backpressure on Analytics Pipelines</a></p>
+  <p>AI Learning &middot; Day 43 of 150 &mdash; Backpressure on Analytics Pipelines</p>
+  <p><em>Next up:</em> Day 44 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-42-one-dashboard-inference-tools.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-43-kafka-shock-absorber-again.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 42 &mdash; One Dashboard for Inference and Tools (the Agoda WhiteFalcon lesson behind today's dual-write)</span>
+      <span>Experience Day 43 &mdash; Kafka as Shock Absorber, Again (the Agoda WhiteFalcon lesson behind today's split-topic design)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 41 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals (the waterfall this envelope now feeds from two sources)</span>
+      <span>Day 42 &mdash; Unified Billing Events &mdash; One Envelope</span>
     </a>
-    <a href="https://clickhouse.com/docs/en/sql-reference/aggregate-functions/combinators">
+    <a href="https://kafka.apache.org/documentation/#consumerconfigs">
       <span class="footnote-arrow">&rarr;</span>
-      <span>ClickHouse &mdash; Aggregate Function Combinators (the FILTER-equivalent syntax used above)</span>
+      <span>Apache Kafka &mdash; Consumer Configs (the lag and commit-rate settings referenced above)</span>
     </a>
   </div>
 </div>
@@ -460,22 +366,22 @@ LIMIT 10</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-two-systems-cant-share-a-dashboard-today">Why two systems can't share a dashboard</a></li>
-      <li><a href="#the-billingevent-envelope-design">The BillingEvent envelope design</a></li>
-      <li><a href="#dual-write-fire-and-forget">Dual-write: fire-and-forget</a></li>
-      <li><a href="#the-unified-grafana-board">The unified Grafana board</a></li>
-      <li><a href="#what-tenant-id-plus-trace-id-makes-possible">What tenant_id + trace_id makes possible</a></li>
+      <li><a href="#why-analytics-pipelines-have-a-backpressure-problem">Why analytics pipelines have a backpressure problem</a></li>
+      <li><a href="#consumer-lag-as-the-observable">Consumer lag as the observable</a></li>
+      <li><a href="#split-topics-ingest-vs-aggregation">Split topics: ingest vs aggregation</a></li>
+      <li><a href="#chaos-testing-the-backpressure-property">Chaos testing the backpressure property</a></li>
+      <li><a href="#what-the-openapi-spec-and-readme-add">What the OpenAPI spec and README add</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-42-unified-billing-events-one-envelope.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-43-backpressure-analytics-pipelines.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Unified+Billing+Events+%E2%80%94+One+Envelope+%E2%80%94+AI+Learning+%C2%B7+Day+42+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-42-unified-billing-events-one-envelope.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Backpressure+on+Analytics+Pipelines+%E2%80%94+AI+Learning+%C2%B7+Day+43+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-43-backpressure-analytics-pipelines.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -488,17 +394,17 @@ LIMIT 10</code></pre>
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D41</span> AI Learning</div>
-          <a href="day-41-cost-waterfalls-cfo-friendly-visuals.html" class="series-post-title">Cost Waterfalls &mdash; CFO-Friendly Visuals</a>
+          <div class="series-post-kicker"><span class="series-post-num">D42</span> AI Learning</div>
+          <a href="day-42-unified-billing-events-one-envelope.html" class="series-post-title">Unified Billing Events &mdash; One Envelope</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D42</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Unified Billing Events &mdash; One Envelope</div>
-          <div class="series-post-desc">Same BillingEvent schema for inference and tools, fire-and-forget dual-write in Go, and the tenant_id + trace_id join that turns observability into billing</div>
+          <div class="series-post-kicker"><span class="series-post-num">D43</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Backpressure on Analytics Pipelines</div>
+          <div class="series-post-desc">Split tool-spans from tool-stats, consumer lag as the health signal, and the chaos test that proves span ingest survives a slow ClickHouse aggregator</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D43</span> AI Learning</div>
-          <a href="day-43-backpressure-analytics-pipelines.html" class="series-post-title">Backpressure on Analytics Pipelines</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D44</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
