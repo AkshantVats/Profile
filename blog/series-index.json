@@ -420,6 +420,15 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-45-s3-for-traces-compliance-and-cost.html",
+          "kicker": "Experience · Day 45 of 150",
+          "title": "Day 45 — S3 for Traces — Compliance and Cost",
+          "desc": "WhiteFalcon's Ceph→S3→Hadoop cold tier existed for audit as much as cost. agent-replay-engine's zstd + checksum + 30/90-day retention export applies the same tiering discipline to trace event logs at a fraction of the scale.",
+          "coverImage": "blog/assets/covers/s3-for-traces-compliance-and-cost.png",
+          "date": "2026-07-30",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-45-s3-for-traces-compliance-and-cost.html"
+        },
+        {
           "href": "blog/series/experience/day-44-event-sourcing-events-hallucinate.html",
           "kicker": "Experience · Day 44 of 150",
           "title": "Day 44 — Event Sourcing — But the Events Hallucinate",

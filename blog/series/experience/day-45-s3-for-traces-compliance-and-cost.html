@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 44 &mdash; Event Sourcing &mdash; But the Events Hallucinate | Experience Series</title>
-<meta name="description" content="Wayfair's pricing simulations froze supplier costs and replayed them through a stateless pricing engine to validate adjustments before they went live. The agent-replay-engine built today applies the same idempotent-replay pattern to tool calls &mdash; with one enforcement point instead of many.">
-<meta property="og:title" content="Day 44 &mdash; Event Sourcing &mdash; But the Events Hallucinate">
-<meta property="og:description" content="At Wayfair, a pricing simulation was a replay: freeze the inputs, run them through a stateless pricing engine, compare the output. The same pattern, done right this time, is what agent-replay-engine builds for tool calls.">
+<title>Day 45 &mdash; S3 for Traces &mdash; Compliance and Cost | Experience Series</title>
+<meta name="description" content="WhiteFalcon's cold tier moved data from Ceph to S3 to Hadoop for cost and for audit &mdash; not cost alone. Today's agent-replay-engine trace export applies the same tiering discipline: zstd compression, SHA-256 checksums, and a 30/90-day retention schedule.">
+<meta property="og:title" content="Day 45 &mdash; S3 for Traces &mdash; Compliance and Cost">
+<meta property="og:description" content="At Agoda, the question behind every retention policy was never just 'how much does this cost to keep.' It was 'can we prove this record wasn't altered, and for how long are we required to answer that question.' agent-replay-engine's trace export inherits the same discipline at a smaller scale.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-44-event-sourcing-events-hallucinate.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-44-event-sourcing-events-hallucinate.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-45-s3-for-traces-compliance-and-cost.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/s3-for-traces-compliance-and-cost.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-44-event-sourcing-events-hallucinate.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/s3-for-traces-compliance-and-cost.png">
 <meta property="article:published_time" content="2026-07-30">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,133 +185,131 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 44 of 150</span>
-    <span class="tag">Wayfair</span>
-    <span class="tag">Event Sourcing</span>
-    <span class="tag">Idempotent Replay</span>
-    <span class="tag">Pricing</span>
+    <span class="tag accent">Experience &middot; Day 45 of 150</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Object Storage</span>
+    <span class="tag">Retention</span>
+    <span class="tag">Compliance</span>
   </div>
-  <h1 class="post-title">Day 44 &mdash; Event Sourcing &mdash; But the Events Hallucinate</h1>
-  <p class="post-subtitle">At Wayfair, a pricing simulation was a replay: freeze the supplier costs, run them through a stateless pricing engine, compare the output to what's live. Today's <code>agent-replay-engine</code> is the same pattern with one enforcement point instead of a dozen scattered snapshot timestamps.</p>
+  <h1 class="post-title">Day 45 &mdash; S3 for Traces &mdash; Compliance and Cost</h1>
+  <p class="post-subtitle">At Agoda, WhiteFalcon's cold tier moved data from Ceph to S3 to Hadoop for a reason that was never just "cheaper to keep." It was "can we prove this record wasn't altered, and for how long are we required to answer that." Today's <code>agent-replay-engine</code> trace export inherits the same discipline at a fraction of the scale.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 44 of 150</span>
+    <span class="meta-item">Experience &middot; Day 45 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 30, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">11 min read</span>
+    <span class="meta-item">10 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-44-event-sourcing-events-hallucinate.png" alt="Day 44 — Event Sourcing — But the Events Hallucinate" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/s3-for-traces-compliance-and-cost.png" alt="Day 45 — S3 for Traces — Compliance and Cost" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The pricing engine at Wayfair ran simulations before any price adjustment went live. A simulation was a replay: take the current adjustment set, freeze the supplier cost inputs, run them through Delphi &mdash; our internal pricing engine &mdash; and see what retail prices would come out. If the simulated prices diverged from expected values by more than a threshold, the adjustment was blocked before it ever reached a customer.</p>
+<p>The question that stuck with me from WhiteFalcon's cold tier was never just "how cheap can we make this storage." It was "if a metric from four months ago looks wrong today, can we prove the record in Hadoop is the same record that was written at ingest time." Those two questions sound similar and are not, and I did not fully separate them in my head until I watched the tiering pipeline answer both at once.</p>
 
-<p>The mechanism that made this work was that Delphi was a stateless pure function: same inputs, same output, every time, no exceptions. The simulation's frozen inputs guaranteed that two runs of the same simulation always produced the same result. I did not think of this as <strong>event sourcing</strong> &mdash; the pattern of recording every state change as an immutable, replayable event &mdash; at the time.</p>
-
-<p>I thought of it as "pricing simulation." The pattern underneath is identical: freeze the inputs, replay the computation, compare the output.</p>
+<p>That gap is the subject of this post. Retention policy is usually framed as a cost problem &mdash; hot storage is expensive, so age data out to somewhere cheaper. The Agoda cold tier taught me it is also a compliance problem, and the two questions require different mechanisms even when they share the same storage layer.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">My role &mdash; Wayfair, Sr. Software Engineer III, Nov 2024 &ndash; Mar 2026</div>
-  I led the Price Adjustment System (PAS) and Pricing Promotions &amp; Discounts teams, and architected the event-driven pricing engine that propagated price changes from hours to sub-seconds across 20k+ suppliers. The simulation and Kafka pipeline described below are systems I owned and shipped, not systems I observed from the sidelines.
+  <div class="attr-label">My role &mdash; Agoda, Core Infrastructure, WhiteFalcon TSDB, Apr&ndash;Sep 2024, Bangkok</div>
+  Senior Software Engineer contributing to WhiteFalcon's cross-tier query engine and a new cardinality dimension for k8s tags. The Ceph&rarr;S3&rarr;Hadoop tiering pipeline and the RoaringBitmap index described below were designed and built by the Agoda team before I joined &mdash; I operated against that tiering boundary through the query engine, I did not design it.
 </div>
 
-<h2 id="what-a-pricing-simulation-is">What a Pricing Simulation Is and Why Idempotency Is Not Optional</h2>
+<h2 id="whitefalcons-cold-tier-was-two-different-jobs">WhiteFalcon's Cold Tier Was Two Different Jobs Wearing One Storage Layer</h2>
 
-<p>A price adjustment at the scale of 250k+ SKUs per supplier is not something you push live and see what happens. A bug in the adjustment logic &mdash; wrong discount percentage, off-by-one in the effective date, a misconfigured supplier exclusion &mdash; affects every retail price that reads from our Bigtable read model within milliseconds of the adjustment committing. There is no "undo" for a price error that reaches the customer-facing storefront before an on-call engineer can respond.</p>
+<p>WhiteFalcon ingested 1.5 trillion events per day through Kafka, and the hot tier &mdash; Redis, time-windowed buckets, per-hour granularity &mdash; held the last three to seven days for peak query load. Once a window closed, a background flush wrote it to Ceph as Parquet, and Ceph sat as the storage layer between the pods and S3, backed by local NVMe for performance.</p>
 
-<p>The pricing simulation runs the exact same calculation pipeline as a live pricing run but against a frozen snapshot of inputs. Frozen means: supplier costs from a fixed BigQuery snapshot timestamp, adjustment sets from the current PAS database state, SKU metadata from a fixed Bigtable row version. Delphi receives the same input vectors it would receive in a live run, but every input is pinned to a point in time instead of read live.</p>
+<p>Compaction on that cold tier ran on a schedule: hourly files merged into three-hour files, three-hour files merged into daily files. Coarser granularity for older data was the cost lever &mdash; fewer, bigger Parquet files meant less S3 request overhead and cheaper storage class eligibility over time.</p>
 
-<p>Delphi being a stateless pure function &mdash; no internal state, no cache that could have changed between calls, no background job that could have run &mdash; is what makes the simulation trustworthy. Run it once: price X. Run it again five minutes later with the same inputs: price X, every time, because there is nothing inside Delphi that could have drifted.</p>
+<p>Data older than the cold-tier window moved again, this time to Hadoop, and Hadoop was explicitly not part of the real-time query path. It existed for audit and archival, which is a different job than "answer a Grafana query fast," and WhiteFalcon's architecture kept those two jobs on two different systems on purpose.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the simulation is only as reliable as the idempotency guarantee underneath it. If Delphi had been designed with any mutable state, the simulation would have been unreliable from day one regardless of how carefully we froze the inputs. The decision to make Delphi a stateless pure function was made before the simulation existed, but it was the decision that made the simulation possible at all &mdash; architecture choices made for one reason often enable capabilities their designers never anticipated.</p>
+<p class="prose-so-what"><strong>So what:</strong> a single "cold storage" line item in a cost dashboard was actually funding two separate guarantees &mdash; cheap bytes for infrequent queries, and an immutable record for whoever eventually asks "prove this." Conflating them into one mental model is how teams end up with cheap storage that nobody can actually audit.</p>
 
-<h2 id="frozen-inputs-as-source-of-truth">Frozen Inputs as the Source of Truth</h2>
+<h2 id="the-compliance-question-tiering-answers-that-cost-alone-does-not">The Compliance Question Tiering Answers That Cost Alone Does Not</h2>
 
-<p>Freezing inputs means pinning every data source the computation reads to a specific version: BigQuery snapshot at timestamp T, Bigtable row versions as of timestamp T, PostgreSQL queries against a read replica with a fixed transaction snapshot. Any data source that reads live &mdash; one that could return different values between run one and run two &mdash; breaks the simulation's reproducibility guarantee entirely.</p>
+<p>Cost-only thinking about retention asks one question: how much does it cost to keep this, and can we delete it sooner. Compliance thinking asks a second, harder question: for how long are we obligated to keep this, and can we prove it hasn't changed since it was written.</p>
 
-<p>Our PAS read model used Bigtable for low-latency price lookups, running a Google Cloud wide-column store called <code>pricing-cost-adjustment-bt</code> at 13K average queries per second and peaks to 57K during pricing runs. That table was constantly being written to as new adjustment runs committed, which meant pinning reads to a fixed row version for simulation purposes required explicitly passing a snapshot timestamp to every Bigtable read call in the simulation path &mdash; never the live path.</p>
+<p>Those two questions pull in opposite directions. Cost pressure wants aggressive deletion; audit obligations want a provable, unbroken record for a fixed retention window regardless of storage cost. WhiteFalcon's three-tier design &mdash; Redis, Ceph/S3, Hadoop &mdash; let each tier answer a different one of those questions instead of forcing one storage class to answer both badly.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Physical analogy &mdash; the photograph vs. the window</div>
-  A live read is a window: look through it twice and the street outside has changed. A frozen read is a photograph taken through that same window: look at it twice, minutes apart, and it shows the identical street every time. The simulation needed every input to be a photograph, and any input that was accidentally still a window broke the guarantee without announcing itself.
+  <div class="attr-label">Physical analogy &mdash; the storage unit with a paper trail</div>
+  A self-storage facility rents you a cheap unit for boxes you rarely open, and that alone solves the cost problem. What makes it useful for a legal dispute is the sign-in log at the gate: a timestamped record of who accessed unit 214 and when, kept separately from the boxes themselves. The unit is cheap; the log is what makes "nobody tampered with this" a claim you can actually defend.
 </div>
 
-<p>Supplier cost inputs for pricing run simulations came from BigQuery via Cloud Dataflow, Google's managed batch/stream processing service. Dataflow jobs were parametrized with a snapshot timestamp, and every BigQuery read used the <code>FOR SYSTEM_TIME AS OF</code> clause &mdash; BigQuery's built-in time-travel feature &mdash; to read data exactly as it existed at timestamp T.</p>
+<p>Parquet files partitioned by datetime in S3 played the role of the cheap unit. They were not, by themselves, a tamper-evidence mechanism &mdash; nothing about a Parquet file on S3 proves it wasn't silently overwritten by a bad compaction job or a misconfigured retry. Hadoop's separation as an audit tier, outside the query path, was the closer analogue to the sign-in log: a copy nobody's live traffic could accidentally mutate.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> frozen inputs are a system property, not a policy you can decide to apply at debug time. You cannot retroactively pin reads if the infrastructure was never built to support them, which is exactly why BigQuery's time travel and Bigtable's read timestamps mattered so much &mdash; they turned "freeze the inputs" from a wish into a mechanism the simulation could actually rely on.</p>
+<p class="prose-so-what"><strong>So what:</strong> the compaction cadence &mdash; hourly to three-hour to daily &mdash; was a cost decision layered on top of a compliance decision that came first: which tier is the source of truth if someone asks whether this record is original. Get the order backwards and you optimize storage cost for a guarantee you never actually built.</p>
 
-<h2 id="when-inputs-are-not-frozen">When the Inputs Are Not Frozen (And What Happens)</h2>
+<h2 id="the-bridge-same-tiering-shape-smaller-blast-radius">The Bridge: Same Tiering Shape, Smaller Blast Radius</h2>
 
-<p>The simulation would occasionally produce prices that diverged from the live prices by more than the threshold, blocking an adjustment the pricing team believed was correct. The usual diagnosis: a data source that was supposed to be frozen had not been properly pinned, most often a Bigtable read somewhere in the simulation path that had missed the snapshot timestamp parameter and was quietly reading live data instead.</p>
+<p>Trace event logs recorded by <code>pkg/eventlog</code> in <code>agent-replay-engine</code> are structurally the same problem at a different scale: small, numerous, append-only records that someone needs to keep, someone needs to query occasionally, and someone needs to eventually prove wasn't corrupted in flight. A trace export is not 1.5 trillion events a day, but the shape of the decision &mdash; what lives where, for how long, and how do you prove it &mdash; is identical.</p>
 
-<p>Diagnosing this required replaying the simulation with logging added at every data read &mdash; log the timestamp parameter passed to each Bigtable and BigQuery call, log the row version returned, compare both against the snapshot timestamp the simulation was supposed to be using. A read returning a row version newer than the snapshot timestamp was the unfrozen read, and the fix was almost always mechanical: pass the missing timestamp parameter to the call that had dropped it.</p>
+<p>Today's <code>pkg/export</code> package takes a recorded <code>EventLog</code>, serializes it to JSONL, compresses it with zstd, and writes it to an S3-compatible object store under a deterministic key: <code>traces/{trace_id}/{seq_num_range}.jsonl.zst</code>. That key structure mirrors WhiteFalcon's datetime-partitioned Parquet layout &mdash; predictable, prefix-scannable, no metadata lookup required to find a range.</p>
 
-<p>Freezing inputs across a distributed system is brittle because there is no single enforcement point. Delphi receives frozen inputs from the simulation orchestrator, but it calls other internal services, and if any one of those services reads live data instead of the snapshot-pinned version, the simulation is only partially frozen. Guaranteeing full freezing meant threading the snapshot timestamp through every service, every Bigtable read, every BigQuery query in the call chain &mdash; and verifying it stayed threaded as the codebase evolved.</p>
+<p>Object storage tiering itself is not a novel idea &mdash; S3 lifecycle rules, Glacier, and every "hot/cold" storage pattern in distributed systems literature cover the mechanics. What the WhiteFalcon lesson adds is the discipline of treating the compliance question as a first-class design input, not an afterthought bolted onto a cost-optimized layout after the fact.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> <code>agent-replay-engine</code> solves this differently on purpose. Instead of freezing inputs at the data-source level &mdash; pass a timestamp to every read, hope nothing was missed &mdash; it freezes the outputs of tool calls: record the response payload once, serve it back verbatim on replay, and never let the agent see a live API during that replay. There is no "missed snapshot timestamp" failure mode because there is no snapshot timestamp at all; the frozen response is the only response that exists.</p>
+<h2 id="what-todays-code-enforces">What Today's Code Enforces: Checksums, Tiers, Compression</h2>
 
-<h2 id="event-sourcing-in-the-kafka-pipeline">Event Sourcing in the Pricing Kafka Pipeline</h2>
+<p>Every exported object gets a sibling <code>.sha256</code> file containing the hex SHA-256 of the compressed bytes, written as a separate object rather than as S3 metadata. Metadata is easy to lose across a copy or replication operation depending on backend configuration; a sibling object survives any S3-compatible store and is inspectable by hand with <code>aws s3 cp</code> and <code>sha256sum</code>.</p>
 
-<p>Our <code>pricing_refresh</code> Kafka topic, running 40 partitions, carried price change events from Delphi through Aletheia &mdash; our storefront price cache &mdash; to the customer-facing storefront. Every price change was an event: a record of "SKU X's retail price changed from Y to Z at timestamp T." Internally we described the pattern explicitly as event-sourcing: the current price is the result of replaying the event stream from the beginning, or from a checkpoint.</p>
+<p>That sidecar file is the direct analogue of Hadoop's role in WhiteFalcon: a tamper-evidence mechanism that lives beside the data instead of trusting the storage layer to preserve an invisible attribute correctly. <code>Exporter.Verify</code> re-downloads both the object and the sidecar and confirms they still match, naming the mismatch if they don't &mdash; the same "prove it wasn't altered" question the Agoda auditor asked, answered mechanically instead of by policy document.</p>
 
-<p>Aletheia ran as an autoscaled deployment of 20&ndash;50 pods across seven production clusters, consuming from <code>pricing_refresh</code>. When a pod restarted, it replayed events from its last committed offset, and those events had to be idempotent at the consumer side &mdash; applying the same price change event twice had to produce the same final price as applying it once, never a doubled or corrupted value.</p>
-
-<p>Forty partitions meant up to forty Aletheia pods could process price changes in parallel, and Kafka's partition assignment guaranteed every event for a given SKU landed on the same partition by keying on SKU ID. That prevented the race condition where two concurrent updates to the same SKU could be processed out of order and produce the wrong final price.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> <code>pricing_refresh</code> is a distributed event log for price state, and it is exactly the same pattern as <code>agent-replay-engine</code>'s event log for agent state &mdash; both are append-only records of state transitions that can be replayed to reproduce any point-in-time state. Kafka was the right tool for pricing because partitioning, consumer groups, and replay-from-offset-zero were already solved problems; <code>agent-replay-engine</code> is a purpose-built implementation of the same idea for a domain where standing up a Kafka cluster would be overkill.</p>
-
-<h2 id="what-agent-replay-engine-gets-right">What agent-replay-engine Gets Right That Pricing Simulations Got Wrong</h2>
-
-<p>The pricing simulation's freezing mechanism was distributed: snapshot timestamps had to be threaded through every data read in the system, and any read that missed the timestamp silently produced a non-deterministic simulation. The <code>ToolMocker</code> in <code>agent-replay-engine</code> is a single enforcement point instead &mdash; every tool call during replay goes through it, every response it returns is frozen, and no tool call can reach a live API by accident, because the architecture makes bypassing the mocker structurally impossible.</p>
-
-<p>The pricing simulation keyed frozen data by timestamp: "give me this Bigtable row as of T." That works for databases with time travel, but not for external APIs with no exposed history. <code>ToolMocker</code> keys responses by <code>SHA-256(tool_name + ":" + input_hash)</code> instead &mdash; a hash over the call signature, not a point in time &mdash; which works for any tool call: internal databases, external APIs, in-process functions, all the same.</p>
+<p><code>RetentionPolicy.Classify</code> is a pure function over an object's age: zero to thirty days is the hot tier, thirty to ninety days is cold, and anything older is expired. The boundaries are inclusive on the lower bound &mdash; exactly thirty days classifies as cold, exactly ninety as expired &mdash; and the tests exercise the 29/30/31 and 89/90/91 day edges explicitly, because retention bugs live at boundaries, not in the middle of a window.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates per supplier, near real-time</span></div>
-  <div class="stat-cell"><span class="stat-num">40</span><span class="stat-label">Kafka partitions on pricing_refresh</span></div>
-  <div class="stat-cell"><span class="stat-num">13K&ndash;57K</span><span class="stat-label">Bigtable QPS, avg&ndash;peak</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">enforcement point in ToolMocker vs. many in PAS</span></div>
+  <div class="stat-cell"><span class="stat-num">30d</span><span class="stat-label">hot tier retention window</span></div>
+  <div class="stat-cell"><span class="stat-num">90d</span><span class="stat-label">cold tier expiry boundary</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">objects per export &mdash; data + checksum sidecar</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T&ndash;1.8T</span><span class="stat-label">WhiteFalcon events/day the original tiering pattern served</span></div>
 </div>
 
-<p>The pricing simulation had no built-in way to explain a divergence: if simulated prices differed from expected, the investigation started from scratch, comparing outputs and tracing backwards through the computation by hand. <code>agent-replay-engine</code>'s <code>CallHistory()</code> method records every tool call the model issues during replay, in order, and comparing it to the recorded call sequence makes the first diverging index visible immediately &mdash; that index is exactly where the replay's behavior departed from the original run.</p>
+<p><code>Sweep</code> scans an object store under a prefix and returns keys classified as expired, but it does not delete them &mdash; it returns candidates only. That is a deliberate divergence from a pure cost-optimization design, which would auto-delete on schedule to minimize storage spend.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a debug-oriented replay system loses its entire value if a trace vanishes silently the day after someone needed it for an investigation, so <code>Sweep</code> makes expiry a decision a human confirms rather than a cron job's side effect &mdash; the same instinct that kept Hadoop out of WhiteFalcon's automatic compaction path.</p>
+
+<h2 id="why-zstd-and-why-the-checksum-is-over-compressed-bytes">Why zstd, and Why the Checksum Covers the Compressed Bytes</h2>
+
+<p>zstd was chosen over gzip for the same reason WhiteFalcon's Parquet files used columnar compression over the cold tier: better compression ratio at comparable or better decode speed, which matters when the object is read back during a replay investigation and nobody wants to wait on decompression. <code>klauspost/compress/zstd</code> is pure Go, no cgo, which keeps the build simple across platforms.</p>
+
+<p>The checksum is computed over the compressed bytes, not the original JSONL, deliberately. Checksumming post-compression means the sidecar verifies exactly what left the wire and exactly what a fresh download will produce &mdash; if compression were non-deterministic across runs, checksumming the uncompressed form would give a false sense of security about bytes nobody actually validated end to end.</p>
+
+<p>None of this required a live MinIO service to test. <code>pkg/objectstore/memory.go</code> is an in-memory fake implementing the same <code>ObjectStore</code> interface the real MinIO client implements, so every retention-boundary test and every checksum-corruption test runs in CI without a storage dependency &mdash; the same separation WhiteFalcon's team achieved by keeping the query engine's contract with storage narrow enough to fake in tests.</p>
 
 <div class="pullquote">
-  <p>The lesson from Wayfair isn't "here is how to build a pricing simulation." It's "here is what happens when a replay system has no single enforcement point, and here is how the next one avoids that failure mode."</p>
+  <p>The compaction cadence is the cost lever. The checksum sidecar is the compliance lever. WhiteFalcon taught me they are never the same lever, even when they live on the same object.</p>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> <code>agent-replay-engine</code> is not a novel invention &mdash; it is the pricing simulation pattern applied to a different domain, with three design improvements the pricing simulation's distributed architecture could never provide: one enforcement point for frozen inputs, call-signature-keyed responses that work for any tool type, and built-in divergence detection instead of manual forensics. Bridge: replay mocks are idempotent consumers, no different in spirit from Wayfair's price replay against frozen inputs, and today's code in <code>agent-replay-engine</code> implements that lesson directly.</p>
+<p class="prose-so-what"><strong>So what:</strong> <code>agent-replay-engine</code>'s trace export is not solving a harder problem than WhiteFalcon's cold tier &mdash; it is solving the same problem at a scale small enough that both levers, cost and compliance, fit in one Go package instead of three separate systems. JSONL on MinIO is Ceph for traces: cheap bytes, replayable history, and now a checksum that answers the auditor's question before anyone has to ask it twice.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 44 of 150 &mdash; Event Sourcing &mdash; But the Events Hallucinate</p>
-  <p><em>Next up:</em> <a href="day-45-s3-for-traces-compliance-and-cost.html">Day 45 &mdash; S3 for Traces &mdash; Compliance and Cost</a></p>
+  <p>Experience &middot; Day 45 of 150 &mdash; S3 for Traces &mdash; Compliance and Cost</p>
+  <p><em>Next up:</em> Day 46 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-44-event-sourcing-events-hallucinate.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>AI Learning Day 44 &mdash; Event Sourcing for Agent Runs (the append-only log and ToolMocker behind today's replay engine)</span>
+      <span>Day 44 &mdash; Event Sourcing &mdash; But the Events Hallucinate (the EventLog this export builds on)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-43-kafka-shock-absorber-again.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 43 &mdash; Kafka as Shock Absorber &mdash; Again</span>
+      <span>Building a TSDB at Agoda &mdash; full WhiteFalcon system tour and contribution boundaries</span>
     </a>
-    <a href="https://cloud.google.com/bigquery/docs/time-travel">
+    <a href="https://en.wikipedia.org/wiki/Zstandard">
       <span class="footnote-arrow">&rarr;</span>
-      <span>BigQuery time travel documentation &mdash; the FOR SYSTEM_TIME AS OF mechanism behind frozen simulation inputs</span>
+      <span>Zstandard (zstd) &mdash; the compression algorithm behind today's export path</span>
     </a>
   </div>
 </div>
@@ -322,22 +320,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-pricing-simulation-is">What a Pricing Simulation Is</a></li>
-      <li><a href="#frozen-inputs-as-source-of-truth">Frozen Inputs as Source of Truth</a></li>
-      <li><a href="#when-inputs-are-not-frozen">When Inputs Are Not Frozen</a></li>
-      <li><a href="#event-sourcing-in-the-kafka-pipeline">Event Sourcing in the Kafka Pipeline</a></li>
-      <li><a href="#what-agent-replay-engine-gets-right">What agent-replay-engine Gets Right</a></li>
+      <li><a href="#whitefalcons-cold-tier-was-two-different-jobs">WhiteFalcon's Cold Tier Was Two Jobs</a></li>
+      <li><a href="#the-compliance-question-tiering-answers-that-cost-alone-does-not">The Compliance Question</a></li>
+      <li><a href="#the-bridge-same-tiering-shape-smaller-blast-radius">The Bridge to Trace Storage</a></li>
+      <li><a href="#what-todays-code-enforces">What Today's Code Enforces</a></li>
+      <li><a href="#why-zstd-and-why-the-checksum-is-over-compressed-bytes">Why zstd, Why Checksum Compressed Bytes</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-44-event-sourcing-events-hallucinate.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-45-s3-for-traces-compliance-and-cost.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Event+Sourcing+%E2%80%94+But+the+Events+Hallucinate+%E2%80%94+Experience+%C2%B7+Day+44+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-44-event-sourcing-events-hallucinate.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=S3+for+Traces+%E2%80%94+Compliance+and+Cost+%E2%80%94+Experience+%C2%B7+Day+45+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-45-s3-for-traces-compliance-and-cost.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -350,17 +348,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D43</span> Experience</div>
-          <a href="day-43-kafka-shock-absorber-again.html" class="series-post-title">Kafka as Shock Absorber &mdash; Again</a>
+          <div class="series-post-kicker"><span class="series-post-num">D44</span> Experience</div>
+          <a href="day-44-event-sourcing-events-hallucinate.html" class="series-post-title">Event Sourcing &mdash; But the Events Hallucinate</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D44</span> Experience &middot; now</div>
-          <div class="series-post-title">Event Sourcing &mdash; But the Events Hallucinate</div>
-          <div class="series-post-desc">Wayfair's pricing simulation froze supplier costs and replayed them through a stateless pricing engine &mdash; and why agent-replay-engine's single enforcement point beats it</div>
+          <div class="series-post-kicker"><span class="series-post-num">D45</span> Experience &middot; now</div>
+          <div class="series-post-title">S3 for Traces &mdash; Compliance and Cost</div>
+          <div class="series-post-desc">WhiteFalcon's Ceph→S3→Hadoop cold tier existed for audit as much as cost, and agent-replay-engine's zstd + checksum + retention export inherits the same discipline</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D45</span> Experience</div>
-          <a href="day-45-s3-for-traces-compliance-and-cost.html" class="series-post-title">S3 for Traces &mdash; Compliance and Cost</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D46</span> Experience</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
