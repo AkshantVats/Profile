@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 43 &mdash; Backpressure on Analytics Pipelines | AI Learning Series</title>
-<meta name="description" content="A slow aggregator must not stall span ingest. Splitting the raw and rollup Kafka topics, plus a chaos test with a 200ms ClickHouse stub, is how tool-call-analyzer proves span ingest survives a slow downstream.">
-<meta property="og:title" content="Day 43 &mdash; Backpressure on Analytics Pipelines">
-<meta property="og:description" content="Consumer lag is the observable, not the emergency. Split tool-spans from tool-stats, and a slow aggregator never touches the ingest path's latency budget.">
+<title>Day 44 &mdash; Event Sourcing for Agent Runs | AI Learning Series</title>
+<meta name="description" content="An agent run is a sequence of tool calls hitting live APIs that never return the same thing twice. agent-replay-engine's append-only event log and ToolMocker make every run reproducible &mdash; the same discipline Kafka log compaction brings to a message stream.">
+<meta property="og:title" content="Day 44 &mdash; Event Sourcing for Agent Runs">
+<meta property="og:description" content="Replay is Kafka log compaction for agent state. pkg/eventlog and pkg/mocker record every tool call and response, then serve them back frozen so any failure is reproducible on demand.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-backpressure-analytics-pipelines.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-44-event-sourcing-agent-runs.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-43-backpressure-analytics-pipelines.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-44-event-sourcing-agent-runs.png">
 <meta property="article:published_time" content="2026-07-30">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 43 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 44 of 150</span>
+    <span class="tag">Event Sourcing</span>
+    <span class="tag">Agent Replay</span>
     <span class="tag">Kafka</span>
-    <span class="tag">Consumer Lag</span>
-    <span class="tag">TraceForge</span>
   </div>
-  <h1 class="post-title">Day 43 &mdash; Backpressure on Analytics Pipelines</h1>
-  <p class="post-subtitle">Span ingest is a microsecond HTTP write; analytics aggregation is a millisecond database operation. Splitting the raw and rollup Kafka topics is the schema decision that keeps a slow aggregator from ever stalling the fast path.</p>
+  <h1 class="post-title">Day 44 &mdash; Event Sourcing for Agent Runs</h1>
+  <p class="post-subtitle">Replay is Kafka log compaction for agent state. <code>pkg/eventlog</code> records every prompt, tool call, and tool response as an append-only log; <code>pkg/mocker</code> serves the frozen responses back on replay so the same failure reproduces on demand.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 43 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 44 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 30, 2026</span>
     <div class="meta-divider"></div>
@@ -208,51 +208,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-43-backpressure-analytics-pipelines.png" alt="Day 43 — Backpressure on Analytics Pipelines" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-44-event-sourcing-agent-runs.png" alt="Day 44 — Event Sourcing for Agent Runs" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>When an AI agent emits a tool call span into an analytics system, the analytics pipeline is almost always slower than the ingest path. Aggregating cost, computing exclusive time, and checking for N+1 patterns are CPU- and IO-bound operations, while span ingest is just a lightweight HTTP write.</p>
+<p>An agent run is a sequence of decisions: model reads prompt, issues a tool call, receives a response, issues another tool call, produces an output. Each step is discrete and observable, at least while the run is happening.</p>
 
-<p>If a slow aggregator can stall span ingest, every span the agent emits during that slow window is either lost or delayed at the worst possible time &mdash; when the system is already under load. Backpressure is the design property that prevents exactly that: a slow downstream must never stall a fast upstream.</p>
-
-<p>Today's chaos test in tool-call-analyzer proves this property holds for the TraceForge tool span pipeline, and a split-topic Kafka design is what makes the proof possible.</p>
+<p><strong>Event sourcing</strong> &mdash; the pattern of recording each step as an immutable log entry so the entire run can be replayed later with the same inputs &mdash; solves a problem that is invisible until you need it: the run happened once, the tool responses are gone, and you cannot reproduce the failure. Today's <code>agent-replay-engine</code> introduces <code>pkg/eventlog</code>, the append-only log types, and <code>pkg/mocker</code>, the frozen tool-response server. Together they record every tool call and response during a live run, then re-feed the model the frozen responses during replay, intercepting every tool call before it reaches a live API.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the loading dock</div>
-  A warehouse has a receiving dock and a sorting floor. Trucks unload onto the dock regardless of how fast the floor is working, and packages simply stack up in the loading bay when the floor falls behind. No truck is ever turned away, and no package is lost &mdash; the bay is the shock absorber between two processes running at different speeds, and its stack height is exactly what consumer lag measures.
+  <div class="attr-label">DS analogy &mdash; Kafka log compaction as agent memory</div>
+  Kafka keeps messages in an append-only log, and any consumer can read from offset zero to replay the entire history. Log compaction keeps the log bounded by retaining only the latest value per key, but the offset sequence itself is never rewritten. Agent replay is the same idea without compaction: every step stays in order &mdash; prompt, model turn, tool call, tool response, final output &mdash; and the frozen tool responses are the compacted values, stored exactly as received and served back verbatim when the model re-issues the same call.
 </div>
-
-<h2 id="why-analytics-pipelines-have-a-backpressure-problem">Why analytics pipelines have a backpressure problem</h2>
-
-<p>Span ingest is cheap: receive JSON, validate the schema, write to Kafka, return 202. On modern hardware that takes microseconds.</p>
-
-<p>Analytics aggregation is expensive: parse the span, look up its parent to compute exclusive time, check the last 100 spans in the trace for N+1 patterns, update a ClickHouse materialized view. That can take tens of milliseconds per span if a lookup requires a database read.</p>
-
-<p>If the aggregator sits directly in the ingest path &mdash; the HTTP handler calling it synchronously &mdash; then the P99 latency of span ingest becomes the P99 latency of the aggregator. When the aggregator is slow, the AI SDK waiting on that 202 response spends time blocked that it should be spending on the agent's next tool call.</p>
-
-<p>Kafka breaks that synchronous coupling. The ingest handler writes to the <code>tool-spans</code> topic and returns 202 in under a millisecond, and the aggregator reads from that same topic at its own pace with nothing shared between the two processes except the topic offset.</p>
-
-<p>The ingest path's latency budget is set by Kafka write latency, never by aggregation latency &mdash; the design principle is that the slowest downstream operation must never appear in the critical path of the fastest upstream one.</p>
-
-<h2 id="consumer-lag-as-the-observable">Consumer lag as the observable</h2>
-
-<p>Consumer lag is the difference between the latest offset written to a topic and the latest offset a consumer group has committed. If the producer has written to offset 10,000 and the consumer has committed offset 9,500, lag is 500 messages, all safely on disk waiting to be processed.</p>
-
-<p>Rising lag means the aggregator is slower than the ingest rate right now. It does not mean messages are lost, and it does not mean the ingest path is degraded &mdash; it means work is accumulating in the buffer, which is exactly what the buffer is for.</p>
-
-<p>The correct response is to watch the rate of growth against the rate of drain. Lag that grows by 1,000 messages a minute and drains at 1,200 a minute after a load peak needs no action; lag that grows without ever draining means the aggregator is stuck, not slow, and needs investigation.</p>
-
-<p>Three metrics make that distinction operational: <code>consumer_lag_messages</code> (absolute lag, alert past half the topic's retention), <code>consumer_lag_seconds</code> (wall-time lag, alert past five minutes), and <code>consumer_commit_rate</code> (messages committed per second, alert if it hits zero for 60 seconds). Commit rate dropping to zero is the stuck-versus-slow detector &mdash; a slow aggregator still commits, just less often.</p>
-
-<h2 id="split-topics-ingest-vs-aggregation">Split topics: ingest vs aggregation</h2>
-
-<p>A single <code>tool-spans</code> topic serves two audiences with different needs. The aggregator needs every raw span, in order, to compute exclusive time and detect N+1 patterns; downstream consumers &mdash; billing, alerting, Grafana &mdash; only need the aggregated stats, not the raw spans that produced them.</p>
-
-<p>If downstream consumers read the raw topic directly, they process thousands of messages to derive one stat, and each one adds a consumer group competing for broker read throughput during a replay. Introducing a second topic, <code>tool-stats</code>, removes that waste: the aggregator reads <code>tool-spans</code>, computes rollups per trace and tenant, and publishes summaries to <code>tool-stats</code>, which billing, alerting, and Grafana read from instead.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -272,90 +242,100 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  SDK["AI SDK / LLM"]
-  Ingest["POST /ingest"]
-  Raw["tool-spans topic (raw)"]
-  Agg["Aggregator consumer"]
-  Stats["tool-stats topic (rollup)"]
-  CH["ClickHouse"]
+  P["seq=1 prompt"]
+  MT["seq=2 model_turn"]
+  TC["seq=3 tool_call"]
+  TR["seq=4 tool_response"]
+  FO["seq=5 final_output"]
+  Mocker["ToolMocker frozen responses"]
 
-  SDK --> Ingest
-  Ingest --> Raw
-  Raw --> Agg
-  Agg --> Stats
-  Agg --> CH
+  P --> MT --> TC --> TR --> FO
+  TR -.->|"recorded"| Mocker
+  Mocker -.->|"served on replay"| TC
 </pre>
 
-<p>The two topics carry different retention on purpose: raw spans are high-volume and short-lived, seven days is enough to replay if the aggregator has a bug, while aggregated stats are low-volume and need thirty days to support monthly billing reconciliation without a separate ClickHouse query. Splitting them lets each be configured for what it actually is.</p>
+<h2 id="why-agent-runs-are-hard-to-reproduce">Why Agent Runs Are Hard to Reproduce</h2>
 
-<p>The boundary between the two topics is the aggregator, playing the same role WhiteFalcon's Rust consumers played at Agoda between the Kafka ingest topic and the Redis hot tier &mdash; the split-topic design is the Kafka equivalent of separating hot and cold storage.</p>
+<p>A model run is, in isolation, deterministic: same weights, same prompt, same temperature, same tool responses produce the same output. But "same tool responses" is the hard part &mdash; tool calls hit live APIs, and search engines return different results by the hour, databases return different rows as data changes, internal services return different states across deploys. Two runs of the same agent with the same prompt, five minutes apart, can produce radically different outputs for no reason inside the model at all.</p>
 
-<h2 id="chaos-testing-the-backpressure-property">Chaos testing the backpressure property</h2>
+<p>Picture an agent run failing in production at 3am. The failure is in the fifth tool call &mdash; the model received an unexpected response from an internal API and went down a wrong reasoning branch. By the time the on-call engineer looks at it, the API has returned to normal, the wrong response is gone, and the logs contain the tool call inputs but not the full response payloads: the bug is unreproducible.</p>
 
-<p>A chaos test proves a system property rather than a single unit's behaviour. The property here is: when the ClickHouse aggregator is slow, span ingest continues without data loss &mdash; and that can only be proven by exercising the full path, HTTP handler through ClickHouse write through Kafka fallback through the topic itself.</p>
+<p>With an event log, the same failure looks different. The on-call engineer loads the log into <code>ToolMocker</code>, replays the run, and sees the same fifth tool call receive the same wrong response, deterministically, every time. The model takes the same wrong branch, and the failure is reproducible as often as needed to find the root cause.</p>
 
-<pre><code>func TestChaos_SlowClickHouse_NoSpanLoss(t *testing.T) {
-    stub := newSlowClickHouseStub(200 * time.Millisecond)
-    h := ingest.NewHandler(stub, kafkaProducer, 100*time.Millisecond)
+<p><strong>So what:</strong> event sourcing for agent runs is not an optimization &mdash; it is a precondition for debugging. Without it, production failures are forensic puzzles where the key evidence, the live API state at the moment of the call, is always gone by the time anyone looks.</p>
 
-    var wg sync.WaitGroup
-    for i := 0; i < 100; i++ {
-        wg.Add(1)
-        go func(n int) {
-            defer wg.Done()
-            postSpan(h, fakeSpan(n))
-        }(i)
-    }
-    wg.Wait()
+<h2 id="the-append-only-event-log">The Append-Only Event Log</h2>
 
-    got := drainTopic(t, "tool-spans", 100)
-    require.Len(t, got, 100) // zero dropped
-}</code></pre>
+<p>Every discrete step in the agent's execution is one log entry: the initial prompt, each model turn including the tool calls it issued, each tool call payload, each tool response payload, and the final output. Nothing is omitted &mdash; the log is the complete execution trace. Each entry carries a monotonic sequence number, <code>seq_num</code>, that plays the same role Kafka offsets play: a consumer replaying from <code>seq_num = 1</code> sees exactly the sequence the original run saw.</p>
 
-<p>The stub adds 200ms of artificial latency, the ingest handler's ClickHouse deadline is 100ms, and the deadline fires first every time. The Kafka fallback activates, and all 100 concurrently-fired spans arrive on <code>tool-spans</code>, deserializable and duplicate-free.</p>
+<p>Tool call inputs can contain sensitive data &mdash; API keys in request headers, PII in query parameters, internal IDs in arguments &mdash; so recording the raw input would require treating the whole log as a secret. The <code>InputHash</code> field stores <code>SHA-256(tool_call_input_json)</code> instead: a one-way hash that identifies the call for mocker lookup without storing the sensitive bytes. Collisions are negligible at the event volumes agent systems actually operate at.</p>
 
-<p>100ms is not an arbitrary number. The AI SDK expects the ingest endpoint to respond in under 200ms, similar to a DNS lookup budget, so when ClickHouse takes 200ms the 100ms deadline fires first, the fallback writes to Kafka in under 10ms, and the handler still returns 202 fast. The SDK never sees the slow aggregation at all.</p>
+<p>The log is stored as JSON Lines &mdash; one event per line, appended with a trailing newline, readable from line one by any editor or <code>jq</code> pipeline with no schema file or binary parser required. That choice optimizes for debuggability over throughput, which is the right tradeoff: the log is written once, during the live run, and read many times, during debugging.</p>
 
-<p>The chaos test does not prove the eventual ClickHouse recovery consumer works, since that consumer isn't built yet, and it does not prove behaviour under sustained Kafka broker unavailability, since it assumes Kafka is healthy. It proves exactly one property, and proving one property precisely is more useful than gesturing at many.</p>
+<p><strong>So what:</strong> the append-only log is the simplest possible implementation of event sourcing for an agent, and it makes no assumptions about the model, the tool ecosystem, or the downstream replay infrastructure. Any system that writes valid <code>AgentEvent</code> JSON Lines produces a log <code>agent-replay-engine</code> can replay &mdash; the interface is the schema, not the implementation.</p>
 
-<h2 id="what-the-openapi-spec-and-readme-add">What the OpenAPI spec and README add</h2>
+<h2 id="the-mock-tool-architecture">The Mock Tool Architecture</h2>
 
-<p>The OpenAPI spec for <code>POST /ingest</code> is the machine-readable version of the claim &ldquo;this is how you send a tool span to tool-call-analyzer,&rdquo; and any future SDK wrapper or load test can generate a valid request from it without reading Go source.</p>
+<p><code>ToolMocker</code> is a lookup table: composite key to frozen response payload. The key is <code>SHA-256(tool_name + ":" + input_hash)</code>, and the value is the exact <code>json.RawMessage</code> payload recorded in the matching <code>KindToolResponse</code> event. Loading is a two-pass operation &mdash; collect every <code>KindToolCall</code> event first, then for each one find the next <code>KindToolResponse</code> event with the same tool name and input hash and store it under the composite key.</p>
 
-<p>The spec says what the interface promises, and the chaos test says the implementation keeps that promise &mdash; committing them together means they are reviewed together and any drift between them is visible immediately, not discovered months later by a confused integrator.</p>
+<p>The key includes the tool name on purpose, not just the input hash, because two different tools can receive identical input. A <code>search_web</code> call with <code>{"query": "kafka"}</code> and a <code>search_news</code> call with the same query string hash identically on input alone, but they must return different frozen responses. Including the tool name in the key stops the mocker from serving one tool's response to the other.</p>
+
+<p>When the model issues a tool call during replay with no matching frozen response, the mocker returns <code>ErrUnknownCall</code> &mdash; a sentinel signaling that the model's behavior diverged from the original run and issued a call the recording never saw. Day 44 implements strict mode, halting the replay on this error; lenient mode, which forwards the unmatched call to a live API instead, is Day 45.</p>
+
+<p>The <code>CallHistory()</code> method returns the composite keys of every call the mocker served, in order, and comparing that sequence to the original log's <code>KindToolCall</code> events reveals whether the model issued the same calls in the same order. A match means the replay was faithful; a mismatch reveals the exact index where the sequences first diverge &mdash; and that index is where debugging should start.</p>
+
+<p><strong>So what:</strong> the mocker does not need to understand the model's reasoning, the tool's semantics, or the application's domain &mdash; it just maps a deterministic call signature to an exact frozen payload. That narrow scope is what makes it trustworthy: the smaller the surface a component has to get right, the fewer ways it can get replay wrong.</p>
+
+<h2 id="determinism-rules">Determinism Rules</h2>
+
+<p>Replay is deterministic if, given the same event log and the same model weights, every replay produces the same final output. That requires three things holding at once: every tool response is frozen and served by the mocker with no live API calls, every tool call is issued in the same order as verified by <code>CallHistory</code>, and no external state &mdash; wall-clock time, random seeds &mdash; leaks into the model's context as an input.</p>
+
+<p>Two things can still break determinism even with a perfect mocker. Model weights can change between the record run and the replay, in which case the same tool responses may produce different model turns &mdash; and that is not a bug in the replay engine, it is information, telling you the model's behavior changed. Sampling temperature above zero makes the model's output stochastic even with identical inputs, so replay that needs to be bit-for-bit deterministic has to pin temperature to zero, which makes sampling an argmax over logits instead of a random draw.</p>
+
+<p><code>Validate()</code> checks two invariants before a log is trusted for replay: <code>seq_num</code> must be strictly monotonic with no gaps, no duplicates, no reordering, and no <code>SpanID</code> may appear twice. A gap means a step was never recorded; a duplicate <code>SpanID</code> means the same tool call was logged twice and the mocker cannot tell which response to serve.</p>
+
+<p><strong>So what:</strong> these checks are not theoretical guarantees, they are the two failure modes that make a replay succeed but produce the wrong answer silently. A replay that fails loudly on a stale weight or a duplicate span is strictly better than one that quietly returns a corrupted result and lets the on-call engineer trust it.</p>
+
+<h2 id="what-agent-replay-engine-enables">What agent-replay-engine Enables</h2>
+
+<p>Once event logs are recorded for a set of representative agent runs, they become regression tests. Run the replay after every model update: if the output matches the recorded final output, the change did not break this run's behavior, and if it diverges, the <code>CallHistory</code> comparison shows exactly which tool call triggered the change &mdash; the same idea as snapshot testing in frontend engineering, applied to model behavior instead of rendered markup.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">100</span><span class="stat-label">concurrent spans in chaos test</span></div>
-  <div class="stat-cell"><span class="stat-num">100ms</span><span class="stat-label">ClickHouse write deadline</span></div>
-  <div class="stat-cell"><span class="stat-num">200ms</span><span class="stat-label">injected stub latency</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Kafka topics, split by role</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">event kinds per run: prompt, turn, call, response, output</span></div>
+  <div class="stat-cell"><span class="stat-num">SHA-256</span><span class="stat-label">composite key: tool_name + input_hash</span></div>
+  <div class="stat-cell"><span class="stat-num">JSONL</span><span class="stat-label">storage format, append-only</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Validate() invariants: seq_num, SpanID</span></div>
 </div>
 
-<p>A system with a chaos test but no spec proves it works without telling anyone how to use it. A system with a spec but no chaos test describes what it promises without proving it keeps that promise, and Day 43 ships both together on purpose.</p>
+<p>With the event log, a debugger can inject a modified mock response at a specific <code>seq_num</code> and replay from that point forward &mdash; the agent-run equivalent of <code>git bisect</code>, narrowing a failure down to one tool response and testing whether changing it fixes the downstream behavior. Without the log, that kind of targeted debugging is impossible; you can only reproduce a failure if the live API happens to return the same wrong data twice.</p>
+
+<p>The event log also contains every tool call with its timestamp and input hash, so cost attribution &mdash; which tool call drove the most spend, which trace had the worst N+1 pattern &mdash; can be computed straight from the log with no live API call and no agent re-run. <code>pkg/eventlog</code>'s <code>SpanID</code> and <code>TraceID</code> fields match <code>tool-call-analyzer</code>'s <code>BillingEvent</code> envelope, so one log can feed both the replay engine and the cost pipeline.</p>
 
 <div class="pullquote">
-  <p>Consumer lag is not the alarm. It is the readout &mdash; the number that tells you the buffer is doing exactly what it was built to do.</p>
+  <p>The event log is the agent's distributed trace. Replay is the equivalent of re-running a service request against staging with recorded traffic &mdash; except the traffic is a model's tool calls, and the staging environment is a mocker that never lies.</p>
 </div>
 
+<p><strong>So what:</strong> <code>agent-replay-engine</code> is infrastructure that makes agent systems observable the way distributed tracing makes service meshes observable, not a debugging tool bolted on afterward. Building it in from Day 44 means every agent run is reproducible from the first day it reaches production, instead of becoming reproducible only after the first unreproducible incident forces the investment.</p>
+
 <div class="series-footer">
-  <p>AI Learning &middot; Day 43 of 150 &mdash; Backpressure on Analytics Pipelines</p>
-  <p><em>Next up:</em> <a href="day-44-event-sourcing-agent-runs.html">Day 44 &mdash; Event Sourcing for Agent Runs</a></p>
+  <p>AI Learning &middot; Day 44 of 150 &mdash; Event Sourcing for Agent Runs</p>
+  <p><em>Next up:</em> Day 45 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-43-kafka-shock-absorber-again.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-44-event-sourcing-events-hallucinate.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 43 &mdash; Kafka as Shock Absorber, Again (the Agoda WhiteFalcon lesson behind today's split-topic design)</span>
+      <span>Experience Day 44 &mdash; Event Sourcing, But the Events Hallucinate (the Wayfair pricing simulation lesson behind today's ToolMocker)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 42 &mdash; Unified Billing Events &mdash; One Envelope</span>
+      <span>Day 43 &mdash; Backpressure on Analytics Pipelines</span>
     </a>
-    <a href="https://kafka.apache.org/documentation/#consumerconfigs">
+    <a href="https://kafka.apache.org/documentation/#design_compaction">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Apache Kafka &mdash; Consumer Configs (the lag and commit-rate settings referenced above)</span>
+      <span>Apache Kafka documentation &mdash; log compaction (the analogy behind today's event log design)</span>
     </a>
   </div>
 </div>
@@ -366,22 +346,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-analytics-pipelines-have-a-backpressure-problem">Why analytics pipelines have a backpressure problem</a></li>
-      <li><a href="#consumer-lag-as-the-observable">Consumer lag as the observable</a></li>
-      <li><a href="#split-topics-ingest-vs-aggregation">Split topics: ingest vs aggregation</a></li>
-      <li><a href="#chaos-testing-the-backpressure-property">Chaos testing the backpressure property</a></li>
-      <li><a href="#what-the-openapi-spec-and-readme-add">What the OpenAPI spec and README add</a></li>
+      <li><a href="#why-agent-runs-are-hard-to-reproduce">Why Agent Runs Are Hard to Reproduce</a></li>
+      <li><a href="#the-append-only-event-log">The Append-Only Event Log</a></li>
+      <li><a href="#the-mock-tool-architecture">The Mock Tool Architecture</a></li>
+      <li><a href="#determinism-rules">Determinism Rules</a></li>
+      <li><a href="#what-agent-replay-engine-enables">What agent-replay-engine Enables</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-43-backpressure-analytics-pipelines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-44-event-sourcing-agent-runs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Backpressure+on+Analytics+Pipelines+%E2%80%94+AI+Learning+%C2%B7+Day+43+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-43-backpressure-analytics-pipelines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Event+Sourcing+for+Agent+Runs+%E2%80%94+AI+Learning+%C2%B7+Day+44+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-44-event-sourcing-agent-runs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -394,17 +374,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D42</span> AI Learning</div>
-          <a href="day-42-unified-billing-events-one-envelope.html" class="series-post-title">Unified Billing Events &mdash; One Envelope</a>
+          <div class="series-post-kicker"><span class="series-post-num">D43</span> AI Learning</div>
+          <a href="day-43-backpressure-analytics-pipelines.html" class="series-post-title">Backpressure on Analytics Pipelines</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D43</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Backpressure on Analytics Pipelines</div>
-          <div class="series-post-desc">Split tool-spans from tool-stats, consumer lag as the health signal, and the chaos test that proves span ingest survives a slow ClickHouse aggregator</div>
+          <div class="series-post-kicker"><span class="series-post-num">D44</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Event Sourcing for Agent Runs</div>
+          <div class="series-post-desc">Append-only steps, deterministic replay &mdash; pkg/eventlog and the ToolMocker that freezes every tool response so agent failures reproduce on demand</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D44</span> AI Learning</div>
-          <a href="day-44-event-sourcing-agent-runs.html" class="series-post-title">Event Sourcing for Agent Runs</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D45</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>

@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-44-event-sourcing-agent-runs.html",
+          "kicker": "AI Learning · Day 44 of 150",
+          "title": "Day 44 — Event Sourcing for Agent Runs",
+          "subtitle": "Append-only steps, deterministic replay",
+          "date": "2026-07-30",
+          "slug": "day-44-event-sourcing-agent-runs",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html",
+          "coverImage": "blog/assets/covers/day-44-event-sourcing-agent-runs.png",
+          "desc": "Replay is Kafka log compaction for agent state. pkg/eventlog records every prompt, tool call, and tool response as an append-only log, and ToolMocker freezes the responses so the same agent failure reproduces on demand."
+        },
+        {
           "href": "blog/series/ai-learning/day-43-backpressure-analytics-pipelines.html",
           "kicker": "AI Learning · Day 43 of 150",
           "title": "Day 43 — Backpressure on Analytics Pipelines",
@@ -407,6 +419,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-44-event-sourcing-events-hallucinate.html",
+          "kicker": "Experience · Day 44 of 150",
+          "title": "Day 44 — Event Sourcing — But the Events Hallucinate",
+          "desc": "At Wayfair, pricing simulations froze supplier costs and replayed them through a stateless pricing engine to validate adjustments before they went live. agent-replay-engine applies the same idempotent-replay pattern to tool calls — with one enforcement point instead of a dozen scattered snapshot timestamps.",
+          "coverImage": "blog/assets/covers/day-44-event-sourcing-events-hallucinate.png",
+          "date": "2026-07-30",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-44-event-sourcing-events-hallucinate.html"
+        },
         {
           "href": "blog/series/experience/day-43-kafka-shock-absorber-again.html",
           "kicker": "Experience · Day 43 of 150",
