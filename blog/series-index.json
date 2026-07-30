@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-45-object-storage-economics-for-traces.html",
+          "kicker": "AI Learning · Day 45 of 150",
+          "title": "Day 45 — Object Storage Economics for Traces",
+          "subtitle": "JSONL, zstd, lifecycle policies",
+          "date": "2026-07-30",
+          "slug": "day-45-object-storage-economics-for-traces",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-45-object-storage-economics-for-traces.html",
+          "coverImage": "blog/assets/covers/day-45-object-storage-economics-for-traces.png",
+          "desc": "Traces are logs; price them like logs. pkg/export compresses event logs with zstd, checksums the compressed bytes with SHA-256, and classifies every object into a hot/cold/expired retention tier — tested entirely against an in-memory ObjectStore fake."
+        },
+        {
           "href": "blog/series/ai-learning/day-44-event-sourcing-agent-runs.html",
           "kicker": "AI Learning · Day 44 of 150",
           "title": "Day 44 — Event Sourcing for Agent Runs",
