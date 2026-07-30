@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html",
+          "kicker": "AI Learning · Day 42 of 150",
+          "title": "Day 42 — Unified Billing Events — One Envelope",
+          "subtitle": "Same ingest schema for inference and tools",
+          "date": "2026-07-30",
+          "slug": "day-42-unified-billing-events-one-envelope",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-42-unified-billing-events-one-envelope.html",
+          "coverImage": "blog/assets/covers/day-42-unified-billing-events-one-envelope.png",
+          "desc": "Inference cost and tool cost usually live in tables that were never designed to JOIN. A single BillingEvent envelope, keyed on tenant_id and trace_id, turns an observability system into a billing system."
+        },
+        {
           "href": "blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html",
           "kicker": "AI Learning · Day 41 of 150",
           "title": "Day 41 — Cost Waterfalls — CFO-Friendly Visuals",
@@ -383,6 +395,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-42-one-dashboard-inference-tools.html",
+          "kicker": "Experience · Day 42 of 150",
+          "title": "Day 42 — One Dashboard for Inference and Tools",
+          "desc": "At Agoda, WhiteFalcon's Scala engine merged Redis and S3 into one query face. The same shape — one dashboard, two pipelines — is how tool-call-analyzer's dual-write and LensAI now share a tenant view in Grafana.",
+          "coverImage": "blog/assets/covers/day-42-one-dashboard-inference-tools.png",
+          "date": "2026-07-30",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-42-one-dashboard-inference-tools.html"
+        },
         {
           "href": "blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html",
           "kicker": "Experience · Day 41 of 150",
