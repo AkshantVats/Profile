@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html",
+          "kicker": "AI Learning · Day 41 of 150",
+          "title": "Day 41 — Cost Waterfalls — CFO-Friendly Visuals",
+          "subtitle": "Stacked cost by tool per trace",
+          "date": "2026-07-30",
+          "slug": "day-41-cost-waterfalls-cfo-friendly-visuals",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html",
+          "coverImage": "blog/assets/covers/day-41-cost-waterfalls-cfo-friendly-visuals.png",
+          "desc": "A table of costs tells you which tool is expensive. A waterfall chart makes someone act on it. Exclusive time and sorted bars turn a ClickHouse query into a budget decision a team can act on in one glance."
+        },
+        {
           "href": "blog/series/ai-learning/day-40-graph-algorithms-on-traces.html",
           "kicker": "AI Learning · Day 40 of 150",
           "title": "Day 40 — Graph Algorithms on Traces",
@@ -371,6 +383,15 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html",
+          "kicker": "Experience · Day 41 of 150",
+          "title": "Day 41 — Exclusive Time — Flame Graphs for Money",
+          "desc": "At Delivery Hero, a 340ms ETA pipeline hid its real bottleneck inside a span nobody had instrumented. Exclusive time found it — the same formula that turned tool-call-analyzer's bottleneck rank into a CFO-friendly cost waterfall.",
+          "coverImage": "blog/assets/covers/day-41-exclusive-time-flame-graphs-for-money.png",
+          "date": "2026-07-30",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html"
+        },
         {
           "href": "blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html",
           "kicker": "Experience · Day 40 of 150",

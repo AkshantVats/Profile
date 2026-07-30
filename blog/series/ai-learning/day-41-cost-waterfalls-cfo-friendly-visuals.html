@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 40 &mdash; Graph Algorithms on Traces | AI Learning Series</title>
-<meta name="description" content="N+1 tool calls are SELECT in a loop, but no linter catches them yet. Model a trace as a directed graph and cycle detection, topological sort, and N+1 lint all fall out for free.">
-<meta property="og:title" content="Day 40 &mdash; Graph Algorithms on Traces">
-<meta property="og:description" content="N+1 tool calls are SELECT in a loop, but no linter catches them yet. Model a trace as a directed graph and the lint rule falls out for free.">
+<title>Day 41 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals | AI Learning Series</title>
+<meta name="description" content="A table of costs tells you which tool is expensive. A waterfall chart makes someone act on it. Exclusive time and sorted bars turn a ClickHouse query into a budget decision.">
+<meta property="og:title" content="Day 41 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals">
+<meta property="og:description" content="Waterfall beats table when persuading teams to drop a tool. Today's code builds the pipeline from trace spans to Grafana waterfall.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-40-graph-algorithms-on-traces.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-40-graph-algorithms-on-traces.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-41-cost-waterfalls-cfo-friendly-visuals.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-41-cost-waterfalls-cfo-friendly-visuals.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-40-graph-algorithms-on-traces.png">
-<meta property="article:published_time" content="2026-07-29">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-41-cost-waterfalls-cfo-friendly-visuals.png">
+<meta property="article:published_time" content="2026-07-30">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 40 of 150</span>
-    <span class="tag">Graph Algorithms</span>
-    <span class="tag">Distributed Tracing</span>
+    <span class="tag accent">AI Learning &middot; Day 41 of 150</span>
+    <span class="tag">Cost Observability</span>
+    <span class="tag">Grafana</span>
     <span class="tag">TraceForge</span>
   </div>
-  <h1 class="post-title">Day 40 &mdash; Graph Algorithms on Traces</h1>
-  <p class="post-subtitle">N+1 tool calls are SELECT in a loop, but agents have never had a linter to catch them. Model a trace as a directed graph and cycle detection, topological sort, and N+1 lint all fall out of algorithms that are decades old.</p>
+  <h1 class="post-title">Day 41 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals</h1>
+  <p class="post-subtitle">A table of numbers tells you which tool costs the most. A waterfall chart makes someone act on it. Waterfall beats table when persuading a team to drop a tool, and today's code builds the pipeline from trace spans to Grafana waterfall.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 40 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 41 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 29, 2026</span>
+    <span class="meta-item">July 30, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">9 min read</span>
   </div>
@@ -208,43 +208,93 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-40-graph-algorithms-on-traces.png" alt="Day 40 — Graph Algorithms on Traces" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-41-cost-waterfalls-cfo-friendly-visuals.png" alt="Day 41 — Cost Waterfalls — CFO-Friendly Visuals" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Every ORM developer knows N+1 by feel before they know it by name. Fetch a list of orders, then run one query per order to fetch its customer &mdash; a linter catches the pattern before it ships, in Django, in Rails, in Laravel.</p>
+<p>I&rsquo;ve watched an engineering team spend thirty minutes debating a cost breakdown spreadsheet and reach no conclusion. I&rsquo;ve watched the same underlying numbers, redrawn as a stacked bar chart, produce an immediate decision: &ldquo;cut that tool, it&rsquo;s eating 60% of our per-trace budget.&rdquo;</p>
 
-<p>Agents have the exact same pattern. <code>search_web</code> gets called fifteen times in a row, each call unaware of the fourteen others, and no linter exists to catch it. Today&rsquo;s code builds one, and the trick is modeling the trace as a directed graph so that graph algorithms can find structure a flat list hides.</p>
+<p>The difference isn&rsquo;t the data. It&rsquo;s the cognitive load of comparing bar heights versus parsing decimal columns, and that difference is the entire reason today&rsquo;s code exists: waterfall beats table when persuading a team to drop a tool.</p>
 
-<h2 id="what-a-trace-looks-like-as-a-graph">What a trace looks like as a graph</h2>
+<h2 id="what-exclusive-time-is-and-why-it-matters-for-cost">What exclusive time is and why it matters for cost</h2>
 
-<p>A trace is a set of spans, and every span carries a <code>span_id</code> and a <code>parent_span_id</code>. That parent-child relationship is already a directed edge, so the entire trace is a directed acyclic graph almost by construction &mdash; a span finishing and then re-entering itself as its own ancestor would require time travel.</p>
+<p>A span&rsquo;s total duration is how long it ran, start to finish. Its exclusive time is how long it ran <em>excluding</em> the time spent waiting on its own children &mdash; the parent wasn&rsquo;t doing anything expensive while its children were running, it was just waiting for them to finish.</p>
 
-<p>The mapping is direct: each node is one tool call span (<code>tool_name</code>, <code>vendor</code>, <code>duration_ms</code>), each edge runs from a <code>parent_span_id</code> to its <code>span_id</code>, and the root is whichever span has no parent &mdash; the agent&rsquo;s top-level reasoning step.</p>
+<p>For cost, exclusive time is the more honest number, because the tokens burned during a child span belong to that child, not to the parent that called it. Flame graphs popularized this exact idea for CPU profiling: the width of a frame represents time actually spent in that function, not delegated to something it called.</p>
+
+<pre><code>exclusive_time(span) = span.duration - Σ(direct child span durations)</code></pre>
+
+<p>A root span that ran for 848ms with children totaling 840ms has 8ms of exclusive time. That 8ms is the agent&rsquo;s own reasoning step &mdash; the decision-making between tool calls &mdash; and the remaining 840ms belongs entirely to whichever child actually did the work.</p>
+
+<p>Ranking spans by exclusive time instead of total duration reorders the whole list: the slow-looking root span drops near zero, and the leaf tool that actually consumed 840ms of compute rises to the top. That reordering is rarely where anyone expected to look first.</p>
+
+<h2 id="why-cost-waterfalls-work-on-executives">Why cost waterfalls work on executives</h2>
+
+<p>Humans compare lengths faster than they compare numbers. A bar where <code>code_interpreter</code> is six times the height of <code>search_web</code> communicates in one glance what a table communicates in thirty seconds of column-scanning &mdash; this isn&rsquo;t a design preference, it&rsquo;s the pre-attentive visual system doing work the cortex would otherwise have to do manually.</p>
+
+<p>A waterfall chart sorts bars largest to smallest, left to right, and that shape has a name in cost accounting: a Pareto chart. It shows the total, the dominant item, and how much the long tail matters, all in one glance, with zero arithmetic required from the viewer.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the relay race</div>
-  A relay race isn&rsquo;t one long line of runners. Each runner starts when the baton comes from the previous one, and some legs fan out &mdash; two runners can start at once if the handoff allows it. A flat list of finish times can&rsquo;t show you that structure; the graph, where each runner is a node and each handoff is an edge, captures the fan-out exactly.
+  <div class="attr-label">DS analogy &mdash; the sorted grocery receipt</div>
+  A grocery receipt sorted by price instead of by aisle instantly shows you that the lobster costs more than everything else on the list combined. You don&rsquo;t need to sum the vegetables and compare totals by hand. The sort order does the arithmetic for you, before you&rsquo;ve read a single number.
 </div>
 
-<p>Modeling traces as graphs instead of lists unlocks the entire standard toolkit &mdash; cycle detection, topological sort, shortest path, centrality &mdash; and most observability tools never make this model explicit. TraceForge does, starting with the two algorithms that matter most for tool-call traces.</p>
+<p>Engineers reading a cost table ask &ldquo;what&rsquo;s the percentage,&rdquo; and reach for a calculator. Engineers reading a waterfall chart ask &ldquo;what replaces that top bar,&rdquo; and reach for alternatives instead. The first question is arithmetic; the second is architecture, and the chart produces the better question automatically.</p>
 
-<h2 id="why-cycle-detection-matters-even-if-cycles-shouldnt-happen">Why cycle detection matters even if cycles &ldquo;shouldn&rsquo;t happen&rdquo;</h2>
+<h2 id="building-the-waterfall-data-pipeline">Building the waterfall data pipeline</h2>
 
-<p>A span can&rsquo;t legitimately be both ancestor and descendant of itself &mdash; that would require a bug in the instrumentation or a loop in the agent&rsquo;s tool-call router. &ldquo;Shouldn&rsquo;t happen&rdquo; and &ldquo;never happens&rdquo; are different guarantees, though, and production trace data eventually tests the difference.</p>
+<p>The ClickHouse <code>tool_calls</code> table already carries <code>cost_usd</code> per span, computed from token count times model price back on Day 39. The waterfall query filters to costed spans and orders them descending before Go ever sees them:</p>
 
-<p>A broken retry mechanism can re-emit a span reusing an old <code>span_id</code>. A buggy SDK that reuses <code>parent_span_id</code>s across retries produces an apparent cycle just as easily, and a graph reader that assumes acyclicity and skips the check will hang: Kahn&rsquo;s algorithm deadlocks when in-degree never reaches zero for the nodes caught in the cycle.</p>
+<pre><code>SELECT span_id, tool_name, vendor, cost_usd
+FROM tool_calls
+WHERE trace_id = ?
+  AND cost_usd &gt; 0
+ORDER BY cost_usd DESC</code></pre>
 
-<p>The fix is depth-first search with an <code>inStack</code> set: mark a node in-stack when first visited, unmark it once every child is processed, and any edge into a node that&rsquo;s still in-stack is a back edge &mdash; a cycle. It runs in O(V+E) and costs milliseconds, which is why it&rsquo;s the first check, run before topological sort or N+1 detection, both of which silently assume the graph they&rsquo;re handed is acyclic.</p>
+<p>Aggregation groups by tool and vendor together, because an agent calling <code>search_web</code> four times in one trace should produce one bar with the summed cost, not four separate slivers. The N+1 problem from Day 40 and the cost-visualization problem here are the same shape viewed from different angles.</p>
 
-<h2 id="topological-sort-as-execution-replay">Topological sort as execution replay</h2>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+graph LR
+  CH["ClickHouse\ntool_calls"]
+  GO["pkg/waterfall\nBuild()"]
+  JSON["JSON payload\nsorted by cost"]
+  GR["Grafana\nBar Gauge"]
+  CH -->|"cost_usd per span"| GO
+  GO -->|"aggregate + sort"| JSON
+  JSON -->|"Simple JSON datasource"| GR
+</pre>
 
-<p>Topological sort orders nodes so every parent appears before its children, which for a trace means the order tool calls were initiated in &mdash; not necessarily the order they finished, but the causal chain that produced them. Kahn&rsquo;s algorithm gets there with an in-degree queue: compute each node&rsquo;s parent count, seed the queue with the zero-in-degree roots, and each time a node is emitted, decrement its children&rsquo;s in-degree until they hit zero and join the queue themselves.</p>
+<p>The output is a Grafana Simple JSON datasource payload: a trace ID and a data array of tool, vendor, and summed cost, already sorted descending. Four steps &mdash; query, aggregate, sort, render &mdash; and none of them individually interesting; the value is that they compose without a line of custom frontend code.</p>
 
-<p>Sorting the queue alphabetically whenever multiple roots or ties exist keeps the output deterministic, which matters for tests and for diffing two runs of the same agent. The first node in that order is where the agent started; the last nodes are the leaf calls that actually produced the results feeding the agent&rsquo;s response.</p>
+<h2 id="exclusive-time-and-bottleneck-rank">Exclusive time and bottleneck rank</h2>
+
+<p><code>traceforge bottleneck --trace-id &lt;id&gt;</code> layers exclusive time on top of the dependency graph from Day 40. For every span it computes the same formula from the top of this post, then ranks the results descending &mdash; rank one is the bottleneck, the span consuming the most time on its own behalf.</p>
+
+<pre><code>Rank  Tool             Vendor     Excl. Time   Total Time
+1     code_interpreter anthropic    840ms        840ms
+2     search_web       openai       380ms        380ms
+3     plan_task        openai          8ms        848ms</code></pre>
+
+<p><code>plan_task</code> shows a total time of 848ms but an exclusive time of 8ms &mdash; it spent 840ms waiting on <code>code_interpreter</code>, not doing anything itself. Optimizing <code>plan_task</code> would save 8ms; optimizing <code>code_interpreter</code> would save 840ms, and the ranking makes that choice obvious without anyone having to reason about it by hand.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -264,135 +314,63 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 graph TD
-  A["plan_task 12ms"]
-  B["search_web 340ms"]
-  C["search_web 290ms"]
-  D["summarize 180ms"]
+  A["plan_task\ntotal=848ms\nexcl=8ms"]
+  B["code_interpreter\ntotal=840ms\nexcl=840ms"]
+  C["summarize\ntotal=62ms\nexcl=62ms"]
   A --> B
   A --> C
-  B --> D
-  C --> D
 </pre>
 
-<p>Gaps in duration between a parent and child in topological order are coordination overhead &mdash; time the agent spent deciding what to call next rather than waiting on a tool. Timestamp order tells you wall-clock sequence; topological order tells you which tool results actually fed which decisions, and for debugging an agent, the second question is almost always the one that matters.</p>
-
-<h2 id="n1-detection-the-lint-rule-agents-dont-have">N+1 detection &mdash; the lint rule agents don&rsquo;t have</h2>
-
-<p>In a database ORM, N+1 means one query returns N records, and then N more queries fetch related data one record at a time &mdash; the fix is a JOIN or an eager load that collapses N round trips into one. In an agent trace, N+1 means one invocation triggers N calls to the same tool, each unaware of the others, and the fix is a batched tool that accepts multiple inputs in one call.</p>
-
-<p>Detection is a single pass: count <code>tool_name</code> occurrences across the graph, and any tool appearing at or above the threshold generates a finding.</p>
-
-<pre><code>counts := map[tool_name]int{}
-for each node in graph:
-    counts[node.tool_name]++
-
-for name, count := range counts:
-    if count >= threshold:
-        emit N1Finding{ToolName: name, Count: count}</code></pre>
-
-<p>The threshold is 3, matching the convention in ORM query analyzers like Python&rsquo;s <code>nplusone</code> and Rails&rsquo; <code>bullet</code>. One call is intentional, two might be a retry, and three sequential calls to the same tool in one trace is almost always a loop that should have been a batch.</p>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-graph TD
-  Root["plan_task"]
-  W1["search_web #1 380ms"]
-  W2["search_web #2 410ms"]
-  W3["search_web #3 395ms"]
-  W4["search_web #4 420ms"]
-  Sum["summarize"]
-  Root --> W1
-  Root --> W2
-  Root --> W3
-  Root --> W4
-  W1 --> Sum
-  W2 --> Sum
-  W3 --> Sum
-  W4 --> Sum
-</pre>
-
-<p>N+1 detection gives agents the ORM lint rule they&rsquo;ve never had. It catches cost bleed &mdash; four search calls cost four times the tokens of one &mdash; and it catches latency waste, since sequential calls that could have been parallel or batched can&rsquo;t be un-spent after the fact.</p>
+<p>Traditional trace tables show total duration, where <code>plan_task</code> at 848ms looks like the slow span until exclusive time reveals it was 8ms of actual work. Engineers who&rsquo;ve read flame graphs know this instinctively; engineers reading flat span tables spend ten minutes looking in the wrong place first.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">O(V+E)</span><span class="stat-label">cycle detection cost</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">N+1 threshold</span></div>
-  <div class="stat-cell"><span class="stat-num">4&times;</span><span class="stat-label">token cost of unbatched N+1</span></div>
-  <div class="stat-cell"><span class="stat-num">14</span><span class="stat-label">tests on the graph package</span></div>
+  <div class="stat-cell"><span class="stat-num">848ms</span><span class="stat-label">plan_task total time</span></div>
+  <div class="stat-cell"><span class="stat-num">8ms</span><span class="stat-label">plan_task exclusive time</span></div>
+  <div class="stat-cell"><span class="stat-num">18</span><span class="stat-label">new tests this package</span></div>
+  <div class="stat-cell"><span class="stat-num">O(V+E)</span><span class="stat-label">ranking cost</span></div>
 </div>
 
-<h2 id="the-traceforge-graph-cli-in-practice">The traceforge graph CLI in practice</h2>
+<h2 id="the-cfo-version-vs-the-engineer-version">The CFO version vs the engineer version</h2>
 
-<pre><code>traceforge graph \
-  --trace-id 7f3d9a2e-1234-5678-abcd-ef0123456789 \
-  --min-n1-count 3 \
-  --format text</code></pre>
+<p>The same underlying data answers two different questions for two different audiences. <code>traceforge graph</code> gives the engineer version: topological order, cycle check, N+1 alerts, an exclusive time table &mdash; it answers &ldquo;what happened in this trace, and what&rsquo;s wrong with it.&rdquo;</p>
 
-<p>The text report reads like a debugging session, not a dashboard query:</p>
+<p><code>traceforge waterfall</code> gives the CFO version: one Grafana bar chart, one number per tool, sorted by cost &mdash; it answers &ldquo;where is our AI budget going, and which tool should we cut.&rdquo; Grafana&rsquo;s Bar Gauge panel already handles currency formatting, threshold color gradients, and drill-down links, so feeding it sorted JSON takes an hour instead of the weeks a custom dashboard would cost.</p>
 
-<pre><code>=== TraceForge Graph Report ===
-Trace ID : 7f3d9a2e-1234-5678-abcd-ef0123456789
-Nodes    : 6
-Cycle    : false
+<p>The one missing piece is an HTTP wrapper, because <code>traceforge waterfall</code> writes JSON to stdout and Grafana&rsquo;s Simple JSON datasource needs an endpoint to poll instead:</p>
 
-Execution order:
-  1. [7f3d9a2e] plan_task (openai) 12ms
-  2. [a1b2c3d4] search_web (openai) 380ms
-  3. [e5f6g7h8] search_web (openai) 410ms
-  4. [i9j0k1l2] search_web (openai) 395ms
-  5. [m3n4o5p6] search_web (openai) 420ms
-  6. [q7r8s9t0] summarize (anthropic) 180ms
+<pre><code>http.HandleFunc("/query", func(w http.ResponseWriter, r *http.Request) {
+    traceID := r.URL.Query().Get("trace_id")
+    payload := waterfall.Build(traceID, fetchSpans(traceID))
+    json.NewEncoder(w).Encode(payload)
+})</code></pre>
 
-N+1 alerts (threshold=3):
-  ⚠  search_web called 4 times — possible N+1 pattern</code></pre>
-
-<p>The same command with <code>--format dot</code> pipes straight into Graphviz &mdash; <code>traceforge graph --trace-id &lt;id&gt; --format dot | dot -Tpng &gt; trace.png</code> &mdash; for the traces dense enough that text output stops being readable. No dashboard is required for either path; an engineer on call can run it against a trace ID pulled straight from a Grafana alert and get the structural diagnosis in one command.</p>
-
-<h2 id="connection-to-distributed-systems-primitives">Connection to distributed systems primitives</h2>
-
-<p>Graph-based trace analysis isn&rsquo;t new &mdash; Google&rsquo;s Dapper paper modeled traces as trees in 2010, and Jaeger uses a DAG model internally today. What&rsquo;s missing industry-wide isn&rsquo;t the graph model; it&rsquo;s running algorithmic detectors automatically on every trace instead of leaving the graph for a human to eyeball only after something breaks.</p>
-
-<p>Apache Airflow validates a DAG for cycles before it ever schedules a run &mdash; it refuses a cyclic workflow at registration time, before any task executes. TraceForge&rsquo;s graph CLI does the equivalent after the fact: it validates the trace DAG post-execution, surfacing the cycles and N+1 patterns that actually happened in production rather than the ones a static check ruled out in advance.</p>
+<p>Ten lines, not production-hardened, but enough to wire a real Grafana panel for a team demo that produces an actual budget conversation. The CFO version deliberately shows less than the engineer version &mdash; not everything, just the one thing that produces a decision.</p>
 
 <div class="pullquote">
-  <p>Every algorithm in today's code ships in a textbook. The value isn't novelty — it's pointing decades-old graph algorithms at a domain that has never had them before.</p>
+  <p>A table answers "how much." A waterfall answers "so what do we do about it." Same numbers, different chart, completely different meeting.</p>
 </div>
 
-<p>The graph lives in memory today, rebuilt fresh from a ClickHouse query on every CLI invocation. The next move is persisting the adjacency structure itself &mdash; an <code>Array(String)</code> column queried with <code>arrayJoin</code> &mdash; so N+1 alerting becomes a materialized view running continuously, not a command someone has to remember to run.</p>
+<p>The lens this post and Day 40&rsquo;s graph package share is the same one: model the trace correctly &mdash; as a DAG, with exclusive time computed per node &mdash; and both the engineer&rsquo;s debugging table and the CFO&rsquo;s waterfall chart fall out of the same underlying structure, rendered for two different readers.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 40 of 150 &mdash; Graph Algorithms on Traces</p>
-  <p><em>Next up:</em> <a href="day-41-cost-waterfalls-cfo-friendly-visuals.html">Day 41 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals</a></p>
+  <p>AI Learning &middot; Day 41 of 150 &mdash; Cost Waterfalls &mdash; CFO-Friendly Visuals</p>
+  <p><em>Next up:</em> Day 42 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-40-n1-tool-calls-select-star-of-agents.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-41-exclusive-time-flame-graphs-for-money.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 40 &mdash; N+1 Tool Calls — The SELECT * of Agents (the Azure IoT Hub fan-out that this graph model mirrors)</span>
+      <span>Experience Day 41 &mdash; Exclusive Time: Flame Graphs for Money (the Delivery Hero incident that taught this lesson the hard way)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-39-exclusive-time-wall-time.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-40-graph-algorithms-on-traces.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 39 &mdash; Exclusive Time vs Wall Time (the duration data these graph nodes carry)</span>
+      <span>Day 40 &mdash; Graph Algorithms on Traces (the dependency graph this post's exclusive time formula runs on)</span>
     </a>
-    <a href="https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/">
+    <a href="https://www.brendangregg.com/flamegraphs.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Google Dapper &mdash; large-scale distributed tracing infrastructure</span>
+      <span>Brendan Gregg &mdash; Flame Graphs (the origin of exclusive-time visualization)</span>
     </a>
   </div>
 </div>
@@ -403,23 +381,22 @@ N+1 alerts (threshold=3):
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-trace-looks-like-as-a-graph">What a trace looks like as a graph</a></li>
-      <li><a href="#why-cycle-detection-matters-even-if-cycles-shouldnt-happen">Why cycle detection matters</a></li>
-      <li><a href="#topological-sort-as-execution-replay">Topological sort as execution replay</a></li>
-      <li><a href="#n1-detection-the-lint-rule-agents-dont-have">N+1 detection</a></li>
-      <li><a href="#the-traceforge-graph-cli-in-practice">The traceforge graph CLI</a></li>
-      <li><a href="#connection-to-distributed-systems-primitives">Distributed systems primitives</a></li>
+      <li><a href="#what-exclusive-time-is-and-why-it-matters-for-cost">What exclusive time is</a></li>
+      <li><a href="#why-cost-waterfalls-work-on-executives">Why waterfalls work on executives</a></li>
+      <li><a href="#building-the-waterfall-data-pipeline">Building the waterfall pipeline</a></li>
+      <li><a href="#exclusive-time-and-bottleneck-rank">Exclusive time and bottleneck rank</a></li>
+      <li><a href="#the-cfo-version-vs-the-engineer-version">The CFO version vs the engineer version</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-40-graph-algorithms-on-traces.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-41-cost-waterfalls-cfo-friendly-visuals.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Graph+Algorithms+on+Traces+%E2%80%94+AI+Learning+%C2%B7+Day+40+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-40-graph-algorithms-on-traces.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Cost+Waterfalls+%E2%80%94+CFO-Friendly+Visuals+%E2%80%94+AI+Learning+%C2%B7+Day+41+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-41-cost-waterfalls-cfo-friendly-visuals.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -432,17 +409,17 @@ N+1 alerts (threshold=3):
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D39</span> AI Learning</div>
-          <a href="day-39-exclusive-time-wall-time.html" class="series-post-title">Exclusive Time vs Wall Time</a>
+          <div class="series-post-kicker"><span class="series-post-num">D40</span> AI Learning</div>
+          <a href="day-40-graph-algorithms-on-traces.html" class="series-post-title">Graph Algorithms on Traces</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D40</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Graph Algorithms on Traces</div>
-          <div class="series-post-desc">DAG validation, cycle detection, topological sort, and the N+1 lint rule agents never had</div>
+          <div class="series-post-kicker"><span class="series-post-num">D41</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Cost Waterfalls &mdash; CFO-Friendly Visuals</div>
+          <div class="series-post-desc">Exclusive time, bottleneck rank, and why a sorted bar chart beats a cost table for getting a team to act</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D41</span> AI Learning</div>
-          <a href="day-41-cost-waterfalls-cfo-friendly-visuals.html" class="series-post-title">Cost Waterfalls &mdash; CFO-Friendly Visuals</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D42</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
