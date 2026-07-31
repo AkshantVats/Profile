@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 46 — Deterministic Mocks — Record and Replay | AI Learning Series</title>
+<meta name="description" content="An agent run replays tool calls from a frozen event log, not live HTTP. pkg/replay.Run walks the recorded tool_call sequence against a composite-keyed ToolMocker and can halt after N steps via --stop-at-step — the VCR test pattern applied to non-deterministic agent runs.">
+<meta property="og:title" content="Day 46 — Deterministic Mocks — Record and Replay">
+<meta property="og:description" content="Mock tools return bytes from trace, not live HTTP. Why ToolMocker keys on (tool_name, input_hash) instead of input alone, how replay.Run walks the recorded tool_call sequence, and why --stop-at-step turns replay into an inspection tool.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-46-deterministic-mocks-record-and-replay.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-46-deterministic-mocks-record-and-replay.png">
+<meta property="article:published_time" content="2026-07-31">
+<meta name="theme-color" content="#fafafa">
+<script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf9;--surface:#fff;--line:rgba(0,0,0,.09);--line2:rgba(0,0,0,.14);
+  --text:#242424;--sub:#6b6b6b;--muted:#757575;--green:#1a8917;
+  --green-soft:rgba(26,137,23,.08);
+  --hover-surface:rgba(0,0,0,.035);
+  --team-bg:rgba(37,99,235,.06);--team-border:rgba(37,99,235,.18);--team-accent:#2563eb;
+  --mine-bg:rgba(26,137,23,.06);--mine-border:rgba(26,137,23,.22);--mine-accent:#1a8917;
+  --ui:'Inter',system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,Menlo,Consolas,monospace;
+  --layout-max:1080px;--read:680px;
+}
+html[data-theme="dark"]{
+  --bg:#0f0f0e;--surface:#171716;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.14);
+  --text:#ececea;--sub:#a8a89e;--muted:#7c7c74;--green:#5bd37a;
+  --green-soft:rgba(91,211,122,.12);--hover-surface:rgba(255,255,255,.06);
+  --team-bg:rgba(96,165,250,.08);--team-border:rgba(96,165,250,.22);--team-accent:#93c5fd;
+  --mine-bg:rgba(91,211,122,.08);--mine-border:rgba(91,211,122,.22);--mine-accent:#5bd37a;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);font-size:17px;line-height:1.75;-webkit-font-smoothing:antialiased}
+nav{position:sticky;top:0;z-index:200;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.ni{max-width:var(--layout-max);margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-tail{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.theme-toggle{width:40px;height:40px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:border-color .15s,background .15s}
+.theme-toggle:hover{border-color:var(--muted)}
+.theme-toggle svg{width:18px;height:18px;display:block}
+.theme-toggle .icon-sun{display:none}
+html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
+html[data-theme="dark"] .theme-toggle .icon-sun{display:block}
+.nl{font-family:var(--serif);font-weight:600;font-size:1.125rem;color:var(--text);text-decoration:none;letter-spacing:-.02em}
+.nl:hover{color:var(--green)}
+.nb{font-size:.8125rem;font-weight:500;color:var(--muted);text-decoration:none;transition:color .15s}
+.nb:hover{color:var(--text)}
+.nb::before{content:'\2190 '}
+.post-hero{max-width:var(--layout-max);margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1rem,3vw,2rem) 0}
+.post-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tag{font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.tag.accent{border-color:rgba(26,137,23,.35);color:var(--green);background:var(--green-soft)}
+.post-title{font-family:var(--serif);font-size:clamp(1.75rem,4vw,2.65rem);font-weight:600;line-height:1.15;letter-spacing:-.03em;margin-bottom:16px;max-width:var(--read)}
+.post-subtitle{font-size:1.0625rem;color:var(--sub);line-height:1.65;font-weight:400;margin-bottom:28px;max-width:var(--read)}
+.post-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:.8125rem;color:var(--muted)}
+.meta-author{display:flex;align-items:center;gap:10px}
+.author-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:#fff;flex-shrink:0;font-weight:600}
+.author-name{font-size:.875rem;font-weight:600;color:var(--text)}
+.meta-divider{width:1px;height:18px;background:var(--line)}
+.meta-item{font-size:.8125rem;color:var(--muted)}
+.post-cover-wrap{max-width:var(--layout-max);margin:0 auto;padding:0 clamp(1rem,3vw,2rem) 2rem}
+.post-cover{margin:0;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#080e1c}
+.post-cover img{width:100%;height:auto;display:block}
+.post-layout{max-width:var(--layout-max);margin:0 auto;padding:40px clamp(1rem,3vw,2rem) 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);gap:48px;align-items:start}
+@media(max-width:820px){.post-layout{grid-template-columns:1fr}.post-sidebar{display:none}}
+.prose{max-width:var(--read);padding-bottom:72px;font-family:var(--serif);font-size:1.125rem;line-height:1.82;color:#292929;font-weight:400}
+.prose p{margin-bottom:1.45em}
+.prose h2{font-family:var(--serif);font-size:1.375rem;font-weight:600;letter-spacing:-.02em;color:var(--text);margin:2.2em 0 .65em;padding-top:.35em;border-top:1px solid var(--line)}
+.prose h3{font-size:1.0625rem;font-weight:600;margin:1.6em 0 .5em;color:var(--text);font-family:var(--ui)}
+.prose strong{font-weight:600;color:var(--text)}
+.prose a{color:var(--green);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(26,137,23,.35)}
+.prose a:hover{text-decoration-color:var(--green)}
+.prose ul,.prose ol{margin:0 0 1.45em 1.15rem;padding-left:.25rem}
+.prose li{margin-bottom:.45rem}
+.prose code{font-family:var(--mono);font-size:.875em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--text)}
+.prose pre{background:#f6f6f4;border:1px solid var(--line);border-radius:8px;padding:18px 20px;overflow-x:auto;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem;line-height:1.65}
+.prose pre code{background:none;border:none;padding:0;font-size:inherit;color:#333}
+.prose table{width:100%;border-collapse:collapse;margin:1.5em 0;font-family:var(--mono);font-size:.8125rem}
+.prose th{background:var(--bg);color:var(--text);font-weight:600;padding:10px 12px;border:1px solid var(--line);text-align:left}
+.prose td{padding:8px 12px;border:1px solid var(--line);color:var(--sub)}
+.prose tr:nth-child(even) td{background:rgba(0,0,0,.02)}
+.stat-callout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:1.75em 0}
+.stat-cell{background:var(--surface);padding:18px 16px;text-align:center}
+.stat-num{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--green);line-height:1.15;display:block;margin-bottom:4px}
+.stat-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pullquote{border-left:3px solid var(--green);padding:4px 0 4px 20px;margin:1.75em 0}
+.pullquote p{font-family:var(--serif);font-size:1.25rem;font-weight:500;line-height:1.45;font-style:italic;margin:0!important;color:var(--text)}
+.attr-box{border-radius:8px;padding:16px 18px;margin:1.75em 0;font-family:var(--ui);font-size:.875rem;line-height:1.6}
+.attr-box.team{background:var(--team-bg);border:1px solid var(--team-border)}
+.attr-box.mine{background:var(--mine-bg);border:1px solid var(--mine-border)}
+.attr-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.attr-box.team .attr-label{color:var(--team-accent)}
+.attr-box.mine .attr-label{color:var(--mine-accent)}
+.footnote-row{border-top:1px solid var(--line);padding:28px 0 0;margin:2.5rem 0 0}
+.footnote-title{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+.footnote-links{display:flex;flex-direction:column;gap:6px}
+.footnote-links a{font-size:.875rem;font-family:var(--ui);color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line);padding:10px 0;display:flex;align-items:flex-start;gap:8px;transition:color .15s}
+.footnote-links a:last-child{border-bottom:none}
+.footnote-links a:hover{color:var(--text)}
+.footnote-arrow{color:var(--green);flex-shrink:0;font-family:var(--mono);font-size:.8125rem;margin-top:2px}
+.post-sidebar{position:sticky;top:72px}
+.sidebar-section{margin-bottom:28px}
+.sidebar-label{font-family:var(--ui);font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.toc-list a{font-size:.8125rem;color:var(--muted);text-decoration:none;display:block;padding:4px 0 4px 10px;border-left:2px solid transparent;transition:color .15s,border-color .15s;line-height:1.4}
+.toc-list a:hover,.toc-list a.active{color:var(--text);border-left-color:var(--green)}
+.share-links{display:flex;flex-direction:column;gap:8px}
+.share-link{display:flex;align-items:center;gap:8px;font-size:.8125rem;color:var(--muted);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);transition:background .15s,border-color .15s,color .15s}
+.share-link:hover{color:var(--text);border-color:var(--line2);background:var(--hover-surface)}
+.share-link svg{width:15px;height:15px;flex-shrink:0;opacity:.75}
+.series-nav{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px;margin-bottom:8px}
+.series-label{font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-bottom:8px}
+.series-title{font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--serif)}
+.series-posts{margin-top:12px;display:flex;flex-direction:column;gap:0}
+.series-post{font-size:.8125rem;color:var(--muted);padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.series-post:first-child{border-top:none;padding-top:4px}
+.series-post.current{color:var(--text)}
+.series-post-kicker{font-family:var(--mono);font-size:.625rem;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;align-items:center;gap:6px;line-height:1.2}
+.series-post.current .series-post-kicker{color:var(--sub)}
+.series-post-num{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex-shrink:0;min-width:1.75rem}
+.series-post.current .series-post-num{color:var(--green)}
+.series-post-title{font-size:.75rem;font-weight:600;line-height:1.35;color:var(--text);font-family:var(--serif)}
+.series-post.current .series-post-title{font-weight:600}
+.series-post-desc{font-size:.6875rem;line-height:1.45;color:var(--muted);margin:0;font-family:var(--ui)}
+.series-post.current .series-post-desc{color:var(--sub)}
+.series-post--draft{opacity:.72}
+a.series-post-title{color:inherit;text-decoration:none;display:block}
+a.series-post-title:hover{color:var(--green)}
+.post-footer{border-top:1px solid var(--line);max-width:var(--layout-max);margin:0 auto;padding:36px clamp(1rem,3vw,2rem) 56px}
+.author-card{display:flex;gap:20px;align-items:flex-start}
+.author-card-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--green),#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;color:#fff;flex-shrink:0;font-weight:600}
+.author-card-name{font-size:1rem;font-weight:600;margin-bottom:4px;font-family:var(--serif)}
+.author-card-bio{font-size:.875rem;color:var(--sub);line-height:1.65;margin-bottom:12px}
+.author-card-links{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.author-card-links a{font-size:.8125rem;color:var(--muted);text-decoration:none;font-weight:500;transition:color .15s}
+.author-card-links a:hover{color:var(--green)}
+.author-card-links a.ff-in{background:#0a66c2;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-in:hover{color:#fff;background:#004182}
+.author-card-links a.ff-em{background:#ea4335;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-em:hover{color:#fff;background:#c5221f}
+.author-card-links a.ff-gh{background:#24292f;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-gh:hover{color:#fff;background:#1a1e22}
+.author-card-links a.ff-posts{background:#1a8917;color:#fff;padding:4px 12px;border-radius:6px;font-weight:600}
+.author-card-links a.ff-posts:hover{color:#fff;background:#146b12}
+html[data-theme="dark"] .author-card-links a.ff-posts{background:#2f6f3f}
+html[data-theme="dark"] .author-card-links a.ff-posts:hover{background:#276b38;color:#fff}
+html[data-theme="dark"] .tag{background:var(--surface)}
+html[data-theme="dark"] .tag.accent{border-color:rgba(91,211,122,.35)}
+html[data-theme="dark"] .prose{color:var(--text)}
+html[data-theme="dark"] .prose pre{background:#141413;border-color:var(--line)}
+html[data-theme="dark"] .prose pre code{color:#d8d8d4}
+html[data-theme="dark"] .prose tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+html[data-theme="dark"] .prose code{color:#e8e8e4;background:rgba(255,255,255,.08);border-color:var(--line2)}
+html[data-theme="dark"] .prose em{color:var(--sub)}
+.prose .mermaid{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;margin:1.5em 0;overflow-x:auto;text-align:center}
+.prose .mermaid svg{max-width:100%;height:auto}
+.series-footer{margin-top:2.5rem;padding-top:1.75rem;border-top:1px solid var(--line);font-family:var(--ui);font-size:.9375rem;color:var(--sub);line-height:1.65}
+.series-footer p{margin-bottom:.75em}
+.series-footer em{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="ni">
+    <a href="../../index.html" class="nl">Akshant Sharma</a>
+    <div class="nav-tail">
+      <a href="../../index.html" class="nb">All posts</a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<header class="post-hero">
+  <div class="post-tags">
+    <span class="tag accent">AI Learning &middot; Day 46 of 150</span>
+    <span class="tag">Deterministic Replay</span>
+    <span class="tag">VCR Testing</span>
+    <span class="tag">Tool Mocking</span>
+  </div>
+  <h1 class="post-title">Day 46 &mdash; Deterministic Mocks &mdash; Record and Replay</h1>
+  <p class="post-subtitle">VCR pattern for LLM agents. Mock tools return bytes from trace &mdash; not live HTTP. <code>ToolMocker</code> serves a frozen response keyed on <code>(tool_name, input_hash)</code>, and <code>replay.Run</code> walks the recorded <code>tool_call</code> sequence and can halt after N steps instead of always running to the end.</p>
+  <div class="post-meta">
+    <div class="meta-author">
+      <div class="author-avatar">AS</div>
+      <div><div class="author-name">Akshant Sharma</div></div>
+    </div>
+    <div class="meta-divider"></div>
+    <span class="meta-item">AI Learning &middot; Day 46 of 150</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">July 31, 2026</span>
+    <div class="meta-divider"></div>
+    <span class="meta-item">9 min read</span>
+  </div>
+</header>
+
+<div class="post-cover-wrap">
+  <figure class="post-cover">
+    <img src="../../assets/covers/day-46-deterministic-mocks-record-and-replay.png" alt="Day 46 — Deterministic Mocks — Record and Replay" width="1200" height="630" loading="lazy">
+  </figure>
+</div>
+
+<div class="post-layout">
+<article class="prose">
+
+<p>Mock tools return bytes from trace &mdash; not live HTTP.</p>
+
+<p>That's the entire design brief behind today's <code>pkg/replay</code> package, and it's worth sitting with why it has to be that specific. An agent run is non-deterministic by default: the model issues a tool call, the tool call hits a live API, and the API returns data that changes the next time you ask. Re-running the same prompt against live tools rarely reproduces a bug, because the exact responses that triggered it are already gone.</p>
+
+<h2 id="an-agent-run-is-non-deterministic-by-default">An Agent Run Is Non-Deterministic by Default</h2>
+
+<p>A traditional unit test controls its inputs completely &mdash; same arguments in, same return value out, every time. An agent run breaks that contract at every tool call: a search API's results shift as the index updates, a weather API's answer depends on the literal minute you called it, and even a deterministic-looking database can return a different row order run to run.</p>
+
+<p>None of that is a bug in the tool. It's just what "live" means. But it means a multi-step agent trace that failed once in production is, by default, unreproducible &mdash; you can replay the prompt, but you can't replay the world the tools were answering from.</p>
+
+<p><strong>So what:</strong> if the thing that changed between the failing run and your retry is the live data underneath the tools, then fixing the bug requires freezing that data first &mdash; the tools have to stop being live before the run can become debuggable.</p>
+
+<h2 id="the-vcr-pattern-record-once-play-back-forever">The VCR Pattern: Record Once, Play Back Forever</h2>
+
+<p>The design this borrows already has a name outside AI: the <strong>VCR test pattern</strong> &mdash; record a real interaction once, then replay the frozen recording on every subsequent test run instead of hitting the network again. It's named after cassette-based video recorders for a reason worth taking literally, not as decoration.</p>
+
+<div class="attr-box team">
+  <div class="attr-label">DS analogy &mdash; the cassette recorder that only plays what it captured</div>
+  A VCR recording a broadcast once captures the exact signal that arrived at that exact moment &mdash; today's episode, not a rerun, not tomorrow's rebroadcast. Play that cassette back next week and it shows the identical frames in the identical order, because a cassette has no live antenna anymore, only the tape. <code>pkg/mocker</code>'s <code>ToolMocker</code> is that cassette: it holds exactly the responses a tool gave during one recorded run, and replaying against it can never show a different frame than the one that was actually captured.
+</div>
+
+<p>The cassette only has power because it's disconnected from the antenna. A <code>ToolMocker</code> only has power because it's disconnected from any live tool API &mdash; <code>Respond</code> can only ever return a byte sequence that was recorded at capture time, never a fresh call to the real endpoint.</p>
+
+<p><strong>So what:</strong> "deterministic" here doesn't mean the tool got smarter or more predictable &mdash; it means the tape recorder was swapped in for the live signal, and a tape, by construction, cannot surprise you twice.</p>
+
+<h2 id="the-composite-key-tool-name-plus-input-hash">The Composite Key: Tool Name Plus Input Hash</h2>
+
+<p><code>ToolMocker.LoadFromLog</code> builds its cassette from an <code>eventlog.EventLog</code> &mdash; the append-only record <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">Day 44</a> built. It walks every <code>KindToolResponse</code> event first, indexing each by its <code>ToolName</code> and <code>InputHash</code>, then walks every <code>KindToolCall</code> event and pairs it with the response that shares that same pair.</p>
+
+<p>The obvious design would key the cassette on <code>input_hash</code> alone: same input, same recorded output. That design has a real bug hiding in it &mdash; two different tools can receive byte-identical input. A <code>search</code> tool and a <code>cache_lookup</code> tool called with the same query string would hash to the same <code>input_hash</code>, and an input-only key would silently serve one tool's response to the other.</p>
+
+<p>The fix is a <strong>composite key</strong> &mdash; a lookup key built from more than one field, here <code>tool_name</code> and <code>input_hash</code> concatenated and hashed together with SHA-256. Two different tools with identical input now hash to two different keys, because the tool name that identifies which cassette track you're on is baked into the key itself.</p>
+
+<pre><code>func compositeKey(toolName, inputHash string) string {
+    sum := sha256.Sum256([]byte(toolName + ":" + inputHash))
+    return hex.EncodeToString(sum[:])
+}</code></pre>
+
+<p>The rest of <code>Respond</code> is a straight map lookup on that key. Miss the lookup and it returns <code>ErrUnknownCall</code> instead of falling back to anything live &mdash; an unrecorded call is a replay that cannot continue, not a call that gets silently forwarded to the real API.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">fields in the composite key</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">live API calls during any replay</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">response kept per call key &mdash; first wins</span></div>
+</div>
+
+<p><strong>So what:</strong> a composite key isn't extra caution for its own sake &mdash; it's the difference between a cassette that plays back exactly what was recorded and one that occasionally hands you the wrong tape because two tracks happened to share a label.</p>
+
+<h2 id="replay-run-walks-the-recorded-sequence">replay.Run Walks the Recorded Sequence</h2>
+
+<p><code>pkg/replay.Run</code> is the tape player. It takes the <code>EventLog</code>, the loaded <code>ToolMocker</code>, and a <code>stopAtStep</code> integer, then pulls every <code>KindToolCall</code> event out of the log in recorded order and asks the mocker for each one's response in turn.</p>
+
+<p>Each step is small and mechanical: call <code>m.Respond(toolName, inputHash)</code>, get back the frozen payload or <code>ErrUnknownCall</code>, and move to the next recorded call. When the loop reaches the end without error, <code>Run</code> reads the log's <code>final_output</code> event and returns it as <code>Result.Output</code> &mdash; the same completed answer the original run produced.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  EL[EventLog]
+  TC["tool_call events"]
+  TM[ToolMocker]
+  RN["replay.Run stopAtStep"]
+  RES{Result}
+  OUT["Output plus StepsRun"]
+  STOP["StoppedEarly true"]
+
+  EL --> TC --> TM --> RN --> RES
+  RES -->|"under limit"| OUT
+  RES -->|"hit limit"| STOP
+</pre>
+
+<p>The one branch that isn't mechanical is the check at the top of every iteration: if <code>stopAtStep</code> is greater than zero and the steps served so far have already reached it, <code>Run</code> returns immediately with <code>StoppedEarly: true</code> instead of serving the next call. Zero means no limit at all &mdash; replay every recorded call and report the final output, exactly like a full tape playback.</p>
+
+<p><strong>So what:</strong> the loop itself is nothing more than "ask the mocker, advance one step" repeated &mdash; the entire feature this post is about lives in one comparison at the top of that loop, which is what makes it small enough to trust.</p>
+
+<h2 id="why-partial-replay-matters-for-agents">Why Partial Replay Matters for Agents Specifically</h2>
+
+<p>A single-function unit test has exactly two outcomes: it passes, or it fails at some assertion. A multi-step agent run is different in a way that matters here &mdash; there's intermediate state worth inspecting between steps, not just a pass/fail at the very end.</p>
+
+<p>If step 7 in a recorded run is where something went wrong, replaying through step 7 again and stopping there doesn't teach you anything new about steps 1 through 6. You already have everything you need once you've watched the state build up to the edge of the failure, and re-running step 7 risks obscuring exactly the moment you wanted to inspect.</p>
+
+<p><code>--stop-at-step</code> is that inspection point. Today's <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html">Experience post</a> frames the same idea through a very different lens: Walmart's OTA firmware framework held a rollout before the next wave of devices instead of rolling back after a bad push, because a device you haven't touched yet needs no undo. <code>--stop-at-step</code> is the same discipline applied to tool-call steps instead of device batches &mdash; stop before the step you already know is broken, not after.</p>
+
+<p><strong>So what:</strong> a debugger that can only run a recording start-to-finish forces you to re-trigger the failure to study it; a debugger that can stop where you tell it turns replay from a re-run into an inspection tool, which is the actual job a debugger exists to do.</p>
+
+<h2 id="what-this-buys-you">What This Buys You</h2>
+
+<p>None of this changes what happened in the original run. It changes whether that run can be looked at again, on demand, without waiting for the same live conditions to line up twice.</p>
+
+<div class="pullquote">
+  <p>A bug that happened once, in production, days ago, is not the same problem as a bug that reproduces locally, on demand. Deterministic replay is what turns one into the other.</p>
+</div>
+
+<p>The cassette metaphor holds all the way through: nothing about a recorded tape becomes more reliable by rewinding it faster, and nothing about a replayed agent run becomes more trustworthy by rushing to the end. The value was in the freeze, at record time &mdash; the composite key and the step-by-step walk are just what make that frozen data safe to lean on.</p>
+
+<p><strong>So what:</strong> reproducibility isn't a nice-to-have property of a debugging tool &mdash; it's the actual precondition for fixing anything, and a mock that returns bytes from trace instead of live HTTP is what makes that precondition true for an agent run instead of aspirational.</p>
+
+<div class="series-footer">
+  <p>AI Learning &middot; Day 46 of 150 &mdash; Deterministic Mocks &mdash; Record and Replay</p>
+  <p><em>Next up:</em> Day 47 &mdash; coming tomorrow</p>
+</div>
+
+<div class="footnote-row">
+  <div class="footnote-title">References</div>
+  <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 44 &mdash; Event Sourcing for Agent Runs (the EventLog and ToolMocker this replay walks)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Experience Day 46 &mdash; Replay Step 6, Stop Before the Blast Radius (same code, the OTA-rollback lens on --stop-at-step)</span>
+    </a>
+    <a href="https://github.com/vcr/vcr">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>vcr/vcr &mdash; the Ruby test library that named the record/replay pattern this design borrows</span>
+    </a>
+  </div>
+</div>
+
+</article>
+
+<aside class="post-sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">On this page</div>
+    <ul class="toc-list">
+      <li><a href="#an-agent-run-is-non-deterministic-by-default">Non-Determinism by Default</a></li>
+      <li><a href="#the-vcr-pattern-record-once-play-back-forever">The VCR Pattern</a></li>
+      <li><a href="#the-composite-key-tool-name-plus-input-hash">The Composite Key</a></li>
+      <li><a href="#replay-run-walks-the-recorded-sequence">replay.Run Walks the Sequence</a></li>
+      <li><a href="#why-partial-replay-matters-for-agents">Why Partial Replay Matters</a></li>
+      <li><a href="#what-this-buys-you">What This Buys You</a></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Share</div>
+    <div class="share-links">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-46-deterministic-mocks-record-and-replay.html" class="share-link" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        LinkedIn
+      </a>
+      <a href="https://twitter.com/intent/tweet?text=Deterministic+Mocks+%E2%80%94+Record+and+Replay+%E2%80%94+AI+Learning+%C2%B7+Day+46+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-46-deterministic-mocks-record-and-replay.html" class="share-link" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X / Twitter
+      </a>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="series-nav">
+      <div class="series-label">AI Learning Series</div>
+      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-posts" id="series-nav-posts">
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D45</span> AI Learning</div>
+          <a href="day-45-object-storage-economics-for-traces.html" class="series-post-title">Object Storage Economics for Traces</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D46</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Deterministic Mocks &mdash; Record and Replay</div>
+          <div class="series-post-desc">ToolMocker keys on (tool_name, input_hash) so two tools with identical input never collide, and replay.Run walks the recorded tool_call sequence with an optional --stop-at-step halt</div>
+        </div>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D47</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+</div>
+
+<footer class="post-footer">
+  <div class="author-card">
+    <div class="author-card-avatar">AS</div>
+    <div>
+      <div class="author-card-name">Akshant Sharma</div>
+      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
+      <div class="author-card-links">
+        <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
+        <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
+        <a href="https://github.com/AkshantVats" class="ff-gh" target="_blank" rel="noopener">GitHub</a>
+        <a href="../../index.html" class="ff-posts">All posts</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var btn=document.getElementById('theme-toggle');
+  if(!btn)return;
+  btn.addEventListener('click',function(){
+    var html=document.documentElement;
+    var isDark=html.getAttribute('data-theme')==='dark';
+    if(isDark){html.removeAttribute('data-theme');localStorage.setItem('theme','light');}
+    else{html.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');}
+  });
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
+</body>
+</html>

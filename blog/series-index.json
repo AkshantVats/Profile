@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html",
+          "kicker": "AI Learning · Day 46 of 150",
+          "title": "Day 46 — Deterministic Mocks — Record and Replay",
+          "subtitle": "VCR pattern for LLM agents",
+          "date": "2026-07-31",
+          "slug": "day-46-deterministic-mocks-record-and-replay",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html",
+          "coverImage": "blog/assets/covers/day-46-deterministic-mocks-record-and-replay.png",
+          "desc": "Mock tools return bytes from trace, not live HTTP. ToolMocker keys on (tool_name, input_hash) so two tools with identical input never collide, and replay.Run walks the recorded tool_call sequence with an optional --stop-at-step halt for inspecting a run mid-flight."
+        },
+        {
           "href": "blog/series/ai-learning/day-45-object-storage-economics-for-traces.html",
           "kicker": "AI Learning · Day 45 of 150",
           "title": "Day 45 — Object Storage Economics for Traces",
