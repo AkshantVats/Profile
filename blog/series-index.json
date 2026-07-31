@@ -456,6 +456,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html",
+          "kicker": "Experience · Day 48 of 150",
+          "title": "Day 48 — Inject Timeout — Chaos for Tool RPCs",
+          "subtitle": "Wayfair · circuit breakers · failure injection",
+          "date": "2026-07-31",
+          "slug": "day-48-inject-timeout-chaos-for-tool-rpcs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html",
+          "coverImage": "blog/assets/covers/day-48-inject-timeout-chaos-for-tool-rpcs.png",
+          "desc": "Wayfair's SPCS retry-then-page path (3 attempts, fixed backoff, PagerDuty on DB failures >20/hr) had never been watched to trip. ToolMocker.Inject(atStep, kind) forces a chosen agent-replay-engine step to fail with a synthetic timeout, http_500, or stale_cache fault — a test button for an agent's tool-call error path, the same discipline chaos engineering brings to a live circuit breaker."
+        },
+        {
           "href": "blog/series/experience/day-47-diff-two-traces-git-blame-for-agents.html",
           "kicker": "Experience · Day 47 of 150",
           "title": "Day 47 — Diff Two Traces — Git Blame for Agents",
