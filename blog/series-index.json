@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-49-streaming-parsers-oom-safe-debugging.html",
+          "kicker": "AI Learning · Day 49 of 150",
+          "title": "Day 49 — Streaming Parsers — OOM-Safe Debugging",
+          "subtitle": "Iterators over multi-MB traces",
+          "date": "2026-07-31",
+          "slug": "day-49-streaming-parsers-oom-safe-debugging",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-49-streaming-parsers-oom-safe-debugging.html",
+          "coverImage": "blog/assets/covers/day-49-streaming-parsers-oom-safe-debugging.png",
+          "desc": "eventlog.Scanner reads a shared trace log one line at a time instead of buffering the whole file into memory, the way mocker.LoadFromReader and replay.RunFromReader now build a replay without ever holding more than one trace's own tool calls at once — plus the honest benchmark on what streaming actually costs."
+        },
+        {
           "href": "blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html",
           "kicker": "AI Learning · Day 47 of 150",
           "title": "Day 47 — Diff Semantics — Structural vs Textual",
