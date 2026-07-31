@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 46 — Deterministic Mocks — Record and Replay | AI Learning Series</title>
-<meta name="description" content="An agent run replays tool calls from a frozen event log, not live HTTP. pkg/replay.Run walks the recorded tool_call sequence against a composite-keyed ToolMocker and can halt after N steps via --stop-at-step — the VCR test pattern applied to non-deterministic agent runs.">
-<meta property="og:title" content="Day 46 — Deterministic Mocks — Record and Replay">
-<meta property="og:description" content="Mock tools return bytes from trace, not live HTTP. Why ToolMocker keys on (tool_name, input_hash) instead of input alone, how replay.Run walks the recorded tool_call sequence, and why --stop-at-step turns replay into an inspection tool.">
+<title>Day 47 — Diff Semantics — Structural vs Textual | AI Learning Series</title>
+<meta name="description" content="Git diff for trees — stop at first changed tool output. pkg/diff compares two agent traces by decision (ToolName + InputHash), the same composite key pkg/mocker already used, instead of diffing raw JSON text — and returns the first step where they disagree.">
+<meta property="og:title" content="Day 47 — Diff Semantics — Structural vs Textual">
+<meta property="og:description" content="A textual diff of two agent traces drowns in noise: timestamps, request IDs, float precision. pkg/diff.Compare walks two traces' tool_call sequences and compares ToolName + InputHash per step — the same composite key pkg/mocker already used — and returns the first structural disagreement.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-46-deterministic-mocks-record-and-replay.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-47-diff-semantics-structural-vs-textual.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-46-deterministic-mocks-record-and-replay.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-47-diff-semantics-structural-vs-textual.png">
 <meta property="article:published_time" content="2026-07-31">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,89 +185,73 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 46 of 150</span>
-    <span class="tag">Deterministic Replay</span>
-    <span class="tag">VCR Testing</span>
-    <span class="tag">Tool Mocking</span>
+    <span class="tag accent">AI Learning &middot; Day 47 of 150</span>
+    <span class="tag">Structural Diff</span>
+    <span class="tag">Trace Comparison</span>
+    <span class="tag">Divergence Detection</span>
   </div>
-  <h1 class="post-title">Day 46 &mdash; Deterministic Mocks &mdash; Record and Replay</h1>
-  <p class="post-subtitle">VCR pattern for LLM agents. Mock tools return bytes from trace &mdash; not live HTTP. <code>ToolMocker</code> serves a frozen response keyed on <code>(tool_name, input_hash)</code>, and <code>replay.Run</code> walks the recorded <code>tool_call</code> sequence and can halt after N steps instead of always running to the end.</p>
+  <h1 class="post-title">Day 47 &mdash; Diff Semantics &mdash; Structural vs Textual</h1>
+  <p class="post-subtitle">Git diff for trees &mdash; stop at first changed tool output. <code>pkg/diff.Compare</code> walks two agent traces' <code>tool_call</code> sequences and compares <code>ToolName</code> + <code>InputHash</code> per step &mdash; the same composite key <code>pkg/mocker</code> already used &mdash; instead of diffing raw JSON text, and returns the first step where the two traces disagree.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 46 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 47 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">July 31, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">9 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-46-deterministic-mocks-record-and-replay.png" alt="Day 46 — Deterministic Mocks — Record and Replay" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-47-diff-semantics-structural-vs-textual.png" alt="Day 47 — Diff Semantics — Structural vs Textual" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Mock tools return bytes from trace &mdash; not live HTTP.</p>
+<p>Git diff for trees &mdash; stop at first changed tool output.</p>
 
-<p>That's the entire design brief behind today's <code>pkg/replay</code> package, and it's worth sitting with why it has to be that specific. An agent run is non-deterministic by default: the model issues a tool call, the tool call hits a live API, and the API returns data that changes the next time you ask. Re-running the same prompt against live tools rarely reproduces a bug, because the exact responses that triggered it are already gone.</p>
+<p>That's the whole idea behind today's <code>pkg/diff</code> package, and like most one-line design briefs it hides a real decision: <em>diff</em> can mean two very different operations depending on what you're comparing. Compare two text files and you get a textual diff &mdash; line by line, byte by byte. Compare two agent traces the same way and you get almost nothing useful, because the two traces were never going to be byte-identical even when they made the exact same decisions.</p>
 
-<h2 id="an-agent-run-is-non-deterministic-by-default">An Agent Run Is Non-Deterministic by Default</h2>
+<h2 id="a-text-diff-assumes-two-files-are-the-same-shape">A Text Diff Assumes Two Files Are the Same Shape</h2>
 
-<p>A traditional unit test controls its inputs completely &mdash; same arguments in, same return value out, every time. An agent run breaks that contract at every tool call: a search API's results shift as the index updates, a weather API's answer depends on the literal minute you called it, and even a deterministic-looking database can return a different row order run to run.</p>
+<p>Unix <code>diff</code> is one of the oldest, most reliable tools in software &mdash; it compares two files line by line and reports insertions, deletions, and changes. It works beautifully when "the same content" and "the same bytes" are the same claim, which is true for source code, config files, and most text.</p>
 
-<p>None of that is a bug in the tool. It's just what "live" means. But it means a multi-step agent trace that failed once in production is, by default, unreproducible &mdash; you can replay the prompt, but you can't replay the world the tools were answering from.</p>
+<p>An agent trace breaks that assumption immediately. Two runs of the identical prompt against the identical tools still carry different <code>timestamp_ns</code> values, different <code>span_id</code> UUIDs, and often differently-ordered JSON keys depending on which serializer produced each event. A textual diff of two such traces reports near-total disagreement on every single line, even when the model made the exact same tool calls in the exact same order both times.</p>
 
-<p><strong>So what:</strong> if the thing that changed between the failing run and your retry is the live data underneath the tools, then fixing the bug requires freezing that data first &mdash; the tools have to stop being live before the run can become debuggable.</p>
+<p><strong>So what:</strong> the moment "same decision" and "same bytes" stop being the same claim, a byte-level diff stops answering the question you actually have &mdash; and an agent trace hits that split on line one.</p>
 
-<h2 id="the-vcr-pattern-record-once-play-back-forever">The VCR Pattern: Record Once, Play Back Forever</h2>
-
-<p>The design this borrows already has a name outside AI: the <strong>VCR test pattern</strong> &mdash; record a real interaction once, then replay the frozen recording on every subsequent test run instead of hitting the network again. It's named after cassette-based video recorders for a reason worth taking literally, not as decoration.</p>
+<h2 id="the-ds-analogy-two-witness-statements-one-interrogation-room">The DS Analogy &mdash; Two Witness Statements, One Interrogation Room</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the cassette recorder that only plays what it captured</div>
-  A VCR recording a broadcast once captures the exact signal that arrived at that exact moment &mdash; today's episode, not a rerun, not tomorrow's rebroadcast. Play that cassette back next week and it shows the identical frames in the identical order, because a cassette has no live antenna anymore, only the tape. <code>pkg/mocker</code>'s <code>ToolMocker</code> is that cassette: it holds exactly the responses a tool gave during one recorded run, and replaying against it can never show a different frame than the one that was actually captured.
+  <div class="attr-label">DS analogy &mdash; comparing accounts, not comparing transcripts</div>
+  Two witnesses to the same event, interviewed separately, almost never use the same words. One says "the car sped off," the other says "the vehicle accelerated away quickly" &mdash; a word-for-word diff of their statements would flag nearly every sentence as different. An investigator doesn't read the transcripts that way. They extract the facts each statement claims &mdash; make, color, direction &mdash; and compare fact by fact, because the paraphrase never mattered and the first fact where the two accounts genuinely disagree is the only thing worth chasing.
 </div>
 
-<p>The cassette only has power because it's disconnected from the antenna. A <code>ToolMocker</code> only has power because it's disconnected from any live tool API &mdash; <code>Respond</code> can only ever return a byte sequence that was recorded at capture time, never a fresh call to the real endpoint.</p>
+<p>That is the move <code>pkg/diff</code> makes on agent traces: extract the fact each step claims &mdash; which tool, with what input &mdash; and compare that, not the paraphrase sitting around it in the JSON payload.</p>
 
-<p><strong>So what:</strong> "deterministic" here doesn't mean the tool got smarter or more predictable &mdash; it means the tape recorder was swapped in for the live signal, and a tape, by construction, cannot surprise you twice.</p>
+<p><strong>So what:</strong> a structural diff isn't a smarter textual diff &mdash; it's a decision to compare a different, smaller thing entirely: the claim a step makes, not the prose it's written in.</p>
 
-<h2 id="the-composite-key-tool-name-plus-input-hash">The Composite Key: Tool Name Plus Input Hash</h2>
+<h2 id="the-composite-key-already-solved-half-this-problem">The Composite Key Already Solved Half This Problem</h2>
 
-<p><code>ToolMocker.LoadFromLog</code> builds its cassette from an <code>eventlog.EventLog</code> &mdash; the append-only record <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">Day 44</a> built. It walks every <code>KindToolResponse</code> event first, indexing each by its <code>ToolName</code> and <code>InputHash</code>, then walks every <code>KindToolCall</code> event and pairs it with the response that shares that same pair.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">Day 46</a> covered why <code>pkg/mocker.ToolMocker</code> keys its frozen responses on <code>SHA-256(tool_name + ":" + input_hash)</code> rather than the raw call: a composite key identifies <em>which decision was made</em> &mdash; call this tool, with this effective input &mdash; without carrying every byte of the request along with it. <code>pkg/diff</code> reuses that exact pair of fields as its unit of comparison.</p>
 
-<p>The obvious design would key the cassette on <code>input_hash</code> alone: same input, same recorded output. That design has a real bug hiding in it &mdash; two different tools can receive byte-identical input. A <code>search</code> tool and a <code>cache_lookup</code> tool called with the same query string would hash to the same <code>input_hash</code>, and an input-only key would silently serve one tool's response to the other.</p>
-
-<p>The fix is a <strong>composite key</strong> &mdash; a lookup key built from more than one field, here <code>tool_name</code> and <code>input_hash</code> concatenated and hashed together with SHA-256. Two different tools with identical input now hash to two different keys, because the tool name that identifies which cassette track you're on is baked into the key itself.</p>
-
-<pre><code>func compositeKey(toolName, inputHash string) string {
-    sum := sha256.Sum256([]byte(toolName + ":" + inputHash))
-    return hex.EncodeToString(sum[:])
+<pre><code>for i := 0; i < min(len(callsA), len(callsB)); i++ {
+    if callsA[i].ToolName != callsB[i].ToolName {
+        return divergence(step: i+1, reason: "tool_name")
+    }
+    if callsA[i].InputHash != callsB[i].InputHash {
+        return divergence(step: i+1, reason: "input_hash")
+    }
 }</code></pre>
 
-<p>The rest of <code>Respond</code> is a straight map lookup on that key. Miss the lookup and it returns <code>ErrUnknownCall</code> instead of falling back to anything live &mdash; an unrecorded call is a replay that cannot continue, not a call that gets silently forwarded to the real API.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">fields in the composite key</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">live API calls during any replay</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">response kept per call key &mdash; first wins</span></div>
-</div>
-
-<p><strong>So what:</strong> a composite key isn't extra caution for its own sake &mdash; it's the difference between a cassette that plays back exactly what was recorded and one that occasionally hands you the wrong tape because two tracks happened to share a label.</p>
-
-<h2 id="replay-run-walks-the-recorded-sequence">replay.Run Walks the Recorded Sequence</h2>
-
-<p><code>pkg/replay.Run</code> is the tape player. It takes the <code>EventLog</code>, the loaded <code>ToolMocker</code>, and a <code>stopAtStep</code> integer, then pulls every <code>KindToolCall</code> event out of the log in recorded order and asks the mocker for each one's response in turn.</p>
-
-<p>Each step is small and mechanical: call <code>m.Respond(toolName, inputHash)</code>, get back the frozen payload or <code>ErrUnknownCall</code>, and move to the next recorded call. When the loop reaches the end without error, <code>Run</code> reads the log's <code>final_output</code> event and returns it as <code>Result.Output</code> &mdash; the same completed answer the original run produced.</p>
+<p>Nothing about <code>SpanID</code>, <code>Timestamp</code>, or the raw <code>Payload</code> bytes enters the comparison at all. Two steps are defined as "the same decision" exactly when replay would serve them the identical frozen response &mdash; which is precisely what <code>ToolName</code> + <code>InputHash</code> already determines, since that's the lookup key <code>ToolMocker.Respond</code> uses.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -287,48 +271,56 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  EL[EventLog]
-  TC["tool_call events"]
-  TM[ToolMocker]
-  RN["replay.Run stopAtStep"]
-  RES{Result}
-  OUT["Output plus StepsRun"]
-  STOP["StoppedEarly true"]
+  TA["Trace A tool_calls"]
+  TB["Trace B tool_calls"]
+  CMP["Compare per step"]
+  MATCH{"Same tool plus hash?"}
+  NEXT["Advance to next step"]
+  DIV["Divergence found"]
 
-  EL --> TC --> TM --> RN --> RES
-  RES -->|"under limit"| OUT
-  RES -->|"hit limit"| STOP
+  TA --> CMP
+  TB --> CMP
+  CMP --> MATCH
+  MATCH -->|"yes"| NEXT
+  MATCH -->|"no"| DIV
+  NEXT --> CMP
 </pre>
 
-<p>The one branch that isn't mechanical is the check at the top of every iteration: if <code>stopAtStep</code> is greater than zero and the steps served so far have already reached it, <code>Run</code> returns immediately with <code>StoppedEarly: true</code> instead of serving the next call. Zero means no limit at all &mdash; replay every recorded call and report the final output, exactly like a full tape playback.</p>
+<p><strong>So what:</strong> a good composite key pays for itself twice &mdash; the same field that let <code>pkg/mocker</code> serve deterministic replay in Day 44 is the field that makes structural diff cheap to write in Day 47, because "the unit that matters" was already decided.</p>
 
-<p><strong>So what:</strong> the loop itself is nothing more than "ask the mocker, advance one step" repeated &mdash; the entire feature this post is about lives in one comparison at the top of that loop, which is what makes it small enough to trust.</p>
+<h2 id="why-toolname-wins-the-tie-break">Why ToolName Wins the Tie-Break</h2>
 
-<h2 id="why-partial-replay-matters-for-agents">Why Partial Replay Matters for Agents Specifically</h2>
+<p>When both <code>ToolName</code> and <code>InputHash</code> differ at the same step, <code>Compare</code> reports <code>tool_name</code> as the reason, not <code>input_hash</code> &mdash; the check runs first and returns immediately. That ordering is a judgment call, not an arbitrary one: calling a different tool altogether is a more fundamental divergence than calling the same tool with different input, even though either fact alone already proves the traces disagree.</p>
 
-<p>A single-function unit test has exactly two outcomes: it passes, or it fails at some assertion. A multi-step agent run is different in a way that matters here &mdash; there's intermediate state worth inspecting between steps, not just a pass/fail at the very end.</p>
+<p>Two witnesses who disagree on both the getaway car's color and its direction of travel are not "twice as divergent" &mdash; the fact that they can't even agree on the vehicle is the one worth leading with. A different tool call subsumes a different input; reporting the input mismatch when the tool itself already changed buries the more useful fact under a less useful one.</p>
 
-<p>If step 7 in a recorded run is where something went wrong, replaying through step 7 again and stopping there doesn't teach you anything new about steps 1 through 6. You already have everything you need once you've watched the state build up to the edge of the failure, and re-running step 7 risks obscuring exactly the moment you wanted to inspect.</p>
-
-<p><code>--stop-at-step</code> is that inspection point. Today's <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html">Experience post</a> frames the same idea through a very different lens: Walmart's OTA firmware framework held a rollout before the next wave of devices instead of rolling back after a bad push, because a device you haven't touched yet needs no undo. <code>--stop-at-step</code> is the same discipline applied to tool-call steps instead of device batches &mdash; stop before the step you already know is broken, not after.</p>
-
-<p><strong>So what:</strong> a debugger that can only run a recording start-to-finish forces you to re-trigger the failure to study it; a debugger that can stop where you tell it turns replay from a re-run into an inspection tool, which is the actual job a debugger exists to do.</p>
-
-<h2 id="what-this-buys-you">What This Buys You</h2>
-
-<p>None of this changes what happened in the original run. It changes whether that run can be looked at again, on demand, without waiting for the same live conditions to line up twice.</p>
-
-<div class="pullquote">
-  <p>A bug that happened once, in production, days ago, is not the same problem as a bug that reproduces locally, on demand. Deterministic replay is what turns one into the other.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">fields compared per step</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">raw payload bytes inspected</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">divergence returned, always the first</span></div>
 </div>
 
-<p>The cassette metaphor holds all the way through: nothing about a recorded tape becomes more reliable by rewinding it faster, and nothing about a replayed agent run becomes more trustworthy by rushing to the end. The value was in the freeze, at record time &mdash; the composite key and the step-by-step walk are just what make that frozen data safe to lean on.</p>
+<p><strong>So what:</strong> a diff algorithm's tie-break rule is itself a claim about which kind of disagreement is more informative &mdash; getting it backwards doesn't make the tool wrong, just less useful at the exact moment someone needs the answer fastest.</p>
 
-<p><strong>So what:</strong> reproducibility isn't a nice-to-have property of a debugging tool &mdash; it's the actual precondition for fixing anything, and a mock that returns bytes from trace instead of live HTTP is what makes that precondition true for an agent run instead of aspirational.</p>
+<h2 id="a-length-mismatch-is-still-a-divergence">A Length Mismatch Is Still a Divergence</h2>
+
+<p>If every shared step matches but one trace ran three tool calls further than the other, that is not "the traces agreed on everything they had in common." A witness who stops their account three sentences before the other witness didn't corroborate those three sentences &mdash; they simply never spoke to them.</p>
+
+<p><code>Compare</code> treats the point where the shorter trace ends as the divergence, tagged <code>missing_in_a</code> or <code>missing_in_b</code> depending on which trace was longer. Reporting <code>Found() == false</code> here would hide a real behavioral difference: one run took an action &mdash; a retry, an extra lookup, a reroute &mdash; that the other run never took at all.</p>
+
+<p><strong>So what:</strong> "no divergence found" has to mean the traces actually matched everywhere they overlap <em>and</em> ran the same length &mdash; conflating "ran out of shared steps to compare" with "agreed" is the kind of bug that hides real regressions behind a green checkmark.</p>
+
+<div class="pullquote">
+  <p>A textual diff tells you every byte that differs. A structural diff tells you the first decision that differs &mdash; which is almost always the only one you actually came to ask about.</p>
+</div>
+
+<p>Git diff for trees, applied to agent traces instead of directory structures, comes down to the same discipline as everything else this repo has built since Day 44: define the unit that actually matters &mdash; a tool call's name and effective input &mdash; and refuse to let noise in the surrounding bytes distract from it.</p>
+
+<p><strong>So what:</strong> the hardest part of writing a diff algorithm is rarely the walk-and-compare loop itself &mdash; it's deciding, up front, what two things have to be equal before you're willing to call them "the same," and that decision is where structural diff earns its keep over textual diff every time.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 46 of 150 &mdash; Deterministic Mocks &mdash; Record and Replay</p>
-  <p><em>Next up:</em> <a href="day-47-diff-semantics-structural-vs-textual.html">Day 47 &mdash; Diff Semantics &mdash; Structural vs Textual</a></p>
+  <p>AI Learning &middot; Day 47 of 150 &mdash; Diff Semantics &mdash; Structural vs Textual</p>
+  <p><em>Next up:</em> Day 48 &mdash; coming tomorrow</p>
 </div>
 
 <div class="footnote-row">
@@ -336,15 +328,15 @@ flowchart LR
   <div class="footnote-links">
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 44 &mdash; Event Sourcing for Agent Runs (the EventLog and ToolMocker this replay walks)</span>
+      <span>Day 44 &mdash; Event Sourcing for Agent Runs (the AgentEvent fields this diff compares)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Experience Day 46 &mdash; Replay Step 6, Stop Before the Blast Radius (same code, the OTA-rollback lens on --stop-at-step)</span>
+      <span>Day 46 &mdash; Deterministic Mocks, Record and Replay (the composite key pkg/diff reuses)</span>
     </a>
-    <a href="https://github.com/vcr/vcr">
+    <a href="https://en.wikipedia.org/wiki/Diff">
       <span class="footnote-arrow">&rarr;</span>
-      <span>vcr/vcr &mdash; the Ruby test library that named the record/replay pattern this design borrows</span>
+      <span>diff (Unix) &mdash; the textual, line-by-line comparison this post contrasts against</span>
     </a>
   </div>
 </div>
@@ -355,23 +347,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#an-agent-run-is-non-deterministic-by-default">Non-Determinism by Default</a></li>
-      <li><a href="#the-vcr-pattern-record-once-play-back-forever">The VCR Pattern</a></li>
-      <li><a href="#the-composite-key-tool-name-plus-input-hash">The Composite Key</a></li>
-      <li><a href="#replay-run-walks-the-recorded-sequence">replay.Run Walks the Sequence</a></li>
-      <li><a href="#why-partial-replay-matters-for-agents">Why Partial Replay Matters</a></li>
-      <li><a href="#what-this-buys-you">What This Buys You</a></li>
+      <li><a href="#a-text-diff-assumes-two-files-are-the-same-shape">A Text Diff Assumes Same Shape</a></li>
+      <li><a href="#the-ds-analogy-two-witness-statements-one-interrogation-room">Two Witness Statements</a></li>
+      <li><a href="#the-composite-key-already-solved-half-this-problem">The Composite Key</a></li>
+      <li><a href="#why-toolname-wins-the-tie-break">Why ToolName Wins</a></li>
+      <li><a href="#a-length-mismatch-is-still-a-divergence">A Length Mismatch Still Counts</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-46-deterministic-mocks-record-and-replay.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-47-diff-semantics-structural-vs-textual.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Deterministic+Mocks+%E2%80%94+Record+and+Replay+%E2%80%94+AI+Learning+%C2%B7+Day+46+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-46-deterministic-mocks-record-and-replay.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Diff+Semantics+%E2%80%94+Structural+vs+Textual+%E2%80%94+AI+Learning+%C2%B7+Day+47+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-47-diff-semantics-structural-vs-textual.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -384,17 +375,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D45</span> AI Learning</div>
-          <a href="day-45-object-storage-economics-for-traces.html" class="series-post-title">Object Storage Economics for Traces</a>
+          <div class="series-post-kicker"><span class="series-post-num">D46</span> AI Learning</div>
+          <a href="day-46-deterministic-mocks-record-and-replay.html" class="series-post-title">Deterministic Mocks &mdash; Record and Replay</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D46</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Deterministic Mocks &mdash; Record and Replay</div>
-          <div class="series-post-desc">ToolMocker keys on (tool_name, input_hash) so two tools with identical input never collide, and replay.Run walks the recorded tool_call sequence with an optional --stop-at-step halt</div>
+          <div class="series-post-kicker"><span class="series-post-num">D47</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Diff Semantics &mdash; Structural vs Textual</div>
+          <div class="series-post-desc">pkg/diff compares two traces by ToolName + InputHash, the same composite key pkg/mocker already used, instead of diffing raw JSON text, and returns the first step where they disagree</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D47</span> AI Learning</div>
-          <a href="day-47-diff-semantics-structural-vs-textual.html" class="series-post-title">Diff Semantics &mdash; Structural vs Textual</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D48</span> AI Learning</div>
+          <div class="series-post-title">Coming tomorrow</div>
         </div>
       </div>
     </div>
