@@ -456,6 +456,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html",
+          "kicker": "Experience · Day 49 of 150",
+          "title": "Day 49 — Streaming Parser — Don't OOM the Debugger",
+          "subtitle": "Agoda · bounded memory · large queries",
+          "date": "2026-07-31",
+          "slug": "day-49-streaming-parser-dont-oom-the-debugger",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html",
+          "coverImage": "blog/assets/covers/day-49-streaming-parser-dont-oom-the-debugger.png",
+          "desc": "WhiteFalcon's cross-tier query engine at Agoda stays bounded-memory by merging histogram buckets instead of loading raw rows. traceforge replay had the same latent problem — reading a whole shared trace log to answer one debugging question — and the streaming fix's real benchmark numbers weren't the clean win a \"just stream it\" instinct predicts."
+        },
+        {
           "href": "blog/series/experience/day-47-diff-two-traces-git-blame-for-agents.html",
           "kicker": "Experience · Day 47 of 150",
           "title": "Day 47 — Diff Two Traces — Git Blame for Agents",
