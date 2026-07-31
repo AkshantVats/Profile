@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html",
+          "kicker": "AI Learning · Day 48 of 150",
+          "title": "Day 48 — Fault Injection for Tool RPCs",
+          "subtitle": "Timeouts, 500s, stale cache",
+          "date": "2026-07-31",
+          "slug": "day-48-fault-injection-for-tool-rpcs",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html",
+          "coverImage": "blog/assets/covers/day-48-fault-injection-for-tool-rpcs.png",
+          "desc": "A recorded agent trace only ever contains what actually happened — almost always success. ToolMocker.Inject(atStep, kind) forces a chosen tool-call step to fail with a synthetic timeout, http_500, or stale_cache instead, the same Chaos-Monkey discipline of proving a recovery path works before production forces the question."
+        },
+        {
           "href": "blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html",
           "kicker": "AI Learning · Day 47 of 150",
           "title": "Day 47 — Diff Semantics — Structural vs Textual",
