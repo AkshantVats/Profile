@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html",
+          "kicker": "AI Learning · Day 47 of 150",
+          "title": "Day 47 — Diff Semantics — Structural vs Textual",
+          "subtitle": "First divergence detection on spans",
+          "date": "2026-07-31",
+          "slug": "day-47-diff-semantics-structural-vs-textual",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html",
+          "coverImage": "blog/assets/covers/day-47-diff-semantics-structural-vs-textual.png",
+          "desc": "A textual diff of two agent traces drowns in noise: timestamps, span IDs, JSON key order. pkg/diff.Compare walks two traces' tool_call sequences and compares ToolName + InputHash per step — the same composite key pkg/mocker already used — and returns the first step where they structurally disagree."
+        },
+        {
           "href": "blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html",
           "kicker": "AI Learning · Day 46 of 150",
           "title": "Day 46 — Deterministic Mocks — Record and Replay",
