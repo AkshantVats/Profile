@@ -432,6 +432,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html",
+          "kicker": "Experience · Day 46 of 150",
+          "title": "Day 46 — Replay Step 6 — Stop Before the Blast Radius",
+          "subtitle": "Walmart · OTA rollback · partial deploy",
+          "date": "2026-07-31",
+          "slug": "day-46-replay-step-6-stop-before-blast-radius",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-46-replay-step-6-stop-before-blast-radius.html",
+          "coverImage": "blog/assets/covers/day-46-replay-step-6-stop-before-blast-radius.png",
+          "desc": "WeIoT's OTA firmware framework rolled updates out to millions of Walmart devices in waves, stopping before the next wave instead of rolling back after. agent-replay-engine's new --stop-at-step flag applies the same wave-boundary discipline to replaying an agent run's tool-call steps."
+        },
+        {
           "href": "blog/series/experience/day-45-s3-for-traces-compliance-and-cost.html",
           "kicker": "Experience · Day 45 of 150",
           "title": "Day 45 — S3 for Traces — Compliance and Cost",
