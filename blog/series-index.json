@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-50-operability-cli-as-api.html",
+          "kicker": "AI Learning · Day 50 of 150",
+          "title": "Day 50 — Operability — CLI as API",
+          "subtitle": "replay, diff subcommands",
+          "date": "2026-08-01",
+          "slug": "day-50-operability-cli-as-api",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-50-operability-cli-as-api.html",
+          "coverImage": "blog/assets/covers/day-50-operability-cli-as-api.png",
+          "desc": "replay and diff share one contract — same input shape, same output shape, same exit-code convention — verified by a smoke test that checks the interface a human and a CI job both rely on, not the replay logic underneath it."
+        },
+        {
           "href": "blog/series/ai-learning/day-49-streaming-parsers-oom-safe-debugging.html",
           "kicker": "AI Learning · Day 49 of 150",
           "title": "Day 49 — Streaming Parsers — OOM-Safe Debugging",
