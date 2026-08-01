@@ -504,6 +504,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-52-parallel-runs-respect-the-rate-limit.html",
+          "kicker": "Experience · Day 52 of 150",
+          "title": "Day 52 — Parallel Runs — Respect the Rate Limit",
+          "subtitle": "Delivery Hero · peak · concurrency caps",
+          "date": "2026-08-01",
+          "slug": "day-52-parallel-runs-respect-the-rate-limit",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-52-parallel-runs-respect-the-rate-limit.html",
+          "coverImage": "blog/assets/covers/day-52-parallel-runs-respect-the-rate-limit.png",
+          "desc": "Delivery Hero's OSRM concurrency cap and agent-benchmark-runner's bounded orchestrator are the same fixed-worker-pool decision, twice — unbounded fan-out doesn't test a system under load, it turns the caller into the outage."
+        },
+        {
           "href": "blog/series/experience/day-51-benchmark-agents-like-load-tests.html",
           "kicker": "Experience · Day 51 of 150",
           "title": "Day 51 — Benchmark Agents Like Load Tests",
