@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html",
+          "kicker": "AI Learning · Day 52 of 150",
+          "title": "Day 52 — Statistical Rigor — N Runs, Confidence",
+          "subtitle": "Don't benchmark once",
+          "date": "2026-08-01",
+          "slug": "day-52-statistical-rigor-n-runs-confidence",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html",
+          "coverImage": "blog/assets/covers/day-52-statistical-rigor-n-runs-confidence.png",
+          "desc": "One coin flip can't tell you if a coin is fair — agent-benchmark-runner's orchestrator runs N repetitions under bounded concurrency and reports a pass rate with a 95% Wilson confidence interval instead of a single pass/fail bit."
+        },
+        {
           "href": "blog/series/ai-learning/day-51-benchmark-methodology-for-agents.html",
           "kicker": "AI Learning · Day 51 of 150",
           "title": "Day 51 — Benchmark Methodology for Agents",
