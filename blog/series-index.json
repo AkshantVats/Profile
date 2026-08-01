@@ -19,6 +19,18 @@
           "desc": "eventlog.Scanner reads a shared trace log one line at a time instead of buffering the whole file into memory, the way mocker.LoadFromReader and replay.RunFromReader now build a replay without ever holding more than one trace's own tool calls at once — plus the honest benchmark on what streaming actually costs."
         },
         {
+          "href": "blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html",
+          "kicker": "AI Learning · Day 48 of 150",
+          "title": "Day 48 — Fault Injection for Tool RPCs",
+          "subtitle": "Timeouts, 500s, stale cache",
+          "date": "2026-08-01",
+          "slug": "day-48-fault-injection-for-tool-rpcs",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html",
+          "coverImage": "blog/assets/covers/day-48-fault-injection-for-tool-rpcs.png",
+          "desc": "pkg/fault defines synthetic timeout, 500, and stale-cache failures; ToolMocker.Inject forces a chosen replay step to fail with one of them, checked before the frozen-response lookup, so an agent's error-handling path can be verified on demand instead of waiting for it to happen live."
+        },
+        {
           "href": "blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html",
           "kicker": "AI Learning · Day 47 of 150",
           "title": "Day 47 — Diff Semantics — Structural vs Textual",
@@ -478,6 +490,18 @@
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html",
           "coverImage": "blog/assets/covers/day-49-streaming-parser-dont-oom-the-debugger.png",
           "desc": "WhiteFalcon's cross-tier query engine at Agoda stays bounded-memory by merging histogram buckets instead of loading raw rows. traceforge replay had the same latent problem — reading a whole shared trace log to answer one debugging question — and the streaming fix's real benchmark numbers weren't the clean win a \"just stream it\" instinct predicts."
+        },
+        {
+          "href": "blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html",
+          "kicker": "Experience · Day 48 of 150",
+          "title": "Day 48 — Inject Timeout — Chaos for Tool RPCs",
+          "subtitle": "Wayfair · circuit breakers · failure injection",
+          "date": "2026-08-01",
+          "slug": "day-48-inject-timeout-chaos-for-tool-rpcs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html",
+          "coverImage": "blog/assets/covers/day-48-inject-timeout-chaos-for-tool-rpcs.png",
+          "desc": "Wayfair's supplier bulk-submission circuit breaker (20k+ suppliers, 99.99% availability) only earns its keep if it trips correctly before a real SPCS outage cascades. traceforge replay --inject-timeout forces an agent's tool call to fail the same way, on command, instead of waiting for the real thing."
         },
         {
           "href": "blog/series/experience/day-47-diff-two-traces-git-blame-for-agents.html",

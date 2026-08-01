@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 47 — Diff Semantics — Structural vs Textual | AI Learning Series</title>
-<meta name="description" content="Git diff for trees — stop at first changed tool output. pkg/diff compares two agent traces by decision (ToolName + InputHash), the same composite key pkg/mocker already used, instead of diffing raw JSON text — and returns the first step where they disagree.">
-<meta property="og:title" content="Day 47 — Diff Semantics — Structural vs Textual">
-<meta property="og:description" content="A textual diff of two agent traces drowns in noise: timestamps, request IDs, float precision. pkg/diff.Compare walks two traces' tool_call sequences and compares ToolName + InputHash per step — the same composite key pkg/mocker already used — and returns the first structural disagreement.">
+<title>Day 48 — Fault Injection for Tool RPCs | AI Learning Series</title>
+<meta name="description" content="Chaos mesh for agents — inject before production does. pkg/fault defines synthetic timeout, 500, and stale-cache failures; ToolMocker.Inject forces a chosen replay step to fail with one of them, so an agent's error-handling path can be verified on demand instead of waiting for it to happen live.">
+<meta property="og:title" content="Day 48 — Fault Injection for Tool RPCs">
+<meta property="og:description" content="A recorded trace only ever contains what actually happened — usually success. pkg/fault + ToolMocker.Inject force a chosen replay step to fail with a synthetic timeout, 500, or stale cache, so the agent's error path can be exercised without waiting for a real outage.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-47-diff-semantics-structural-vs-textual.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-47-diff-semantics-structural-vs-textual.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-48-fault-injection-for-tool-rpcs.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-47-diff-semantics-structural-vs-textual.png">
-<meta property="article:published_time" content="2026-07-31">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-48-fault-injection-for-tool-rpcs.png">
+<meta property="article:published_time" content="2026-08-01">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 47 of 150</span>
-    <span class="tag">Structural Diff</span>
-    <span class="tag">Trace Comparison</span>
-    <span class="tag">Divergence Detection</span>
+    <span class="tag accent">AI Learning &middot; Day 48 of 150</span>
+    <span class="tag">Fault Injection</span>
+    <span class="tag">Chaos Engineering</span>
+    <span class="tag">Tool RPCs</span>
   </div>
-  <h1 class="post-title">Day 47 &mdash; Diff Semantics &mdash; Structural vs Textual</h1>
-  <p class="post-subtitle">Git diff for trees &mdash; stop at first changed tool output. <code>pkg/diff.Compare</code> walks two agent traces' <code>tool_call</code> sequences and compares <code>ToolName</code> + <code>InputHash</code> per step &mdash; the same composite key <code>pkg/mocker</code> already used &mdash; instead of diffing raw JSON text, and returns the first step where the two traces disagree.</p>
+  <h1 class="post-title">Day 48 &mdash; Fault Injection for Tool RPCs</h1>
+  <p class="post-subtitle">Chaos mesh for agents &mdash; inject before production does. <code>pkg/fault</code> defines the synthetic timeout, 500, and stale-cache failures a replay can force onto one step, and <code>ToolMocker.Inject</code> makes that step fail on command &mdash; so an agent's error-handling path can be verified today, not whenever a real outage happens to hit it.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 47 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 48 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 31, 2026</span>
+    <span class="meta-item">August 1, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">8 min read</span>
   </div>
@@ -208,50 +208,56 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-47-diff-semantics-structural-vs-textual.png" alt="Day 47 — Diff Semantics — Structural vs Textual" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-48-fault-injection-for-tool-rpcs.png" alt="Day 48 — Fault Injection for Tool RPCs" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Git diff for trees &mdash; stop at first changed tool output.</p>
+<p>Chaos mesh for agents &mdash; inject before production does.</p>
 
-<p>That's the whole idea behind today's <code>pkg/diff</code> package, and like most one-line design briefs it hides a real decision: <em>diff</em> can mean two very different operations depending on what you're comparing. Compare two text files and you get a textual diff &mdash; line by line, byte by byte. Compare two agent traces the same way and you get almost nothing useful, because the two traces were never going to be byte-identical even when they made the exact same decisions.</p>
+<p>Every replay this repo has built since Day 44 answers the same question: what did the agent do. <code>pkg/fault</code>, the package added today, exists to answer a different one that replay alone can never touch &mdash; what would the agent have done if a tool call had failed &mdash; because a recorded trace has no way to tell you that on its own.</p>
 
-<h2 id="a-text-diff-assumes-two-files-are-the-same-shape">A Text Diff Assumes Two Files Are the Same Shape</h2>
+<h2 id="a-recorded-trace-only-ever-contains-what-happened">A Recorded Trace Only Ever Contains What Happened</h2>
 
-<p>Unix <code>diff</code> is one of the oldest, most reliable tools in software &mdash; it compares two files line by line and reports insertions, deletions, and changes. It works beautifully when "the same content" and "the same bytes" are the same claim, which is true for source code, config files, and most text.</p>
+<p><code>pkg/eventlog</code> and <code>pkg/mocker</code> pair every <code>tool_call</code> with the <code>tool_response</code> that actually came back for it. In the overwhelming majority of recorded runs, that response is a success &mdash; the tool worked, the agent moved on, nothing interesting happened at that step from a failure-handling point of view.</p>
 
-<p>An agent trace breaks that assumption immediately. Two runs of the identical prompt against the identical tools still carry different <code>timestamp_ns</code> values, different <code>span_id</code> UUIDs, and often differently-ordered JSON keys depending on which serializer produced each event. A textual diff of two such traces reports near-total disagreement on every single line, even when the model made the exact same tool calls in the exact same order both times.</p>
+<p>That leaves a whole category of agent behavior structurally invisible to replay: what happens when a tool call times out, what happens when it comes back with a 500, what happens when it silently serves stale data instead of failing outright. None of those are in the log, because none of them happened during the run that got recorded.</p>
 
-<p><strong>So what:</strong> the moment "same decision" and "same bytes" stop being the same claim, a byte-level diff stops answering the question you actually have &mdash; and an agent trace hits that split on line one.</p>
+<p><strong>So what:</strong> replaying a trace can only re-run the path that was actually taken &mdash; if you want to see the path the agent <em>doesn't</em> usually take, you have to make a step fail on purpose, because waiting for it to fail on its own defeats the entire point of testing it in advance.</p>
 
-<h2 id="the-ds-analogy-two-witness-statements-one-interrogation-room">The DS Analogy &mdash; Two Witness Statements, One Interrogation Room</h2>
+<h2 id="the-ds-analogy-the-fire-alarm-test-button">The DS Analogy &mdash; the Fire Alarm Test Button</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; comparing accounts, not comparing transcripts</div>
-  Two witnesses to the same event, interviewed separately, almost never use the same words. One says "the car sped off," the other says "the vehicle accelerated away quickly" &mdash; a word-for-word diff of their statements would flag nearly every sentence as different. An investigator doesn't read the transcripts that way. They extract the facts each statement claims &mdash; make, color, direction &mdash; and compare fact by fact, because the paraphrase never mattered and the first fact where the two accounts genuinely disagree is the only thing worth chasing.
+  <div class="attr-label">DS analogy &mdash; testing the response, not waiting for the emergency</div>
+  Every fire alarm panel in an office building has a test button. Pressing it doesn't start a fire &mdash; it forces the alarm circuit to behave exactly as if one had started, so the building can verify the sirens sound, the doors unlock, and the evacuation routine actually runs. Nobody waits for a real fire to find out the alarm system works; by the time you'd know, it's too late to fix it.
 </div>
 
-<p>That is the move <code>pkg/diff</code> makes on agent traces: extract the fact each step claims &mdash; which tool, with what input &mdash; and compare that, not the paraphrase sitting around it in the JSON payload.</p>
+<p><code>ToolMocker.Inject</code> is that test button for a tool call. It doesn't wait for a real timeout to arrive during a live run &mdash; it forces a chosen step to behave as if one had, so the surrounding replay can verify the agent's error-handling path actually runs, on demand, before that path is the only thing standing between a real outage and a bad outcome.</p>
 
-<p><strong>So what:</strong> a structural diff isn't a smarter textual diff &mdash; it's a decision to compare a different, smaller thing entirely: the claim a step makes, not the prose it's written in.</p>
+<p><strong>So what:</strong> the value of a fault injector, like the value of a fire drill, comes entirely from running it before the failure it simulates is real &mdash; run it after, and all it can do is confirm what already went wrong.</p>
 
-<h2 id="the-composite-key-already-solved-half-this-problem">The Composite Key Already Solved Half This Problem</h2>
+<h2 id="kind-sentinel-errors-and-the-atstep-key">Kind, Sentinel Errors, and the atStep Key</h2>
 
-<p><a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">Day 46</a> covered why <code>pkg/mocker.ToolMocker</code> keys its frozen responses on <code>SHA-256(tool_name + ":" + input_hash)</code> rather than the raw call: a composite key identifies <em>which decision was made</em> &mdash; call this tool, with this effective input &mdash; without carrying every byte of the request along with it. <code>pkg/diff</code> reuses that exact pair of fields as its unit of comparison.</p>
+<p><code>fault.Kind</code> defines three synthetic failures: <code>KindTimeout</code>, <code>KindHTTP500</code>, and <code>KindStaleCache</code>, each backed by its own sentinel error &mdash; <code>ErrTimeout</code>, <code>ErrHTTP500</code>, <code>ErrStaleCache</code> &mdash; so a caller can assert exactly which fault fired with a plain <code>errors.Is</code> check instead of parsing an error string.</p>
 
-<pre><code>for i := 0; i < min(len(callsA), len(callsB)); i++ {
-    if callsA[i].ToolName != callsB[i].ToolName {
-        return divergence(step: i+1, reason: "tool_name")
-    }
-    if callsA[i].InputHash != callsB[i].InputHash {
-        return divergence(step: i+1, reason: "input_hash")
+<pre><code>func (k Kind) Err() error {
+    switch k {
+    case KindTimeout:
+        return ErrTimeout
+    case KindHTTP500:
+        return ErrHTTP500
+    case KindStaleCache:
+        return ErrStaleCache
+    default:
+        return fmt.Errorf("fault: unknown kind %q", string(k))
     }
 }</code></pre>
 
-<p>Nothing about <code>SpanID</code>, <code>Timestamp</code>, or the raw <code>Payload</code> bytes enters the comparison at all. Two steps are defined as "the same decision" exactly when replay would serve them the identical frozen response &mdash; which is precisely what <code>ToolName</code> + <code>InputHash</code> already determines, since that's the lookup key <code>ToolMocker.Respond</code> uses.</p>
+<p><code>ToolMocker.Inject(atStep, kind)</code> configures which call fails, and it addresses that call by position &mdash; the 1-based number of the <code>Respond</code> call in sequence &mdash; not by tool name. That mirrors how <code>ToolMocker</code> already counts calls internally: <code>callCount</code> increments on every <code>Respond</code>, regardless of which tool is being called, so a fault fires at "the 6th tool call this run makes," not "the 6th call to a specific tool."</p>
+
+<p><strong>So what:</strong> keying a fault on call position instead of tool identity means the exact same injection call, <code>Inject(6, fault.KindTimeout)</code>, reproduces the identical failure every time the trace is replayed, no matter how many different tools are mixed together in the sequence leading up to step 6.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -271,56 +277,49 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  TA["Trace A tool_calls"]
-  TB["Trace B tool_calls"]
-  CMP["Compare per step"]
-  MATCH{"Same tool plus hash?"}
-  NEXT["Advance to next step"]
-  DIV["Divergence found"]
+  CALL["Respond called"]
+  CNT["callCount plus one"]
+  CHK{"Matches injected step?"}
+  FAIL["Return fault error"]
+  LOOKUP["Look up frozen response"]
 
-  TA --> CMP
-  TB --> CMP
-  CMP --> MATCH
-  MATCH -->|"yes"| NEXT
-  MATCH -->|"no"| DIV
-  NEXT --> CMP
+  CALL --> CNT
+  CNT --> CHK
+  CHK -->|"yes"| FAIL
+  CHK -->|"no"| LOOKUP
 </pre>
 
-<p><strong>So what:</strong> a good composite key pays for itself twice &mdash; the same field that let <code>pkg/mocker</code> serve deterministic replay in Day 44 is the field that makes structural diff cheap to write in Day 47, because "the unit that matters" was already decided.</p>
+<h2 id="why-respond-checks-injection-before-the-lookup">Why Respond Checks Injection Before the Lookup</h2>
 
-<h2 id="why-toolname-wins-the-tie-break">Why ToolName Wins the Tie-Break</h2>
+<p><code>Respond</code> increments <code>callCount</code>, checks it against the configured injection, and returns the fault's error immediately if it matches &mdash; before ever touching the map of frozen responses. That ordering is deliberate: it means a step with a perfectly good recorded response, one where the tool call genuinely succeeded during the original run, can still be forced to fail during replay.</p>
 
-<p>When both <code>ToolName</code> and <code>InputHash</code> differ at the same step, <code>Compare</code> reports <code>tool_name</code> as the reason, not <code>input_hash</code> &mdash; the check runs first and returns immediately. That ordering is a judgment call, not an arbitrary one: calling a different tool altogether is a more fundamental divergence than calling the same tool with different input, even though either fact alone already proves the traces disagree.</p>
-
-<p>Two witnesses who disagree on both the getaway car's color and its direction of travel are not "twice as divergent" &mdash; the fact that they can't even agree on the vehicle is the one worth leading with. A different tool call subsumes a different input; reporting the input mismatch when the tool itself already changed buries the more useful fact under a less useful one.</p>
+<p>If the check ran the other way &mdash; look up the response first, only fail when there's nothing recorded &mdash; injection could only ever simulate failures the log already implied were possible. The whole reason to inject a fault is to test a step that <em>didn't</em> fail live, which means the override has to win regardless of what actually happened.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">fields compared per step</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">raw payload bytes inspected</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">divergence returned, always the first</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">fault kinds defined</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">wired to the CLI today</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">lines changed in replay.Run</span></div>
 </div>
 
-<p><strong>So what:</strong> a diff algorithm's tie-break rule is itself a claim about which kind of disagreement is more informative &mdash; getting it backwards doesn't make the tool wrong, just less useful at the exact moment someone needs the answer fastest.</p>
+<p><strong>So what:</strong> checking the injection before the frozen-response lookup is what makes the test button meaningful &mdash; a fault that could only fire where a failure already existed in the log wouldn't be testing anything the log hadn't already told you.</p>
 
-<h2 id="a-length-mismatch-is-still-a-divergence">A Length Mismatch Is Still a Divergence</h2>
+<h2 id="zero-code-changes-to-run">Zero Code Changes to Run</h2>
 
-<p>If every shared step matches but one trace ran three tool calls further than the other, that is not "the traces agreed on everything they had in common." A witness who stops their account three sentences before the other witness didn't corroborate those three sentences &mdash; they simply never spoke to them.</p>
+<p><code>replay.Run</code> and <code>replay.RunFromReader</code> needed no change at all to support fault injection. Both already wrap any error <code>Respond</code> returns with the step number it happened at &mdash; <code>fmt.Errorf("replay: step %d: %w", steps+1, err)</code> &mdash; because that's exactly what <code>ErrUnknownCall</code> needed since Day 44. An injected fault is, from <code>Run</code>'s point of view, just another error <code>Respond</code> returned, so it surfaces through the identical path.</p>
 
-<p><code>Compare</code> treats the point where the shorter trace ends as the divergence, tagged <code>missing_in_a</code> or <code>missing_in_b</code> depending on which trace was longer. Reporting <code>Found() == false</code> here would hide a real behavioral difference: one run took an action &mdash; a retry, an extra lookup, a reroute &mdash; that the other run never took at all.</p>
-
-<p><strong>So what:</strong> "no divergence found" has to mean the traces actually matched everywhere they overlap <em>and</em> ran the same length &mdash; conflating "ran out of shared steps to compare" with "agreed" is the kind of bug that hides real regressions behind a green checkmark.</p>
+<p>That composes cleanly with <code>--stop-at-step</code> too: if the halt step is set lower than the injected step, replay stops before ever reaching the fault, and <code>Inject</code> configured a failure that simply never fires. Nothing about that interaction needed to be coded &mdash; it falls out of the two flags addressing the same step counter independently.</p>
 
 <div class="pullquote">
-  <p>A textual diff tells you every byte that differs. A structural diff tells you the first decision that differs &mdash; which is almost always the only one you actually came to ask about.</p>
+  <p>The cheapest failure to test is the one you cause on purpose, at a time and place you chose, instead of the one that eventually finds you on its own.</p>
 </div>
 
-<p>Git diff for trees, applied to agent traces instead of directory structures, comes down to the same discipline as everything else this repo has built since Day 44: define the unit that actually matters &mdash; a tool call's name and effective input &mdash; and refuse to let noise in the surrounding bytes distract from it.</p>
+<p>Only <code>--inject-timeout</code> is wired to the <code>traceforge replay</code> CLI this round; <code>http_500</code> and <code>stale_cache</code> are usable today through <code>ToolMocker.Inject</code> as a library call, and get their own flags once there's a concrete replay workflow that needs them from the command line. That's a scope cut, not a gap &mdash; the fault taxonomy and the mechanism that fires it are both already general.</p>
 
-<p><strong>So what:</strong> the hardest part of writing a diff algorithm is rarely the walk-and-compare loop itself &mdash; it's deciding, up front, what two things have to be equal before you're willing to call them "the same," and that decision is where structural diff earns its keep over textual diff every time.</p>
+<p><strong>So what:</strong> the fire alarm test button doesn't need every possible emergency wired up to be useful on day one &mdash; it needs the one failure mode that's actually costing time right now, plus a mechanism general enough that adding the next one is a flag, not a redesign.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 47 of 150 &mdash; Diff Semantics &mdash; Structural vs Textual</p>
-  <p><em>Next up:</em> <a href="day-48-fault-injection-for-tool-rpcs.html">Day 48 &mdash; Fault Injection for Tool RPCs</a></p>
+  <p>AI Learning &middot; Day 48 of 150 &mdash; Fault Injection for Tool RPCs</p>
+  <p><em>Next up:</em> <a href="day-49-streaming-parsers-oom-safe-debugging.html">Day 49 &mdash; Streaming Parsers &mdash; OOM-Safe Debugging</a></p>
 </div>
 
 <div class="footnote-row">
@@ -328,15 +327,15 @@ flowchart LR
   <div class="footnote-links">
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-44-event-sourcing-agent-runs.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 44 &mdash; Event Sourcing for Agent Runs (the AgentEvent fields this diff compares)</span>
+      <span>Day 44 &mdash; Event Sourcing for Agent Runs (the tool_call/tool_response pairing pkg/fault interrupts)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-46-deterministic-mocks-record-and-replay.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 46 &mdash; Deterministic Mocks, Record and Replay (the composite key pkg/diff reuses)</span>
+      <span>Day 46 &mdash; Deterministic Mocks, Record and Replay (the Respond call this fault overrides)</span>
     </a>
-    <a href="https://en.wikipedia.org/wiki/Diff">
+    <a href="https://en.wikipedia.org/wiki/Chaos_engineering">
       <span class="footnote-arrow">&rarr;</span>
-      <span>diff (Unix) &mdash; the textual, line-by-line comparison this post contrasts against</span>
+      <span>Chaos engineering &mdash; the general practice of injecting failure deliberately to verify recovery paths</span>
     </a>
   </div>
 </div>
@@ -347,22 +346,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-text-diff-assumes-two-files-are-the-same-shape">A Text Diff Assumes Same Shape</a></li>
-      <li><a href="#the-ds-analogy-two-witness-statements-one-interrogation-room">Two Witness Statements</a></li>
-      <li><a href="#the-composite-key-already-solved-half-this-problem">The Composite Key</a></li>
-      <li><a href="#why-toolname-wins-the-tie-break">Why ToolName Wins</a></li>
-      <li><a href="#a-length-mismatch-is-still-a-divergence">A Length Mismatch Still Counts</a></li>
+      <li><a href="#a-recorded-trace-only-ever-contains-what-happened">A Trace Only Has What Happened</a></li>
+      <li><a href="#the-ds-analogy-the-fire-alarm-test-button">The Fire Alarm Test Button</a></li>
+      <li><a href="#kind-sentinel-errors-and-the-atstep-key">Kind, Sentinels, atStep</a></li>
+      <li><a href="#why-respond-checks-injection-before-the-lookup">Why Injection Wins the Race</a></li>
+      <li><a href="#zero-code-changes-to-run">Zero Code Changes to Run</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-47-diff-semantics-structural-vs-textual.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-48-fault-injection-for-tool-rpcs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Diff+Semantics+%E2%80%94+Structural+vs+Textual+%E2%80%94+AI+Learning+%C2%B7+Day+47+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-47-diff-semantics-structural-vs-textual.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Fault+Injection+for+Tool+RPCs+%E2%80%94+AI+Learning+%C2%B7+Day+48+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-48-fault-injection-for-tool-rpcs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -375,17 +374,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D46</span> AI Learning</div>
-          <a href="day-46-deterministic-mocks-record-and-replay.html" class="series-post-title">Deterministic Mocks &mdash; Record and Replay</a>
+          <div class="series-post-kicker"><span class="series-post-num">D47</span> AI Learning</div>
+          <a href="day-47-diff-semantics-structural-vs-textual.html" class="series-post-title">Diff Semantics &mdash; Structural vs Textual</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D47</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Diff Semantics &mdash; Structural vs Textual</div>
-          <div class="series-post-desc">pkg/diff compares two traces by ToolName + InputHash, the same composite key pkg/mocker already used, instead of diffing raw JSON text, and returns the first step where they disagree</div>
+          <div class="series-post-kicker"><span class="series-post-num">D48</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Fault Injection for Tool RPCs</div>
+          <div class="series-post-desc">pkg/fault defines synthetic timeout, 500, and stale-cache failures; ToolMocker.Inject forces a chosen step to fail with one of them so an agent's error path can be verified on demand</div>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D48</span> AI Learning</div>
-          <a href="day-48-fault-injection-for-tool-rpcs.html" class="series-post-title">Fault Injection for Tool RPCs</a>
+          <div class="series-post-kicker"><span class="series-post-num">D49</span> AI Learning</div>
+          <a href="day-49-streaming-parsers-oom-safe-debugging.html" class="series-post-title">Streaming Parsers &mdash; OOM-Safe Debugging</a>
         </div>
       </div>
     </div>
