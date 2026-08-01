@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 49 &mdash; Streaming Parser &mdash; Don't OOM the Debugger | Experience Series</title>
-<meta name="description" content="At Agoda, WhiteFalcon's query engine never pulls a raw day of rows into memory &mdash; it fetches histogram buckets and merges bounded structures. traceforge replay had the same latent problem: it read a whole shared trace log to answer one debugging question. The fix wasn't the clean win I expected.">
-<meta property="og:title" content="Day 49 &mdash; Streaming Parser &mdash; Don't OOM the Debugger">
-<meta property="og:description" content="WhiteFalcon's cross-tier query engine stays bounded-memory by merging histogram buckets, never raw rows. traceforge replay didn't &mdash; until a streaming rewrite, whose real benchmark numbers weren't the clean win a 'just stream it' instinct predicts.">
+<title>Day 48 &mdash; Inject Timeout &mdash; Chaos for Tool RPCs | Experience Series</title>
+<meta name="description" content="At Wayfair, a circuit breaker protecting 20k+ suppliers only earns its keep if it trips correctly before a bad day gets worse — and nobody can wait for a real SPCS outage to find out. traceforge replay --inject-timeout forces an agent's tool call to fail the same way, on demand.">
+<meta property="og:title" content="Day 48 — Inject Timeout — Chaos for Tool RPCs">
+<meta property="og:description" content="Wayfair's supplier bulk-submission pipeline leaned on a circuit breaker to survive SPCS outages at 20k+ supplier scale — verified by tripping it on purpose, not by waiting for the real thing. agent-replay-engine's new --inject-timeout flag does the same for an agent's tool calls.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-49-streaming-parser-dont-oom-the-debugger.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-48-inject-timeout-chaos-for-tool-rpcs.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-49-streaming-parser-dont-oom-the-debugger.png">
-<meta property="article:published_time" content="2026-07-31">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-48-inject-timeout-chaos-for-tool-rpcs.png">
+<meta property="article:published_time" content="2026-08-01">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,23 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 49 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">WhiteFalcon</span>
-    <span class="tag">Bounded Memory</span>
-    <span class="tag">Streaming</span>
+    <span class="tag accent">Experience &middot; Day 48 of 150</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Circuit Breakers</span>
+    <span class="tag">Fault Injection</span>
   </div>
-  <h1 class="post-title">Day 49 &mdash; Streaming Parser &mdash; Don't OOM the Debugger</h1>
-  <p class="post-subtitle">WhiteFalcon's query engine at Agoda never pulls a raw day of rows into memory &mdash; it fetches histogram buckets and merges bounded structures. <code>traceforge replay</code> had the same latent problem, just smaller: it read a whole shared trace log to answer one debugging question. Fixing it wasn't the clean win a "just stream it" instinct predicts.</p>
+  <h1 class="post-title">Day 48 &mdash; Inject Timeout &mdash; Chaos for Tool RPCs</h1>
+  <p class="post-subtitle">At Wayfair, a circuit breaker protecting bulk price updates from 20k+ suppliers only earns its keep if it trips correctly before a slow dependency turns into a cascading outage &mdash; and nobody gets to wait for a real SPCS failure to find out. <code>traceforge replay --inject-timeout</code> forces an agent's tool call to fail the same way, on command.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 49 of 150</span>
+    <span class="meta-item">Experience &middot; Day 48 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">July 31, 2026</span>
+    <span class="meta-item">August 1, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">8 min read</span>
   </div>
@@ -209,105 +208,88 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-49-streaming-parser-dont-oom-the-debugger.png" alt="Day 49 — Streaming Parser — Don't OOM the Debugger" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-48-inject-timeout-chaos-for-tool-rpcs.png" alt="Day 48 — Inject Timeout — Chaos for Tool RPCs" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I ran <code>traceforge replay --log shared-runs.jsonl --trace-id trace-1 --stop-at-step 1</code> against a test log with 5,000 other traces sitting in the same file, wanting to know exactly one thing: what does trace-1's first tool call look like. The command read the whole file first &mdash; parsed every one of those 5,000 unrelated traces, sorted the lot by <code>seq_num</code>, then finally filtered down to the one trace I'd asked for. Answering a one-step question cost a full-file read.</p>
+<p>The failure mode I actually worried about at Wayfair was never "SPCS is down." It was "SPCS is down, and the system protecting us from it has never once been tested against a real outage, because real outages don't schedule themselves for a convenient afternoon."</p>
 
-<p>That bothered me because I'd already built a query engine that doesn't make this mistake, at a company where making it would have meant a very different kind of incident report.</p>
+<p>A circuit breaker you've never watched trip is a circuit breaker you're hoping works. The only way to know before it matters is to trip it yourself, on a system that isn't actually broken, and watch what happens downstream.</p>
 
-<h2 id="whitefalcons-query-engine-never-loads-a-raw-day">WhiteFalcon's Query Engine Never Loads a Raw Day</h2>
+<h2 id="20k-suppliers-one-circuit-breaker-away-from-a-bad-day">20k+ Suppliers, One Circuit Breaker Away From a Bad Day</h2>
 
-<p>At Agoda, I spent about five months as a Senior Engineer contributing to WhiteFalcon, the in-house time-series database backing Grafana dashboards across the company &mdash; 1.5 to 1.8 trillion events a day, flowing through Kafka into Rust consumers, a Redis hot tier for the last few days, and a Ceph-backed S3/Parquet cold tier for everything older. The Agoda team built the storage tiers, the Kafka pipeline, and the RoaringBitmap indexing engine underneath all of it; I didn't design any of that.</p>
-
-<p>What I did build was an extension to the Scala query engine that let one Grafana query span both tiers &mdash; hot and cold &mdash; in a single request. The naive version of that feature would fetch every raw row from Redis, fetch every raw row from Parquet, concatenate them, and compute a percentile over the combined set. That version doesn't survive contact with a metric anyone actually queries at Agoda's scale: pulling raw rows for a 30-hour window means pulling rows for a 30-hour window, full stop, and nothing about "just add histogram support later" saves you if the query path was never built to avoid materializing them in the first place.</p>
+<p>At Wayfair, I led the PAS and Pricing, Promotions &amp; Discounts teams and architected a GCP event-driven Global Pricing &amp; Promotion Engine that cut price propagation from hours to sub-seconds across 20k+ suppliers. Suppliers submit bulk price and promotion updates &mdash; up to 250k+ SKU updates per supplier, in near real-time &mdash; and every one of those submissions eventually calls out to SPCS &mdash; Supplier Cost Service, the downstream dependency that computes and validates net cost for each part of the batch.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">My role &mdash; Agoda, Senior Engineer, ~5 months</div>
-  I built the cross-tier query engine extension described here and added a new Kubernetes-tag cardinality dimension to the indexing layer. WhiteFalcon itself, the RoaringBitmap engine, and the Kafka ingest pipeline are the Agoda team's design &mdash; I extended the query path on top of what they'd already built.
+  <div class="attr-label">My role &mdash; Wayfair, Bengaluru, Nov 2024&ndash;Mar 2026, Sr. Software Engineer III, Led PAS &amp; Pricing Promotion Teams</div>
+  I owned the high-throughput bulk processing framework behind this pipeline &mdash; distributed rate limiting and circuit breakers that kept it at 99.99% availability by eliminating degradation and cascading failures under peak global load. The chaos-testing pattern below is how that circuit breaker's trip condition got verified, not a tool I shipped as a product feature.
 </div>
 
-<p>WhiteFalcon avoids the naive version because of a decision made well before I touched the codebase: every tier stores histogram bucket counts, not raw rows. A cross-tier query fetches one bounded histogram from Redis, one bounded histogram from Parquet, adds the corresponding buckets together, and computes the percentile once on the merged result. The size of the structure the query engine ever holds in memory is fixed by the bucket count, not by how many raw events fell into the window.</p>
+<p>A supplier submission that hits a slow or failing SPCS doesn't get to hang forever. The pipeline retries the call a fixed number of times with a fixed delay between attempts and, if SPCS is still failing after that, marks the task <code>ERROR</code> and the project <code>FAILED</code> &mdash; an internal alert email (Graymatter) fires and an audit event (Scribe) is logged, and the supplier or an admin has to resubmit. That retry-then-fail boundary is the circuit breaker's whole job: stop hammering a struggling dependency and fail fast instead of letting one slow service back up 20k+ suppliers' worth of traffic behind it.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> bounded memory in a query engine isn't a performance optimization bolted on later &mdash; it's a property of the storage format itself, decided before the first query ever runs.</p>
+<p><strong>So what:</strong> the retry count and the fixed delay between attempts aren't just tuning knobs &mdash; they're the exact line between "SPCS is having a bad minute, and we absorbed it" and "SPCS is having a bad minute, and now so is everyone submitting a price update."</p>
 
-<h2 id="a-shared-trace-log-has-the-same-shape-problem">A Shared Trace Log Has the Same Shape Problem</h2>
+<h2 id="the-bridge-you-cant-wait-for-a-real-outage-to-verify-the-breaker">The Bridge: You Can't Wait for a Real Outage to Verify the Breaker</h2>
 
-<p><code>agent-replay-engine</code>'s log format never had that discipline. <code>eventlog.ReadJSONL</code> reads every line of a file into one slice, sorts it, and hands it back &mdash; correct for a single recorded run's log, but production traces don't live one-per-file. One rolling log accumulates every run anyone has recorded, the same way a day of WhiteFalcon events accumulates in one Kafka partition before landing in Redis. Replaying trace-1 out of that shared file means finding it inside everyone else's traces too, and the old code paid to load all of them to do it.</p>
+<p>Verifying that boundary against a live SPCS outage means waiting for SPCS to actually go down, on a day nobody picked, and hoping the monitoring catches everything that happens next. That's not a test plan, it's a bet that the next real outage happens to be instructive instead of just damaging.</p>
 
-<table>
-<thead><tr><th>Path</th><th>What it holds in memory</th><th>Scales with</th></tr></thead>
-<tbody>
-<tr><td><code>Run</code> + <code>ReadJSONL</code></td><td>every trace in the file, then a filtered copy</td><td>total shared-log size</td></tr>
-<tr><td><code>RunFromReader</code> (streaming)</td><td>one scanner line + the target trace's own calls</td><td>target trace size only</td></tr>
-</tbody>
-</table>
+<p>An agent's tool calls have the identical problem, at a smaller and more debuggable scale. A recorded trace only ever shows what a tool call actually did &mdash; almost always succeed &mdash; so the path an agent takes when a tool times out or comes back with a 500 is invisible to replay unless you force it to happen.</p>
 
-<p>The fix was a streaming pair: <code>eventlog.Scanner</code> reads one JSON Lines record at a time instead of buffering the file, and <code>mocker.LoadFromReader</code> plus <code>replay.RunFromReader</code> stream a trace's tool calls straight through it. <code>traceforge replay</code> now reads <code>--log</code> in two streaming passes instead of one buffered pass &mdash; a real tradeoff, not a free upgrade, and I benchmarked it before writing a single word of this post to find out which way it actually cut.</p>
+<p><strong>So what:</strong> "wait for the real failure to test the failure path" isn't a strategy at either scale &mdash; it's the same gap, whether the thing behind the breaker is a supplier price submission or a single tool call inside an agent run.</p>
 
-<h2 id="the-benchmark-wasnt-the-story-i-expected">The Benchmark Wasn't the Story I Expected</h2>
+<h2 id="what-todays-code-enforces-fail-the-step-on-purpose">What Today's Code Enforces: Fail the Step, on Purpose</h2>
 
-<p>I ran <code>BenchmarkRunBatchVsStream</code> against a synthetic shared log &mdash; 51 traces, one 100-step target trace mixed in with 50 others, about 3.7MB total. My prior, walking in, was "streaming wins on memory and probably wins on speed too, because it never sorts the whole file." Half of that was right.</p>
+<p>The new <code>pkg/fault</code> package in <code>agent-replay-engine</code> defines three synthetic failures &mdash; timeout, HTTP 500, stale cache &mdash; and <code>ToolMocker.Inject(atStep, kind)</code> forces a chosen tool-call step to fail with one of them during replay, regardless of what actually happened when that call was originally recorded. <code>traceforge replay --log run.jsonl --trace-id abc --inject-timeout 6</code> forces the 6th tool call in the trace to fail with a synthetic timeout, and the replay's error-handling path runs exactly as if a live timeout had hit.</p>
+
+<p>That is a chaos test in miniature: cause the failure deliberately, on your own schedule, against a system that would otherwise never show you what its unhappy path actually does.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">-20%</span><span class="stat-label">peak memory, streaming vs batch</span></div>
-  <div class="stat-cell"><span class="stat-num">+40%</span><span class="stat-label">wall time, streaming vs batch</span></div>
-  <div class="stat-cell"><span class="stat-num">2x</span><span class="stat-label">allocations, streaming vs batch</span></div>
+  <div class="stat-cell"><span class="stat-num">20k+</span><span class="stat-label">suppliers behind the pipeline</span></div>
+  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates per supplier</span></div>
+  <div class="stat-cell"><span class="stat-num">99.99%</span><span class="stat-label">availability, rate limits + breakers</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">step forced to fail, on command</span></div>
 </div>
 
-<p>Streaming used about 20% less peak memory &mdash; 18.4MB against 22.9MB &mdash; which is the number that actually matters for not OOMing a laptop against a much larger shared log. But it was roughly 40% slower and allocated twice as many objects, because <code>traceforge replay</code> now makes two single-pass scans over the file (one to build the mocker, one to replay) and each pass decodes every line into its own event, where the old path made one <code>ReadJSONL</code> pass with amortized slice growth followed by a cheap filter. Two cheaper-looking passes cost more than one expensive-looking one.</p>
+<p><strong>So what:</strong> a breaker that trips correctly against a synthetic failure is the same breaker that trips correctly against a real one &mdash; the synthetic version is just the one you get to run on a Tuesday afternoon instead of during an incident.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "streaming is better" is a claim about one resource, not a law &mdash; I'd built the WhiteFalcon comparison in my head as "bounded memory equals better," and the benchmark corrected the assumption that bounded memory is free.</p>
+<h2 id="testing-a-breaker-without-cutting-the-power">Testing a Breaker Without Cutting the Power</h2>
 
-<h2 id="the-unqualified-win-was-somewhere-else">The Unqualified Win Was Somewhere Else</h2>
+<p>An electrician verifying a circuit breaker doesn't wait for a genuine short circuit somewhere in the building. They isolate the circuit and trip the breaker deliberately, watching whether it interrupts the current the way it's supposed to and whether everything downstream fails safe instead of catching fire. The building's power stays on the whole time &mdash; only the one circuit under test ever sees the fault.</p>
 
-<p>The unambiguous result was in a different measurement: how much of the file <code>--stop-at-step</code> actually has to read. I built a 5,000-step, 1.78MB trace and stopped replay at step 1. The old batch path always read and sorted the entire 1.78MB first, no matter where <code>--stop-at-step</code> cut it off &mdash; sorting requires seeing everything before you can claim anything is in order.</p>
-
-<p>The streaming path stopped the moment it hit the limit.</p>
+<p><code>ToolMocker.Inject</code> does the same thing to one tool call inside a recorded trace. Every other step in the replay runs against its normal, successful recorded response &mdash; only the chosen step sees the synthetic failure, isolated the same way the electrician isolates a single circuit before testing it.</p>
 
 <div class="pullquote">
-  <p>65,536 bytes read to stop at step 1, out of a 1.78MB file &mdash; 3.7% of it, and the number doesn't grow no matter how many steps come after.</p>
+  <p>You don't learn whether a breaker works by waiting for a fire. You learn it by tripping the breaker yourself, on a circuit you chose, before the fire has a chance to ask.</p>
 </div>
 
-<p>That number is exactly one scanner buffer, which is the honest shape of the win: streaming can't answer "how many steps are left" without reading the rest of the file, so the CLI stopped promising that answer instead of paying to compute it. Trading a nice-to-have message for genuinely not reading bytes you don't need is the same call WhiteFalcon's query engine makes when a dashboard panel only needs the last three hours &mdash; it doesn't fetch a fourth hour to tell you how much more data exists past your window.</p>
+<h2 id="the-ticket-that-stopped-being-a-guess">The Ticket That Stopped Being a Guess</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> the real payoff of streaming wasn't "faster" or even "less memory" in the aggregate &mdash; it was making "I don't need the rest of this" a decision the code could act on immediately, instead of a fact it only discovered after paying to read everything.</p>
+<p>At Wayfair, confidence in the circuit breaker came from deliberately forcing SPCS-down conditions in a controlled environment and watching the retry-then-fail path actually execute &mdash; not from reading the retry configuration and assuming it would behave as documented under real load. The difference between those two is the difference between a system you've verified and a system you've merely described.</p>
 
-<h2 id="a-card-catalog-not-a-photocopier">A Card Catalog, Not a Photocopier</h2>
-
-<p>The physical version of this is a library card catalog versus photocopying the whole drawer to find one card. Flipping through the catalog one card at a time to find "Kafka" costs you exactly as many cards as it takes to reach "Kafka," and stops the moment you find it. Photocopying the drawer first costs you every card in it regardless of where "Kafka" happens to sit &mdash; and if the drawer holds five thousand cards instead of fifty, the photocopier's cost keeps climbing while the person flipping through it barely notices.</p>
-
-<p>What the catalog can't do is jump straight to card 3,000 without having flipped past the first 2,999 &mdash; that's the ordering assumption streaming leans on, the same way a card catalog only works because someone alphabetized it first. <code>RunFromReader</code> trusts the recorder's append-only <code>seq_num</code> order instead of re-sorting, because buffering enough of the log to sort it would mean photocopying the drawer anyway.</p>
-
-<h2 id="replay-has-to-work-on-laptop-ram">Replay Has to Work on Laptop RAM</h2>
-
-<p>WhiteFalcon's bounded-memory discipline exists because a query engine serving production dashboards can't OOM on a query someone typed into Grafana. <code>traceforge replay</code>'s target audience is smaller &mdash; one engineer debugging one trace on one laptop &mdash; but the failure mode is the same shape: reading more than you need, just to answer a question about a small part of a much larger file.</p>
-
-<p>The benchmark taught me the honest version of that lesson: streaming isn't automatically the right answer everywhere it's technically possible, and shipping it anyway means being able to say exactly which resource it actually saves, and which ones it costs. For a debugging CLI, bounded memory is worth the CPU. That's a judgment call, not a law of nature &mdash; the same one WhiteFalcon's designers made about histogram buckets, well before I ever touched their query engine.</p>
+<p><code>--inject-timeout</code> exists for LensAI and TraceForge's version of that same discipline: an agent's error-handling code is only real once someone has forced it to run, not just read it and trusted the happy path was the only path that mattered.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 49 of 150 &mdash; Streaming Parser &mdash; Don't OOM the Debugger</p>
-  <p><em>Next up:</em> Day 50 &mdash; coming soon</p>
+  <p>Experience &middot; Day 48 of 150 &mdash; Inject Timeout &mdash; Chaos for Tool RPCs</p>
+  <p><em>Next up:</em> <a href="day-49-streaming-parser-dont-oom-the-debugger.html">Day 49 &mdash; Streaming Parser &mdash; Don't OOM the Debugger</a></p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-44-event-sourcing-events-hallucinate.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>When Percentiles Lie &mdash; Cross-Tier Queries (the histogram-bucket merge this post's bounded-memory discipline comes from)</span>
+      <span>Day 44 &mdash; Event Sourcing &mdash; But the Events Hallucinate (the tool_call/tool_response pairing this fault overrides)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-47-diff-two-traces-git-blame-for-agents.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 47 &mdash; Diff Two Traces &mdash; Git Blame for Agents (same repo, the diff engine this streaming replay sits alongside)</span>
+      <span>Day 47 &mdash; Diff Two Traces &mdash; Git Blame for Agents (same repo, same composite tool-call addressing)</span>
     </a>
-    <a href="https://pkg.go.dev/bufio#Scanner">
+    <a href="https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern">
       <span class="footnote-arrow">&rarr;</span>
-      <span>bufio.Scanner &mdash; the Go standard library pattern eventlog.Scanner follows</span>
+      <span>Circuit breaker design pattern &mdash; the resilience pattern this fault-injection test verifies</span>
     </a>
   </div>
 </div>
@@ -318,23 +300,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#whitefalcons-query-engine-never-loads-a-raw-day">WhiteFalcon Never Loads a Raw Day</a></li>
-      <li><a href="#a-shared-trace-log-has-the-same-shape-problem">A Shared Log, Same Problem</a></li>
-      <li><a href="#the-benchmark-wasnt-the-story-i-expected">The Benchmark's Real Result</a></li>
-      <li><a href="#the-unqualified-win-was-somewhere-else">The Unqualified Win</a></li>
-      <li><a href="#a-card-catalog-not-a-photocopier">A Card Catalog, Not a Photocopier</a></li>
-      <li><a href="#replay-has-to-work-on-laptop-ram">Replay Has to Work on Laptop RAM</a></li>
+      <li><a href="#20k-suppliers-one-circuit-breaker-away-from-a-bad-day">20k+ Suppliers, One Breaker</a></li>
+      <li><a href="#the-bridge-you-cant-wait-for-a-real-outage-to-verify-the-breaker">Why You Can't Wait for the Real Thing</a></li>
+      <li><a href="#what-todays-code-enforces-fail-the-step-on-purpose">What Today's Code Enforces</a></li>
+      <li><a href="#testing-a-breaker-without-cutting-the-power">Testing a Breaker Safely</a></li>
+      <li><a href="#the-ticket-that-stopped-being-a-guess">Not a Guess Anymore</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-49-streaming-parser-dont-oom-the-debugger.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-48-inject-timeout-chaos-for-tool-rpcs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Streaming+Parser+%E2%80%94+Don%27t+OOM+the+Debugger+%E2%80%94+Experience+%C2%B7+Day+49+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-49-streaming-parser-dont-oom-the-debugger.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Inject+Timeout+%E2%80%94+Chaos+for+Tool+RPCs+%E2%80%94+Experience+%C2%B7+Day+48+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-48-inject-timeout-chaos-for-tool-rpcs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -347,17 +328,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D48</span> Experience</div>
-          <a href="day-48-inject-timeout-chaos-for-tool-rpcs.html" class="series-post-title">Inject Timeout &mdash; Chaos for Tool RPCs</a>
+          <div class="series-post-kicker"><span class="series-post-num">D47</span> Experience</div>
+          <a href="day-47-diff-two-traces-git-blame-for-agents.html" class="series-post-title">Diff Two Traces &mdash; Git Blame for Agents</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D49</span> Experience &middot; now</div>
-          <div class="series-post-title">Streaming Parser &mdash; Don't OOM the Debugger</div>
-          <div class="series-post-desc">WhiteFalcon's query engine stays bounded-memory by merging histogram buckets, never raw rows &mdash; the honest benchmark behind giving traceforge replay the same discipline</div>
+          <div class="series-post-kicker"><span class="series-post-num">D48</span> Experience &middot; now</div>
+          <div class="series-post-title">Inject Timeout &mdash; Chaos for Tool RPCs</div>
+          <div class="series-post-desc">Wayfair's supplier bulk-submission circuit breaker only earns its keep if it trips correctly before a real outage &mdash; traceforge replay --inject-timeout forces an agent's tool call to fail the same way, on command</div>
         </div>
-        <div class="series-post series-post--draft">
-          <div class="series-post-kicker"><span class="series-post-num">D50</span> Experience</div>
-          <div class="series-post-title">Coming soon</div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D49</span> Experience</div>
+          <a href="day-49-streaming-parser-dont-oom-the-debugger.html" class="series-post-title">Streaming Parser &mdash; Don't OOM the Debugger</a>
         </div>
       </div>
     </div>
