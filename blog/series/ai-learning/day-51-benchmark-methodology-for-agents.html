@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 50 — Operability — CLI as API | AI Learning Series</title>
-<meta name="description" content="If it's not scriptable, on-call won't run it at 3am. replay and diff take the same shape of input and return the same shape of output — a contract a human and a CI job can both call the same way, verified by a smoke test that checks the interface, not the logic.">
-<meta property="og:title" content="Day 50 — Operability — CLI as API">
-<meta property="og:description" content="A debugging CLI's operability is decided at the flag-parsing layer, not bolted on after the mechanism is built. Why traceforge replay and diff share one contract, and why the smoke test that checks it is a different kind of correctness than the unit suite.">
+<title>Day 51 — Benchmark Methodology for Agents | AI Learning Series</title>
+<meta name="description" content="Same task spec or you're comparing different jobs. A closed set of typed success criteria, a task YAML that pins the prompt and seed, and why comparing two agents from separately-read transcripts is a category error &mdash; not a shortcut.">
+<meta property="og:title" content="Day 51 — Benchmark Methodology for Agents">
+<meta property="og:description" content="Two job candidates interviewed with different questions can't be honestly ranked against each other. agent-benchmark-runner fixes the task, the seed, and the grading rubric as data, so a comparison between two agents is a fair one.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-50-operability-cli-as-api.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-50-operability-cli-as-api.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-51-benchmark-methodology-for-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-51-benchmark-methodology-for-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-50-operability-cli-as-api.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-51-benchmark-methodology-for-agents.png">
 <meta property="article:published_time" content="2026-08-01">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 50 of 150</span>
-    <span class="tag">CLI Design</span>
-    <span class="tag">Contracts</span>
-    <span class="tag">Operability</span>
+    <span class="tag accent">AI Learning &middot; Day 51 of 150</span>
+    <span class="tag">Benchmarking</span>
+    <span class="tag">Evaluation</span>
+    <span class="tag">Methodology</span>
   </div>
-  <h1 class="post-title">Day 50 &mdash; Operability &mdash; CLI as API</h1>
-  <p class="post-subtitle">If it's not scriptable, on-call won't run it at 3am. <code>replay</code> and <code>diff</code> take the same shape of input and return the same shape of output &mdash; a contract a human and a CI job can both call the same way, verified today by a smoke test that checks the interface, not the logic underneath it.</p>
+  <h1 class="post-title">Day 51 &mdash; Benchmark Methodology for Agents</h1>
+  <p class="post-subtitle">Same task spec or you're comparing different jobs. A task YAML that pins the prompt, the seed, and the tools before either agent runs, plus a closed set of typed success criteria instead of a fuzzy judge &mdash; because "agent A felt better" is not a result, it's an unverified impression.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 50 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 51 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 1, 2026</span>
     <div class="meta-divider"></div>
@@ -208,29 +208,33 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-50-operability-cli-as-api.png" alt="Day 50 — Operability — CLI as API" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-51-benchmark-methodology-for-agents.png" alt="Day 51 — Benchmark Methodology for Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>If it's not scriptable, on-call won't run it at 3am.</p>
+<p>Same task spec or you're comparing different jobs.</p>
 
-<p>That's not a complaint about laziness. It's a fact about working memory: a tool with five undocumented ways to combine its flags is a tool nobody fully trusts under pressure, no matter how correct its logic is. Trust in a debugging tool isn't earned by the mechanism alone &mdash; it's earned by the interface being predictable enough that a tired person doesn't have to guess.</p>
+<p>That sentence is the entire methodology in eight words. Everything else in agent-benchmark-runner &mdash; the YAML schema, the typed criteria, the divergence report &mdash; exists to make that one constraint impossible to accidentally violate.</p>
 
-<h2 id="a-labeled-panel-vs-an-unlabeled-junction-box">A Labeled Panel vs. an Unlabeled Junction Box</h2>
+<h2 id="two-candidates-two-different-interviews">Two Candidates, Two Different Interviews</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the panel you can read vs. the one you can't</div>
-  A well-labeled circuit breaker panel lets anyone cut power to one specific room by reading a printed label and flipping one switch. A junction box with unlabeled wires technically lets you do the same thing &mdash; cut power to that room &mdash; but only if you already know which wire is which, which means only the person who wired it can safely touch it. Both boxes have the same mechanism inside. Only one of them is an interface anyone else can operate.
+  <div class="attr-label">DS analogy &mdash; the interview panel that asked two different questions</div>
+  Imagine ranking two job candidates where candidate A got an easy warm-up question and candidate B got a trick question nobody prepares for. Candidate A answers confidently; candidate B stumbles. Nothing about that outcome tells you which candidate is actually stronger &mdash; it tells you which one got the easier interview. The only way to compare them honestly is to ask both the identical question, in the identical order, under the identical time limit.
 </div>
 
-<p>A CLI is the same kind of box. <code>traceforge replay</code> and <code>traceforge diff</code> could each have grown their own bespoke flag conventions, their own ad-hoc output formats, their own "you had to be there when it was built" quirks. Instead both take <code>--log</code> plus one or two <code>--trace-*</code> ids, and both signal success or failure the same way: stdout for the result, a nonzero exit code for failure. That's the printed label on the panel.</p>
+<p>An agent benchmark has the exact same failure mode. If agent A gets a friendlier prompt, a different random seed, or a wider tool list than agent B, any measured difference in outcome is inseparable from a difference in scenario. The comparison isn't wrong because the grading was sloppy &mdash; it's wrong because the two agents were never actually asked the same question.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> two commands that behave the same way under the hood are worth less than two commands that are also predictable from the outside &mdash; the second property is what makes a tool safe for someone other than its author to operate.</p>
+<p class="prose-so-what"><strong>So what:</strong> a benchmark's validity is decided before either agent runs a single step &mdash; by whether the scenario was held constant, not by how carefully the output gets graded afterward.</p>
 
-<h2 id="a-contract-not-a-grab-bag">A Contract, Not a Grab-Bag</h2>
+<h2 id="the-task-yaml-is-the-fixed-interview">The Task YAML Is the Fixed Interview</h2>
+
+<p>A <code>Task</code> pins four things as data, not convention: <code>task_id</code> for correlating results across runs, a fixed <code>seed</code>, the exact <code>prompt</code>, and the <code>tools_allowed</code> list. Both agents run against the identical file. Nothing about either agent's invocation is allowed to change the scenario &mdash; if it could, a difference in behavior would be genuinely ambiguous between "the agent chose differently" and "the agent saw something different."</p>
+
+<p>The seed deserves its own callout: it lives on the task, never on either agent's run. Two agents each supplying their own seed would make a tool-call-order divergence meaningless &mdash; you'd never know if it came from the agents or from two different random draws stacked on top of an already-unfair comparison.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -250,72 +254,70 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Step["Runbook step"]
-  Flag["CLI flag"]
-  Exit["Exit code"]
-  Next["Next action"]
+  Task["Task YAML"]
+  RunA["Agent A run"]
+  RunB["Agent B run"]
+  Grade["Grade vs criteria"]
+  Cmp["Compare divergence"]
+  Result["Benchmark result"]
 
-  Step --> Flag
-  Flag --> Exit
-  Exit -->|"zero"| Next
-  Exit -->|"nonzero"| Next
+  Task --> RunA
+  Task --> RunB
+  RunA --> Grade
+  RunB --> Grade
+  Grade --> Cmp
+  Cmp --> Result
 </pre>
 
-<p>Every step in the seven-step on-call runbook shipped alongside this post reduces to that same diagram: pick a runbook step, run the flag it names, read the exit code, decide the next action. Nothing in that chain depends on whether a human typed the command or a CI job invoked it programmatically &mdash; the contract doesn't know the difference, which is exactly the point.</p>
+<p class="prose-so-what"><strong>So what:</strong> pinning the seed to the task instead of the run is what turns "the agents behaved differently" into a claim you can actually stand behind.</p>
 
-<p>Compare that to a tool whose success is only legible by reading prose in the middle of its stdout, or whose failure mode is a silent zero exit code with an error buried in a log line. Neither of those is wrong, technically. Both are more expensive for anything downstream &mdash; a script, a human, a future version of the same CLI &mdash; that needs to act on the result without re-reading the whole implementation first.</p>
+<h2 id="grading-without-a-judge-in-the-room">Grading Without a Judge in the Room</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> an API's real interface is its exit codes and its output shape, not its help text &mdash; the help text is documentation about the contract, not the contract itself.</p>
+<p>Once the scenario is fixed, grading still needs a rule that doesn't quietly reintroduce the same unfairness at the finish line. A <code>Criterion</code> is one of four typed checks &mdash; <code>final_output_contains</code>, <code>final_output_exact</code>, <code>tool_call_sequence</code>, <code>max_tool_calls</code> &mdash; each evaluated identically against whichever agent's recorded outcome it's handed.</p>
 
-<h2 id="the-smoke-test-is-a-contract-test">The Smoke Test Is a Contract Test</h2>
-
-<p>The unit suite already proves <code>pkg/replay</code>, <code>pkg/diff</code>, and <code>pkg/mocker</code> are individually correct &mdash; each package's tests build an <code>eventlog.EventLog</code> in memory and assert on its behavior directly. None of that exercises the compiled binary a human actually types, which is a different question: does the CLI still honor the contract described above, end to end, flags in and exit code out.</p>
-
-<p><code>scripts/smoke_test.sh</code> answers that question specifically. It builds the real <code>traceforge</code> binary, runs it against a checked-in sample bundle, and asserts on actual stdout, stderr, and exit codes &mdash; not on any Go function call. A regression that broke flag parsing, or changed an exit code's meaning, or silently dropped a message the runbook depends on, would pass every package's unit tests and still fail this one script.</p>
+<p>The alternative that looked appealing and got rejected was an LLM judge: hand the transcript to a model and ask it to score quality. The problem isn't that judges are inaccurate &mdash; it's that they're non-deterministic, so the identical run can pass on one grading pass and fail on the next with no code change anywhere. A benchmark that can't reproduce its own verdict isn't measuring the agent; it's measuring the judge's mood.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">CLI paths covered</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">shared fixture</span></div>
-  <div class="stat-cell"><span class="stat-num">5/5</span><span class="stat-label">smoke checks passing</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">criterion types</span></div>
+  <div class="stat-cell"><span class="stat-num">22/22</span><span class="stat-label">tests passing</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">task file, two agents</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a contract test and a unit test answer different questions &mdash; one checks that the logic is right, the other checks that the promise made to whoever calls the CLI is still being kept.</p>
+<p class="prose-so-what"><strong>So what:</strong> a grading rule that can change its answer without the underlying run changing is worse than a narrower rule that always agrees with itself.</p>
 
-<h2 id="the-same-invocation-twice">The Same Invocation, Twice</h2>
-
-<p>The payoff of building the CLI this way shows up in what didn't need to be built: there's no separate "automation mode" flag, no JSON-output variant reserved for scripts while humans get the friendly version. The exact command a runbook tells an on-call engineer to type &mdash; <code>traceforge replay --log run.jsonl --trace-id trace-1 --inject-timeout 4</code> &mdash; is the same command CI runs unattended against the sample bundle every time this repo changes.</p>
+<h2 id="what-divergence-adds-that-pass-fail-cant">What Divergence Adds That Pass/Fail Can't</h2>
 
 <div class="pullquote">
-  <p>A tool doesn't get "made scriptable" after the fact &mdash; it either was designed with one contract from the start, or it accumulates two: one for people, one for scripts, that quietly drift apart.</p>
+  <p>Two agents can both pass while taking different paths, and two agents can both fail for reasons that have nothing to do with each other &mdash; a single pass/fail bit erases that distinction entirely.</p>
 </div>
 
-<p>That's also why the runbook and the smoke test could share a fixture. If the human path and the automation path were genuinely different interfaces, testing one would say nothing about the other, and the runbook's commands could silently rot the moment nobody happened to run them by hand.</p>
+<p>Comparing the two agents' outcomes produces more than a scoreboard. It reports the first index at which their tool-call sequences disagree &mdash; a different tool called at the same step, or one sequence simply ending before the other. That's a separate question from "did each one pass," and answering it requires keeping both agents' full call sequences around, not just their final grade.</p>
 
-<h2 id="operability-decided-at-the-flag-parsing-layer">Operability Decided at the Flag-Parsing Layer</h2>
+<p class="prose-so-what"><strong>So what:</strong> knowing where two agents' behavior first diverged is what turns a benchmark from a scoreboard into something you can actually debug.</p>
 
-<p>None of this changed what <code>replay</code> or <code>diff</code> actually do &mdash; Day 50 added no new replay mechanics. What changed is the confidence that the interface built across Days 44 through 49 still means what the README says it means, checked by the same CI that checks the code, not by a human remembering to try it.</p>
+<h2 id="the-honest-gap">The Honest Gap</h2>
 
-<p>A debugging tool's operability is a property of its flag-parsing layer and its exit codes, decided when the CLI is designed &mdash; not a feature bolted on after the mechanism works. That's as true for a two-command tool like <code>traceforge</code> as it is for any production API a distributed systems engineer ships.</p>
+<p>None of this can grade open-ended quality yet &mdash; "is this summary accurate" has no typed criterion today, the same way k6's deterministic checks can't score whether a response merely looks right. That's a real limitation, not an oversight papered over. The next honest step is deciding whether that gap gets a fifth criterion type or stays permanently out of scope, and either answer is a design decision for a future day, not a quiet compromise made today.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 50 of 150 &mdash; Operability &mdash; CLI as API</p>
-  <p><em>Next up:</em> <a href="day-51-benchmark-methodology-for-agents.html">Day 51 &mdash; Benchmark Methodology for Agents</a></p>
+  <p>AI Learning &middot; Day 51 of 150 &mdash; Benchmark Methodology for Agents</p>
+  <p><em>Next up:</em> Day 52 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-49-streaming-parsers-oom-safe-debugging.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-50-operability-cli-as-api.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 49 &mdash; Streaming Parsers &mdash; OOM-Safe Debugging (same repo, the streaming replay path this contract test now covers)</span>
+      <span>Day 50 &mdash; Operability &mdash; CLI as API (yesterday's TraceForge post, the last agent-replay-engine day before this new component)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-48-fault-injection-for-tool-rpcs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 48 &mdash; Fault Injection for Tool RPCs (the --inject-timeout flag this post's runbook step exercises)</span>
+      <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
     </a>
-    <a href="https://en.wikipedia.org/wiki/Command-line_interface">
+    <a href="https://en.wikipedia.org/wiki/Benchmarking">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Command-line interface &mdash; the general contract-as-interface pattern this post applies to traceforge</span>
+      <span>Benchmarking &mdash; the general fixed-scenario measurement discipline this post applies to agents</span>
     </a>
   </div>
 </div>
@@ -326,22 +328,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-labeled-panel-vs-an-unlabeled-junction-box">A Labeled Panel, Not a Junction Box</a></li>
-      <li><a href="#a-contract-not-a-grab-bag">A Contract, Not a Grab-Bag</a></li>
-      <li><a href="#the-smoke-test-is-a-contract-test">The Smoke Test Is a Contract Test</a></li>
-      <li><a href="#the-same-invocation-twice">The Same Invocation, Twice</a></li>
-      <li><a href="#operability-decided-at-the-flag-parsing-layer">Operability at the Flag-Parsing Layer</a></li>
+      <li><a href="#two-candidates-two-different-interviews">Two Candidates, Two Interviews</a></li>
+      <li><a href="#the-task-yaml-is-the-fixed-interview">The Task YAML Is the Interview</a></li>
+      <li><a href="#grading-without-a-judge-in-the-room">Grading Without a Judge</a></li>
+      <li><a href="#what-divergence-adds-that-pass-fail-cant">What Divergence Adds</a></li>
+      <li><a href="#the-honest-gap">The Honest Gap</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-50-operability-cli-as-api.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-51-benchmark-methodology-for-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Operability+%E2%80%94+CLI+as+API+%E2%80%94+AI+Learning+%C2%B7+Day+50+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-50-operability-cli-as-api.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Benchmark+Methodology+for+Agents+%E2%80%94+AI+Learning+%C2%B7+Day+51+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-51-benchmark-methodology-for-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -354,17 +356,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D49</span> AI Learning</div>
-          <a href="day-49-streaming-parsers-oom-safe-debugging.html" class="series-post-title">Streaming Parsers &mdash; OOM-Safe Debugging</a>
+          <div class="series-post-kicker"><span class="series-post-num">D50</span> AI Learning</div>
+          <a href="day-50-operability-cli-as-api.html" class="series-post-title">Operability &mdash; CLI as API</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D50</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Operability &mdash; CLI as API</div>
-          <div class="series-post-desc">replay and diff share one contract — same input shape, same output shape — verified by a smoke test that checks the interface a human and a CI job both rely on</div>
+          <div class="series-post-kicker"><span class="series-post-num">D51</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Benchmark Methodology for Agents</div>
+          <div class="series-post-desc">Same task spec or you're comparing different jobs — task YAML, fixed seed, and typed success criteria instead of a fuzzy judge</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D51</span> AI Learning</div>
-          <a href="day-51-benchmark-methodology-for-agents.html" class="series-post-title">Benchmark Methodology for Agents</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D52</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
