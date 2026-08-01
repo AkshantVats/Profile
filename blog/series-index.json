@@ -480,6 +480,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-50-copy-paste-debuggability.html",
+          "kicker": "Experience · Day 50 of 150",
+          "title": "Day 50 — Copy-Paste Debuggability",
+          "subtitle": "On-call runbooks, circuit breakers, operability",
+          "date": "2026-08-01",
+          "slug": "day-50-copy-paste-debuggability",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-50-copy-paste-debuggability.html",
+          "coverImage": "blog/assets/covers/day-50-copy-paste-debuggability.png",
+          "desc": "Circuit breakers at Wayfair and decoupled pipelines at Delivery Hero only paid off if on-call could act on them fast — the same lesson applied to agent-replay-engine's own debugging CLI: a seven-step runbook and a CI smoke test that keeps it honest."
+        },
+        {
           "href": "blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html",
           "kicker": "Experience · Day 49 of 150",
           "title": "Day 49 — Streaming Parser — Don't OOM the Debugger",
