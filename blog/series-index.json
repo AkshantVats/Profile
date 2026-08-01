@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-51-benchmark-methodology-for-agents.html",
+          "kicker": "AI Learning · Day 51 of 150",
+          "title": "Day 51 — Benchmark Methodology for Agents",
+          "subtitle": "Tasks, seeds, success criteria",
+          "date": "2026-08-01",
+          "slug": "day-51-benchmark-methodology-for-agents",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-51-benchmark-methodology-for-agents.html",
+          "coverImage": "blog/assets/covers/day-51-benchmark-methodology-for-agents.png",
+          "desc": "Same task spec or you're comparing different jobs — a task YAML that pins the prompt and seed, and a closed set of typed success criteria instead of a fuzzy LLM judge."
+        },
+        {
           "href": "blog/series/ai-learning/day-50-operability-cli-as-api.html",
           "kicker": "AI Learning · Day 50 of 150",
           "title": "Day 50 — Operability — CLI as API",
