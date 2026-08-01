@@ -492,4 +492,16 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/experience/day-52-parallel-runs-respect-the-rate-limit.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
