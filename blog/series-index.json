@@ -492,6 +492,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-51-benchmark-agents-like-load-tests.html",
+          "kicker": "Experience · Day 51 of 150",
+          "title": "Day 51 — Benchmark Agents Like Load Tests",
+          "subtitle": "Agoda · k6 · methodology",
+          "date": "2026-08-01",
+          "slug": "day-51-benchmark-agents-like-load-tests",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-51-benchmark-agents-like-load-tests.html",
+          "coverImage": "blog/assets/covers/day-51-benchmark-agents-like-load-tests.png",
+          "desc": "Agoda's cross-tier percentile merge taught that statistics computed on different inputs don't combine — agent-benchmark-runner's task YAML applies the same discipline to comparing two agents honestly."
+        },
+        {
           "href": "blog/series/experience/day-50-copy-paste-debuggability.html",
           "kicker": "Experience · Day 50 of 150",
           "title": "Day 50 — Copy-Paste Debuggability",
