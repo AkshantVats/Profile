@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 50 &mdash; Copy-Paste Debuggability | Experience Series</title>
-<meta name="description" content="The tools that survive a 3am page were never the cleverest ones on a whiteboard &mdash; they were the ones with a runbook you could copy-paste without re-deriving the mental model half-asleep. A pattern from Wayfair's circuit breakers and Delivery Hero's decoupled pipelines, applied to agent-replay-engine's own debugging CLI.">
-<meta property="og:title" content="Day 50 &mdash; Copy-Paste Debuggability">
-<meta property="og:description" content="Circuit breakers at Wayfair and decoupled pipelines at Delivery Hero only paid off if on-call could act on them fast. agent-replay-engine's CLI grew four debugging capabilities over four days and never had a fixed order to run them in &mdash; until a seven-step runbook and a CI test that keeps it honest.">
+<title>Day 51 &mdash; Benchmark Agents Like Load Tests | Experience Series</title>
+<meta name="description" content="A load test that changes the traffic shape between service A and service B mid-comparison isn't a benchmark &mdash; it's noise wearing a percentage sign. Agoda's cross-tier percentile merge taught that lesson about statistics computed on different inputs; agent-benchmark-runner's task YAML applies it to comparing two agents.">
+<meta property="og:title" content="Day 51 &mdash; Benchmark Agents Like Load Tests">
+<meta property="og:description" content="Agoda's WhiteFalcon taught the hard way that you can't average two percentiles computed from different distributions and call the result a percentile. Comparing two agents from separately-read transcripts is the same category error in a different costume.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-50-copy-paste-debuggability.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-50-copy-paste-debuggability.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-51-benchmark-agents-like-load-tests.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-51-benchmark-agents-like-load-tests.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-50-copy-paste-debuggability.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-51-benchmark-agents-like-load-tests.png">
 <meta property="article:published_time" content="2026-08-01">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 50 of 150</span>
-    <span class="tag">On-Call</span>
-    <span class="tag">Runbooks</span>
-    <span class="tag">Operability</span>
+    <span class="tag accent">Experience &middot; Day 51 of 150</span>
+    <span class="tag">Benchmarking</span>
+    <span class="tag">Methodology</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 50 &mdash; Copy-Paste Debuggability</h1>
-  <p class="post-subtitle">The tools that survive a 3am page were never the cleverest ones on a whiteboard &mdash; they were the ones with a runbook you could copy-paste without re-deriving the mental model half-asleep. A pattern from circuit breakers at Wayfair and decoupled pipelines at Delivery Hero, applied to a debugging CLI that had grown four capabilities and no fixed order to run them in.</p>
+  <h1 class="post-title">Day 51 &mdash; Benchmark Agents Like Load Tests</h1>
+  <p class="post-subtitle">A load test that changes the traffic shape between service A and service B mid-comparison isn't a benchmark &mdash; it's noise wearing a percentage sign. Agoda's cross-tier percentile merge taught the same lesson about statistics that don't survive being computed on different inputs, applied today to comparing two agents honestly.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 50 of 150</span>
+    <span class="meta-item">Experience &middot; Day 51 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 1, 2026</span>
     <div class="meta-divider"></div>
@@ -208,82 +208,86 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-50-copy-paste-debuggability.png" alt="Day 50 — Copy-Paste Debuggability" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-51-benchmark-agents-like-load-tests.png" alt="Day 51 — Benchmark Agents Like Load Tests" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The cleverest system I ever helped ship was never the one that got opened first during an incident. That honor went to whatever had a runbook taped to the top of it &mdash; a doc you could copy-paste from without stopping to remember which flag did what. Cleverness is a compliment you pay a design in daylight; a runbook is what actually gets used at 3am.</p>
+<p>Two runners cross two different finish lines, on two different tracks, in two different winds, and someone still wants to know who's faster. That's not a race result. It's two numbers that happen to share a unit, dressed up to look like a comparison neither track actually supports.</p>
 
-<p>That's not a cynical take on engineering rigor. It's a fact about who's awake when the page fires, and what they have the working memory left to do.</p>
+<p>I learned the database version of that mistake at Agoda, on a time-series system called WhiteFalcon. Today's code applies the fix to a much less database-shaped problem: deciding whether one AI agent is actually better than another.</p>
 
-<h2 id="a-breaker-and-a-pipeline-that-both-needed-a-runbook">A Breaker and a Pipeline That Both Needed a Runbook</h2>
+<h2 id="a-percentile-computed-on-the-wrong-inputs">A Percentile Computed on the Wrong Inputs</h2>
 
-<p>At Wayfair, I led the teams that shipped a bulk price-update path for 20,000+ suppliers, protected by a circuit breaker so a slow downstream dependency couldn't cascade into a full outage. The breaker itself was the easy part to design. The hard part was making sure whoever was on call at 2am, watching a dashboard they hadn't stared at in weeks, knew in ten seconds whether it had tripped correctly or was itself the problem.</p>
+<p>WhiteFalcon splits data across two tiers: a hot Redis tier holding the last three to seven days at fine granularity, and a cold S3/Parquet tier holding everything older. A Grafana query spanning both tiers used to require two separate queries, because nobody had solved how to answer one question &mdash; "what's the P95 across the whole range?" &mdash; using data that lived in two different storage systems with two different native query paths.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">My role &mdash; Wayfair, Sr. Software Engineer III, Nov 2024&ndash;Mar 2026</div>
-  I led the PAS and Pricing, Promotions &amp; Discounts teams and architected the event-driven pricing engine this bulk-update framework belongs to &mdash; 250k+ SKU updates per supplier, 99.99% availability under peak global load.
-</div>
-
-<p>A near-identical shape showed up earlier, at Delivery Hero. Order processing and rider notifications used to share one synchronous path, which meant a slow notification could stall an order. Decoupling them behind SQS and Kinesis fixed the cascading-failure risk &mdash; but the fix only paid off in an incident if on-call knew, without guessing, which queue to check first when delivery updates lagged.</p>
+<p>The tempting shortcut is to compute P95 on the hot tier, compute P95 on the cold tier, and average the two. It looks reasonable. It is also mathematically wrong, because percentiles are not additive &mdash; a P95 computed on one distribution and a P95 computed on a different distribution don't combine into anything meaningful when you average them.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">My role &mdash; Delivery Hero, Sr. Software Engineer, Jun 2022&ndash;Jul 2023</div>
-  I designed the async SQS + Kinesis pipeline that decoupled order processing from rider notifications, guaranteeing sub-second delivery status updates for millions of active users at peak.
+  <div class="attr-label">My role &mdash; Agoda, Sr. Software Engineer, Apr 2024&ndash;Sep 2024</div>
+  I extended WhiteFalcon's Scala query engine to fetch histogram bucket counts from both tiers, merge the buckets into one combined distribution, and compute the percentile once on the merged result &mdash; not on Agoda's RoaringBitmap engine or Kafka pipeline, both of which were the core team's design.
 </div>
 
-<p>Two different systems, two different failure modes, and the same lesson both times: a resilience mechanism is only worth what an exhausted on-call engineer can act on in the first sixty seconds. Everything past that is design credit nobody collects at 3am.</p>
+<p class="prose-so-what"><strong>So what:</strong> the fix wasn't a smarter averaging formula &mdash; it was refusing to average statistics computed on different inputs in the first place, and merging the inputs instead.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a circuit breaker or a decoupled pipeline is a design decision that isn't finished until someone writes down the order to check it in &mdash; the mechanism and the runbook are one deliverable, not two.</p>
+<h2 id="the-same-mistake-in-an-agent-costume">The Same Mistake in an Agent Costume</h2>
 
-<h2 id="four-capabilities-no-order">Four Capabilities, No Fixed Order</h2>
+<p>"Agent A felt better than agent B" is the tool-comparison version of averaging two percentiles from two different distributions. If agent A ran against an easier prompt, a friendlier seed, or a wider set of allowed tools than agent B, then any difference in outcome is confounded with a difference in scenario &mdash; not evidence about which agent is actually better.</p>
 
-<p><code>agent-replay-engine</code>'s CLI had quietly accumulated the same gap. Day 46 added <code>--stop-at-step</code> to halt a replay before a side effect. Day 47 added <code>diff</code> to find where two traces disagree.</p>
+<p>A k6 load test would never compare service A's P99 under one traffic profile to service B's P99 under a different one and call it a benchmark. The scenario &mdash; requests per second, payload shape, test duration &mdash; is fixed first, specifically so the only thing left free to vary is the system under test. Agent comparisons need the exact same discipline, and until today, TraceForge had no artifact that enforced it.</p>
 
-<p>Day 48 added <code>--inject-timeout</code> to force a failure on demand, and Day 49 made all of it stream so a laptop wouldn't run out of memory on a large shared log. Four real debugging capabilities, each one useful on its own &mdash; and nothing tying them together into the order someone under pressure would actually reach for them.</p>
+<p class="prose-so-what"><strong>So what:</strong> a benchmark isn't a grading rubric bolted onto whatever transcripts happen to exist &mdash; it's a fixed scenario that two systems run against, so the only variable left is the thing you're actually trying to measure.</p>
 
-<p>That's the same gap Wayfair's breaker and Delivery Hero's pipeline had before the runbook existed: the mechanism was correct, but correctness alone doesn't tell a tired engineer where to start.</p>
+<h2 id="fixing-the-track-task-seed-criteria">Fixing the Track: Task, Seed, Criteria</h2>
 
-<h2 id="what-todays-code-enforces">What Today's Code Enforces</h2>
+<p><code>agent-benchmark-runner</code>'s task YAML pins exactly the fields a fair comparison needs: <code>task_id</code>, a fixed <code>seed</code>, the exact <code>prompt</code>, and the <code>tools_allowed</code> list. Two agents run against the identical file. The seed lives on the task, not on either agent's invocation &mdash; if each agent could pick its own seed, a divergence in tool-call order would be ambiguous between "different behavior" and "different random draw."</p>
 
-<p>Today's change is a seven-step runbook in the README, in the literal order an on-call engineer needs: pull the trace, reproduce without guessing, isolate the suspect step, diff against a known-good trace, force the suspected failure mode on demand, stop before anything with a real side effect fires, and confirm the fix against a checked-in sample bundle before shipping. Every step is a command that already existed &mdash; nothing new was built, only ordered.</p>
+<p>Grading is a separate, deliberately narrow layer. A <code>Criterion</code> is one of four typed checks &mdash; does the final output contain a string, does it match one exactly, does the tool call sequence match exactly, did the run stay under a call budget &mdash; evaluated identically against both agents' recorded outcomes.</p>
 
-<p>The part that keeps the runbook honest is step seven. A CI smoke test now runs the exact same commands against the exact same sample bundle the runbook references, so if a future change breaks one of those seven commands, CI catches it before a human ever tries to copy-paste it into a terminal at 3am and gets a confusing error instead of an answer.</p>
+<p class="prose-so-what"><strong>So what:</strong> fixing the scenario as a file, not a convention someone remembers to follow, is what makes "agent A vs agent B" a repeatable experiment instead of a one-off impression.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a runbook that isn't tested is a runbook that's lying to whoever trusts it next &mdash; the same reason Wayfair's breaker needed to be tripped on purpose before an on-call engineer could trust it in an actual incident.</p>
+<h2 id="three-ways-to-grade-a-run">Three Ways to Grade a Run, and Why Two Were Rejected</h2>
 
-<h2 id="the-instructions-printed-on-the-side">The Instructions Printed on the Side</h2>
+<p>The grading layer had three real candidates, and the options table is the whole design decision:</p>
 
-<p>The physical version of this is a fire extinguisher. The mechanism inside is the same regardless of labeling &mdash; pressurized agent, a pin, a lever. What determines whether it actually gets used correctly in the ten seconds that matter is whether "pull, aim, squeeze, sweep" is printed in large letters on the side, not filed in a manual in a drawer down the hall.</p>
+<table>
+<tr><th>Option</th><th>Description</th><th>Verdict</th></tr>
+<tr><td>Free-form assertion scripts</td><td>Python/Lua snippets embedded in the task YAML</td><td>Rejected &mdash; turns a task file into executable payload, unsafe to load and impossible to diff cleanly in review</td></tr>
+<tr><td>LLM-judge scoring</td><td>A model scores the whole transcript for quality</td><td>Rejected &mdash; non-deterministic grading means the same run can pass one day and fail the next with no code change, which defeats a repeatable benchmark</td></tr>
+<tr><td>Closed set of typed criteria</td><td>A fixed enum of checks, each with structured fields</td><td>Chosen &mdash; deterministic, diffable in a PR, and a typo in a task file fails validation at load time instead of silently grading nothing</td></tr>
+</table>
 
-<p>Nobody re-reads the manual mid-fire. They read what's printed on the thing they're already holding. A README's runbook section is that same printed label &mdash; it has to be right there, in the same repo as the tool, not in a separate wiki page someone has to remember exists.</p>
+<p>The consequence of choosing the narrow option honestly: today's criteria set can't grade open-ended quality ("is this summary accurate") at all. That's not an oversight so much as the same tradeoff k6's deterministic checks make against genuinely subjective response quality &mdash; you trade coverage for a result you can actually trust.</p>
 
-<h2 id="operability-is-a-design-decision">Operability Is a Design Decision, Not an Afterthought</h2>
+<p class="prose-so-what"><strong>So what:</strong> a benchmark that can grade everything by trusting a fuzzy judge is worth less than one that grades a narrower set of things you can verify by re-running it and getting the same answer.</p>
 
-<p>None of this is about agent-replay-engine specifically. It's the same lesson twice over from two different companies, now applied a third time to a debugging tool: a mechanism's value is capped by how fast a tired human can act on it, not by how many capabilities it has. LensAI and TraceForge are built to be debugged under pressure, which means the runbook isn't a nice-to-have written after the fact &mdash; it's part of what today's PR ships, checked by the same CI that checks the code.</p>
+<h2 id="what-a-benchmark-still-cant-tell-you">What a Benchmark Still Can't Tell You</h2>
+
+<p>Fixing the task and the grading rubric answers "which agent passed." It doesn't automatically explain <em>why</em> one failed where the other didn't &mdash; that's a second, separate question, answered by comparing where their tool-call sequences first diverge rather than by the pass/fail bit alone. Two agents can both pass while taking different paths, and two agents can both fail for entirely unrelated reasons; collapsing that into one score would throw away exactly the information a benchmark report needs.</p>
+
+<p>None of this replaces reading transcripts &mdash; it just makes sure that when two transcripts disagree, the disagreement is about the agents, not about which one happened to get the easier lap.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 50 of 150 &mdash; Copy-Paste Debuggability</p>
-  <p><em>Next up:</em> <a href="day-51-benchmark-agents-like-load-tests.html">Day 51 &mdash; Benchmark Agents Like Load Tests</a></p>
+  <p>Experience &middot; Day 51 of 150 &mdash; Benchmark Agents Like Load Tests</p>
+  <p><em>Next up:</em> Day 52 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-48-inject-timeout-chaos-for-tool-rpcs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 48 &mdash; Inject Timeout &mdash; Chaos for Tool RPCs (the circuit-breaker post this runbook's Wayfair section builds on)</span>
+      <span>When Percentiles Lie: Cross-Tier Queries in a 1.8T/day TSDB (the original WhiteFalcon quantile-merge post this one builds on)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-49-streaming-parser-dont-oom-the-debugger.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-50-copy-paste-debuggability.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 49 &mdash; Streaming Parser &mdash; Don't OOM the Debugger (same repo, the streaming replay this runbook's step 3 relies on)</span>
+      <span>Day 50 &mdash; Copy-Paste Debuggability (yesterday's TraceForge post, the last agent-replay-engine day before this new component)</span>
     </a>
-    <a href="https://en.wikipedia.org/wiki/Runbook">
+    <a href="https://k6.io/docs/">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Runbook &mdash; the general operability pattern this post applies to agent-replay-engine's CLI</span>
+      <span>k6 documentation &mdash; the fixed-scenario load testing discipline this post draws the analogy from</span>
     </a>
   </div>
 </div>
@@ -294,22 +298,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-breaker-and-a-pipeline-that-both-needed-a-runbook">A Breaker and a Pipeline, Same Gap</a></li>
-      <li><a href="#four-capabilities-no-order">Four Capabilities, No Fixed Order</a></li>
-      <li><a href="#what-todays-code-enforces">What Today's Code Enforces</a></li>
-      <li><a href="#the-instructions-printed-on-the-side">The Instructions Printed on the Side</a></li>
-      <li><a href="#operability-is-a-design-decision">Operability Is a Design Decision</a></li>
+      <li><a href="#a-percentile-computed-on-the-wrong-inputs">A Percentile on the Wrong Inputs</a></li>
+      <li><a href="#the-same-mistake-in-an-agent-costume">The Same Mistake, Agent Costume</a></li>
+      <li><a href="#fixing-the-track-task-seed-criteria">Fixing the Track</a></li>
+      <li><a href="#three-ways-to-grade-a-run">Three Ways to Grade a Run</a></li>
+      <li><a href="#what-a-benchmark-still-cant-tell-you">What It Still Can't Tell You</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-50-copy-paste-debuggability.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-51-benchmark-agents-like-load-tests.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Copy-Paste+Debuggability+%E2%80%94+Experience+%C2%B7+Day+50+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-50-copy-paste-debuggability.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Benchmark+Agents+Like+Load+Tests+%E2%80%94+Experience+%C2%B7+Day+51+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-51-benchmark-agents-like-load-tests.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -322,17 +326,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D49</span> Experience</div>
-          <a href="day-49-streaming-parser-dont-oom-the-debugger.html" class="series-post-title">Streaming Parser &mdash; Don't OOM the Debugger</a>
+          <div class="series-post-kicker"><span class="series-post-num">D50</span> Experience</div>
+          <a href="day-50-copy-paste-debuggability.html" class="series-post-title">Copy-Paste Debuggability</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D50</span> Experience &middot; now</div>
-          <div class="series-post-title">Copy-Paste Debuggability</div>
-          <div class="series-post-desc">Circuit breakers at Wayfair and decoupled pipelines at Delivery Hero only paid off if on-call could act on them fast &mdash; the same lesson applied to agent-replay-engine's own debugging CLI</div>
+          <div class="series-post-kicker"><span class="series-post-num">D51</span> Experience &middot; now</div>
+          <div class="series-post-title">Benchmark Agents Like Load Tests</div>
+          <div class="series-post-desc">Agoda's cross-tier percentile merge taught that statistics computed on different inputs don't combine &mdash; the same discipline applied to comparing two agents honestly</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D51</span> Experience</div>
-          <a href="day-51-benchmark-agents-like-load-tests.html" class="series-post-title">Benchmark Agents Like Load Tests</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D52</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
