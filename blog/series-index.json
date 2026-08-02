@@ -552,6 +552,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-56-org-boundaries-public-platform-identity.html",
+          "kicker": "Experience · Day 56 of 150",
+          "title": "Day 56 — Org Boundaries — Public Platform Identity",
+          "subtitle": "Wayfair · leading teams · ownership",
+          "date": "2026-08-02",
+          "slug": "day-56-org-boundaries-public-platform-identity",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-56-org-boundaries-public-platform-identity.html",
+          "coverImage": "blog/assets/covers/day-56-org-boundaries-public-platform-identity.png",
+          "desc": "Wayfair's architecture diagram labels every subsystem with an owning team. Today's unified docker-compose.yml is the same proof, at a much smaller scale, for a traceforge-dev org — the backing move that turns an org name from a label into something true."
+        },
+        {
           "href": "blog/series/experience/day-55-two-products-one-tenant-bill.html",
           "kicker": "Experience · Day 55 of 150",
           "title": "Day 55 — Two Products, One Tenant Bill",
