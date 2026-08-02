@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 56 &mdash; Org Boundaries &mdash; Public Platform Identity | Experience Series</title>
-<meta name="description" content="Wayfair's architecture diagram labels every subsystem with an owning team. Today's docker-compose.yml is the smaller, backing move for a traceforge-dev org: the proof that four components are one platform, not four weekend repos.">
-<meta property="og:title" content="Day 56 &mdash; Org Boundaries &mdash; Public Platform Identity">
-<meta property="og:description" content="Leading two teams at Wayfair meant living inside an architecture where every subsystem is labeled with a team. A traceforge-dev org needs the same kind of proof — today's unified docker-compose.yml is that proof.">
+<title>Day 57 &mdash; Launch Week &mdash; Integration or Nothing | Experience Series</title>
+<meta name="description" content="Agoda's go-live review didn't accept a Grafana screenshot as proof a cross-tier query worked — only a rerun script that reproduced it on demand. Today's benchmark landing page inherits the same rule at a much smaller scale.">
+<meta property="og:title" content="Day 57 &mdash; Launch Week &mdash; Integration or Nothing">
+<meta property="og:description" content="A screenshot only proves something happened once. Agoda's go-live checklist for the cross-tier query engine required a script that could reproduce it — the same discipline today's TraceForge landing page is built to satisfy.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-56-org-boundaries-public-platform-identity.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-org-boundaries-public-platform-identity.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-57-launch-week-integration-or-nothing.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-57-launch-week-integration-or-nothing.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-org-boundaries-public-platform-identity.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-57-launch-week-integration-or-nothing.png">
 <meta property="article:published_time" content="2026-08-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,62 +185,64 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 56 of 150</span>
+    <span class="tag accent">Experience &middot; Day 57 of 150</span>
     <span class="tag">Platform Engineering</span>
     <span class="tag">OSS</span>
-    <span class="tag">Wayfair</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 56 &mdash; Org Boundaries &mdash; Public Platform Identity</h1>
-  <p class="post-subtitle">Wayfair's architecture diagram labels every subsystem with the team that owns it. A public GitHub org is the same signal at a much smaller scale &mdash; and today's unified docker-compose.yml is what makes that signal true instead of aspirational.</p>
+  <h1 class="post-title">Day 57 &mdash; Launch Week &mdash; Integration or Nothing</h1>
+  <p class="post-subtitle">Agoda's go-live review didn't accept a Grafana screenshot as proof a query worked &mdash; only a script that could reproduce it on demand. Today's TraceForge landing page inherits the same rule at a much smaller scale.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 56 of 150</span>
+    <span class="meta-item">Experience &middot; Day 57 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-56-org-boundaries-public-platform-identity.png" alt="Day 56 — Org Boundaries — Public Platform Identity" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-57-launch-week-integration-or-nothing.png" alt="Day 57 — Launch Week — Integration or Nothing" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Nobody reads a personal GitHub repo and assumes someone maintains it.</p>
+<p>A screenshot proves something rendered once.</p>
 
-<p>Four solo repos under one username look like four side projects that happen to share a theme &mdash; not a platform anyone is accountable for keeping working together. I relearned what an ownership boundary actually costs to establish leading two teams at once at Wayfair, and today's code is the smaller, backing move a public equivalent of that boundary needs before it means anything.</p>
+<p>It doesn't prove it renders again tomorrow, on someone else's laptop, after the next deploy. I relearned that distinction the hard way during a go-live review at Agoda, and today's code &mdash; a static HTML landing page for TraceForge's benchmark comparisons &mdash; is built around the same rule, at a much smaller scale and with much lower stakes.</p>
 
-<h2 id="what-a-team-label-buys-you">What a "Team:" Label Buys You</h2>
+<h2 id="what-go-live-actually-required">What "Go-Live" Actually Required</h2>
 
-<p>Wayfair's Cost Aggregation Layer &mdash; the systems that compute what a SKU actually costs to sell, covered in more depth in yesterday's post &mdash; labels every subsystem on its architecture diagram with the team that owns it: the supplier-cost systems (UCMS, SPCS) carry "Team: Supplier Cost and Promotions" and "Team: PPD Supplier Cost," the logistics-cost estimator (Hydros) carries "Team: Estimated Costs," the manual-corrections system (PAS Cost Adjustments) carries "Team: PAS," and the aggregation point (ScheduledReader) carries "Team: Total Cost." That's not documentation for its own sake. When a Total Cost number looks wrong, the diagram itself tells a reader which team's pager to page &mdash; ownership is a visible property of the architecture, not an assumption someone has to go ask around about.</p>
+<p>The cross-tier query engine work I did at Agoda's WhiteFalcon TSDB let a single Grafana request span both the Redis hot tier and the S3 cold tier, merging histogram bucket counts instead of naively averaging percentiles across the boundary. Before it could ship to the on-call dashboards other engineers depended on during incidents, it went through a go-live checklist &mdash; and the checklist didn't ask for a picture of the panel working. It asked for the query, the time range, and the exact steps to reproduce it from a clean session.</p>
 
-<p>I led PAS and the Pricing, Promotions &amp; Discounts team simultaneously &mdash; two roadmaps, two on-call rotations, one person accountable for how the seam between them behaved. That seat only works because every box on that diagram already declares who's behind it. Ownership boundaries aren't overhead in a system this size; they're what makes "who do I ask" answerable in one glance instead of a Slack thread.</p>
+<p>The distinction mattered because a screenshot in a pull request is a claim, not a test. Anyone reviewing it has to trust that the panel behind it wasn't cherry-picked from a lucky run, edited, or captured before a since-reverted fix.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> an explicit ownership label costs something to maintain, but the alternative &mdash; implicit ownership nobody wrote down &mdash; costs more the first time something breaks and three teams each assume it's someone else's box.</p>
-
-<h2 id="four-repos-no-boundary">Four Repos, No Boundary</h2>
-
-<p>Through Day 55, TraceForge's four components &mdash; <code>traceforge</code>, <code>agent-replay-engine</code>, <code>agent-benchmark-runner</code>, <code>tool-call-analyzer</code> &mdash; lived as four directories in one personal-account repo, each shipped on its own day, each with its own DESIGN.md. That's real engineering, but nothing about <code>github.com/akshantvats/infra-ai-streaming</code> tells a visitor these four pieces are one maintained product rather than four unrelated experiments that happen to sit in the same folder.</p>
+<p class="prose-so-what"><strong>So what:</strong> a go-live checklist that only asks "does it work" invites exactly one answer &mdash; "yes, it worked when I looked" &mdash; which is true, unfalsifiable, and not the same claim as "it works."</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">My scope &mdash; Wayfair, Bengaluru, Nov 2024&ndash;Mar 2026, Sr. Software Engineer III</div>
-  I led PAS and Pricing, Promotions &amp; Discounts simultaneously, owning end-to-end delivery across both product areas. The per-subsystem "Team:" labels above reflect the architecture those teams' systems fed into, not a claim that either of my teams owned every box in the Cost Aggregation Layer &mdash; PAS Cost Adjustments was my team's box; UCMS, SPCS, Hydros, and ScheduledReader belonged to four other teams I coordinated with, not built.
+  <div class="attr-label">My scope &mdash; Agoda, Bangkok, Apr&ndash;Sep 2024, Sr. Software Engineer, Core Infrastructure</div>
+  I contributed the cross-tier query engine extension and two to three new Grafana-facing query types to WhiteFalcon, Agoda's in-house Rust + Scala TSDB. The RoaringBitmap index, Kafka pipeline, and storage tiering were built and owned by the wider Agoda team before I joined; my scope was the query-layer extension and the histogram-merge logic behind it, not the underlying system.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a personal repo has no equivalent of a "Team:" label &mdash; there's exactly one name on it either way, whether it's a weekend experiment or a maintained product, and a visitor has no way to tell which from the repo alone.</p>
+<h2 id="why-a-screenshot-alone-didnt-pass-review">Why a Screenshot Alone Didn't Pass Review</h2>
 
-<h2 id="the-org-is-the-label-the-compose-file-is-the-proof">The Org Is the Label; the Compose File Is the Proof</h2>
+<p>A histogram-merge bug is easy to hide in a screenshot and hard to hide in a rerun. If the merge logic silently fell back to averaging two tiers' percentiles instead of merging their bucket counts &mdash; the exact bug this feature existed to fix &mdash; the resulting Grafana panel still renders a number. It just renders the wrong one, and a picture of a rendered number looks identical whether the math behind it is correct.</p>
 
-<p>A <code>traceforge-dev</code> GitHub org is cheap to create and, on its own, just as hollow as a "Team:" label would be if ScheduledReader didn't actually aggregate what UCMS, Hydros, and PAS Cost Adjustments produce. The label only means something once something backs it up.</p>
+<p>A rerun script closes that gap because it re-executes the same query against the same two tiers every time someone runs it, instead of asking a reviewer to take a captured image on faith. Reviewers didn't need to trust that the screenshot was current or unedited; they needed a command they could run themselves and compare against the panel in front of them.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> reproducibility isn't a nice-to-have layered on top of a working demo &mdash; for anything where the failure mode is "renders a plausible but wrong number," it's the only form of proof that actually distinguishes correct from convincingly broken.</p>
+
+<h2 id="the-same-rule-smaller-stakes">The Same Rule, Smaller Stakes</h2>
+
+<p>TraceForge's agent-benchmark-runner needed a landing page for the same reason a launch needs a screenshot: a single shareable artifact that shows "agent A took 14 calls, agent B took 9, and here's exactly where they diverged" without a reader having to stitch a markdown report and a separate SVG file together themselves.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -260,36 +262,37 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  subgraph Org["traceforge-dev org"]
-    TF["traceforge"]
-    ARE["agent-replay-engine"]
-    ABR["agent-benchmark-runner"]
-    TCA["tool-call-analyzer"]
-  end
-  Org --> Compose["docker compose up"]
+  Run["traceforge run"]
+  Report["Report struct"]
+  HTML["landing.html"]
+  Screenshot["Launch screenshot"]
+
+  Run --> Report
+  Report --> HTML
+  HTML --> Screenshot
 </pre>
 
-<p>That's what today's code is: agent-benchmark-runner's first CLI (it had no <code>cmd/</code> at all through Day 55 &mdash; library only, exercised entirely through <code>go test</code>) and a root <code>docker-compose.yml</code> that boots all four components as one stack. A user running one command and getting a working system is a materially different claim than four READMEs each asserting their own component works in isolation.</p>
+<p>The rule from Agoda applies directly here: the landing page is a rendering of whatever <code>compare.Result</code> the CLI actually computed, not a hand-edited file someone could quietly touch up before a launch post goes out. Anyone who doubts a number on the page can rerun <code>traceforge run</code> against the same task YAML and get the same HTML back &mdash; the artifact and the command that produces it never diverge, because there is no manual step between them.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> an org name signals intent; a compose file that actually boots the whole stack is the only thing that turns that intent into something a visitor can verify themselves in under a minute.</p>
+<p class="prose-so-what"><strong>So what:</strong> the stakes are nowhere near an on-call dashboard, but the design principle transfers cleanly &mdash; a launch artifact is only trustworthy if it's a byproduct of a command someone else can run, not a file someone could have edited by hand.</p>
 
 <h2 id="what-still-isnt-proven">What Still Isn't Proven</h2>
 
-<p>The honest gap: no Docker daemon was available in the environment this was built in, so <code>docker compose config</code> validated the file's structure, but the four images were never built or run together end to end. That's the same gap as declaring a team boundary on a diagram before ever paging through an incident on it &mdash; the label is real, the proof under load still has to happen.</p>
+<p>The honest gap: "screenshot-ready" here means the HTML renders correctly and looks intentional in a browser &mdash; not that an actual PNG gets produced automatically. Nothing in this repo drives a headless browser to capture the page; turning <code>landing.html</code> into a raster image for a launch post is still a manual, human-in-the-loop step.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> claiming a boundary and proving it under real conditions are two different milestones, and today's code only reaches the first one &mdash; worth saying plainly rather than letting the compose file imply more than it's demonstrated yet.</p>
+<p class="prose-so-what"><strong>So what:</strong> reproducibility covers the data and the rendering; it doesn't yet cover the last step of getting that rendering into a shareable image &mdash; a real gap worth naming rather than letting the "screenshot-ready" framing quietly paper over.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 56 of 150 &mdash; Org Boundaries &mdash; Public Platform Identity</p>
-  <p><em>Next up:</em> <a href="day-57-launch-week-integration-or-nothing.html">Day 57 &mdash; Launch Week &mdash; Integration or Nothing</a></p>
+  <p>Experience &middot; Day 57 of 150 &mdash; Launch Week &mdash; Integration or Nothing</p>
+  <p><em>Next up:</em> Day 58 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-55-two-products-one-tenant-bill.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-56-org-boundaries-public-platform-identity.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 55 &mdash; Two Products, One Tenant Bill (yesterday's companion post &mdash; the agent-benchmark-runner module this post's CLI work extends)</span>
+      <span>Day 56 &mdash; Org Boundaries — Public Platform Identity (yesterday's companion post — the docker-compose.yml this post's CLI landing page ships alongside)</span>
     </a>
   </div>
 </div>
@@ -300,9 +303,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-team-label-buys-you">What a "Team:" Label Buys You</a></li>
-      <li><a href="#four-repos-no-boundary">Four Repos, No Boundary</a></li>
-      <li><a href="#the-org-is-the-label-the-compose-file-is-the-proof">Org vs Compose File</a></li>
+      <li><a href="#what-go-live-actually-required">What "Go-Live" Actually Required</a></li>
+      <li><a href="#why-a-screenshot-alone-didnt-pass-review">Why a Screenshot Alone Didn't Pass Review</a></li>
+      <li><a href="#the-same-rule-smaller-stakes">The Same Rule, Smaller Stakes</a></li>
       <li><a href="#what-still-isnt-proven">What Still Isn't Proven</a></li>
     </ul>
   </div>
@@ -310,11 +313,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-56-org-boundaries-public-platform-identity.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-57-launch-week-integration-or-nothing.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Org+Boundaries+%E2%80%94+Public+Platform+Identity+%E2%80%94+Experience+%C2%B7+Day+56+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-56-org-boundaries-public-platform-identity.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Launch+Week+%E2%80%94+Integration+or+Nothing+%E2%80%94+Experience+%C2%B7+Day+57+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-57-launch-week-integration-or-nothing.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -327,17 +330,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D55</span> Experience</div>
-          <a href="day-55-two-products-one-tenant-bill.html" class="series-post-title">Two Products, One Tenant Bill</a>
+          <div class="series-post-kicker"><span class="series-post-num">D56</span> Experience</div>
+          <a href="day-56-org-boundaries-public-platform-identity.html" class="series-post-title">Org Boundaries &mdash; Public Platform Identity</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D56</span> Experience &middot; now</div>
-          <div class="series-post-title">Org Boundaries &mdash; Public Platform Identity</div>
-          <div class="series-post-desc">Wayfair's architecture diagram labels every subsystem with a team — today's unified docker-compose.yml is the same proof for a traceforge-dev org</div>
+          <div class="series-post-kicker"><span class="series-post-num">D57</span> Experience &middot; now</div>
+          <div class="series-post-title">Launch Week &mdash; Integration or Nothing</div>
+          <div class="series-post-desc">A screenshot only proves something rendered once — Agoda's go-live checklist required a rerun script instead, the same rule today's TraceForge landing page follows</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D57</span> Experience</div>
-          <a href="day-57-launch-week-integration-or-nothing.html" class="series-post-title">Launch Week &mdash; Integration or Nothing</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D58</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
