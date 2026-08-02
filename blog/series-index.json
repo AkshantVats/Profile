@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html",
+          "kicker": "AI Learning · Day 56 of 150",
+          "title": "Day 56 — Monorepo vs Multi-Repo — Platform Packaging",
+          "subtitle": "Compose files as integration contract",
+          "date": "2026-08-02",
+          "slug": "day-56-monorepo-vs-multi-repo-platform-packaging",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html",
+          "coverImage": "blog/assets/covers/day-56-monorepo-vs-multi-repo-platform-packaging.png",
+          "desc": "A per-component Dockerfile proves a component builds in isolation; only a shared docker-compose.yml proves four TraceForge components work together — and building it forced agent-benchmark-runner's first CLI."
+        },
+        {
           "href": "blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html",
           "kicker": "AI Learning · Day 55 of 150",
           "title": "Day 55 — Cross-Product Metrics — LensAI × TraceForge",
