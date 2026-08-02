@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 54 — Flame Graphs — CPU Profile for Agents | AI Learning Series</title>
-<meta name="description" content="Wide bars are where budget died — color by dollars. agent-benchmark-runner's new flame graph timeline sizes each tool call by its dollar cost and colors it on a heat gradient, the same trick CPU flame graphs use for wall-clock time.">
-<meta property="og:title" content="Day 54 — Flame Graphs — CPU Profile for Agents">
-<meta property="og:description" content="Day 53's timeline shows where two agents' sequences diverged. It has no notion of cost. Day 54 adds a second SVG — width proportional to dollars, color on a heat gradient — the same semantics a CPU flame graph uses for time.">
+<title>Day 55 &mdash; Two Products, One Tenant Bill | Experience Series</title>
+<meta name="description" content="At Wayfair, three independent cost sources fed one Total Cost Engine before a price calculator ever saw them. Today's LensAI integration in agent-benchmark-runner sets up the same join for two TraceForge products, one tenant at a time.">
+<meta property="og:title" content="Day 55 &mdash; Two Products, One Tenant Bill">
+<meta property="og:description" content="Three independent cost sources, one Total Cost Engine, at Wayfair. Today's code gives LensAI and agent-benchmark-runner the shared join key that same pattern depends on.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-54-flame-graphs-cpu-profile-for-agents.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-55-two-products-one-tenant-bill.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-55-two-products-one-tenant-bill.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-54-flame-graphs-cpu-profile-for-agents.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-55-two-products-one-tenant-bill.png">
 <meta property="article:published_time" content="2026-08-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 54 of 150</span>
-    <span class="tag">Profiling</span>
-    <span class="tag">Observability</span>
-    <span class="tag">Cost</span>
+    <span class="tag accent">Experience &middot; Day 55 of 150</span>
+    <span class="tag">FinOps</span>
+    <span class="tag">Pricing Systems</span>
+    <span class="tag">Wayfair</span>
   </div>
-  <h1 class="post-title">Day 54 &mdash; Flame Graphs &mdash; CPU Profile for Agents</h1>
-  <p class="post-subtitle">LLM wait vs tool exec vs queue. agent-benchmark-runner's new flame graph timeline sizes each tool call by its dollar cost and colors it on a heat gradient &mdash; the same trick a CPU flame graph uses for wall-clock time, aimed at a different resource.</p>
+  <h1 class="post-title">Day 55 &mdash; Two Products, One Tenant Bill</h1>
+  <p class="post-subtitle">At Wayfair, three independent cost sources fed one Total Cost Engine before a price calculator ever saw them separately. Today's LensAI integration in agent-benchmark-runner sets up the same join for two TraceForge products, one tenant identifier at a time.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 54 of 150</span>
+    <span class="meta-item">Experience &middot; Day 55 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
@@ -208,45 +208,30 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-54-flame-graphs-cpu-profile-for-agents.png" alt="Day 54 — Flame Graphs — CPU Profile for Agents" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-55-two-products-one-tenant-bill.png" alt="Day 55 — Two Products, One Tenant Bill" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Wide bars are where budget died — color by dollars.</p>
+<p>A finance stakeholder doesn't ask for two dashboards. They ask for a bill.</p>
 
-<p>Day 51 taught two agents to compare fairly against the same task. Day 52 taught how many times to run that comparison before the result means anything. Day 53 turned the comparison into a report three different readers could use.</p>
+<p>Two products that both meter the same tenant separately aren't giving anyone a bill &mdash; they're giving them two half-bills and an implicit homework assignment to reconcile them. I relearned that lesson leading two product areas at once at Wayfair, and today's code in TraceForge does the smaller, earlier thing that lesson requires before it can even apply.</p>
 
-<p>Day 54 asks a question none of those three answer: of everything a run did, where did the money actually go?</p>
+<h2 id="two-teams-one-org-chart">Two Teams, One Org Chart</h2>
 
-<h2 id="the-cpu-flame-graph-mental-model">The CPU Flame Graph Mental Model</h2>
+<p>At Wayfair, I led PAS (Price Adjustment System) and the Pricing, Promotions &amp; Discounts team simultaneously &mdash; two product areas, two roadmaps, one person accountable for delivery across both. PAS owns manual price corrections and overrides; Promotions owns supplier discount campaigns. Neither team reports the other's numbers, and neither one, on its own, can tell a finance stakeholder what a given SKU actually costs Wayfair to sell.</p>
 
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the CPU flame graph</div>
-  A CPU flame graph profiles a call stack and answers one question: which function ate the most wall-clock time. It does that with exactly one semantically loaded dimension &mdash; box width, proportional to time sampled in that function. Color is usually just a hash for visual separation between frames, and horizontal position encodes nothing about "when" at all — two functions running at completely different points in the trace can render at the same x-position if they happen to sample the same. Width alone carries the answer; nothing else on the chart needs to.
-</div>
+<p>That's not a staffing gap. It's structural: cost has more than one source, and no single team owns all of them.</p>
 
-<p>That one-dimension discipline is the whole insight, not an implementation detail. A flame graph could have encoded time as bar height, or as a number printed next to each frame, and either would be strictly more precise than width — but neither lets a reader's eye do the ranking instantly, the way "which box is widest" does without reading a single label first.</p>
+<p class="prose-so-what"><strong>So what:</strong> owning two roadmaps at once made the reconciliation problem visible earlier than owning either one alone would have &mdash; from inside a single team, "our number is right" is easy to believe even when it's only half the picture.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a flame graph's power comes from committing to one visual channel per question, not from cramming more information into the chart.</p>
+<h2 id="why-scheduledreader-exists">Why ScheduledReader Exists</h2>
 
-<h2 id="what-day-53s-timeline-cant-show">What Day 53's Timeline Can't Show</h2>
+<p>Wayfair's pricing platform doesn't solve this by asking its price calculator, Delphi, to query every cost source directly. Three independent systems each know one piece of a SKU's true cost: UCMS/SPCS knows the supplier's net cost, Hydros (an ML + logistics estimator) knows the estimated shipping and handling cost, and PAS Cost Adjustments knows manual corrections and subsidies. None of the three is authoritative by itself.</p>
 
-<p>Day 53's <code>RenderTimelineSVG</code> already has a width channel, and it deliberately doesn't use it for anything — every box is the same fixed size, because that timeline's one semantically loaded dimension is color: matched, diverged, or beyond the divergence point. That's the right choice for the question it answers. It becomes the wrong chart entirely for a different question, because a divergence timeline has no way to represent "this call was expensive" without repurposing a channel that already means something else.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">$0.004</span><span class="stat-label">cheapest call</span></div>
-  <div class="stat-cell"><span class="stat-num">$0.412</span><span class="stat-label">most expensive call</span></div>
-  <div class="stat-cell"><span class="stat-num">103x</span><span class="stat-label">cost spread, same run</span></div>
-</div>
-
-<p>Two runs can match step for step — Day 53's timeline would render them identically, every box the same width, same matched-color fill — and still differ by two orders of magnitude in what they spent getting there. That gap is invisible to a divergence view by construction, not by oversight; divergence and cost are answers to different questions asked of the same trace.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a chart that answers one question well is not a chart that's failing to answer a different one — it's a signal that the second question needs its own chart, not a bolt-on to the first.</p>
-
-<h2 id="two-independent-strips-not-aligned-columns">Two Independent Strips, Not Aligned Columns</h2>
+<p>The fix is a dedicated aggregation point &mdash; internally called ScheduledReader, the Total Cost Engine &mdash; that all three sources feed into before Delphi ever runs a price calculation. Delphi's contract stays simple: read one Total Cost number. It never has to know how many sources fed it, or reconcile them itself.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -266,57 +251,52 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Rep["Report struct"]
-  Costs["Per-call dollar cost"]
-  Build["BuildCostReport"]
-  CR["CostReport"]
-  SVG["RenderFlameGraphSVG"]
+  UCMS["UCMS/SPCS — supplier cost"]
+  Hydros["Hydros — logistics estimate"]
+  PASCost["PAS — cost adjustments"]
+  SR["ScheduledReader — Total Cost"]
+  Delphi["Delphi — price calculator"]
 
-  Rep --> Build
-  Costs --> Build
-  Build --> CR
-  CR --> SVG
+  UCMS --> SR
+  Hydros --> SR
+  PASCost --> SR
+  SR --> Delphi
 </pre>
 
-<p><code>RenderFlameGraphSVG</code> lays each agent's boxes out contiguously, left to right, sized only by that row's own calls — not aligned to the other row by step index the way Day 53's timeline is. A true CPU flame graph works the same way: frames stack against their neighbors in the same call stack, never against an unrelated stack sampled at the same clock tick. Forcing agent A's and agent B's cost-weighted boxes into shared columns would make two calls at the same step index render at different widths for reasons that have nothing to do with what either one cost.</p>
+<div class="attr-box mine">
+  <div class="attr-label">My scope &mdash; Wayfair, Bengaluru, Nov 2024&ndash;Mar 2026, Sr. Software Engineer III</div>
+  I led PAS and Pricing, Promotions &amp; Discounts simultaneously, owning end-to-end delivery across both product areas. The Cost Aggregation Layer description above reflects the architecture those teams' systems fed into, not a component either team owned outright &mdash; ScheduledReader sits upstream of PAS Cost Adjustments, one of three inputs, not a system either of my teams built alone.
+</div>
 
-<p class="prose-so-what"><strong>So what:</strong> "flame graph" isn't just a color scheme borrowed from CPU profiling — the contiguous, unaligned layout is part of the same design, and skipping it to keep Day 53's column grid would quietly reintroduce the divergence timeline's semantics into a chart that isn't answering that question anymore.</p>
+<p class="prose-so-what"><strong>So what:</strong> the aggregation point exists precisely because no single source can be trusted to represent the whole cost &mdash; building it once, upstream, is cheaper than asking every downstream consumer to reconcile three sources and their individual failure modes.</p>
 
-<h2 id="production-failure-modes-a-cost-view-surfaces">Production Failure Modes a Cost View Surfaces</h2>
+<h2 id="the-same-shape-one-layer-earlier">The Same Shape, One Layer Earlier, in TraceForge</h2>
 
-<p>A pass/fail badge and a divergence timeline both go silent on the failure mode that matters most once a benchmark moves from "does it work" to "should we ship it": a run that passes every criterion and costs five times what a cheaper, equally passing run costs. Nothing in Day 51's <code>compare.Result</code> or Day 53's headline surfaces that difference, because neither one was built to measure it.</p>
+<p>LensAI meters inference cost per tenant. <code>agent-benchmark-runner</code> grades how well an agent performs per tenant. A finance view of either product alone is the UCMS number without Hydros and PAS Cost Adjustments &mdash; correct as far as it goes, and not a bill.</p>
 
-<ul>
-  <li>A tool call retried silently on a transient error triples its own cost without changing the final tool call sequence at all.</li>
-  <li>An agent that over-fetches — calling a broad search tool where a narrow lookup would do — passes every correctness criterion while spending far more than necessary.</li>
-  <li>A regression that only shows up as cost, not correctness, ships clean through a test suite that only checks pass/fail.</li>
-</ul>
+<p>Today's code doesn't build a ScheduledReader for TraceForge. It does the smaller, prerequisite step that a real aggregation point depends on existing at all: giving both cost sources the same envelope and the same <code>tenant_id</code>, so a join is even possible later. <code>pkg/lensai</code> in <code>agent-benchmark-runner</code> dual-writes a benchmark batch's completion onto LensAI's existing <code>/ingest</code> pipeline, tagged <code>source: "benchmark_run"</code>, right alongside the <code>source: "tool_call"</code> events <code>tool-call-analyzer</code> already writes there.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a benchmark suite that only grades correctness is grading half of what "good" means once real dollars are attached to every tool call — the other half needs its own chart, because it's invisible on every chart built for the first half.</p>
+<p class="prose-so-what"><strong>So what:</strong> a shared join key is cheap to add before either pipeline has years of untagged history to migrate, and expensive to retrofit after &mdash; the same reason ScheduledReader's three sources all speak a schema Delphi can read without translation.</p>
 
-<h2 id="the-honest-gap">The Honest Gap</h2>
+<h2 id="what-one-bill-actually-requires">What "One Bill" Actually Requires</h2>
 
-<p><code>agent-benchmark-runner</code> has no live per-call cost telemetry yet. <code>BuildCostReport</code> takes <code>costsA</code>/<code>costsB</code> as explicit parameters — the same shape Day 53's <code>Build</code> used for tool call sequences it had no other source for — so today's tests supply fixture costs, and a future runner that instruments real per-tool-call dollar spend plugs into exactly this seam. There's also still no aggregate flame graph across a Day 52 batch of N repetitions, only a single run's two rows.</p>
+<p>A shared <code>tenant_id</code> and a shared envelope are necessary, not sufficient. ScheduledReader is real infrastructure at Wayfair &mdash; a dedicated aggregation service with its own deploy, its own on-call, its own contract with Delphi. A schema convention alone doesn't aggregate anything; it only makes aggregation possible for whoever builds the engine next.</p>
+
+<p>That's the honest gap in today's code: <code>pkg/lensai</code> makes two TraceForge products joinable on one tenant identifier. It does not, on its own, produce the single finance-facing number a stakeholder actually asked for &mdash; that's a future day's aggregation point, the way ScheduledReader itself was somebody's earlier day at Wayfair before Delphi ever depended on it.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the join key is the part of "one bill" that has to be decided first and is easiest to get wrong late &mdash; the aggregation engine on top of it is real work, but it's work that can start any time once the key already exists.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 54 of 150 &mdash; Flame Graphs &mdash; CPU Profile for Agents</p>
-  <p><em>Next up:</em> <a href="day-55-cross-product-metrics-lensai-x-traceforge.html">Day 55 &mdash; Cross-Product Metrics &mdash; LensAI &times; TraceForge</a></p>
+  <p>Experience &middot; Day 55 of 150 &mdash; Two Products, One Tenant Bill</p>
+  <p><em>Next up:</em> Day 56 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-53-human-readable-benchmark-reports.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 53 &mdash; Human-Readable Benchmark Reports (yesterday's post — the Report this one's CostReport wraps)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
-    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-54-flame-graphs-llm-time-vs-tool-time.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 54 &mdash; Flame Graphs &mdash; LLM Time vs Tool Time (today's companion Experience post — why width-by-draw beat a uniform grid at Walmart)</span>
+      <span>Day 54 &mdash; Flame Graphs &mdash; LLM Time vs Tool Time (yesterday's companion post &mdash; the agent-benchmark-runner package this post's dual-write extends)</span>
     </a>
   </div>
 </div>
@@ -327,22 +307,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-cpu-flame-graph-mental-model">The CPU Flame Graph Model</a></li>
-      <li><a href="#what-day-53s-timeline-cant-show">What Day 53 Can't Show</a></li>
-      <li><a href="#two-independent-strips-not-aligned-columns">Independent Strips</a></li>
-      <li><a href="#production-failure-modes-a-cost-view-surfaces">Production Failure Modes</a></li>
-      <li><a href="#the-honest-gap">The Honest Gap</a></li>
+      <li><a href="#two-teams-one-org-chart">Two Teams, One Org Chart</a></li>
+      <li><a href="#why-scheduledreader-exists">Why ScheduledReader Exists</a></li>
+      <li><a href="#the-same-shape-one-layer-earlier">Same Shape, Earlier Layer</a></li>
+      <li><a href="#what-one-bill-actually-requires">What "One Bill" Requires</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-54-flame-graphs-cpu-profile-for-agents.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-55-two-products-one-tenant-bill.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Flame+Graphs+%E2%80%94+CPU+Profile+for+Agents+%E2%80%94+AI+Learning+%C2%B7+Day+54+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-54-flame-graphs-cpu-profile-for-agents.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Two+Products%2C+One+Tenant+Bill+%E2%80%94+Experience+%C2%B7+Day+55+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-55-two-products-one-tenant-bill.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -351,21 +330,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D53</span> AI Learning</div>
-          <a href="day-53-human-readable-benchmark-reports.html" class="series-post-title">Human-Readable Benchmark Reports</a>
+          <div class="series-post-kicker"><span class="series-post-num">D54</span> Experience</div>
+          <a href="day-54-flame-graphs-llm-time-vs-tool-time.html" class="series-post-title">Flame Graphs &mdash; LLM Time vs Tool Time</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D54</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Flame Graphs &mdash; CPU Profile for Agents</div>
-          <div class="series-post-desc">A CPU flame graph's width-only discipline, applied to tool-call dollar cost instead of wall-clock time</div>
+          <div class="series-post-kicker"><span class="series-post-num">D55</span> Experience &middot; now</div>
+          <div class="series-post-title">Two Products, One Tenant Bill</div>
+          <div class="series-post-desc">Wayfair's ScheduledReader joins three cost sources into one Total Cost &mdash; today's LensAI integration sets up the same join for TraceForge</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D55</span> AI Learning</div>
-          <a href="day-55-cross-product-metrics-lensai-x-traceforge.html" class="series-post-title">Cross-Product Metrics &mdash; LensAI &times; TraceForge</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D56</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -378,7 +357,7 @@ flowchart LR
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
+      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
@@ -391,14 +370,15 @@ flowchart LR
 
 <script>
 (function(){
-  var btn=document.getElementById('theme-toggle');
-  if(!btn)return;
-  btn.addEventListener('click',function(){
-    var html=document.documentElement;
-    var isDark=html.getAttribute('data-theme')==='dark';
-    if(isDark){html.removeAttribute('data-theme');localStorage.setItem('theme','light');}
-    else{html.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');}
-  });
+  var t=document.getElementById('theme-toggle');
+  function apply(d){document.documentElement.setAttribute('data-theme',d);localStorage.setItem('theme',d);}
+  if(t)t.addEventListener('click',function(){apply(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');});
+  var tl=document.querySelector('.toc-list');
+  if(tl){
+    var as=tl.querySelectorAll('a');
+    var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
+    document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
+  }
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>

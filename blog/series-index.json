@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html",
+          "kicker": "AI Learning · Day 55 of 150",
+          "title": "Day 55 — Cross-Product Metrics — LensAI × TraceForge",
+          "subtitle": "Join keys and dashboard contracts",
+          "date": "2026-08-02",
+          "slug": "day-55-cross-product-metrics-lensai-x-traceforge",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html",
+          "coverImage": "blog/assets/covers/day-55-cross-product-metrics-lensai-x-traceforge.png",
+          "desc": "A join key decided before there is data to migrate, and a shared LensAI ingest envelope that stays additive-safe only because of a property of today's Rust struct, not a contract either dual-writer enforces."
+        },
+        {
           "href": "blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html",
           "kicker": "AI Learning · Day 54 of 150",
           "title": "Day 54 — Flame Graphs — CPU Profile for Agents",
@@ -539,6 +551,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-55-two-products-one-tenant-bill.html",
+          "kicker": "Experience · Day 55 of 150",
+          "title": "Day 55 — Two Products, One Tenant Bill",
+          "subtitle": "Wayfair · unified metrics · finance",
+          "date": "2026-08-02",
+          "slug": "day-55-two-products-one-tenant-bill",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-55-two-products-one-tenant-bill.html",
+          "coverImage": "blog/assets/covers/day-55-two-products-one-tenant-bill.png",
+          "desc": "Wayfair's ScheduledReader joins three independent cost sources into one Total Cost before Delphi ever sees them separately. Today's LensAI integration in agent-benchmark-runner sets up the same join for two TraceForge products."
+        },
         {
           "href": "blog/series/experience/day-54-flame-graphs-llm-time-vs-tool-time.html",
           "kicker": "Experience · Day 54 of 150",
