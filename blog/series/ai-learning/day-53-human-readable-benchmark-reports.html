@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 52 — Statistical Rigor — N Runs, Confidence | AI Learning Series</title>
-<meta name="description" content="Run 30 times; report median cost and p95 steps. Agent runs are non-deterministic even holding the task, seed, and prompt fixed — one run is an anecdote, and a benchmark needs a distribution with a confidence interval attached, not a single pass/fail bit.">
-<meta property="og:title" content="Day 52 — Statistical Rigor — N Runs, Confidence">
-<meta property="og:description" content="Judging an agent from one run is like calling a coin biased after one flip. agent-benchmark-runner's orchestrator runs a task N times under bounded concurrency and reports a pass rate with a 95% Wilson confidence interval instead of one number.">
+<title>Day 53 — Human-Readable Benchmark Reports | AI Learning Series</title>
+<meta name="description" content="Lead with 'step 5 diverged' — story first, flame second. agent-benchmark-runner's report generator turns a compare.Result into a headline, a markdown table, a JSON payload, and an SVG timeline — three renderers built from one struct, for three different readers.">
+<meta property="og:title" content="Day 53 — Human-Readable Benchmark Reports">
+<meta property="og:description" content="A raw compare.Result is a Go struct nobody reads directly. pkg/report turns it into a headline that leads with divergence — '14 calls vs 9, diverged at step 5' — plus markdown, JSON, and an SVG timeline for three different readers.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-52-statistical-rigor-n-runs-confidence.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-53-human-readable-benchmark-reports.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-53-human-readable-benchmark-reports.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-52-statistical-rigor-n-runs-confidence.png">
-<meta property="article:published_time" content="2026-08-01">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-53-human-readable-benchmark-reports.png">
+<meta property="article:published_time" content="2026-08-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 52 of 150</span>
-    <span class="tag">Statistics</span>
+    <span class="tag accent">AI Learning &middot; Day 53 of 150</span>
     <span class="tag">Benchmarking</span>
-    <span class="tag">Confidence Intervals</span>
+    <span class="tag">Report Design</span>
+    <span class="tag">Observability</span>
   </div>
-  <h1 class="post-title">Day 52 &mdash; Statistical Rigor &mdash; N Runs, Confidence</h1>
-  <p class="post-subtitle">Don't benchmark once. Run 30 times; report median cost and p95 steps. Agent runs are non-deterministic even holding the task, seed, and prompt fixed &mdash; one run is an anecdote, not evidence, and a benchmark needs a distribution with an error bar attached instead of a single pass/fail bit.</p>
+  <h1 class="post-title">Day 53 &mdash; Human-Readable Benchmark Reports</h1>
+  <p class="post-subtitle">Narrative and numbers beat dashboards alone. agent-benchmark-runner's report generator turns a compare.Result &mdash; a Go struct nobody reads directly &mdash; into a headline, a markdown table, a JSON payload, and an SVG timeline, one struct rendered three ways for three different readers.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 52 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 53 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 1, 2026</span>
+    <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">7 min read</span>
   </div>
@@ -208,39 +208,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-52-statistical-rigor-n-runs-confidence.png" alt="Day 52 — Statistical Rigor — N Runs, Confidence" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-53-human-readable-benchmark-reports.png" alt="Day 53 — Human-Readable Benchmark Reports" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Run 30 times; report median cost and p95 steps.</p>
+<p>Lead with "step 5 diverged" &mdash; story first, flame second.</p>
 
-<p>That's the whole methodology in seven words. Day 51 fixed the scenario &mdash; one task, one seed, one prompt, so two agents could be compared fairly. Day 52 asks a different question about that same fixed scenario: how many times do you actually have to run it before a number coming out the other end means anything?</p>
+<p>Day 51 taught two agents to compare fairly against the same task. Day 52 taught how many times to run that comparison before the result means anything. Day 53 asks the question that comes after both: once you have a correct comparison, what do you actually show someone?</p>
 
-<h2 id="one-flip-doesnt-tell-you-if-a-coin-is-fair">One Flip Doesn't Tell You If a Coin Is Fair</h2>
+<h2 id="the-after-visit-summary-not-the-lab-panel">The After-Visit Summary, Not the Lab Panel</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the coin you only flipped once</div>
-  Flip a coin once and it lands heads. You have exactly one data point, and it says nothing about whether the coin is fair, weighted, or two-headed &mdash; a fair coin lands heads on a single flip half the time anyway. Flip it thirty times and get eighteen heads, and now you have something to say: not "the coin is biased toward heads," but a rate with a range around it, one that gets narrower the more you flip.
+  <div class="attr-label">DS analogy &mdash; the doctor's after-visit summary</div>
+  A doctor's after-visit summary leads with one sentence &mdash; "your blood pressure is high, here's what to do about it" &mdash; not with forty lab values in the order the machine printed them. The full panel is real, and it's attached for anyone who wants to verify the sentence. But the sentence is what gets read, and it's what gets acted on, because a reader deciding whether to change a prescription doesn't start by re-deriving the diagnosis from raw numbers.
 </div>
 
-<p>An agent run graded once against a task's success criteria is the one-flip case. The run passed or it didn't, and that single bit can't distinguish "this agent reliably solves this task" from "this agent got lucky on this exact draw of tool latency and provider-side sampling." Both produce the identical pass/fail bit from a single run.</p>
+<p>A <code>compare.Result</code> from Day 51 is the lab panel: two agents' criterion-by-criterion grades, a pass/fail bit each, and a divergence index buried in a field nobody reads without already knowing what they're looking for. It's correct and complete. It is not a report, in the same sense forty unordered lab values are not an after-visit summary.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a single run's pass/fail bit is compatible with wildly different underlying reliabilities &mdash; it just doesn't carry enough information to tell them apart.</p>
+<p class="prose-so-what"><strong>So what:</strong> correctness and readability are different properties of the same data, and a benchmark tool that only produces the first one has built half a report generator.</p>
 
-<h2 id="where-the-variance-actually-comes-from">Where the Variance Actually Comes From</h2>
+<h2 id="what-a-report-needs-before-it-needs-the-mechanism">What a Report Needs Before It Needs the Mechanism</h2>
 
-<p>Day 51 pinned the task, the seed, and the prompt specifically so an agent-to-agent comparison couldn't be confounded by a different scenario. That fix doesn't make a single agent's own runs identical to each other, because the sources of run-to-run variance live below the task boundary: tool latency jitter that changes retry timing, transient tool errors that trigger different recovery paths, and provider-side sampling that isn't fully pinned down by one seed value alone.</p>
+<p><code>pkg/report.Build</code> takes a <code>compare.Result</code> plus both agents' raw tool call sequences &mdash; deliberately not carried on <code>compare.Result</code> itself, since Day 51 only stores the comparison, not the outcomes it was computed from &mdash; and produces a <code>Report</code> whose first field a reader sees is <code>Headline</code>.</p>
 
-<p>None of that variance is a bug in the task specification &mdash; it's the agent operating in a system that has real timing and real randomness in it, the same way a network call's latency varies run to run even when the request bytes are byte-for-byte identical. A benchmark that assumes one run is representative is assuming that variance away instead of measuring it.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">14</span><span class="stat-label">agent A tool calls</span></div>
+  <div class="stat-cell"><span class="stat-num">9</span><span class="stat-label">agent B tool calls</span></div>
+  <div class="stat-cell"><span class="stat-num">step 5</span><span class="stat-label">first divergence</span></div>
+</div>
 
-<p class="prose-so-what"><strong>So what:</strong> fixing the task removes scenario noise between agents; it doesn't remove execution noise within one agent's own repeated runs &mdash; that noise needs N runs to be seen at all.</p>
+<p>Those three numbers render as one sentence: <code>"14 calls vs 9, diverged at step 5."</code> That's the headline before either agent's PASS or FAIL badge appears anywhere in the document &mdash; and it's a deliberate ordering, not an accident of struct field order. Two independent pass/fail badges answer "did each one pass," which Day 51 already reports; they say nothing about where the two runs actually parted ways.</p>
 
-<h2 id="n-repetitions-under-a-concurrency-budget">N Repetitions Under a Concurrency Budget</h2>
+<p class="prose-so-what"><strong>So what:</strong> the headline is doing the same job the after-visit summary's first sentence does &mdash; compressing the reading order so the highest-value fact isn't competing with forty other facts for a reader's attention.</p>
 
-<p><code>pkg/orchestrator.Run</code> executes a task's <code>N</code> repetitions against one agent, bounded by a fixed-size worker pool rather than firing all <code>N</code> at once &mdash; the companion Experience post walks through why unbounded fan-out turns a benchmark batch into a self-inflicted rate-limit test instead of a measurement of the agent. Each repetition gets its own seed, derived by hashing the task's base seed together with the repetition index, so the full batch reproduces exactly from one recorded number while no two repetitions draw from a correlated random stream.</p>
+<h2 id="three-renderers-one-report">Three Renderers, One Report</h2>
+
+<p>Once <code>Report</code> exists as a single reshaped struct, three render functions turn it into three different artifacts, and the mechanism is the same for all three: walk the same fields, format them differently.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -260,61 +266,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Base["Base seed"]
-  Derive["Derive N seeds"]
-  Pool["Bounded worker pool"]
-  Runs["N repetitions"]
-  Results["Per-run results"]
-  Sum["Summarize"]
-  Report["Benchmark report"]
+  CR["compare.Result"]
+  TS["Tool call sequences"]
+  Build["report.Build"]
+  Rep["Report struct"]
+  MD["RenderMarkdown"]
+  JS["RenderJSON"]
+  SVG["RenderTimelineSVG"]
 
-  Base --> Derive
-  Derive --> Pool
-  Pool --> Runs
-  Runs --> Results
-  Results --> Sum
-  Sum --> Report
+  CR --> Build
+  TS --> Build
+  Build --> Rep
+  Rep --> MD
+  Rep --> JS
+  Rep --> SVG
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> reproducibility and concurrency aren't in tension here &mdash; deriving the seeds up front means the same batch replays identically whether it ran at <code>MaxParallel=1</code> or <code>MaxParallel=8</code>.</p>
+<p><code>RenderMarkdown</code> writes the headline plus a two-row pass/fail table &mdash; the PR-description or Slack-message reader, who wants the sentence-length summary without reopening the trace. <code>RenderJSON</code> writes every field with no formatting opinions at all &mdash; the dashboard or alerting-rule reader, a machine that never sees a badge or a color. <code>RenderTimelineSVG</code> draws two rows of boxes, one per tool call, colored by whether that step matched, diverged, or came after the divergence point.</p>
 
-<h2 id="a-rate-with-an-error-bar-not-a-single-number">A Rate With an Error Bar, Not a Single Number</h2>
+<p class="prose-so-what"><strong>So what:</strong> three renderers over one struct is cheaper than three separate reports, and it guarantees the three artifacts can never quietly disagree with each other about what the divergence actually was.</p>
 
-<p><code>Summarize</code> turns the batch into a pass rate plus a 95% confidence interval, using the Wilson score formula instead of the more familiar normal (Wald) approximation. Wald computes a symmetric margin around the observed rate and can push the interval below 0% or above 100%, or collapse it to zero width at 0 or 100 percent observed &mdash; exactly the small-sample, extreme-rate territory a 10-to-30-run benchmark batch lives in.</p>
+<h2 id="why-the-timeline-is-boxes-not-a-chart-library">Why the Timeline Is Boxes, Not a Chart Library</h2>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">8/10</span><span class="stat-label">observed pass rate</span></div>
-  <div class="stat-cell"><span class="stat-num">[49%, 94%]</span><span class="stat-label">95% Wilson interval</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">seeds decorrelated per pair</span></div>
-</div>
+<p><code>RenderTimelineSVG</code> is a few dozen lines of <code>fmt.Fprintf</code> writing raw <code>&lt;rect&gt;</code> and <code>&lt;text&gt;</code> elements &mdash; no charting dependency. The visual is a small, fixed shape: two rows of fixed-size boxes, colored by state, with a dashed empty slot wherever a shorter sequence ended early instead of that slot being silently omitted.</p>
 
-<p>That 45-point-wide interval on a 10-run batch is not a bug in the math &mdash; it's the honest answer. Ten runs genuinely cannot distinguish an 80%-reliable agent from a 55%-reliable one; the interval says so instead of hiding it behind one confident-looking 80% headline number. Running more repetitions narrows the interval; nothing about a wider prompt or a smarter model narrows it faster than more data does.</p>
+<p>A general-purpose charting library solves a much bigger problem than this one needs solved, and it drags its own transitive dependency tree along for a chart whose shape never changes. The flame-graph instinct the hook mentions &mdash; reach for the detailed visual first &mdash; is real and useful, but it's the second artifact a reader opens, after the headline sentence tells them whether there's anything worth looking at the picture for.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the width of the confidence interval is itself the signal &mdash; a narrow one on a large batch means the rate has actually converged, and a wide one means the honest answer is "run more," not "trust the point estimate."</p>
+<p class="prose-so-what"><strong>So what:</strong> "story first, flame second" isn't a preference against detailed visuals &mdash; it's an ordering claim about which artifact answers a reader's first question, with the detailed one still one click away for whoever needs it.</p>
 
 <h2 id="the-honest-gap">The Honest Gap</h2>
 
-<p>Everything here still takes <code>AgentFunc</code> and <code>RunOutcome</code> as caller-supplied inputs, exactly as Day 51 left them &mdash; <code>pkg/orchestrator</code> and <code>pkg/store</code> don't invoke a live agent process themselves. A CLI that reads a task YAML, drives real repetitions end to end against an actual agent, and writes the results to ClickHouse is a natural next step, not something today's code quietly pretends to already do.</p>
+<p><code>pkg/report</code> renders a single <code>compare.Result</code>, not a Day 52 <code>Summary</code> batch of N repetitions &mdash; picking a representative pair from a batch, or an aggregate divergence view across all N runs, is a natural next step this code doesn't take yet. There is still no CLI wiring a task YAML, a live agent process, and a rendered report together end to end; every package built across Days 51 through 53 remains a library a future runner composes, not a runnable binary on its own.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 52 of 150 &mdash; Statistical Rigor &mdash; N Runs, Confidence</p>
-  <p><em>Next up:</em> <a href="day-53-human-readable-benchmark-reports.html">Day 53 &mdash; Human-Readable Benchmark Reports</a></p>
+  <p>AI Learning &middot; Day 53 of 150 &mdash; Human-Readable Benchmark Reports</p>
+  <p><em>Next up:</em> Day 54 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-51-benchmark-methodology-for-agents.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 51 &mdash; Benchmark Methodology for Agents (yesterday's post — the task/seed/criteria fix this one builds N repetitions on top of)</span>
+      <span>Day 52 &mdash; Statistical Rigor &mdash; N Runs, Confidence (yesterday's post — the Summary this one's Honest Gap section references)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-52-parallel-runs-respect-the-rate-limit.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-53-the-report-hiring-managers-get.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 52 &mdash; Parallel Runs &mdash; Respect the Rate Limit (today's companion Experience post — why the worker pool is bounded)</span>
+      <span>Day 53 &mdash; 14 Calls vs 9 &mdash; The Report Hiring Managers Get (today's companion Experience post — why the headline leads with the number)</span>
     </a>
   </div>
 </div>
@@ -325,10 +327,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#one-flip-doesnt-tell-you-if-a-coin-is-fair">One Flip, One Coin</a></li>
-      <li><a href="#where-the-variance-actually-comes-from">Where the Variance Comes From</a></li>
-      <li><a href="#n-repetitions-under-a-concurrency-budget">N Repetitions, One Budget</a></li>
-      <li><a href="#a-rate-with-an-error-bar-not-a-single-number">A Rate With an Error Bar</a></li>
+      <li><a href="#the-after-visit-summary-not-the-lab-panel">The After-Visit Summary</a></li>
+      <li><a href="#what-a-report-needs-before-it-needs-the-mechanism">What a Report Needs First</a></li>
+      <li><a href="#three-renderers-one-report">Three Renderers, One Report</a></li>
+      <li><a href="#why-the-timeline-is-boxes-not-a-chart-library">Why the Timeline Is Boxes</a></li>
       <li><a href="#the-honest-gap">The Honest Gap</a></li>
     </ul>
   </div>
@@ -336,11 +338,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-52-statistical-rigor-n-runs-confidence.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-53-human-readable-benchmark-reports.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Statistical+Rigor+%E2%80%94+N+Runs%2C+Confidence+%E2%80%94+AI+Learning+%C2%B7+Day+52+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-52-statistical-rigor-n-runs-confidence.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Human-Readable+Benchmark+Reports+%E2%80%94+AI+Learning+%C2%B7+Day+53+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-53-human-readable-benchmark-reports.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -353,17 +355,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D51</span> AI Learning</div>
-          <a href="day-51-benchmark-methodology-for-agents.html" class="series-post-title">Benchmark Methodology for Agents</a>
+          <div class="series-post-kicker"><span class="series-post-num">D52</span> AI Learning</div>
+          <a href="day-52-statistical-rigor-n-runs-confidence.html" class="series-post-title">Statistical Rigor &mdash; N Runs, Confidence</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D52</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Statistical Rigor &mdash; N Runs, Confidence</div>
-          <div class="series-post-desc">One coin flip can't tell you if the coin is fair &mdash; a pass rate with a 95% Wilson confidence interval instead of a single pass/fail bit</div>
+          <div class="series-post-kicker"><span class="series-post-num">D53</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Human-Readable Benchmark Reports</div>
+          <div class="series-post-desc">A compare.Result is a Go struct nobody reads directly &mdash; pkg/report turns it into a headline, markdown, JSON, and an SVG timeline for three different readers</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D53</span> AI Learning</div>
-          <a href="day-53-human-readable-benchmark-reports.html" class="series-post-title">Human-Readable Benchmark Reports</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D54</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

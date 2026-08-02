@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-53-human-readable-benchmark-reports.html",
+          "kicker": "AI Learning · Day 53 of 150",
+          "title": "Day 53 — Human-Readable Benchmark Reports",
+          "subtitle": "Narrative + numbers beat dashboards alone",
+          "date": "2026-08-02",
+          "slug": "day-53-human-readable-benchmark-reports",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-53-human-readable-benchmark-reports.html",
+          "coverImage": "blog/assets/covers/day-53-human-readable-benchmark-reports.png",
+          "desc": "A compare.Result is a Go struct nobody reads directly — agent-benchmark-runner's report generator turns it into a headline that leads with divergence, plus markdown, JSON, and an SVG timeline for three different readers."
+        },
+        {
           "href": "blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html",
           "kicker": "AI Learning · Day 52 of 150",
           "title": "Day 52 — Statistical Rigor — N Runs, Confidence",
