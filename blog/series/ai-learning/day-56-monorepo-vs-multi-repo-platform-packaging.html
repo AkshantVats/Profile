@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 55 &mdash; Cross-Product Metrics &mdash; LensAI &times; TraceForge | AI Learning Series</title>
-<meta name="description" content="One tenant_id to rule cost — design the join on Day 1. Why agent-benchmark-runner reuses LensAI's exact ingest envelope instead of inventing its own, and what stays true for that shared schema to keep working.">
-<meta property="og:title" content="Day 55 &mdash; Cross-Product Metrics — LensAI × TraceForge">
-<meta property="og:description" content="A join key decided before there's data to migrate, and a schema that stays additive-safe only by accident of today's implementation — not by contract.">
+<title>Day 56 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging | AI Learning Series</title>
+<meta name="description" content="Buyers install compose, not git clone four times. Why agent-benchmark-runner needed its first CLI, and why a root docker-compose.yml — not four separate Dockerfiles — is TraceForge's real integration contract.">
+<meta property="og:title" content="Day 56 &mdash; Monorepo vs Multi-Repo — Platform Packaging">
+<meta property="og:description" content="A packaging decision that forced a real feature: agent-benchmark-runner needed a CLI before docker-compose.yml had anything to point a container at.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-55-cross-product-metrics-lensai-x-traceforge.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-monorepo-vs-multi-repo-platform-packaging.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-55-cross-product-metrics-lensai-x-traceforge.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-monorepo-vs-multi-repo-platform-packaging.png">
 <meta property="article:published_time" content="2026-08-02">
 <meta name="theme-color" content="#0a0f1e">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 55 of 150</span>
-    <span class="tag">Observability</span>
-    <span class="tag">Schema Design</span>
-    <span class="tag">Cost</span>
+    <span class="tag accent">AI Learning &middot; Day 56 of 150</span>
+    <span class="tag">Platform Engineering</span>
+    <span class="tag">Docker</span>
+    <span class="tag">Systems Design</span>
   </div>
-  <h1 class="post-title">Day 55 &mdash; Cross-Product Metrics &mdash; LensAI &times; TraceForge</h1>
-  <p class="post-subtitle">Join keys and dashboard contracts. agent-benchmark-runner's new LensAI integration reuses LensAI's exact ingest envelope instead of inventing its own — a decision that only works because of a property of today's schema, not a guarantee either pipeline enforces.</p>
+  <h1 class="post-title">Day 56 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging</h1>
+  <p class="post-subtitle">Compose files as integration contract. Buyers install compose, not git clone four times — and agent-benchmark-runner needed its first CLI before docker-compose.yml had anything real to point a container at.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 55 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 56 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
@@ -208,35 +208,31 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-55-cross-product-metrics-lensai-x-traceforge.png" alt="Day 55 — Cross-Product Metrics — LensAI × TraceForge" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-56-monorepo-vs-multi-repo-platform-packaging.png" alt="Day 56 — Monorepo vs Multi-Repo — Platform Packaging" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>One tenant_id to rule cost — design the join on Day 1.</p>
+<p>Buyers install compose, not git clone four times.</p>
 
-<p>A distributed system rarely gets to choose its dashboard's join key after the fact. By the time two pipelines both have data flowing and a stakeholder asks to see cost and quality on one screen, retrofitting a shared key means backfilling history that was never tagged with it, or living with two screens forever.</p>
+<p>A platform made of several independently-evolving components has to answer one packaging question before it has any users: does installing it mean cloning one thing, or several? Get that answer wrong and every user pays the integration cost the platform should have paid once, upfront.</p>
 
-<p>Day 55 asks a narrower, earlier version of that question: when a second pipeline's first event ever gets built, what has to be true about it for a join to even be possible someday?</p>
-
-<h2 id="the-join-key-first-design-principle">The Join-Key-First Design Principle</h2>
+<h2 id="the-packaging-question-every-platform-answers">The Packaging Question Every Platform Answers</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the phone system's country code</div>
-  Every phone number carries a country-code prefix, whether or not a given call ever crosses a border. Reserving that field costs nothing when a numbering plan is designed — it's an empty slot most calls never use. Retrofitting a prefix onto a numbering scheme already in use by millions of subscribers, after the fact, is a different order of problem entirely: every existing number is ambiguous until it's re-tagged, and re-tagging has to happen without breaking calls already in flight.
+  <div class="attr-label">DS analogy &mdash; a shipping container vs. a pallet of loose boxes</div>
+  Loose boxes each survive the trip fine on their own — nothing about any single box proves the others will stack with it at the destination. A shipping container is what makes "arrives as one load" a property of the shipment instead of a hope. Four separate repos are the loose boxes; a compose file that boots all four together is the container.
 </div>
 
-<p>LensAI's <code>/ingest</code> envelope already had <code>tenant_id</code> — every inference event since Day 1 carried one, because tenant-scoped billing was the pipeline's reason to exist. The only open question Day 55 had to answer was whether <code>agent-benchmark-runner</code>'s first ingest event would reuse that field or invent its own.</p>
+<p>Four separate repos — <code>agent-replay-engine</code>, <code>agent-benchmark-runner</code>, <code>tool-call-analyzer</code>, <code>traceforge</code> — each with an independent <code>go.mod</code>, independent CI, independent release cadence is the more "correct" separation on paper: each component versions on its own schedule, and a consumer who wants only one doesn't pay for the other three. But it pushes the integration cost onto every single user — four clones, four READMEs to reconcile by hand, and no single artifact proving the four pieces actually work together, only four sets of docs each asserting they should.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the cheapest time to decide a join key is before the second pipeline has any data to migrate — reusing an existing field costs a design decision; adding one later costs a backfill.</p>
+<p class="prose-so-what"><strong>So what:</strong> "each component is independently correct" and "the four components work together" are different claims, and only one of them is what a user installing a platform actually needs proven.</p>
 
-<h2 id="the-wide-event-parallel">The Wide-Event, Structured-Log Parallel</h2>
+<h2 id="the-monorepo-only-solved-half-of-it">The Monorepo Only Solved Half of It</h2>
 
-<p>The systems-engineering version of the same trade is a request ID threaded through every service a request touches. Most services that carry it don't need it for their own logic — a request ID doesn't change how a service processes a request, only how a reader can later reconstruct what happened to it across service boundaries.</p>
-
-<p>The alternative — correlating logs after the fact by timestamp and rough proximity — fails exactly when it matters most: under load, with clock skew, with two requests arriving close enough together that timestamp correlation becomes a guess. A field that costs nothing at write time and pays off only during an investigation is an easy trade to skip, right up until the investigation happens.</p>
+<p>Day 44 already answered the "one clone or four" question for source code, when <code>agent-replay-engine</code> landed inside <code>infra-ai-streaming</code> instead of as its own repo. Day 56's actual decision sits one level up: given one monorepo, does <code>docker-compose.yml</code> become the integration contract, or does each component ship its own Dockerfile and leave composition as an exercise for the reader?</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -256,67 +252,63 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  LensEvt["LensAI inference event"]
-  BenchEvt["Benchmark-run event"]
-  Ingest["Shared /ingest envelope"]
-  CH["One ClickHouse table"]
+  TF["traceforge"]
+  ARE["agent-replay-engine"]
+  ABR["agent-benchmark-runner"]
+  TCA["tool-call-analyzer"]
+  Compose["docker-compose.yml"]
+  Core["core services"]
+  Tools["tools profile"]
 
-  LensEvt -->|tenant_id| Ingest
-  BenchEvt -->|tenant_id| Ingest
-  Ingest --> CH
+  TF --> Compose
+  ARE --> Compose
+  ABR --> Compose
+  TCA --> Compose
+  Compose --> Core
+  Compose --> Tools
 </pre>
 
-<p><code>orchestrator.Summary</code> — the batch statistics a benchmark run produces — has no tenant concept of its own; grading a batch correctly never required one. The event <code>pkg/lensai.ToEvent</code> builds from that Summary does, because the event's only job, unlike the Summary it's built from, is to be joinable later.</p>
+<p>A Dockerfile per component proves that component builds in isolation. It proves nothing about whether <code>agent-benchmark-runner</code>'s container can actually reach the <code>traceforge</code> collector it's meant to benchmark against, or whether Redpanda's topic names match what <code>tool-call-analyzer</code> expects. One root compose file that wires all four together — with the CLI-only components under a <code>tools</code> profile so they don't block <code>docker compose up</code> waiting on an invocation — is the thing a user can run and watch fail or pass as a single system, not four separate claims.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a field a component doesn't need for its own correctness can still be the single most important field on the event it emits — "does this help future me" is a different question from "does this help today's logic."</p>
+<p class="prose-so-what"><strong>So what:</strong> a per-component Dockerfile answers "does this build"; a shared compose file is the only artifact that answers "does this work," and platforms live or die on the second question.</p>
 
-<h2 id="why-the-shared-envelope-is-safe-to-reuse">Why the Shared Envelope Is Safe to Reuse</h2>
+<h2 id="the-decision-forced-a-real-feature">The Decision Forced a Real Feature</h2>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">source values sharing one envelope</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">deny_unknown_fields on InferenceEvent</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">table both land in</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">cmd/ entrypoints through Day 55</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">CLI added to make it containerizable</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">components unified in one compose file</span></div>
 </div>
 
-<p>Reusing LensAI's envelope instead of standing up a second endpoint only works because of a specific, checkable property: LensAI's Rust <code>InferenceEvent</code> struct derives <code>Deserialize</code> without <code>#[serde(deny_unknown_fields)]</code>. Serde's default behavior on a struct like that is to silently drop JSON fields it doesn't recognize, rather than reject the whole payload. That's what Day 42 (<code>tool-call-analyzer/pkg/lensai</code>) already relied on to add <code>trace_id</code> and <code>source</code> as additive fields, and it's exactly what makes it safe for Day 55 to add a second <code>source</code> value onto the same wire format instead of forking it.</p>
+<p>The honest engineering cost, not just a rhetorical one: <code>agent-benchmark-runner</code> had zero <code>cmd/</code> entrypoint through Day 55 — a library only, exercised entirely through <code>go test</code>. Today's <code>pkg/subprocess</code> and <code>cmd/traceforge</code> exist because the compose file needed something runnable to point a <code>benchmark:</code> service at. A packaging decision is not free of implementation debt: choosing "compose file as integration contract" forced a real feature — a CLI, and the process-group-kill fix that came with wrapping a shell command safely under a timeout — that a docs-only, four-separate-repos world would never have surfaced.</p>
 
-<p>Without that property, the two dual-writers couldn't coexist this cheaply: either LensAI's ingest handler would reject every event carrying an unrecognized field, or every additive field would need a schema migration blessed on both sides before either dual-writer could ship it.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> "safe to extend" is a fact about the current implementation, not a promise the schema makes — and a design built on that fact needs to know which one it's leaning on.</p>
-
-<h2 id="what-breaks-if-the-property-changes">What Breaks If the Property Changes</h2>
-
-<ul>
-  <li>LensAI's ingest handler adds <code>#[serde(deny_unknown_fields)]</code> to <code>InferenceEvent</code> for input validation reasons unrelated to either dual-writer — both <code>tool_call</code> and <code>benchmark_run</code> events start failing deserialization at once.</li>
-  <li>The failure is silent from each dual-writer's own vantage point: <code>Writer.Insert</code> still gets an HTTP response, and only a downstream metric — ingest volume for <code>source:"benchmark_run"</code> dropping to zero — reveals anything changed.</li>
-  <li>Two independently-deployed modules (<code>tool-call-analyzer</code>, <code>agent-benchmark-runner</code>) now share a coupling neither one's go.mod expresses: both assume the same fact about a Rust struct in a third repo they don't import.</li>
-</ul>
-
-<p class="prose-so-what"><strong>So what:</strong> reusing a schema is cheaper than owning one, and the price of that cheapness is an invisible dependency — worth taking here, but worth writing down, which is what this post and the code's own DESIGN.md addendum both do.</p>
+<p class="prose-so-what"><strong>So what:</strong> a packaging decision that looks like pure plumbing can quietly demand real product work upstream of it — the compose file didn't just wrap an existing CLI, it's the reason the CLI exists at all.</p>
 
 <h2 id="the-honest-gap">The Honest Gap</h2>
 
-<p>A shared <code>tenant_id</code> and a shared envelope make two products joinable; neither one, on its own, joins them. Nothing in today's code aggregates a LensAI inference event and a <code>benchmark_run</code> event for the same tenant into a single number — that's a future aggregation point's job, the same way LensAI's own envelope reuse only worked because Day 42 already existed to reuse. Today's companion Experience post covers what a real aggregation engine looks like once one gets built.</p>
+<p>No Docker daemon was available in the environment this was built in, so the integration claim above is validated by <code>docker compose config</code> — the file parses, its structure is well-formed, its four Dockerfile references exist — not yet by <code>docker compose up</code> actually building and running all four together. The packaging decision is made and the code exists to back it; whether it boots cleanly on a real Docker host is the next thing to prove, not something this post can claim it already has.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a design decision and its verification are two different milestones — writing the compose file down is the design; someone (or some CI job) actually running it is the verification, and conflating the two is how "should work" quietly becomes the claim instead of "works."</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 55 of 150 &mdash; Cross-Product Metrics &mdash; LensAI &times; TraceForge</p>
-  <p><em>Next up:</em> <a href="day-56-monorepo-vs-multi-repo-platform-packaging.html">Day 56 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging</a></p>
+  <p>AI Learning &middot; Day 56 of 150 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging</p>
+  <p><em>Next up:</em> Day 57 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 54 &mdash; Flame Graphs &mdash; CPU Profile for Agents (yesterday's post — the agent-benchmark-runner module this one's pkg/lensai lives in)</span>
+      <span>Day 55 &mdash; Cross-Product Metrics — LensAI × TraceForge (yesterday's post — the agent-benchmark-runner module this one's CLI now wraps)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-55-two-products-one-tenant-bill.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-56-org-boundaries-public-platform-identity.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 55 &mdash; Two Products, One Tenant Bill (today's companion Experience post — Wayfair's ScheduledReader and what a real aggregation engine requires beyond a shared key)</span>
+      <span>Day 56 &mdash; Org Boundaries — Public Platform Identity (today's companion Experience post — why a traceforge-dev org needs this same kind of proof)</span>
     </a>
   </div>
 </div>
@@ -327,10 +319,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-join-key-first-design-principle">Join-Key-First Design</a></li>
-      <li><a href="#the-wide-event-parallel">Wide-Event Parallel</a></li>
-      <li><a href="#why-the-shared-envelope-is-safe-to-reuse">Why Reuse Is Safe</a></li>
-      <li><a href="#what-breaks-if-the-property-changes">What Breaks If It Changes</a></li>
+      <li><a href="#the-packaging-question-every-platform-answers">The Packaging Question</a></li>
+      <li><a href="#the-monorepo-only-solved-half-of-it">Monorepo ≠ Compose</a></li>
+      <li><a href="#the-decision-forced-a-real-feature">The Decision Forced a Feature</a></li>
       <li><a href="#the-honest-gap">The Honest Gap</a></li>
     </ul>
   </div>
@@ -338,11 +329,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-55-cross-product-metrics-lensai-x-traceforge.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-56-monorepo-vs-multi-repo-platform-packaging.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Cross-Product+Metrics+%E2%80%94+LensAI+%C3%97+TraceForge+%E2%80%94+AI+Learning+%C2%B7+Day+55+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-55-cross-product-metrics-lensai-x-traceforge.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Monorepo+vs+Multi-Repo+%E2%80%94+Platform+Packaging+%E2%80%94+AI+Learning+%C2%B7+Day+56+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-56-monorepo-vs-multi-repo-platform-packaging.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D54</span> AI Learning</div>
-          <a href="day-54-flame-graphs-cpu-profile-for-agents.html" class="series-post-title">Flame Graphs &mdash; CPU Profile for Agents</a>
+          <div class="series-post-kicker"><span class="series-post-num">D55</span> AI Learning</div>
+          <a href="day-55-cross-product-metrics-lensai-x-traceforge.html" class="series-post-title">Cross-Product Metrics &mdash; LensAI &times; TraceForge</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D55</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Cross-Product Metrics &mdash; LensAI &times; TraceForge</div>
-          <div class="series-post-desc">A join key decided before there's data to migrate, and a shared envelope that's additive-safe by implementation, not by contract</div>
+          <div class="series-post-kicker"><span class="series-post-num">D56</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Monorepo vs Multi-Repo &mdash; Platform Packaging</div>
+          <div class="series-post-desc">A compose file is the integration contract a per-component Dockerfile can't be — and building it forced agent-benchmark-runner's first CLI</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D56</span> AI Learning</div>
-          <a href="day-56-monorepo-vs-multi-repo-platform-packaging.html" class="series-post-title">Monorepo vs Multi-Repo &mdash; Platform Packaging</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D57</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
