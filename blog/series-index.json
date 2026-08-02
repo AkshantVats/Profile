@@ -516,6 +516,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-53-the-report-hiring-managers-get.html",
+          "kicker": "Experience · Day 53 of 150",
+          "title": "Day 53 — 14 Calls vs 9 — The Report Hiring Managers Get",
+          "subtitle": "Agoda · efficiency · cost per outcome",
+          "date": "2026-08-02",
+          "slug": "day-53-the-report-hiring-managers-get",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-53-the-report-hiring-managers-get.html",
+          "coverImage": "blog/assets/covers/day-53-the-report-hiring-managers-get.png",
+          "desc": "A cross-tier query fix at Agoda that collapsed two manual queries into one merged request, and agent-benchmark-runner's new report generator, lead with the same kind of number — because the reader deciding whether the work mattered rarely reads the mechanism."
+        },
+        {
           "href": "blog/series/experience/day-52-parallel-runs-respect-the-rate-limit.html",
           "kicker": "Experience · Day 52 of 150",
           "title": "Day 52 — Parallel Runs — Respect the Rate Limit",
