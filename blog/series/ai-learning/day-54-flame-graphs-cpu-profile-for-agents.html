@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 53 — Human-Readable Benchmark Reports | AI Learning Series</title>
-<meta name="description" content="Lead with 'step 5 diverged' — story first, flame second. agent-benchmark-runner's report generator turns a compare.Result into a headline, a markdown table, a JSON payload, and an SVG timeline — three renderers built from one struct, for three different readers.">
-<meta property="og:title" content="Day 53 — Human-Readable Benchmark Reports">
-<meta property="og:description" content="A raw compare.Result is a Go struct nobody reads directly. pkg/report turns it into a headline that leads with divergence — '14 calls vs 9, diverged at step 5' — plus markdown, JSON, and an SVG timeline for three different readers.">
+<title>Day 54 — Flame Graphs — CPU Profile for Agents | AI Learning Series</title>
+<meta name="description" content="Wide bars are where budget died — color by dollars. agent-benchmark-runner's new flame graph timeline sizes each tool call by its dollar cost and colors it on a heat gradient, the same trick CPU flame graphs use for wall-clock time.">
+<meta property="og:title" content="Day 54 — Flame Graphs — CPU Profile for Agents">
+<meta property="og:description" content="Day 53's timeline shows where two agents' sequences diverged. It has no notion of cost. Day 54 adds a second SVG — width proportional to dollars, color on a heat gradient — the same semantics a CPU flame graph uses for time.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-53-human-readable-benchmark-reports.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-53-human-readable-benchmark-reports.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-54-flame-graphs-cpu-profile-for-agents.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-53-human-readable-benchmark-reports.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-54-flame-graphs-cpu-profile-for-agents.png">
 <meta property="article:published_time" content="2026-08-02">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 53 of 150</span>
-    <span class="tag">Benchmarking</span>
-    <span class="tag">Report Design</span>
+    <span class="tag accent">AI Learning &middot; Day 54 of 150</span>
+    <span class="tag">Profiling</span>
     <span class="tag">Observability</span>
+    <span class="tag">Cost</span>
   </div>
-  <h1 class="post-title">Day 53 &mdash; Human-Readable Benchmark Reports</h1>
-  <p class="post-subtitle">Narrative and numbers beat dashboards alone. agent-benchmark-runner's report generator turns a compare.Result &mdash; a Go struct nobody reads directly &mdash; into a headline, a markdown table, a JSON payload, and an SVG timeline, one struct rendered three ways for three different readers.</p>
+  <h1 class="post-title">Day 54 &mdash; Flame Graphs &mdash; CPU Profile for Agents</h1>
+  <p class="post-subtitle">LLM wait vs tool exec vs queue. agent-benchmark-runner's new flame graph timeline sizes each tool call by its dollar cost and colors it on a heat gradient &mdash; the same trick a CPU flame graph uses for wall-clock time, aimed at a different resource.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 53 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 54 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
@@ -208,45 +208,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-53-human-readable-benchmark-reports.png" alt="Day 53 — Human-Readable Benchmark Reports" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-54-flame-graphs-cpu-profile-for-agents.png" alt="Day 54 — Flame Graphs — CPU Profile for Agents" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Lead with "step 5 diverged" &mdash; story first, flame second.</p>
+<p>Wide bars are where budget died — color by dollars.</p>
 
-<p>Day 51 taught two agents to compare fairly against the same task. Day 52 taught how many times to run that comparison before the result means anything. Day 53 asks the question that comes after both: once you have a correct comparison, what do you actually show someone?</p>
+<p>Day 51 taught two agents to compare fairly against the same task. Day 52 taught how many times to run that comparison before the result means anything. Day 53 turned the comparison into a report three different readers could use.</p>
 
-<h2 id="the-after-visit-summary-not-the-lab-panel">The After-Visit Summary, Not the Lab Panel</h2>
+<p>Day 54 asks a question none of those three answer: of everything a run did, where did the money actually go?</p>
+
+<h2 id="the-cpu-flame-graph-mental-model">The CPU Flame Graph Mental Model</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the doctor's after-visit summary</div>
-  A doctor's after-visit summary leads with one sentence &mdash; "your blood pressure is high, here's what to do about it" &mdash; not with forty lab values in the order the machine printed them. The full panel is real, and it's attached for anyone who wants to verify the sentence. But the sentence is what gets read, and it's what gets acted on, because a reader deciding whether to change a prescription doesn't start by re-deriving the diagnosis from raw numbers.
+  <div class="attr-label">DS analogy &mdash; the CPU flame graph</div>
+  A CPU flame graph profiles a call stack and answers one question: which function ate the most wall-clock time. It does that with exactly one semantically loaded dimension &mdash; box width, proportional to time sampled in that function. Color is usually just a hash for visual separation between frames, and horizontal position encodes nothing about "when" at all — two functions running at completely different points in the trace can render at the same x-position if they happen to sample the same. Width alone carries the answer; nothing else on the chart needs to.
 </div>
 
-<p>A <code>compare.Result</code> from Day 51 is the lab panel: two agents' criterion-by-criterion grades, a pass/fail bit each, and a divergence index buried in a field nobody reads without already knowing what they're looking for. It's correct and complete. It is not a report, in the same sense forty unordered lab values are not an after-visit summary.</p>
+<p>That one-dimension discipline is the whole insight, not an implementation detail. A flame graph could have encoded time as bar height, or as a number printed next to each frame, and either would be strictly more precise than width — but neither lets a reader's eye do the ranking instantly, the way "which box is widest" does without reading a single label first.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> correctness and readability are different properties of the same data, and a benchmark tool that only produces the first one has built half a report generator.</p>
+<p class="prose-so-what"><strong>So what:</strong> a flame graph's power comes from committing to one visual channel per question, not from cramming more information into the chart.</p>
 
-<h2 id="what-a-report-needs-before-it-needs-the-mechanism">What a Report Needs Before It Needs the Mechanism</h2>
+<h2 id="what-day-53s-timeline-cant-show">What Day 53's Timeline Can't Show</h2>
 
-<p><code>pkg/report.Build</code> takes a <code>compare.Result</code> plus both agents' raw tool call sequences &mdash; deliberately not carried on <code>compare.Result</code> itself, since Day 51 only stores the comparison, not the outcomes it was computed from &mdash; and produces a <code>Report</code> whose first field a reader sees is <code>Headline</code>.</p>
+<p>Day 53's <code>RenderTimelineSVG</code> already has a width channel, and it deliberately doesn't use it for anything — every box is the same fixed size, because that timeline's one semantically loaded dimension is color: matched, diverged, or beyond the divergence point. That's the right choice for the question it answers. It becomes the wrong chart entirely for a different question, because a divergence timeline has no way to represent "this call was expensive" without repurposing a channel that already means something else.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">14</span><span class="stat-label">agent A tool calls</span></div>
-  <div class="stat-cell"><span class="stat-num">9</span><span class="stat-label">agent B tool calls</span></div>
-  <div class="stat-cell"><span class="stat-num">step 5</span><span class="stat-label">first divergence</span></div>
+  <div class="stat-cell"><span class="stat-num">$0.004</span><span class="stat-label">cheapest call</span></div>
+  <div class="stat-cell"><span class="stat-num">$0.412</span><span class="stat-label">most expensive call</span></div>
+  <div class="stat-cell"><span class="stat-num">103x</span><span class="stat-label">cost spread, same run</span></div>
 </div>
 
-<p>Those three numbers render as one sentence: <code>"14 calls vs 9, diverged at step 5."</code> That's the headline before either agent's PASS or FAIL badge appears anywhere in the document &mdash; and it's a deliberate ordering, not an accident of struct field order. Two independent pass/fail badges answer "did each one pass," which Day 51 already reports; they say nothing about where the two runs actually parted ways.</p>
+<p>Two runs can match step for step — Day 53's timeline would render them identically, every box the same width, same matched-color fill — and still differ by two orders of magnitude in what they spent getting there. That gap is invisible to a divergence view by construction, not by oversight; divergence and cost are answers to different questions asked of the same trace.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the headline is doing the same job the after-visit summary's first sentence does &mdash; compressing the reading order so the highest-value fact isn't competing with forty other facts for a reader's attention.</p>
+<p class="prose-so-what"><strong>So what:</strong> a chart that answers one question well is not a chart that's failing to answer a different one — it's a signal that the second question needs its own chart, not a bolt-on to the first.</p>
 
-<h2 id="three-renderers-one-report">Three Renderers, One Report</h2>
-
-<p>Once <code>Report</code> exists as a single reshaped struct, three render functions turn it into three different artifacts, and the mechanism is the same for all three: walk the same fields, format them differently.</p>
+<h2 id="two-independent-strips-not-aligned-columns">Two Independent Strips, Not Aligned Columns</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -266,57 +266,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  CR["compare.Result"]
-  TS["Tool call sequences"]
-  Build["report.Build"]
   Rep["Report struct"]
-  MD["RenderMarkdown"]
-  JS["RenderJSON"]
-  SVG["RenderTimelineSVG"]
+  Costs["Per-call dollar cost"]
+  Build["BuildCostReport"]
+  CR["CostReport"]
+  SVG["RenderFlameGraphSVG"]
 
-  CR --> Build
-  TS --> Build
-  Build --> Rep
-  Rep --> MD
-  Rep --> JS
-  Rep --> SVG
+  Rep --> Build
+  Costs --> Build
+  Build --> CR
+  CR --> SVG
 </pre>
 
-<p><code>RenderMarkdown</code> writes the headline plus a two-row pass/fail table &mdash; the PR-description or Slack-message reader, who wants the sentence-length summary without reopening the trace. <code>RenderJSON</code> writes every field with no formatting opinions at all &mdash; the dashboard or alerting-rule reader, a machine that never sees a badge or a color. <code>RenderTimelineSVG</code> draws two rows of boxes, one per tool call, colored by whether that step matched, diverged, or came after the divergence point.</p>
+<p><code>RenderFlameGraphSVG</code> lays each agent's boxes out contiguously, left to right, sized only by that row's own calls — not aligned to the other row by step index the way Day 53's timeline is. A true CPU flame graph works the same way: frames stack against their neighbors in the same call stack, never against an unrelated stack sampled at the same clock tick. Forcing agent A's and agent B's cost-weighted boxes into shared columns would make two calls at the same step index render at different widths for reasons that have nothing to do with what either one cost.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> three renderers over one struct is cheaper than three separate reports, and it guarantees the three artifacts can never quietly disagree with each other about what the divergence actually was.</p>
+<p class="prose-so-what"><strong>So what:</strong> "flame graph" isn't just a color scheme borrowed from CPU profiling — the contiguous, unaligned layout is part of the same design, and skipping it to keep Day 53's column grid would quietly reintroduce the divergence timeline's semantics into a chart that isn't answering that question anymore.</p>
 
-<h2 id="why-the-timeline-is-boxes-not-a-chart-library">Why the Timeline Is Boxes, Not a Chart Library</h2>
+<h2 id="production-failure-modes-a-cost-view-surfaces">Production Failure Modes a Cost View Surfaces</h2>
 
-<p><code>RenderTimelineSVG</code> is a few dozen lines of <code>fmt.Fprintf</code> writing raw <code>&lt;rect&gt;</code> and <code>&lt;text&gt;</code> elements &mdash; no charting dependency. The visual is a small, fixed shape: two rows of fixed-size boxes, colored by state, with a dashed empty slot wherever a shorter sequence ended early instead of that slot being silently omitted.</p>
+<p>A pass/fail badge and a divergence timeline both go silent on the failure mode that matters most once a benchmark moves from "does it work" to "should we ship it": a run that passes every criterion and costs five times what a cheaper, equally passing run costs. Nothing in Day 51's <code>compare.Result</code> or Day 53's headline surfaces that difference, because neither one was built to measure it.</p>
 
-<p>A general-purpose charting library solves a much bigger problem than this one needs solved, and it drags its own transitive dependency tree along for a chart whose shape never changes. The flame-graph instinct the hook mentions &mdash; reach for the detailed visual first &mdash; is real and useful, but it's the second artifact a reader opens, after the headline sentence tells them whether there's anything worth looking at the picture for.</p>
+<ul>
+  <li>A tool call retried silently on a transient error triples its own cost without changing the final tool call sequence at all.</li>
+  <li>An agent that over-fetches — calling a broad search tool where a narrow lookup would do — passes every correctness criterion while spending far more than necessary.</li>
+  <li>A regression that only shows up as cost, not correctness, ships clean through a test suite that only checks pass/fail.</li>
+</ul>
 
-<p class="prose-so-what"><strong>So what:</strong> "story first, flame second" isn't a preference against detailed visuals &mdash; it's an ordering claim about which artifact answers a reader's first question, with the detailed one still one click away for whoever needs it.</p>
+<p class="prose-so-what"><strong>So what:</strong> a benchmark suite that only grades correctness is grading half of what "good" means once real dollars are attached to every tool call — the other half needs its own chart, because it's invisible on every chart built for the first half.</p>
 
 <h2 id="the-honest-gap">The Honest Gap</h2>
 
-<p><code>pkg/report</code> renders a single <code>compare.Result</code>, not a Day 52 <code>Summary</code> batch of N repetitions &mdash; picking a representative pair from a batch, or an aggregate divergence view across all N runs, is a natural next step this code doesn't take yet. There is still no CLI wiring a task YAML, a live agent process, and a rendered report together end to end; every package built across Days 51 through 53 remains a library a future runner composes, not a runnable binary on its own.</p>
+<p><code>agent-benchmark-runner</code> has no live per-call cost telemetry yet. <code>BuildCostReport</code> takes <code>costsA</code>/<code>costsB</code> as explicit parameters — the same shape Day 53's <code>Build</code> used for tool call sequences it had no other source for — so today's tests supply fixture costs, and a future runner that instruments real per-tool-call dollar spend plugs into exactly this seam. There's also still no aggregate flame graph across a Day 52 batch of N repetitions, only a single run's two rows.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 53 of 150 &mdash; Human-Readable Benchmark Reports</p>
-  <p><em>Next up:</em> <a href="day-54-flame-graphs-cpu-profile-for-agents.html">Day 54 &mdash; Flame Graphs &mdash; CPU Profile for Agents</a></p>
+  <p>AI Learning &middot; Day 54 of 150 &mdash; Flame Graphs &mdash; CPU Profile for Agents</p>
+  <p><em>Next up:</em> Day 55 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-52-statistical-rigor-n-runs-confidence.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-53-human-readable-benchmark-reports.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 52 &mdash; Statistical Rigor &mdash; N Runs, Confidence (yesterday's post — the Summary this one's Honest Gap section references)</span>
+      <span>Day 53 &mdash; Human-Readable Benchmark Reports (yesterday's post — the Report this one's CostReport wraps)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-53-the-report-hiring-managers-get.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-54-flame-graphs-llm-time-vs-tool-time.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 53 &mdash; 14 Calls vs 9 &mdash; The Report Hiring Managers Get (today's companion Experience post — why the headline leads with the number)</span>
+      <span>Day 54 &mdash; Flame Graphs &mdash; LLM Time vs Tool Time (today's companion Experience post — why width-by-draw beat a uniform grid at Walmart)</span>
     </a>
   </div>
 </div>
@@ -327,10 +327,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-after-visit-summary-not-the-lab-panel">The After-Visit Summary</a></li>
-      <li><a href="#what-a-report-needs-before-it-needs-the-mechanism">What a Report Needs First</a></li>
-      <li><a href="#three-renderers-one-report">Three Renderers, One Report</a></li>
-      <li><a href="#why-the-timeline-is-boxes-not-a-chart-library">Why the Timeline Is Boxes</a></li>
+      <li><a href="#the-cpu-flame-graph-mental-model">The CPU Flame Graph Model</a></li>
+      <li><a href="#what-day-53s-timeline-cant-show">What Day 53 Can't Show</a></li>
+      <li><a href="#two-independent-strips-not-aligned-columns">Independent Strips</a></li>
+      <li><a href="#production-failure-modes-a-cost-view-surfaces">Production Failure Modes</a></li>
       <li><a href="#the-honest-gap">The Honest Gap</a></li>
     </ul>
   </div>
@@ -338,11 +338,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-53-human-readable-benchmark-reports.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-54-flame-graphs-cpu-profile-for-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Human-Readable+Benchmark+Reports+%E2%80%94+AI+Learning+%C2%B7+Day+53+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-53-human-readable-benchmark-reports.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Flame+Graphs+%E2%80%94+CPU+Profile+for+Agents+%E2%80%94+AI+Learning+%C2%B7+Day+54+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-54-flame-graphs-cpu-profile-for-agents.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +355,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D52</span> AI Learning</div>
-          <a href="day-52-statistical-rigor-n-runs-confidence.html" class="series-post-title">Statistical Rigor &mdash; N Runs, Confidence</a>
+          <div class="series-post-kicker"><span class="series-post-num">D53</span> AI Learning</div>
+          <a href="day-53-human-readable-benchmark-reports.html" class="series-post-title">Human-Readable Benchmark Reports</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D53</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Human-Readable Benchmark Reports</div>
-          <div class="series-post-desc">A compare.Result is a Go struct nobody reads directly &mdash; pkg/report turns it into a headline, markdown, JSON, and an SVG timeline for three different readers</div>
+          <div class="series-post-kicker"><span class="series-post-num">D54</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Flame Graphs &mdash; CPU Profile for Agents</div>
+          <div class="series-post-desc">A CPU flame graph's width-only discipline, applied to tool-call dollar cost instead of wall-clock time</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D54</span> AI Learning</div>
-          <a href="day-54-flame-graphs-cpu-profile-for-agents.html" class="series-post-title">Flame Graphs &mdash; CPU Profile for Agents</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D55</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

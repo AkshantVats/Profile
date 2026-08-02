@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html",
+          "kicker": "AI Learning · Day 54 of 150",
+          "title": "Day 54 — Flame Graphs — CPU Profile for Agents",
+          "subtitle": "LLM wait vs tool exec vs queue",
+          "date": "2026-08-02",
+          "slug": "day-54-flame-graphs-cpu-profile-for-agents",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-54-flame-graphs-cpu-profile-for-agents.html",
+          "coverImage": "blog/assets/covers/day-54-flame-graphs-cpu-profile-for-agents.png",
+          "desc": "A CPU flame graph answers “which function ate the time” with one dimension: box width. agent-benchmark-runner's new flame graph timeline applies the same discipline to tool-call dollar cost — width and color, nothing else, so the widest box is the answer."
+        },
+        {
           "href": "blog/series/ai-learning/day-53-human-readable-benchmark-reports.html",
           "kicker": "AI Learning · Day 53 of 150",
           "title": "Day 53 — Human-Readable Benchmark Reports",
@@ -527,6 +539,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-54-flame-graphs-llm-time-vs-tool-time.html",
+          "kicker": "Experience · Day 54 of 150",
+          "title": "Day 54 — Flame Graphs — LLM Time vs Tool Time",
+          "subtitle": "Walmart · HVAC control loop · latency",
+          "date": "2026-08-02",
+          "slug": "day-54-flame-graphs-llm-time-vs-tool-time",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-54-flame-graphs-llm-time-vs-tool-time.html",
+          "coverImage": "blog/assets/covers/day-54-flame-graphs-llm-time-vs-tool-time.png",
+          "desc": "A Walmart HVAC dashboard sized and colored by draw made one over-consuming actuator obvious where a uniform zone grid didn't. agent-benchmark-runner's new cost flame graph makes the same bet for tool-call spend."
+        },
         {
           "href": "blog/series/experience/day-53-the-report-hiring-managers-get.html",
           "kicker": "Experience · Day 53 of 150",
