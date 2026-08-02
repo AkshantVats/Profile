@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 56 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging | AI Learning Series</title>
-<meta name="description" content="Buyers install compose, not git clone four times. Why agent-benchmark-runner needed its first CLI, and why a root docker-compose.yml — not four separate Dockerfiles — is TraceForge's real integration contract.">
-<meta property="og:title" content="Day 56 &mdash; Monorepo vs Multi-Repo — Platform Packaging">
-<meta property="og:description" content="A packaging decision that forced a real feature: agent-benchmark-runner needed a CLI before docker-compose.yml had anything to point a container at.">
+<title>Day 57 &mdash; Launch Narrative &mdash; Benchmark as Hero Demo | AI Learning Series</title>
+<meta name="description" content="14 vs 9 is a headline a reader gets in one glance; the divergence-step JSON behind it is not. Today's landing page is built around that gap — the photo finish, not the full timing sheet, is what a launch post leads with.">
+<meta property="og:title" content="Day 57 &mdash; Launch Narrative &mdash; Benchmark as Hero Demo">
+<meta property="og:description" content="A benchmark comparison has a dozen fields worth trusting and exactly one worth leading with. Today's TraceForge landing page is designed around that asymmetry — show the headline first, let the SVG and the JSON back it up.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-monorepo-vs-multi-repo-platform-packaging.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-57-launch-narrative-benchmark-as-hero-demo.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-57-launch-narrative-benchmark-as-hero-demo.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-56-monorepo-vs-multi-repo-platform-packaging.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-57-launch-narrative-benchmark-as-hero-demo.png">
 <meta property="article:published_time" content="2026-08-02">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -185,54 +185,52 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 56 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 57 of 150</span>
     <span class="tag">Platform Engineering</span>
-    <span class="tag">Docker</span>
+    <span class="tag">Benchmarking</span>
     <span class="tag">Systems Design</span>
   </div>
-  <h1 class="post-title">Day 56 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging</h1>
-  <p class="post-subtitle">Compose files as integration contract. Buyers install compose, not git clone four times — and agent-benchmark-runner needed its first CLI before docker-compose.yml had anything real to point a container at.</p>
+  <h1 class="post-title">Day 57 &mdash; Launch Narrative &mdash; Benchmark as Hero Demo</h1>
+  <p class="post-subtitle">Show 14 vs 9 on HN. A benchmark comparison has a dozen fields worth trusting and exactly one worth leading with — today's landing page is built around that asymmetry.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 56 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 57 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 2, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-56-monorepo-vs-multi-repo-platform-packaging.png" alt="Day 56 — Monorepo vs Multi-Repo — Platform Packaging" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-57-launch-narrative-benchmark-as-hero-demo.png" alt="Day 57 — Launch Narrative — Benchmark as Hero Demo" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Buyers install compose, not git clone four times.</p>
+<p>Lead with the comparison report screenshot &mdash; instant comprehension.</p>
 
-<p>A platform made of several independently-evolving components has to answer one packaging question before it has any users: does installing it mean cloning one thing, or several? Get that answer wrong and every user pays the integration cost the platform should have paid once, upfront.</p>
+<p>A reader deciding whether to keep scrolling a launch post gives it about one second before moving on. "14 calls vs 9, diverged at step 5" resolves in that one second; the full JSON report behind it does not, no matter how much more trustworthy it is. Today's landing page exists because a launch demo and a debugging artifact are not the same document, even when they're built from the same data.</p>
 
-<h2 id="the-packaging-question-every-platform-answers">The Packaging Question Every Platform Answers</h2>
+<h2 id="one-number-vs-the-full-record">One Number vs. the Full Record</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a shipping container vs. a pallet of loose boxes</div>
-  Loose boxes each survive the trip fine on their own — nothing about any single box proves the others will stack with it at the destination. A shipping container is what makes "arrives as one load" a property of the shipment instead of a hope. Four separate repos are the loose boxes; a compose file that boots all four together is the container.
+  <div class="attr-label">DS analogy &mdash; the photo finish vs. the full timing sheet</div>
+  A photo finish is one frame that answers "who won" the instant you look at it. The full timing sheet — lap splits, reaction times, sector deltas for every runner — is what a coach studies afterward to actually understand the race, but nobody hands it to a stadium full of people expecting an answer in one glance. A benchmark headline is the photo finish; the JSON report is the timing sheet.
 </div>
 
-<p>Four separate repos — <code>agent-replay-engine</code>, <code>agent-benchmark-runner</code>, <code>tool-call-analyzer</code>, <code>traceforge</code> — each with an independent <code>go.mod</code>, independent CI, independent release cadence is the more "correct" separation on paper: each component versions on its own schedule, and a consumer who wants only one doesn't pay for the other three. But it pushes the integration cost onto every single user — four clones, four READMEs to reconcile by hand, and no single artifact proving the four pieces actually work together, only four sets of docs each asserting they should.</p>
+<p><code>report.Build</code>'s <code>headline</code> function already makes this call, and it made it on Day 53, three days before today's landing page needed it: <code>"%d calls vs %d"</code>, then either "sequences matched" or "diverged at step N" &mdash; one line, computed from the same <code>Report</code> struct that also carries every tool call in both sequences. The headline was never meant to replace the full data. It was meant to be the one sentence a reader forms an opinion from before deciding whether the rest is worth reading.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "each component is independently correct" and "the four components work together" are different claims, and only one of them is what a user installing a platform actually needs proven.</p>
+<p class="prose-so-what"><strong>So what:</strong> a launch narrative and a debugging report answer different questions from the same data — "should I care" versus "what exactly happened" — and conflating them produces a document that serves neither reader well.</p>
 
-<h2 id="the-monorepo-only-solved-half-of-it">The Monorepo Only Solved Half of It</h2>
-
-<p>Day 44 already answered the "one clone or four" question for source code, when <code>agent-replay-engine</code> landed inside <code>infra-ai-streaming</code> instead of as its own repo. Day 56's actual decision sits one level up: given one monorepo, does <code>docker-compose.yml</code> become the integration contract, or does each component ship its own Dockerfile and leave composition as an exercise for the reader?</p>
+<h2 id="why-the-landing-page-doesnt-invent-a-new-summary">Why the Landing Page Doesn't Invent a New Summary</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,63 +250,59 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  TF["traceforge"]
-  ARE["agent-replay-engine"]
-  ABR["agent-benchmark-runner"]
-  TCA["tool-call-analyzer"]
-  Compose["docker-compose.yml"]
-  Core["core services"]
-  Tools["tools profile"]
+  Result["compare.Result"]
+  Report["report.Build"]
+  MD["Markdown report"]
+  JSON["JSON report"]
+  HTML["Landing page"]
 
-  TF --> Compose
-  ARE --> Compose
-  ABR --> Compose
-  TCA --> Compose
-  Compose --> Core
-  Compose --> Tools
+  Result --> Report
+  Report --> MD
+  Report --> JSON
+  Report --> HTML
 </pre>
 
-<p>A Dockerfile per component proves that component builds in isolation. It proves nothing about whether <code>agent-benchmark-runner</code>'s container can actually reach the <code>traceforge</code> collector it's meant to benchmark against, or whether Redpanda's topic names match what <code>tool-call-analyzer</code> expects. One root compose file that wires all four together — with the CLI-only components under a <code>tools</code> profile so they don't block <code>docker compose up</code> waiting on an invocation — is the thing a user can run and watch fail or pass as a single system, not four separate claims.</p>
+<p>It would have been easy for <code>RenderLandingHTML</code> to write its own headline logic tuned for launch-post drama &mdash; a bigger number, a punchier verb, something optimized to get upvoted rather than to be true. It doesn't: the landing page calls the exact same <code>Report.Headline</code> field the markdown report and the JSON report already expose, so a reader who clicks through from a launch tweet into the full report sees the identical claim restated with more detail, not a different, friendlier-sounding one.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a per-component Dockerfile answers "does this build"; a shared compose file is the only artifact that answers "does this work," and platforms live or die on the second question.</p>
+<p class="prose-so-what"><strong>So what:</strong> the moment a launch artifact starts computing its own version of the truth instead of reusing the one the debugging tools already trust, the two documents can quietly drift apart — and a reader who checks both loses confidence in whichever one they saw first.</p>
 
-<h2 id="the-decision-forced-a-real-feature">The Decision Forced a Real Feature</h2>
+<h2 id="what-instant-comprehension-actually-required">What "Instant Comprehension" Actually Required</h2>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">cmd/ entrypoints through Day 55</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">CLI added to make it containerizable</span></div>
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">components unified in one compose file</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">headline, computed once (Day 53)</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">renderers reusing it (md · json · html)</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">launch-specific summary logic added</span></div>
 </div>
 
-<p>The honest engineering cost, not just a rhetorical one: <code>agent-benchmark-runner</code> had zero <code>cmd/</code> entrypoint through Day 55 — a library only, exercised entirely through <code>go test</code>. Today's <code>pkg/subprocess</code> and <code>cmd/traceforge</code> exist because the compose file needed something runnable to point a <code>benchmark:</code> service at. A packaging decision is not free of implementation debt: choosing "compose file as integration contract" forced a real feature — a CLI, and the process-group-kill fix that came with wrapping a shell command safely under a timeout — that a docs-only, four-separate-repos world would never have surfaced.</p>
+<p>The actual engineering work for "instant comprehension" wasn't writing a punchier sentence &mdash; it was inlining <code>RenderTimelineSVG</code>'s output directly into the HTML document instead of linking to a separate <code>.svg</code> file, so a reader (or a screenshot tool) sees the headline and the visual divergence in the same frame without a second network request that might not resolve. The table, the headline, and the diagram all render from one self-contained file, which is the actual definition of "instant" here: nothing has to load after the first paint.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a packaging decision that looks like pure plumbing can quietly demand real product work upstream of it — the compose file didn't just wrap an existing CLI, it's the reason the CLI exists at all.</p>
+<p class="prose-so-what"><strong>So what:</strong> "instant comprehension" turned out to be a rendering constraint (one file, nothing external to fetch), not a copywriting problem — the headline sentence was already right three days before this post needed to say anything new about it.</p>
 
 <h2 id="the-honest-gap">The Honest Gap</h2>
 
-<p>No Docker daemon was available in the environment this was built in, so the integration claim above is validated by <code>docker compose config</code> — the file parses, its structure is well-formed, its four Dockerfile references exist — not yet by <code>docker compose up</code> actually building and running all four together. The packaging decision is made and the code exists to back it; whether it boots cleanly on a real Docker host is the next thing to prove, not something this post can claim it already has.</p>
+<p>The landing page proves the headline renders correctly in a browser. It does not prove the headline is compelling to a stranger scrolling Hacker News at 11pm &mdash; that's an editorial judgment this repo's tests can't make, and "14 vs 9" only lands if the reader already has enough context to know two coding agents were compared on the same task.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a design decision and its verification are two different milestones — writing the compose file down is the design; someone (or some CI job) actually running it is the verification, and conflating the two is how "should work" quietly becomes the claim instead of "works."</p>
+<p class="prose-so-what"><strong>So what:</strong> a mechanically correct one-line summary and a summary that actually stops a scroll are different bars, and only the first one is something a test suite can verify.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 56 of 150 &mdash; Monorepo vs Multi-Repo &mdash; Platform Packaging</p>
-  <p><em>Next up:</em> <a href="day-57-launch-narrative-benchmark-as-hero-demo.html">Day 57 &mdash; Launch Narrative &mdash; Benchmark as Hero Demo</a></p>
+  <p>AI Learning &middot; Day 57 of 150 &mdash; Launch Narrative &mdash; Benchmark as Hero Demo</p>
+  <p><em>Next up:</em> Day 58 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-55-cross-product-metrics-lensai-x-traceforge.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 55 &mdash; Cross-Product Metrics — LensAI × TraceForge (yesterday's post — the agent-benchmark-runner module this one's CLI now wraps)</span>
+      <span>Day 56 &mdash; Monorepo vs Multi-Repo — Platform Packaging (yesterday's post — the CLI this post's landing page output is written by)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive this post's structure follows)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-56-org-boundaries-public-platform-identity.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-57-launch-week-integration-or-nothing.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 56 &mdash; Org Boundaries — Public Platform Identity (today's companion Experience post — why a traceforge-dev org needs this same kind of proof)</span>
+      <span>Day 57 &mdash; Launch Week — Integration or Nothing (today's companion Experience post — why the artifact behind this headline has to be reproducible, not just readable)</span>
     </a>
   </div>
 </div>
@@ -319,9 +313,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-packaging-question-every-platform-answers">The Packaging Question</a></li>
-      <li><a href="#the-monorepo-only-solved-half-of-it">Monorepo ≠ Compose</a></li>
-      <li><a href="#the-decision-forced-a-real-feature">The Decision Forced a Feature</a></li>
+      <li><a href="#one-number-vs-the-full-record">One Number vs. the Full Record</a></li>
+      <li><a href="#why-the-landing-page-doesnt-invent-a-new-summary">One Headline, Three Renderers</a></li>
+      <li><a href="#what-instant-comprehension-actually-required">What "Instant" Actually Required</a></li>
       <li><a href="#the-honest-gap">The Honest Gap</a></li>
     </ul>
   </div>
@@ -329,11 +323,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-56-monorepo-vs-multi-repo-platform-packaging.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-57-launch-narrative-benchmark-as-hero-demo.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Monorepo+vs+Multi-Repo+%E2%80%94+Platform+Packaging+%E2%80%94+AI+Learning+%C2%B7+Day+56+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-56-monorepo-vs-multi-repo-platform-packaging.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Launch+Narrative+%E2%80%94+Benchmark+as+Hero+Demo+%E2%80%94+AI+Learning+%C2%B7+Day+57+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-57-launch-narrative-benchmark-as-hero-demo.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -346,17 +340,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D55</span> AI Learning</div>
-          <a href="day-55-cross-product-metrics-lensai-x-traceforge.html" class="series-post-title">Cross-Product Metrics &mdash; LensAI &times; TraceForge</a>
+          <div class="series-post-kicker"><span class="series-post-num">D56</span> AI Learning</div>
+          <a href="day-56-monorepo-vs-multi-repo-platform-packaging.html" class="series-post-title">Monorepo vs Multi-Repo &mdash; Platform Packaging</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D56</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Monorepo vs Multi-Repo &mdash; Platform Packaging</div>
-          <div class="series-post-desc">A compose file is the integration contract a per-component Dockerfile can't be — and building it forced agent-benchmark-runner's first CLI</div>
+          <div class="series-post-kicker"><span class="series-post-num">D57</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Launch Narrative &mdash; Benchmark as Hero Demo</div>
+          <div class="series-post-desc">14 vs 9 resolves in one glance; the JSON report behind it does not — the landing page reuses one headline instead of inventing a launch-tuned one</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D57</span> AI Learning</div>
-          <a href="day-57-launch-narrative-benchmark-as-hero-demo.html" class="series-post-title">Launch Narrative &mdash; Benchmark as Hero Demo</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D58</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -382,14 +376,15 @@ flowchart LR
 
 <script>
 (function(){
-  var btn=document.getElementById('theme-toggle');
-  if(!btn)return;
-  btn.addEventListener('click',function(){
-    var html=document.documentElement;
-    var isDark=html.getAttribute('data-theme')==='dark';
-    if(isDark){html.removeAttribute('data-theme');localStorage.setItem('theme','light');}
-    else{html.setAttribute('data-theme','dark');localStorage.setItem('theme','dark');}
-  });
+  var t=document.getElementById('theme-toggle');
+  function apply(d){document.documentElement.setAttribute('data-theme',d);localStorage.setItem('theme',d);}
+  if(t)t.addEventListener('click',function(){apply(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');});
+  var tl=document.querySelector('.toc-list');
+  if(tl){
+    var as=tl.querySelectorAll('a');
+    var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
+    document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
+  }
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>

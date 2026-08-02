@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-57-launch-narrative-benchmark-as-hero-demo.html",
+          "kicker": "AI Learning · Day 57 of 150",
+          "title": "Day 57 — Launch Narrative — Benchmark as Hero Demo",
+          "subtitle": "Show 14 vs 9 on HN",
+          "date": "2026-08-02",
+          "slug": "day-57-launch-narrative-benchmark-as-hero-demo",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-57-launch-narrative-benchmark-as-hero-demo.html",
+          "coverImage": "blog/assets/covers/day-57-launch-narrative-benchmark-as-hero-demo.png",
+          "desc": "14 vs 9 resolves in one glance; the JSON report behind it does not. The landing page reuses report.Build's Day-53 headline instead of inventing a launch-tuned summary, so the launch artifact and the debugging report never quietly drift apart."
+        },
+        {
           "href": "blog/series/ai-learning/day-56-monorepo-vs-multi-repo-platform-packaging.html",
           "kicker": "AI Learning · Day 56 of 150",
           "title": "Day 56 — Monorepo vs Multi-Repo — Platform Packaging",
