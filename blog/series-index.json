@@ -588,6 +588,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html",
+          "kicker": "Experience · Day 59 of 150",
+          "title": "Day 59 — TraceForge Launch — From Flight Recorder to Agent Ops",
+          "subtitle": "Delivery Hero · agent-benchmark-runner · launch narrative",
+          "date": "2026-08-03",
+          "slug": "day-59-traceforge-launch-flight-recorder-to-agent-ops",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html",
+          "coverImage": "blog/assets/covers/day-59-traceforge-launch-flight-recorder-to-agent-ops.png",
+          "desc": "A recorder only your own team reads can hide a dropped field for months — a launched one can't. Today's fix closes exactly that gap between agent-benchmark-runner and LensAI, and ships the Grafana dashboard that proves it."
+        },
+        {
           "href": "blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html",
           "kicker": "Experience · Day 58 of 150",
           "title": "Day 58 — TraceForge — Agents Need a Flight Recorder",

@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 58 &mdash; TraceForge &mdash; Agents Need a Flight Recorder | Experience Series</title>
-<meta name="description" content="Delivery Hero's postmortems never asked what broke first — they asked where two systems reading the same event stream stopped agreeing. agent-benchmark-runner's divergence report is built around that same question, one day before it needs to survive a real launch rehearsal.">
-<meta property="og:title" content="Day 58 &mdash; TraceForge &mdash; Agents Need a Flight Recorder">
-<meta property="og:description" content="A flight recorder doesn't stop the crash — it makes the ten seconds before it explainable. agent-benchmark-runner's divergence report does the same job for two agents that took the same task and stopped agreeing.">
+<title>Day 59 &mdash; TraceForge Launch &mdash; From Flight Recorder to Agent Ops | Experience Series</title>
+<meta name="description" content="Delivery Hero's Route object taught me that once two systems read the same output, you can't quietly change its shape. Today's TraceForge code found the same lesson the hard way: a wire field two components already agreed to send was silently dropped before anyone downstream could read it.">
+<meta property="og:title" content="Day 59 &mdash; TraceForge Launch &mdash; From Flight Recorder to Agent Ops">
+<meta property="og:description" content="A recorder that only your own team reads can quietly drop a field and nobody notices. A launched one can't &mdash; today's fix closes exactly that gap between agent-benchmark-runner and LensAI.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-58-traceforge-agents-need-a-flight-recorder.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-launch-flight-recorder-to-agent-ops.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-58-traceforge-agents-need-a-flight-recorder.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-launch-flight-recorder-to-agent-ops.png">
 <meta property="article:published_time" content="2026-08-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 58 of 150</span>
+    <span class="tag accent">Experience &middot; Day 59 of 150</span>
     <span class="tag">Platform Engineering</span>
     <span class="tag">OSS</span>
     <span class="tag">Delivery Hero</span>
   </div>
-  <h1 class="post-title">Day 58 &mdash; TraceForge &mdash; Agents Need a Flight Recorder</h1>
-  <p class="post-subtitle">Delivery Hero's postmortems never opened with what broke &mdash; they opened with where two systems reading the same events stopped agreeing. agent-benchmark-runner's divergence report is built around that same question.</p>
+  <h1 class="post-title">Day 59 &mdash; TraceForge Launch &mdash; From Flight Recorder to Agent Ops</h1>
+  <p class="post-subtitle">Delivery Hero's Route object taught me that once two systems read the same output, you can't quietly change its shape. Today's fix found the same lesson the hard way: a field two components already agreed to send was being silently dropped before anyone downstream could read it.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 58 of 150</span>
+    <span class="meta-item">Experience &middot; Day 59 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 3, 2026</span>
     <div class="meta-divider"></div>
@@ -208,35 +208,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-58-traceforge-agents-need-a-flight-recorder.png" alt="Day 58 — TraceForge — Agents Need a Flight Recorder" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-59-traceforge-launch-flight-recorder-to-agent-ops.png" alt="Day 59 — TraceForge Launch — From Flight Recorder to Agent Ops" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A plane's flight recorder doesn't stop the crash.</p>
+<p>A flight recorder that only your own team reads can get away with a lot.</p>
 
-<p>It survives the crash and tells you, second by second, where the aircraft's systems stopped agreeing with each other &mdash; airspeed sensor against altimeter, autopilot command against control surface response. Delivery Hero's postmortem format taught me the same discipline for software: don't open with "what broke," open with "where did two systems reading the same events stop agreeing." Today's rehearsal of <code>agent-benchmark-runner</code> against a real task, ahead of tomorrow's launch post, is built around that exact question.</p>
+<p>If a field goes quietly missing from the tape, the two or three people who know the system well enough to notice will eventually notice, ask around, and patch it. Launch a recorder for anyone to install, and that safety net disappears &mdash; a silently dropped field just looks like the feature was never built. Today's code found exactly that gap between <code>agent-benchmark-runner</code> and LensAI, one day into TraceForge's actual launch week.</p>
 
-<h2 id="what-the-postmortem-format-actually-asked-for">What the Postmortem Format Actually Asked For</h2>
+<h2 id="the-route-object-was-a-contract-not-a-scratch-pad">The Route Object Was a Contract, Not a Scratch Pad</h2>
 
-<p>Delivery Hero's rider-tracking stack put two independent consumers &mdash; Route Service and Route Consumers &mdash; on the same Order SQS stream (AWS's managed event queue, where every consumer reads the same events independently). Both read the same lifecycle events: <code>PLACED</code>, <code>RIDER ENQUE</code>, <code>PICKED UP</code>, <code>RIDER PICKED UP</code>. Both fed OSRM, the open-source engine that turns raw GPS coordinates into a matched road-network route, and both were allowed to compute their own view of "where is this order right now."</p>
+<p>Delivery Hero's rider-tracking stack produced a single <code>Route&nbsp;{ }</code> output &mdash; polyline, distance, revision &mdash; built by Route Service and the Revisit Order System, and consumed downstream by the UI that customers and support agents actually looked at. Once that object had two producers and a real consumer, its shape stopped being an implementation detail either producer could quietly change.</p>
 
-<p>A postmortem that just said "the ETA was wrong" was useless to the team that had to fix it. What the format actually forced onto the page was a timeline: at which lifecycle event did Route Service's view and Route Consumers' view of the same order start to disagree, and what happened between them before anyone noticed.</p>
+<p>Before rider tracking had an external-facing UI depending on it, a field that Route Service stopped populating was a Slack message away from getting fixed. After, it was a support ticket from someone who had no way to know the field even existed, filed against a system they couldn't see into.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> two systems consuming the same event stream will drift, and the only useful postmortem question is when the drift started, not that the drift eventually became visible as a bad number on a dashboard.</p>
+<p class="prose-so-what"><strong>So what:</strong> the moment a second system starts reading your output, its shape is a contract whether you decided that on purpose or not &mdash; and the cost of quietly breaking it moves from "someone on my team notices" to "someone I've never met files a ticket."</p>
 
 <div class="attr-box mine">
   <div class="attr-label">My scope &mdash; Delivery Hero, Berlin, Jun 2022&ndash;Jul 2023, Sr. Software Engineer, Global Logistics Platform</div>
-  I built end-to-end rider tracking on this stack, processing 5,000+ real-time route updates per second against 1M+ daily orders on AWS EKS at 10k+ concurrent requests, zero downtime. I also designed the async SQS + Kinesis pipeline that decoupled order processing from notifications so delivery status updates stayed sub-second for millions of active users at peak. This post describes the postmortem habit that shaped how I approached today's rehearsal, not a claim that <code>agent-benchmark-runner</code> ran at Delivery Hero.
+  I built end-to-end rider tracking on this stack, processing 5,000+ real-time route updates per second against 1M+ daily orders on AWS EKS at 10k+ concurrent requests, zero downtime, and designed the async SQS + Kinesis pipeline decoupling order processing from notifications so delivery status stayed sub-second for millions of active users. This post describes the contract discipline that shaped today's fix, not a claim that <code>agent-benchmark-runner</code> or TraceForge ran at Delivery Hero.
 </div>
 
-<h2 id="the-same-shape-in-an-agent-run">The Same Shape in an Agent Run</h2>
+<h2 id="the-same-gap-in-agent-benchmark-runner">The Same Gap in agent-benchmark-runner</h2>
 
-<p>An agent run is, structurally, the same kind of thing as a delivery: a sequence of steps with a start state and an end state, where the interesting failure is rarely "it crashed" and almost always "it took a different path than expected." Two agents given the identical task &mdash; same prompt, same seed, same success criteria &mdash; are two independent consumers of the same starting event, exactly like Route Service and Route Consumers reading the same <code>PLACED</code> event.</p>
+<p><code>pkg/lensai</code>'s dual-write already set a <code>TraceID</code> and a <code>Source: "benchmark_run"</code> field on every event it sent to LensAI's ingest endpoint, with a comment promising that a single Grafana board could join inference cost and benchmark outcome per tenant because of it. That promise was never true. LensAI's ingestion struct simply had no <code>trace_id</code> or <code>source</code> fields to receive them, so both were dropped at the door, before Kafka, before ClickHouse, before any dashboard ever had a chance to see them.</p>
 
-<p>The question worth answering isn't "did agent B fail." It's "at which tool call did agent B's sequence stop matching agent A's," the same way the useful question was never "was the ETA wrong" but "at which lifecycle event did the two views diverge."</p>
+<p>Nothing in the existing test suite caught it, because every existing test checked what <code>pkg/lensai</code> sent, not what LensAI's ingestion service actually kept. The gap only surfaced today, while building the literal dashboard the code comment had been promising since it was written.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -256,57 +256,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Order["PLACED event"]
-  RS["Route Service view"]
-  RC["Route Consumers view"]
-  Task["Same agent task"]
-  AgentA["Agent A trace"]
-  AgentB["Agent B trace"]
-  Div["Divergence report"]
+  Writer["pkg/lensai writer"]
+  Ingest["Ingestion struct"]
+  Kafka["Kafka + ClickHouse"]
+  Board["Grafana board"]
 
-  Order --> RS
-  Order --> RC
-  Task --> AgentA
-  Task --> AgentB
-  AgentA --> Div
-  AgentB --> Div
+  Writer -- "trace_id, source" --> Ingest
+  Ingest -. "dropped, no field" .-> Kafka
+  Kafka --> Board
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> once two things read the same starting event and are allowed to diverge, the postmortem and the benchmark report are the same document type &mdash; a timeline of agreement, not a verdict of pass or fail.</p>
+<p class="prose-so-what"><strong>So what:</strong> a promise made in a code comment isn't a contract until something on the other end actually agrees to keep it &mdash; and the gap between the two can survive a full test suite indefinitely, because tests written against one side of a wire format have nothing to say about the other side.</p>
 
-<h2 id="what-a-flight-recorder-actually-buys-you">What a Flight Recorder Actually Buys You</h2>
+<h2 id="closing-the-gap-the-boring-way">Closing the Gap, the Boring Way</h2>
 
-<p>A flight recorder is a physical box bolted into the tail of an aircraft, built to survive the one event it exists to explain. It doesn't make the flight safer by itself &mdash; nothing about its presence changes what the autopilot does mid-flight. Its entire value shows up after the fact, when someone needs to know exactly what each system believed, in order, right up to the moment things stopped matching.</p>
+<p>The fix is the least interesting part of the story on purpose: add <code>trace_id</code> and <code>source</code> to the Rust struct, default <code>source</code> to <code>"inference"</code> the same way the ingestion code already defaults a missing <code>status</code> to <code>"success"</code>, thread both fields through the Go consumer's row mapping and INSERT statement, and add the two ClickHouse columns. No new table, no second warehouse &mdash; one column doing the discriminating work the Route object's revision number used to do.</p>
 
-<p><code>agent-benchmark-runner</code>'s divergence report plays the same role for two agent runs. It doesn't make agent B better at the task. It records, tool call by tool call, the exact point where agent B's sequence stopped matching agent A's, so a reader debugging the difference doesn't have to re-run both agents and stare at two transcripts side by side, guessing.</p>
+<p>The dashboard that proves it &mdash; <code>dashboards/traceforge-lensai-cross-product.json</code> &mdash; only exists because building it was the thing that exposed the gap in the first place. Writing the query that was supposed to already work is what surfaced that it didn't.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a flight recorder and a divergence report earn their keep in the same moment &mdash; after something has already gone sideways, when a guess about where isn't good enough anymore.</p>
+<p class="prose-so-what"><strong>So what:</strong> the fix here isn't clever, and it doesn't need to be &mdash; contracts break because of a missing field, not a missing algorithm, and the boring fix is usually the correct amount of engineering for that kind of gap.</p>
 
-<h2 id="todays-rehearsal-not-an-outage">Today's Rehearsal, Not an Outage</h2>
+<h2 id="what-launching-actually-changes">What Launching Actually Changes</h2>
 
-<p>Today's code isn't a postmortem of a real failure &mdash; nothing in <code>agent-benchmark-runner</code> broke in production, because there is no production yet. It's a rehearsal: running the full pipeline end to end against a real task, the way a go-live checklist runs a launch sequence once, fully, before anyone points a spotlight at it.</p>
+<p>Nothing about today's schema fix required an external launch to be worth doing. What the launch changes is who's affected if it stays broken. A teammate hitting a missing <code>trace_id</code> can ask in Slack within the hour; someone installing TraceForge from a Show HN post can't ask anyone &mdash; they just conclude the cross-product story in the README doesn't actually work, and move on.</p>
 
-<p>The point of the rehearsal is the same as the point of the flight recorder analogy &mdash; if two agents disagree during tomorrow's launch demo, the report has to already show where, without anyone needing to add instrumentation after the fact. Today's integration run is the test that the recorder is actually recording, before it's asked to explain something that matters.</p>
+<p>That's the same shift rider tracking went through the day its <code>Route&nbsp;{ }</code> object grew a UI consumer nobody on the backend team could see into directly. The stakes here are nowhere near a delivery ETA, but the shape of the problem &mdash; a contract that only stays honest because someone can complain about it in person &mdash; is identical.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> rehearsing the pipeline end to end today is cheaper insurance than debugging a silent gap in the divergence report during tomorrow's launch post, when there's no time left to add it.</p>
+<p class="prose-so-what"><strong>So what:</strong> a launch doesn't introduce new correctness requirements so much as it removes the informal channel that used to paper over the ones you already had.</p>
 
 <h2 id="what-still-isnt-proven">What Still Isn't Proven</h2>
 
-<p>The honest gap: today's rehearsal proves the pipeline runs end to end and produces a divergence report someone can read. It doesn't prove the report would catch every kind of drift &mdash; a subtler divergence, where both agents call the same tools in the same order but with meaningfully different inputs, is a harder case than the one this rehearsal exercised.</p>
+<p>The honest gap: the new dashboard JSON is validated against the ClickHouse schema and the actual Go/Rust wire format, field by field, not against a live Grafana instance with real traffic &mdash; no Grafana server was available in this build's sandbox. It's correct on paper; it hasn't rendered a single real panel yet.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "the flight recorder works" and "the flight recorder catches everything worth catching" are different claims, and only the first one is something today's rehearsal actually earned.</p>
+<p class="prose-so-what"><strong>So what:</strong> "the query references the right columns" and "the panel renders the number a viewer expects" are different claims, and only the first one is something today's work actually earned.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 58 of 150 &mdash; TraceForge &mdash; Agents Need a Flight Recorder</p>
-  <p><em>Next up:</em> <a href="day-59-traceforge-launch-flight-recorder-to-agent-ops.html">Day 59 &mdash; TraceForge Launch — From Flight Recorder to Agent Ops</a></p>
+  <p>Experience &middot; Day 59 of 150 &mdash; TraceForge Launch &mdash; From Flight Recorder to Agent Ops</p>
+  <p><em>Next up:</em> Day 60 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-57-launch-week-integration-or-nothing.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 57 &mdash; Launch Week — Integration or Nothing (yesterday's companion post — the reproducibility discipline this post's rehearsal extends)</span>
+      <span>Day 58 &mdash; TraceForge — Agents Need a Flight Recorder (yesterday's companion post — the divergence-report rehearsal this post's dashboard makes queryable)</span>
     </a>
   </div>
 </div>
@@ -317,10 +311,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-the-postmortem-format-actually-asked-for">What the Postmortem Format Asked For</a></li>
-      <li><a href="#the-same-shape-in-an-agent-run">The Same Shape in an Agent Run</a></li>
-      <li><a href="#what-a-flight-recorder-actually-buys-you">What a Flight Recorder Buys You</a></li>
-      <li><a href="#todays-rehearsal-not-an-outage">Today's Rehearsal, Not an Outage</a></li>
+      <li><a href="#the-route-object-was-a-contract-not-a-scratch-pad">The Route Object Was a Contract</a></li>
+      <li><a href="#the-same-gap-in-agent-benchmark-runner">The Same Gap in agent-benchmark-runner</a></li>
+      <li><a href="#closing-the-gap-the-boring-way">Closing the Gap, the Boring Way</a></li>
+      <li><a href="#what-launching-actually-changes">What Launching Actually Changes</a></li>
       <li><a href="#what-still-isnt-proven">What Still Isn't Proven</a></li>
     </ul>
   </div>
@@ -328,11 +322,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-58-traceforge-agents-need-a-flight-recorder.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-59-traceforge-launch-flight-recorder-to-agent-ops.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=TraceForge+%E2%80%94+Agents+Need+a+Flight+Recorder+%E2%80%94+Experience+%C2%B7+Day+58+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-58-traceforge-agents-need-a-flight-recorder.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=TraceForge+Launch+%E2%80%94+From+Flight+Recorder+to+Agent+Ops+%E2%80%94+Experience+%C2%B7+Day+59+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-59-traceforge-launch-flight-recorder-to-agent-ops.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -345,17 +339,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D57</span> Experience</div>
-          <a href="day-57-launch-week-integration-or-nothing.html" class="series-post-title">Launch Week &mdash; Integration or Nothing</a>
+          <div class="series-post-kicker"><span class="series-post-num">D58</span> Experience</div>
+          <a href="day-58-traceforge-agents-need-a-flight-recorder.html" class="series-post-title">TraceForge &mdash; Agents Need a Flight Recorder</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D58</span> Experience &middot; now</div>
-          <div class="series-post-title">TraceForge &mdash; Agents Need a Flight Recorder</div>
-          <div class="series-post-desc">A flight recorder doesn't prevent the crash — Delivery Hero's postmortem habit of tracking where two systems stop agreeing shapes today's agent-benchmark-runner divergence rehearsal</div>
+          <div class="series-post-kicker"><span class="series-post-num">D59</span> Experience &middot; now</div>
+          <div class="series-post-title">TraceForge Launch &mdash; From Flight Recorder to Agent Ops</div>
+          <div class="series-post-desc">A recorder only your team reads can hide a dropped field for months — a launched one can't. Today's fix closes exactly that gap between agent-benchmark-runner and LensAI.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D59</span> Experience</div>
-          <a href="day-59-traceforge-launch-flight-recorder-to-agent-ops.html" class="series-post-title">TraceForge Launch &mdash; From Flight Recorder to Agent Ops</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D60</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
