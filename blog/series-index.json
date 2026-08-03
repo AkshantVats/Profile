@@ -576,6 +576,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html",
+          "kicker": "Experience · Day 58 of 150",
+          "title": "Day 58 — TraceForge — Agents Need a Flight Recorder",
+          "subtitle": "Delivery Hero · operations · postmortems",
+          "date": "2026-08-03",
+          "slug": "day-58-traceforge-agents-need-a-flight-recorder",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html",
+          "coverImage": "blog/assets/covers/day-58-traceforge-agents-need-a-flight-recorder.png",
+          "desc": "A flight recorder doesn't prevent the crash — Delivery Hero's postmortem habit of tracking where two systems stop agreeing shapes today's agent-benchmark-runner divergence rehearsal, one day before it has to survive a real launch."
+        },
+        {
           "href": "blog/series/experience/day-57-launch-week-integration-or-nothing.html",
           "kicker": "Experience · Day 57 of 150",
           "title": "Day 57 — Launch Week — Integration or Nothing",
