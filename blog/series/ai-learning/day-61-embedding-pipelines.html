@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 60 &mdash; Semantic Caching Economics | AI Learning Series</title>
-<meta name="description" content="Sweep the similarity threshold from 0.88 to 0.96 on real prompts and plot dollars, not hit-rate vibes — the cost of a false-positive cache hit and the cost of a false-negative miss are not the same number, and the threshold that maximizes hit rate is rarely the one that maximizes savings.">
-<meta property="og:title" content="Day 60 &mdash; Semantic Caching Economics">
-<meta property="og:description" content="A semantic cache doesn't fail by missing a hit — it fails, expensively, by serving the wrong cached answer with full confidence. That asymmetry is why the threshold sweep has to plot two cost curves, not one hit-rate curve.">
+<title>Day 61 &mdash; Embedding Pipelines | AI Learning Series</title>
+<meta name="description" content="prompt_hash idempotency is Kafka exactly-once for vectors — a batched embedding worker that upserts on ON CONFLICT DO NOTHING gets the same safe-retry guarantee Kafka's dedup key gives a producer, just applied to embeddings instead of messages.">
+<meta property="og:title" content="Day 61 &mdash; Embedding Pipelines">
+<meta property="og:description" content="Batching amortizes an embedding API's fixed per-call cost. Idempotency is what makes that batching safe to retry. Backfill is the same loop, pointed at old data instead of new.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-60-semantic-caching-economics.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-caching-economics.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-61-embedding-pipelines.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embedding-pipelines.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-caching-economics.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embedding-pipelines.png">
 <meta property="article:published_time" content="2026-08-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 60 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 61 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Cost Economics</span>
+    <span class="tag">Embeddings</span>
   </div>
-  <h1 class="post-title">Day 60 &mdash; Semantic Caching Economics</h1>
-  <p class="post-subtitle">Threshold vs savings curve. Sweep 0.88&ndash;0.96 on real prompts and plot dollars, not vibes &mdash; a false-positive cache hit and a false-negative cache miss don't cost the same amount, so the threshold that maximizes hit rate is rarely the one that maximizes savings.</p>
+  <h1 class="post-title">Day 61 &mdash; Embedding Pipelines</h1>
+  <p class="post-subtitle">Batch, idempotency, backfill. <code>prompt_hash</code> idempotency is Kafka exactly-once for vectors &mdash; a redelivered message and a retried embedding batch are the same problem, solved by the same trick: a dedup key that makes doing the work twice as safe as doing it once.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 60 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 61 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 3, 2026</span>
     <div class="meta-divider"></div>
@@ -207,27 +207,27 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-60-semantic-caching-economics.png" alt="Day 60 — Semantic Caching Economics" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-61-embedding-pipelines.png" alt="Day 61 — Embedding Pipelines" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Sweep 0.88 to 0.96 on real prompts. Plot dollars, not vibes.</p>
+<p><code>prompt_hash</code> idempotency is Kafka exactly-once for vectors.</p>
 
-<p>A semantic cache doesn't decide whether two prompts are "similar enough" in the abstract &mdash; it decides that at a specific cosine-similarity threshold on their embeddings, a vector representation of a prompt's meaning that lets you compare two different sentences by how close their vectors sit in space. Pick the threshold by eyeballing a hit-rate chart and you've picked a number that feels right. Pick it by pricing out what a wrong cache hit actually costs, and the number moves &mdash; usually higher than intuition suggests.</p>
+<p>Kafka's exactly-once semantics don't come from magic &mdash; they come from a dedup key: a producer ID and a sequence number that let the broker recognize a redelivered message as one it's already processed, instead of processing it twice. <code>semantic-cache-engine</code>'s embedding worker gets the same guarantee for a completely different kind of data, using the same trick: hash the normalized prompt into a <code>prompt_hash</code>, and let a retried batch collide harmlessly into rows that already exist.</p>
 
-<h2 id="the-scanner-dial-not-a-slider">The Scanner Dial, Not a Slider</h2>
+<h2 id="the-fixed-cost-that-batching-amortizes">The Fixed Cost That Batching Amortizes</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; an airport scanner's sensitivity dial, not a volume slider</div>
-  Turn a baggage scanner's sensitivity up and it catches more real threats, but flags more innocent bags for a manual search &mdash; a cost paid in agent time. Turn it down and the line moves faster, but a genuine threat has a better chance of passing through unflagged &mdash; a cost paid in an entirely different currency, one that's not measured in minutes. A similarity threshold is the same dial: it doesn't trade speed for speed, it trades one kind of cost for a structurally different kind.
+  <div class="attr-label">DS analogy &mdash; a bank teller batching deposit slips, not processing them one at a time</div>
+  A teller who opens a new transaction, verifies it, and closes it out for every single deposit pays that open-verify-close overhead once per customer, no matter how small the deposit. A teller who waits until ten slips have accumulated, then runs all ten through the ledger system in one pass, pays that same overhead once for ten transactions instead of ten times. The embedding worker's batch of 32 is the second teller: one embedding API call, with its fixed authentication and network overhead, covers 32 prompts instead of 1.
 </div>
 
-<p>A semantic cache's threshold is exactly that dial. Set it low (loose matching) and more prompts count as "close enough" to a cached entry, so more requests get served instantly instead of hitting the LLM &mdash; more savings, but also more chances that "close enough" was actually "different enough to matter." Set it high (strict matching) and you only reuse an answer when you're nearly certain the two prompts meant the same thing &mdash; safer, but you pay full LLM price far more often.</p>
+<p>An embedding API call carries a fixed cost that has nothing to do with how much text is inside the request &mdash; opening a connection, authenticating, waiting in the provider's queue. Call the API once per prompt and every prompt pays that fixed cost in full. Call it once per batch of 32 and the fixed cost gets divided 32 ways, while the actual embedding work &mdash; the part that scales with how much text there is &mdash; stays roughly the same either way.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a similarity threshold isn't a single knob you tune for "accuracy" &mdash; it's a dial that trades a cost you can graph (LLM spend) against a cost you usually can't, until you deliberately go measure it.</p>
+<p class="prose-so-what"><strong>So what:</strong> batching doesn't make embedding cheaper because the model does less work &mdash; it makes embedding cheaper because the fixed overhead around the model gets paid far fewer times for the same number of prompts.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -247,89 +247,76 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Prompt["New prompt embedding"]
-  Search["kNN search, pgvector"]
-  Score{"Similarity above threshold?"}
-  Hit["Serve cached response"]
-  Miss["Call LLM, cache result"]
+  Arrive["Prompts arrive"]
+  Accum["Accumulate to 32"]
+  Embed["Embed batch, one call"]
+  Hash["Compute prompt_hash each"]
+  Upsert["Upsert, ON CONFLICT skip"]
+  Store["Stored in pgvector"]
 
-  Prompt --> Search --> Score
-  Score -->|yes| Hit
-  Score -->|no| Miss
+  Arrive --> Accum --> Embed --> Hash --> Upsert --> Store
 </pre>
 
-<h2 id="why-the-two-costs-arent-equal">Why the Two Costs Aren't Equal</h2>
+<h2 id="why-a-retried-batch-should-be-a-no-op">Why a Retried Batch Should Be a No-Op, Not a Risk</h2>
 
-<p>A false negative &mdash; a cache miss on a prompt that actually had a good cached answer waiting &mdash; costs you exactly one wasted LLM call. That's a bounded, known number: the price of one generation. A false positive &mdash; a cache hit that serves a cached answer to a prompt that meant something meaningfully different &mdash; costs you a wrong answer delivered with the same confidence as a right one, and a wrong answer's downstream cost is whatever it takes to notice, explain, and undo the damage it causes.</p>
-
-<p>That asymmetry is the entire reason the threshold sweep needs two curves instead of one. A hit-rate chart alone treats every additional cache hit as a pure win, because it can't see the difference between a hit that saved money and a hit that quietly served the wrong answer to someone who trusted it.</p>
+<p>Batching creates a new failure mode that per-item calls don't have: a batch of 32 can fail after embedding 20 of them and upserting 15, leaving an ambiguous partial state behind. The naive fix &mdash; just retry the whole batch &mdash; is only safe if retrying doesn't corrupt what already landed. That's exactly what <code>ON CONFLICT (tenant_id, prompt_hash) DO NOTHING</code> buys: a retried batch re-embeds and re-attempts the upsert for all 32 prompts, but the 15 that already exist as rows simply don't get touched again.</p>
 
 <table>
-<tr><th>Outcome</th><th>What it costs</th><th>Is the cost bounded?</th></tr>
-<tr><td>True positive (correct hit)</td><td>Zero &mdash; the LLM call was avoided</td><td>Yes, known in advance</td></tr>
-<tr><td>False negative (missed hit)</td><td>One LLM call, paid instead of avoided</td><td>Yes, known in advance</td></tr>
-<tr><td>False positive (wrong hit)</td><td>A wrong answer served with full confidence, plus whatever it takes to catch and fix that</td><td>No &mdash; depends entirely on what the prompt was for</td></tr>
+<tr><th>Scenario</th><th>Without idempotency</th><th>With prompt_hash + ON CONFLICT DO NOTHING</th></tr>
+<tr><td>Batch retried after partial failure</td><td>Risk of duplicate rows or double-embed cost</td><td>Already-written rows are skipped, no duplicates</td></tr>
+<tr><td>Same prompt appears twice in one batch</td><td>Two embed calls, two write attempts</td><td>In-run dedup collapses to one embed + one upsert</td></tr>
+<tr><td>Worker restarted mid-run</td><td>Unclear which prompts were already processed</td><td>Re-running from the last known point is always safe</td></tr>
 </table>
 
-<p class="prose-so-what"><strong>So what:</strong> when one branch of a decision has an unbounded downside and the other two don't, the threshold that "looks optimal" on a symmetric hit-rate curve is biased toward the wrong side by construction &mdash; you have to price the asymmetry in on purpose, or the chart will hide it.</p>
+<p>Kafka's producer-side dedup key solves the identical shape of problem for messages: a broker that sees a sequence number it's already committed treats the redelivery as a no-op instead of a second message. <code>prompt_hash</code> is that same sequence number, just keyed on the content of the prompt instead of a producer's send order.</p>
 
-<h2 id="sweeping-the-threshold-illustratively">Sweeping the Threshold &mdash; Illustratively, Not Yet Measured</h2>
+<p class="prose-so-what"><strong>So what:</strong> exactly-once delivery and idempotent writes are the same underlying guarantee wearing different names &mdash; both convert "this happened twice" from a correctness bug into an event nobody downstream needs to notice.</p>
 
-<p>Here's the shape of that sweep, worked through with illustrative round numbers rather than measured production traffic &mdash; there's no live embedding model wired into this design yet. Say an LLM call costs $0.002 and a caught false positive costs 50x that in support and regeneration overhead, roughly $0.10.</p>
+<h2 id="the-batch-size-tradeoff">The Batch-Size Tradeoff Is a Latency-for-Cost Trade</h2>
 
-<table>
-<tr><th>Threshold</th><th>Illustrative hit rate</th><th>Illustrative false-positive rate</th><th>Net $ per 1,000 prompts</th></tr>
-<tr><td>0.88 (loose)</td><td>~55%</td><td>~2.0%</td><td>Savings mostly erased by false-positive cost</td></tr>
-<tr><td>0.92</td><td>~40%</td><td>~0.4%</td><td>Clear net savings</td></tr>
-<tr><td>0.94 (design default)</td><td>~30%</td><td>~0.08%</td><td>Best net savings in this illustration</td></tr>
-<tr><td>0.96 (strict)</td><td>~15%</td><td>~0.01%</td><td>Safer, but savings shrink faster than risk does</td></tr>
-</table>
-
-<p><code>semantic-cache-engine</code>'s DESIGN.md sets a default of 0.94 with a false-positive budget of 0.1%, which sits close to where this illustration's net-dollar curve peaks &mdash; not because 55% hit rate wasn't tempting, but because the false-positive cost at 0.88 eats most of what the higher hit rate appears to save.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> the threshold that maximizes hit rate (0.88) and the threshold that maximizes net savings (near 0.94) are different numbers in this illustration, and only one of them is the number worth shipping &mdash; the sweep exists precisely to find out which.</p>
-
-<h2 id="decay-is-the-same-curve-moving">Decay Is the Same Curve, Moving Over Time</h2>
-
-<p>A cached entry's safe threshold isn't constant over its own lifetime. A response cached an hour ago is answering a question about the world as it was an hour ago; a response cached 29 days into a 30-day TTL is answering a much older question, and the odds that "close enough" has quietly become "no longer true" go up the longer that entry sits. Tightening the threshold as an entry ages is the same dial from the airport-scanner analogy, turned up gradually as the bag has been sitting on the belt longer.</p>
+<p>32 isn't free of downsides. The last prompt to arrive in a batch waits for the other 31 before it gets embedded, so a bigger batch trades worse worst-case latency for better cost amortization. A batch of 1 has zero wait and zero amortization; a batch of 1,000 amortizes overhead about as far as it can go, at the cost of the slowest prompt in that batch waiting for 999 others.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0.94</span><span class="stat-label">design-default threshold</span></div>
-  <div class="stat-cell"><span class="stat-num">0.1%</span><span class="stat-label">false-positive budget</span></div>
-  <div class="stat-cell"><span class="stat-num">30d</span><span class="stat-label">hard TTL ceiling</span></div>
+  <div class="stat-cell"><span class="stat-num">32</span><span class="stat-label">worker's batch size</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">embed call per batch</span></div>
+  <div class="stat-cell"><span class="stat-num">22/22</span><span class="stat-label">unit tests passing</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a single fixed threshold is really a snapshot of the correct threshold at entry age zero &mdash; treating it as correct at age 29 days is the same mistake as treating a hit-rate chart as the whole cost picture, just moved from one axis to the other.</p>
+<p>32 sits closer to the low-latency end than the max-amortization end on purpose: it's small enough that a worst-case wait stays bounded to roughly 32 prompts' worth of accumulation time, while still cutting the per-prompt fixed-cost overhead down by more than an order of magnitude compared to calling per-item.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> there's no batch size that's correct independent of what's waiting on the other end &mdash; a batch tuned for a background backfill job can be much larger than a batch tuned for a worker sitting in a user-facing request path.</p>
+
+<h2 id="backfill-is-the-same-loop-pointed-backwards">Backfill Is the Same Loop, Pointed at Old Data</h2>
+
+<p>Because the worker's upsert is idempotent, it doesn't need a separate "backfill mode." Pointing the exact same batch-and-upsert loop at a historical log of prompts instead of a live stream produces the same safe outcome: prompts that were already embedded get skipped by the conflict clause, and only genuinely new <code>prompt_hash</code> values get embedded and written. Running the backfill twice, or running it while the live worker is also processing overlapping data, is safe for the same reason a retried batch is safe.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> idempotency doesn't just make retries free &mdash; it collapses "process new data" and "reprocess old data" into the same code path, which is one fewer system to design, test, and maintain separately.</p>
 
 <h2 id="what-this-post-doesnt-prove">What This Post Doesn't Prove</h2>
 
-<p>The honest gap: every number in the sweep table above is illustrative arithmetic, not a measurement. There's no embedding model or pgvector index running against real prompt traffic in this sandbox yet, so the actual hit-rate and false-positive curves for <code>semantic-cache-engine</code> are still unmeasured &mdash; the 0.94 default is a design target taken from the DESIGN.md, not a number this post's sweep produced.</p>
+<p>The honest gap: 22 of 22 unit tests pass for normalization, batching, and dedup logic, but there's no live embedding API or pgvector instance wired into this sandbox, so no real latency or cost numbers back the batch-size reasoning above &mdash; it's argued from first principles, not measured against production traffic. The integration test that would prove the upsert's idempotency against a real database is written but gated behind a live <code>PGVECTOR_DSN</code> this environment doesn't have.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "the shape of the tradeoff is asymmetric" is a claim this post earns with arithmetic; "0.94 is the right threshold for this system" is a claim only a real sweep against real traffic can earn, and conflating the two is exactly the mistake the false-positive column above is warning against.</p>
+<p class="prose-so-what"><strong>So what:</strong> "batching amortizes fixed cost" and "idempotency makes retries safe" are claims backed by how the code is structured; "32 is the right batch size for this workload" is a claim only a real measurement against real traffic can make, and this post only earns the first two.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 60 of 150 &mdash; Semantic Caching Economics</p>
-  <p><em>Next up:</em> <a href="day-61-embedding-pipelines.html">Day 61 &mdash; Embedding Pipelines</a></p>
+  <p>AI Learning &middot; Day 61 of 150 &mdash; Embedding Pipelines</p>
+  <p><em>Next up:</em> Day 62 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-61-embedding-pipelines.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-60-semantic-caching-economics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 61 &mdash; Embedding Pipelines (today's follow-up — the embedding worker that populates the cache this threshold sweep was tuned for)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-59-traceforge-agent-observability-distributed-tracing-money.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 59 &mdash; TraceForge — Agent Observability Is Distributed Tracing With Money on the Line (yesterday's post — the same discipline of pricing a claim before publishing it)</span>
+      <span>Day 60 &mdash; Semantic Caching Economics (yesterday's post — the threshold economics this worker's embeddings now feed)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-61-embeddings-are-batch-jobs.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 60 &mdash; Semantic Cache — Wayfair Pricing Deja Vu (today's companion Experience post — the same tolerance-threshold problem, first seen in a pricing feed)</span>
+      <span>Day 61 &mdash; Embeddings Are Batch Jobs (today's companion Experience post — the same amortization pattern, first seen in TSDB compaction)</span>
     </a>
   </div>
 </div>
@@ -340,10 +327,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-scanner-dial-not-a-slider">The Scanner Dial, Not a Slider</a></li>
-      <li><a href="#why-the-two-costs-arent-equal">Why the Two Costs Aren't Equal</a></li>
-      <li><a href="#sweeping-the-threshold-illustratively">Sweeping the Threshold</a></li>
-      <li><a href="#decay-is-the-same-curve-moving">Decay Is the Same Curve, Moving</a></li>
+      <li><a href="#the-fixed-cost-that-batching-amortizes">The Fixed Cost Batching Amortizes</a></li>
+      <li><a href="#why-a-retried-batch-should-be-a-no-op">Why a Retried Batch Is a No-Op</a></li>
+      <li><a href="#the-batch-size-tradeoff">The Batch-Size Tradeoff</a></li>
+      <li><a href="#backfill-is-the-same-loop-pointed-backwards">Backfill, Pointed Backwards</a></li>
       <li><a href="#what-this-post-doesnt-prove">What This Doesn't Prove</a></li>
     </ul>
   </div>
@@ -351,11 +338,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-60-semantic-caching-economics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-61-embedding-pipelines.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Semantic+Caching+Economics+%E2%80%94+AI+Learning+%C2%B7+Day+60+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-60-semantic-caching-economics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Embedding+Pipelines+%E2%80%94+AI+Learning+%C2%B7+Day+61+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-61-embedding-pipelines.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -368,17 +355,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D59</span> AI Learning</div>
-          <a href="day-59-traceforge-agent-observability-distributed-tracing-money.html" class="series-post-title">TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</a>
+          <div class="series-post-kicker"><span class="series-post-num">D60</span> AI Learning</div>
+          <a href="day-60-semantic-caching-economics.html" class="series-post-title">Semantic Caching Economics</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D60</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Semantic Caching Economics</div>
-          <div class="series-post-desc">Threshold vs savings curve — a false-positive cache hit and a false-negative miss don't cost the same amount, so the sweep needs two cost curves, not one hit-rate curve</div>
+          <div class="series-post-kicker"><span class="series-post-num">D61</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Embedding Pipelines</div>
+          <div class="series-post-desc">prompt_hash idempotency is Kafka exactly-once for vectors — batch amortizes cost, idempotency makes retries and backfill safe</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D61</span> AI Learning</div>
-          <a href="day-61-embedding-pipelines.html" class="series-post-title">Embedding Pipelines</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D62</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

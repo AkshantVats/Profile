@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-61-embedding-pipelines.html",
+          "kicker": "AI Learning · Day 61 of 150",
+          "title": "Day 61 — Embedding Pipelines",
+          "subtitle": "Batch, idempotency, backfill",
+          "date": "2026-08-03",
+          "slug": "day-61-embedding-pipelines",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-61-embedding-pipelines.html",
+          "coverImage": "blog/assets/covers/day-61-embedding-pipelines.png",
+          "desc": "prompt_hash idempotency is Kafka exactly-once for vectors — batching amortizes an embedding API's fixed cost, and idempotency is what makes that batching safe to retry or replay as a backfill."
+        },
+        {
           "href": "blog/series/ai-learning/day-60-semantic-caching-economics.html",
           "kicker": "AI Learning · Day 60 of 150",
           "title": "Day 60 — Semantic Caching Economics",
