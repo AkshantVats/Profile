@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line | AI Learning Series</title>
-<meta name="description" content="Collector, analyzer, replay, benchmark — Month 2's product essay. An agent trace isn't interesting because it's an agent; it's interesting because every step on it can be billed to a tenant, and one dropped column can hide that bill from the one dashboard meant to show it.">
-<meta property="og:title" content="Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line">
-<meta property="og:description" content="A trace answers 'what happened.' A trace with a tenant and a cost column answers 'what did it cost, and who does it get billed to' — the harder, more valuable question Month 2's four TraceForge components were quietly building toward.">
+<title>Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu | Experience Series</title>
+<meta name="description" content="Aletheia's price cache only matched exact SKU keys — so Wayfair's 250k+ near-real-time supplier updates needed a tolerance band for 'close enough,' not a smarter hash. Today's semantic-cache-engine DESIGN.md needs the same tolerance for prompts instead of prices.">
+<meta property="og:title" content="Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu">
+<meta property="og:description" content="An exact-match cache treats 'almost the same' as a miss. Wayfair's pricing pipeline had to build tolerance for near-duplicate SKU updates around that limit — the same limit semantic-cache-engine's similarity threshold now solves for prompts.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-59-traceforge-agent-observability-distributed-tracing-money.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-agent-observability-distributed-tracing-money.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-cache-wayfair-pricing-deja-vu.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-agent-observability-distributed-tracing-money.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-cache-wayfair-pricing-deja-vu.png">
 <meta property="article:published_time" content="2026-08-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,64 +185,58 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 59 of 150</span>
+    <span class="tag accent">Experience &middot; Day 60 of 150</span>
     <span class="tag">Platform Engineering</span>
-    <span class="tag">Distributed Systems</span>
-    <span class="tag">Product Essay</span>
+    <span class="tag">Caching</span>
+    <span class="tag">Wayfair</span>
   </div>
-  <h1 class="post-title">Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</h1>
-  <p class="post-subtitle">Collector, analyzer, replay, benchmark &mdash; Month 2's product essay. A trace answers "what happened." A trace with a tenant and a cost column answers "what did it cost, and who gets billed" &mdash; the harder question Month 2 was quietly building toward.</p>
+  <h1 class="post-title">Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu</h1>
+  <p class="post-subtitle">Aletheia's price cache only ever answered one question &mdash; is this the exact same key I already have &mdash; and Wayfair's near-real-time supplier feed kept asking it a question with no exact answer: is this update close enough to not matter?</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 59 of 150</span>
+    <span class="meta-item">Experience &middot; Day 60 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 3, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-59-traceforge-agent-observability-distributed-tracing-money.png" alt="Day 59 — TraceForge — Agent Observability Is Distributed Tracing With Money on the Line" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-60-semantic-cache-wayfair-pricing-deja-vu.png" alt="Day 60 — Semantic Cache — Wayfair Pricing Deja Vu" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A trace that only answers "what happened" is a debugging tool.</p>
+<p>A cache answers exactly one question: have I seen this key before?</p>
 
-<p>The moment it also answers "what did this cost, and which tenant gets billed for it," it stops being a debugging tool and becomes a product &mdash; the difference between a tool your own team tolerates and one someone else would pay to run. TraceForge crossed that line this week, and the crossing wasn't a new feature. It was closing a gap between two things that were already supposed to agree and quietly didn't.</p>
+<p>Aletheia, Wayfair's retail price cache and GraphQL API in front of the storefront, answered that question about 20,000 times a second at peak &mdash; a SKU's <code>catalog/ocid</code> key in, a price out, no computation repeated for a key it had already served. That design is fast and correct for exactly one failure mode: a byte-for-byte identical key. It has nothing to say about a key that's <em>almost</em> the one it already has, which turned out to be the harder and more common case in a supplier feed nobody controlled.</p>
 
-<h2 id="four-components-one-ledger">Four Components, One Ledger</h2>
-
-<div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; one clearinghouse ledger, not two reconciled ones</div>
-  A bank clearinghouse keeps one ledger with a transaction-type column &mdash; deposit, withdrawal, transfer &mdash; instead of three separate ledgers that have to be reconciled against each other nightly. TraceForge's <code>inference_events</code> table works the same way: LensAI's native inference events and <code>agent-benchmark-runner</code>'s benchmark-batch events land in the same table, discriminated by a <code>source</code> column, so nobody has to reconcile two warehouses to answer one question.
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">20.6k</span><span class="stat-label">Aletheia RPS, avg (Datadog)</span></div>
+  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates/supplier, near real-time</span></div>
+  <div class="stat-cell"><span class="stat-num">0.94</span><span class="stat-label">semantic-cache-engine's default threshold</span></div>
 </div>
 
-<p>Four components built that ledger over four weeks. Each answers a distinct dollar-shaped question, not just a distinct technical one.</p>
+<h2 id="what-aletheia-actually-cached">What Aletheia Actually Cached</h2>
 
-<table>
-<tr><th>Component</th><th>The dollar question it answers</th></tr>
-<tr><td><code>traceforge</code> (collector)</td><td>Which tenant's request produced this span, and what did it cost to serve</td></tr>
-<tr><td><code>tool-call-analyzer</code></td><td>Which tool calls in a run are burning the most cost or time, dual-written onto LensAI's cost pipeline</td></tr>
-<tr><td><code>agent-replay-engine</code></td><td>Can this exact run be re-executed for free, without re-paying the LLM API for a live rerun</td></tr>
-<tr><td><code>agent-benchmark-runner</code></td><td>Did the money spent benchmarking two agents actually resolve which one is cheaper to run in production</td></tr>
-</table>
+<p>Delphi, Wayfair's retail price calculator, computed a price and pushed it downstream to Aletheia. Aletheia stored it in Bigtable and in-memory, served it to Storefront and Basket Service on read, and on any change republished a price-change event onto <code>PriceChangeKafka</code> &mdash; the <code>sku_pricing_refresh</code> topic specifically, which fanned out to search indexing and anything else that needed to know a price had moved.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> Month 2's four posts read like four separate mechanisms, but every one of them exists to keep a dollar figure attached to a specific tenant, request, or benchmark batch &mdash; the technical thesis and the money thesis are the same thesis, viewed from two angles.</p>
+<div class="attr-box team">
+  <div class="attr-label">Team-owned &mdash; Price Output Systems (Aletheia) and Pricing Calculators (Delphi)</div>
+  Aletheia and Delphi were owned by their own teams at Wayfair, not by me. I'm describing the cache-invalidation contract those systems exposed to the rest of pricing, which is what my own work had to integrate against.
+</div>
 
-<h2 id="the-gap-a-promise-with-no-enforcement">The Gap: A Promise With No Enforcement</h2>
+<p>That contract works cleanly when a price genuinely changes. It says nothing about what to do when the <em>input</em> to a price changes by an amount too small to move the output &mdash; a supplier re-submitting a cost that's off by a rounding error, or the same cost resubmitted with a new timestamp because a batch job re-ran. Exact-key caching can't tell "this is new information" from "this is the same information wearing a different hash," because it was never designed to compare two keys &mdash; only to check one against itself.</p>
 
-<p><code>agent-benchmark-runner/pkg/lensai</code> has dual-written a <code>Source: "benchmark_run"</code> field onto every batch-completion event since it was built, with a code comment promising a single Grafana board could join inference cost and benchmark cost by tenant because of it. That promise had never been checked end to end.</p>
-
-<p>LensAI's ingestion service &mdash; the Rust struct that actually receives the event over HTTP &mdash; had no <code>source</code> field to put it in. Every dual-written event's discriminator was silently discarded before Kafka ever saw it, which means every dollar figure tagged <code>benchmark_run</code> had nowhere to land in the warehouse the comment promised it would reach.</p>
+<p class="prose-so-what"><strong>So what:</strong> an exact-match cache is only ever answering "have I seen this exact key," and any question that starts with "is this basically the same as" has to be solved somewhere else, or it doesn't get solved at all.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,69 +256,106 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Collector["traceforge collector"]
-  Analyzer["tool-call-analyzer"]
-  Replay["agent-replay-engine"]
-  Bench["agent-benchmark-runner"]
-  Table["inference_events table"]
-  Board["One Grafana board"]
+  Delphi["Delphi price calc"]
+  Aletheia["Aletheia price cache"]
+  Kafka["PriceChangeKafka"]
+  SKUTopic["sku_pricing_refresh"]
+  Store["Storefront reads"]
 
-  Collector --> Table
-  Analyzer --> Table
-  Bench --> Table
-  Replay -.->|no live cost| Table
-  Table --> Board
+  Delphi --> Aletheia
+  Aletheia --> Kafka
+  Kafka --> SKUTopic
+  Aletheia --> Store
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> a wire format that silently drops an unrecognized field is more dangerous than one that rejects it &mdash; a rejection fails loudly the first time; a silent drop looks correct in every test that only checks the sender's side, for as long as nobody builds the dashboard that would have caught it.</p>
+<h2 id="the-near-duplicate-problem">The Near-Duplicate Problem, at 250k Updates a Supplier</h2>
 
-<h2 id="why-cost-stays-at-zero-on-purpose">Why Cost Stays at Zero, on Purpose</h2>
+<p>The scale made the exact-match gap expensive rather than theoretical. Suppliers pushed 250,000-plus SKU updates each in near real-time, and I built the high-throughput bulk processing framework that absorbed that volume &mdash; distributed rate limiting and circuit breakers so one supplier's burst couldn't degrade the rest, running at 99.99% availability. Every one of those updates was a new key by definition, whether the underlying cost had actually moved or not.</p>
 
-<p>The obvious next question: if a benchmark batch has a cost, why does <code>pkg/lensai.ToEvent</code> hard-code <code>CostUSD</code> to 0.0 instead of estimating one? Because <code>orchestrator.Summary</code> carries no cost data, and the cost figure that does exist for a batch &mdash; <code>pkg/report.CostReport</code>, built in Week 8 &mdash; is scoped to the two-agent comparison output, not the single-agent path this dual-write runs on.</p>
-
-<p>Estimating a number here would double-count against a cost already tracked correctly elsewhere. A missing number a reader can see is safer than a wrong number that looks complete.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">event sources, one table</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">cost_usd on benchmark_run, by design</span></div>
-  <div class="stat-cell"><span class="stat-num">172</span><span class="stat-label">tests green after the fix</span></div>
+<div class="attr-box mine">
+  <div class="attr-label">My scope &mdash; Wayfair, Bengaluru, Nov 2024&ndash;Mar 2026, Sr. Software Engineer III, Led PAS &amp; Pricing Promotion teams</div>
+  I architected the GCP event-driven Global Pricing &amp; Promotion Engine that cut price propagation from hours to sub-seconds across 20k+ suppliers, and built the bulk processing framework handling 250k+ SKU updates per supplier with distributed rate limiting and circuit breakers. This post describes a caching limitation that framework exposed, not a claim that semantic-cache-engine ran at Wayfair.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> "always zero, and here's why" is a more trustworthy number on a dashboard than a plausible-looking estimate nobody can audit &mdash; the discipline that kept Week 8's cost report honest is the same discipline that keeps this dual-write honest.</p>
+<p>Treat every re-submission as a genuine price change and you invalidate Aletheia's cache and re-run Delphi's calculation for updates that changed nothing a customer would ever see &mdash; wasted compute on the calculation core, and a needless republish onto <code>PriceChangeKafka</code> that every downstream consumer has to process for no reason. Treat every re-submission as safe to ignore and you risk missing the one update in a thousand that's a real, customer-visible price drop wearing the same shape as the noise around it.</p>
 
-<h2 id="what-this-buys-a-product-not-a-team">What This Buys a Product, Not Just a Team</h2>
+<p class="prose-so-what"><strong>So what:</strong> at 250k updates per supplier, the choice isn't between "cache it" and "don't" &mdash; it's between wasting the calculation core on noise and risking a silent miss on the signal buried in that noise, and an exact-match key can't tell you which update is which.</p>
 
-<p>A team can tolerate a promise that isn't enforced, because someone eventually notices in Slack and files a fix. A product can't &mdash; an installer reading the README's cross-product claim has no Slack channel to notice in, only a dashboard that either shows the join or doesn't.</p>
+<h2 id="options-for-tolerance">Options for Building Tolerance</h2>
 
-<p>Closing the <code>trace_id</code>/<code>source</code> gap this week is what makes today's HN launch draft (<code>docs/hn-launch-traceforge.md</code>) an honest document instead of an aspirational one &mdash; the Grafana dashboard it references now runs against columns that actually exist, not ones a comment merely promised would.</p>
+<p>The honest options, ranked by what they actually buy you:</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the difference between an internal tool and a launched product isn't more features &mdash; it's that every claim the documentation makes has to survive a stranger checking it, with no one around to explain the gap away.</p>
+<table>
+<tr><th>Option</th><th>What it catches</th><th>Why it's not enough alone</th></tr>
+<tr><td>TTL-only invalidation</td><td>Stale reads, eventually</td><td>Doesn't distinguish noise from a real change within the window</td></tr>
+<tr><td>Exact-hash dedup</td><td>Byte-identical resubmissions</td><td>Misses rounding drift and timestamp-only changes entirely</td></tr>
+<tr><td>Fixed percentage-delta band</td><td>Small price noise around one axis (cost)</td><td>One threshold can't cover cost, MAP, and shipping deltas at once</td></tr>
+<tr><td>Tenant-scoped similarity threshold</td><td>Near-duplicates across multiple correlated fields</td><td>Needs a false-positive budget and a decay policy — the harder build</td></tr>
+</table>
 
-<h2 id="what-this-essay-doesnt-prove">What This Essay Doesn't Prove</h2>
+<p>Wayfair's pricing stack never had the fourth option; it lived with the middle two, tuned per feed by the teams that owned them. <code>semantic-cache-engine</code>'s DESIGN.md picks the fourth option on purpose, because the input this time is a prompt, and a prompt has no single numeric field a percentage band could bound.</p>
 
-<p>The honest gap: the cross-product dashboard is validated against the ClickHouse schema and the Go/Rust wire format, column by column &mdash; not against a live Grafana instance rendering real traffic, because no Grafana server was available in this build's sandbox. "The query references the right columns" and "the panel shows the number a viewer expects" are different claims.</p>
+<p class="prose-so-what"><strong>So what:</strong> a fixed tolerance band is the cheap version of "close enough," and it works until the thing you're comparing has more than one dimension that can drift independently &mdash; which is exactly where a single similarity score, tuned and monitored, earns its complexity.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> today's essay earns the first claim, not the second &mdash; and the honest version of a product launch names that gap instead of quietly hoping nobody checks.</p>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  Update["Incoming update"]
+  Exact{"Exact key match?"}
+  NearDup{"Within tolerance?"}
+  Hit["Treat as cache hit"]
+  Miss["Recompute, cache miss"]
+
+  Update --> Exact
+  Exact -->|no| NearDup
+  NearDup -->|yes| Hit
+  NearDup -->|no| Miss
+</pre>
+
+<h2 id="what-transfers-to-prompts">What Transfers to Prompt Caching</h2>
+
+<p><code>semantic-cache-engine</code>'s DESIGN.md keys its similarity threshold per tenant, defaulting to 0.94 on embedding cosine similarity, with an explicit false-positive budget of 0.1% and a monotonic decay function that tightens the threshold as a cached entry ages toward its 30-day ceiling. That decay policy is the direct answer to a problem Wayfair's fixed-band approach never solved cleanly: a tolerance that's safe on day one of a cache entry's life is not automatically safe on day twenty-nine.</p>
+
+<p>The rejected alternative worth naming: an ivfflat index over pgvector instead of hnsw. ivfflat is cheaper to build but requires a fixed number of clusters chosen up front, which fits a stable corpus poorly when tenant traffic patterns shift week to week — hnsw's graph structure tolerates that drift without a full reindex, at the cost of more memory per vector.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> Wayfair's pricing feed taught the tolerance-versus-precision tradeoff at the level of one numeric field; a prompt cache has to solve the same tradeoff across an entire embedding space, which is why the decay policy and the false-positive budget aren't optional extras — they're the part of the design that makes the threshold trustworthy past day one.</p>
+
+<h2 id="what-this-design-doesnt-prove-yet">What This Design Doesn't Prove Yet</h2>
+
+<p>The honest gap: today is a DESIGN.md day, not a running system. There's no live embedding model wired up in this sandbox, no pgvector migration applied, and no measured false-positive rate against real prompt traffic — the 0.94 threshold and the 0.1% budget are design targets, not numbers pulled off a dashboard.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a tolerance threshold is a hypothesis until it's measured against traffic that can actually violate it, and the honest version of this post says so instead of quoting 0.94 like it's already been proven safe.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 59 of 150 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</p>
-  <p><em>Next up:</em> <a href="day-60-semantic-caching-economics.html">Day 60 &mdash; Semantic Caching Economics</a></p>
+  <p>Experience &middot; Day 60 of 150 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu</p>
+  <p><em>Next up:</em> Day 61 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 58 &mdash; Month 2 Synthesis — Agents Are Distributed Systems (yesterday's post — the transaction-log thesis this essay reframes as a cost question)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
-    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 59 &mdash; TraceForge Launch — From Flight Recorder to Agent Ops (today's companion Experience post — the Delivery Hero contract framing behind the same trace_id/source gap)</span>
+      <span>Day 59 &mdash; TraceForge Launch — From Flight Recorder to Agent Ops (yesterday's post — closes Month 2's TraceForge arc before RouteIQ opens today)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Supplier APIs and Token Buckets — the Wayfair circuit-breaker post this one shares its bulk-processing framework with</span>
     </a>
   </div>
 </div>
@@ -335,22 +366,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#four-components-one-ledger">Four Components, One Ledger</a></li>
-      <li><a href="#the-gap-a-promise-with-no-enforcement">The Gap: A Promise With No Enforcement</a></li>
-      <li><a href="#why-cost-stays-at-zero-on-purpose">Why Cost Stays at Zero, on Purpose</a></li>
-      <li><a href="#what-this-buys-a-product-not-a-team">What This Buys a Product</a></li>
-      <li><a href="#what-this-essay-doesnt-prove">What This Doesn't Prove</a></li>
+      <li><a href="#what-aletheia-actually-cached">What Aletheia Actually Cached</a></li>
+      <li><a href="#the-near-duplicate-problem">The Near-Duplicate Problem</a></li>
+      <li><a href="#options-for-tolerance">Options for Building Tolerance</a></li>
+      <li><a href="#what-transfers-to-prompts">What Transfers to Prompt Caching</a></li>
+      <li><a href="#what-this-design-doesnt-prove-yet">What This Doesn't Prove Yet</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-59-traceforge-agent-observability-distributed-tracing-money.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-60-semantic-cache-wayfair-pricing-deja-vu.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=TraceForge+%E2%80%94+Agent+Observability+Is+Distributed+Tracing+With+Money+on+the+Line+%E2%80%94+AI+Learning+%C2%B7+Day+59+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-59-traceforge-agent-observability-distributed-tracing-money.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Semantic+Cache+%E2%80%94+Wayfair+Pricing+Deja+Vu+%E2%80%94+Experience+%C2%B7+Day+60+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-60-semantic-cache-wayfair-pricing-deja-vu.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -359,21 +390,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D58</span> AI Learning</div>
-          <a href="day-58-month-2-synthesis-agents-are-distributed-systems.html" class="series-post-title">Month 2 Synthesis &mdash; Agents Are Distributed Systems</a>
+          <div class="series-post-kicker"><span class="series-post-num">D59</span> Experience</div>
+          <a href="day-59-traceforge-launch-flight-recorder-to-agent-ops.html" class="series-post-title">TraceForge Launch &mdash; From Flight Recorder to Agent Ops</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D59</span> AI Learning &middot; now</div>
-          <div class="series-post-title">TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</div>
-          <div class="series-post-desc">Collector, analyzer, replay, benchmark — Month 2's product essay: an agent trace matters because every step on it can be billed to a tenant, and one dropped column can hide that bill.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D60</span> Experience &middot; now</div>
+          <div class="series-post-title">Semantic Cache &mdash; Wayfair Pricing Deja Vu</div>
+          <div class="series-post-desc">Aletheia's exact-match price cache couldn't tell noise from signal in a 250k-update supplier feed — the same tolerance problem semantic-cache-engine's similarity threshold now solves for prompts</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D60</span> AI Learning</div>
-          <a href="day-60-semantic-caching-economics.html" class="series-post-title">Semantic Caching Economics</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D61</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -386,7 +417,7 @@ flowchart LR
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
+      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
