@@ -612,6 +612,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-61-embeddings-are-batch-jobs.html",
+          "kicker": "Experience · Day 61 of 150",
+          "title": "Day 61 — Embeddings Are Batch Jobs",
+          "subtitle": "Agoda · compaction windows",
+          "date": "2026-08-03",
+          "slug": "day-61-embeddings-are-batch-jobs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-61-embeddings-are-batch-jobs.html",
+          "coverImage": "blog/assets/covers/day-61-embeddings-are-batch-jobs.png",
+          "desc": "A batch-of-32 embedding worker and WhiteFalcon's hourly-to-daily compaction cadence solve the same amortization problem — and idempotency is what makes both safe to retry, the same lesson learned twice in two different systems."
+        },
+        {
           "href": "blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html",
           "kicker": "Experience · Day 60 of 150",
           "title": "Day 60 — Semantic Cache — Wayfair Pricing Deja Vu",

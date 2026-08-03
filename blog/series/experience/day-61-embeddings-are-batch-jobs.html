@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu | Experience Series</title>
-<meta name="description" content="Aletheia's price cache only matched exact SKU keys — so Wayfair's 250k+ near-real-time supplier updates needed a tolerance band for 'close enough,' not a smarter hash. Today's semantic-cache-engine DESIGN.md needs the same tolerance for prompts instead of prices.">
-<meta property="og:title" content="Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu">
-<meta property="og:description" content="An exact-match cache treats 'almost the same' as a miss. Wayfair's pricing pipeline had to build tolerance for near-duplicate SKU updates around that limit — the same limit semantic-cache-engine's similarity threshold now solves for prompts.">
+<title>Day 61 &mdash; Embeddings Are Batch Jobs | Experience Series</title>
+<meta name="description" content="A batch-of-32 embedding worker and an hourly-to-daily TSDB compaction cadence solve the same problem: amortize a per-call cost against continuous write pressure. Today's semantic-cache-engine worker makes that pattern concrete, and idempotency is what makes it safe.">
+<meta property="og:title" content="Day 61 &mdash; Embeddings Are Batch Jobs">
+<meta property="og:description" content="Batching without idempotency is a liability — a retried batch either double-embeds or double-writes. Batching with idempotency is free optimization. Agoda's WhiteFalcon compaction cadence taught that lesson before semantic-cache-engine's embedding worker needed it.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-cache-wayfair-pricing-deja-vu.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-61-embeddings-are-batch-jobs.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embeddings-are-batch-jobs.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-60-semantic-cache-wayfair-pricing-deja-vu.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embeddings-are-batch-jobs.png">
 <meta property="article:published_time" content="2026-08-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 60 of 150</span>
+    <span class="tag accent">Experience &middot; Day 61 of 150</span>
     <span class="tag">Platform Engineering</span>
-    <span class="tag">Caching</span>
-    <span class="tag">Wayfair</span>
+    <span class="tag">Embeddings</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 60 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu</h1>
-  <p class="post-subtitle">Aletheia's price cache only ever answered one question &mdash; is this the exact same key I already have &mdash; and Wayfair's near-real-time supplier feed kept asking it a question with no exact answer: is this update close enough to not matter?</p>
+  <h1 class="post-title">Day 61 &mdash; Embeddings Are Batch Jobs</h1>
+  <p class="post-subtitle">A batch-of-32 embedding worker and a hot-tier compaction cadence are the same decision, made in two different systems: pay a fixed per-call cost once for many items instead of once per item, and only if it's safe to redo the work.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 60 of 150</span>
+    <span class="meta-item">Experience &middot; Day 61 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 3, 2026</span>
     <div class="meta-divider"></div>
@@ -208,35 +208,43 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-60-semantic-cache-wayfair-pricing-deja-vu.png" alt="Day 60 — Semantic Cache — Wayfair Pricing Deja Vu" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-61-embeddings-are-batch-jobs.png" alt="Day 61 — Embeddings Are Batch Jobs" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A cache answers exactly one question: have I seen this key before?</p>
+<p>An embedding API call has a fixed cost attached to it before it does a single unit of useful work &mdash; authentication, a network round trip, provider-side queuing. Call it once per prompt and you pay that fixed cost as many times as you have prompts. Call it once per 32 prompts and you pay it a thirty-second as often, which is the entire reason <code>semantic-cache-engine</code>'s embedding worker batches its calls instead of firing one per incoming prompt.</p>
 
-<p>Aletheia, Wayfair's retail price cache and GraphQL API in front of the storefront, answered that question about 20,000 times a second at peak &mdash; a SKU's <code>catalog/ocid</code> key in, a price out, no computation repeated for a key it had already served. That design is fast and correct for exactly one failure mode: a byte-for-byte identical key. It has nothing to say about a key that's <em>almost</em> the one it already has, which turned out to be the harder and more common case in a supplier feed nobody controlled.</p>
+<p>I'd seen that exact shape of decision before, on a system that had nothing to do with embeddings.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">20.6k</span><span class="stat-label">Aletheia RPS, avg (Datadog)</span></div>
-  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates/supplier, near real-time</span></div>
-  <div class="stat-cell"><span class="stat-num">0.94</span><span class="stat-label">semantic-cache-engine's default threshold</span></div>
+  <div class="stat-cell"><span class="stat-num">32</span><span class="stat-label">embedding batch size</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">WhiteFalcon events/day (Agoda)</span></div>
+  <div class="stat-cell"><span class="stat-num">22/22</span><span class="stat-label">unit tests passing</span></div>
 </div>
 
-<h2 id="what-aletheia-actually-cached">What Aletheia Actually Cached</h2>
+<h2 id="what-shipped-today">What Shipped Today</h2>
 
-<p>Delphi, Wayfair's retail price calculator, computed a price and pushed it downstream to Aletheia. Aletheia stored it in Bigtable and in-memory, served it to Storefront and Basket Service on read, and on any change republished a price-change event onto <code>PriceChangeKafka</code> &mdash; the <code>sku_pricing_refresh</code> topic specifically, which fanned out to search indexing and anything else that needed to know a price had moved.</p>
+<p>Day 60 left <code>semantic-cache-engine</code> as a DESIGN.md &mdash; a pgvector schema, a similarity threshold, no runtime code. Day 61 is the first piece of that design that actually runs: an embedding worker that reads incoming prompts, batches them 32 at a time, calls an embedding API once per batch, and upserts the resulting vectors into a <code>prompts(tenant_id, prompt_hash, embedding, created_at)</code> table.</p>
+
+<p><code>pkg/prompthash</code> normalizes each prompt &mdash; trim, lowercase, collapse whitespace &mdash; then SHA-256s it into a <code>prompt_hash</code>, the key the rest of the pipeline is built around. <code>pkg/embedder</code> wraps an <code>OpenAIEmbedder</code> over <code>text-embedding-3-small</code> behind a small interface, so the batching logic never has to know which provider is on the other end of the call. <code>pkg/cachestore</code> writes vectors through <code>pgx/v5</code> with <code>ON CONFLICT (tenant_id, prompt_hash) DO NOTHING</code>, and <code>pkg/worker</code> is the batching and in-run dedup layer that sits between them.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> none of these four packages is complicated on its own &mdash; normalize a string, call an API, write a row &mdash; but the batching and idempotency decisions connecting them are exactly the decisions that determine whether this worker is cheap and safe to run at volume, or neither.</p>
+
+<h2 id="compaction-cadence-as-the-model">Compaction Cadence Was the Same Decision, Wearing a Different Name</h2>
+
+<p>I spent about five months as a Senior Engineer on Core Infrastructure at Agoda, contributing to WhiteFalcon &mdash; the in-house TSDB handling roughly 1.5 trillion events a day through Kafka into Rust consumers. WhiteFalcon's hot tier buffers those events in Redis, time-windowed, for the last three to seven days of query traffic. It doesn't merge every new Parquet file into cold storage the instant it lands.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Team-owned &mdash; Price Output Systems (Aletheia) and Pricing Calculators (Delphi)</div>
-  Aletheia and Delphi were owned by their own teams at Wayfair, not by me. I'm describing the cache-invalidation contract those systems exposed to the rest of pricing, which is what my own work had to integrate against.
+  <div class="attr-label">Team-owned &mdash; Agoda's compaction pipeline and Rust ingest path</div>
+  The compaction cadence described here &mdash; hourly merges, coarsened to 3-hour, then to daily &mdash; is Agoda's design, running against their Kafka-to-Redis-to-Ceph/S3 pipeline. I contributed to the cross-tier query engine and a new cardinality dimension during my time there; I did not design the compaction jobs or the ingest path. This section describes the pattern I operated alongside, not a system I built.
 </div>
 
-<p>That contract works cleanly when a price genuinely changes. It says nothing about what to do when the <em>input</em> to a price changes by an amount too small to move the output &mdash; a supplier re-submitting a cost that's off by a rounding error, or the same cost resubmitted with a new timestamp because a batch job re-ran. Exact-key caching can't tell "this is new information" from "this is the same information wearing a different hash," because it was never designed to compare two keys &mdash; only to check one against itself.</p>
+<p>Instead, WhiteFalcon's compaction jobs merge on a fixed cadence: hourly first, then those hourly files get merged into 3-hour files, then daily. Each merge pass is a batch operation over files that have already landed, run on a schedule instead of triggered per-file. The reason is the same reason the embedding worker doesn't call the API per prompt: merging one Parquet file at a time would mean paying a per-file merge overhead as many times as there are files, and at 1.5 trillion events a day, that overhead compounds into real cost.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> an exact-match cache is only ever answering "have I seen this exact key," and any question that starts with "is this basically the same as" has to be solved somewhere else, or it doesn't get solved at all.</p>
+<p class="prose-so-what"><strong>So what:</strong> a compaction cadence and an embedding batch size look like unrelated tuning knobs until you notice they're solving the identical problem &mdash; a per-operation cost that's cheap once and expensive multiplied by however many times you pay it.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -256,46 +264,34 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Delphi["Delphi price calc"]
-  Aletheia["Aletheia price cache"]
-  Kafka["PriceChangeKafka"]
-  SKUTopic["sku_pricing_refresh"]
-  Store["Storefront reads"]
+  Kafka["Kafka, 1.5T events/day"]
+  Redis["Redis hot tier"]
+  Hourly["Hourly compaction"]
+  ThreeHr["3-hour merge"]
+  Daily["Daily merge"]
+  Cold["Ceph/S3 cold tier"]
 
-  Delphi --> Aletheia
-  Aletheia --> Kafka
-  Kafka --> SKUTopic
-  Aletheia --> Store
+  Kafka --> Redis
+  Redis --> Hourly
+  Hourly --> ThreeHr
+  ThreeHr --> Daily
+  Daily --> Cold
 </pre>
 
-<h2 id="the-near-duplicate-problem">The Near-Duplicate Problem, at 250k Updates a Supplier</h2>
+<h2 id="batch-size-is-a-knob-not-a-constant">Batch Size Is a Tuning Knob, Not a Fixed Constant</h2>
 
-<p>The scale made the exact-match gap expensive rather than theoretical. Suppliers pushed 250,000-plus SKU updates each in near real-time, and I built the high-throughput bulk processing framework that absorbed that volume &mdash; distributed rate limiting and circuit breakers so one supplier's burst couldn't degrade the rest, running at 99.99% availability. Every one of those updates was a new key by definition, whether the underlying cost had actually moved or not.</p>
-
-<div class="attr-box mine">
-  <div class="attr-label">My scope &mdash; Wayfair, Bengaluru, Nov 2024&ndash;Mar 2026, Sr. Software Engineer III, Led PAS &amp; Pricing Promotion teams</div>
-  I architected the GCP event-driven Global Pricing &amp; Promotion Engine that cut price propagation from hours to sub-seconds across 20k+ suppliers, and built the bulk processing framework handling 250k+ SKU updates per supplier with distributed rate limiting and circuit breakers. This post describes a caching limitation that framework exposed, not a claim that semantic-cache-engine ran at Wayfair.
-</div>
-
-<p>Treat every re-submission as a genuine price change and you invalidate Aletheia's cache and re-run Delphi's calculation for updates that changed nothing a customer would ever see &mdash; wasted compute on the calculation core, and a needless republish onto <code>PriceChangeKafka</code> that every downstream consumer has to process for no reason. Treat every re-submission as safe to ignore and you risk missing the one update in a thousand that's a real, customer-visible price drop wearing the same shape as the noise around it.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> at 250k updates per supplier, the choice isn't between "cache it" and "don't" &mdash; it's between wasting the calculation core on noise and risking a silent miss on the signal buried in that noise, and an exact-match key can't tell you which update is which.</p>
-
-<h2 id="options-for-tolerance">Options for Building Tolerance</h2>
-
-<p>The honest options, ranked by what they actually buy you:</p>
+<p>32 wasn't picked because it's a round number that felt safe. A batch of 1 pays the embedding API's per-request overhead on every prompt, with no amortization at all &mdash; correct, but the most expensive possible shape. A batch of 1,000 amortizes that overhead about as well as it can be amortized, but the last prompt to arrive in that batch waits for 999 others before it gets embedded, which turns batch size into a latency knob as much as a cost knob.</p>
 
 <table>
-<tr><th>Option</th><th>What it catches</th><th>Why it's not enough alone</th></tr>
-<tr><td>TTL-only invalidation</td><td>Stale reads, eventually</td><td>Doesn't distinguish noise from a real change within the window</td></tr>
-<tr><td>Exact-hash dedup</td><td>Byte-identical resubmissions</td><td>Misses rounding drift and timestamp-only changes entirely</td></tr>
-<tr><td>Fixed percentage-delta band</td><td>Small price noise around one axis (cost)</td><td>One threshold can't cover cost, MAP, and shipping deltas at once</td></tr>
-<tr><td>Tenant-scoped similarity threshold</td><td>Near-duplicates across multiple correlated fields</td><td>Needs a false-positive budget and a decay policy — the harder build</td></tr>
+<tr><th>Batch size</th><th>What it buys</th><th>What it costs</th></tr>
+<tr><td>1 (no batching)</td><td>Lowest per-prompt latency</td><td>Full per-call overhead paid every time</td></tr>
+<tr><td>32 (worker default)</td><td>Overhead amortized ~32x, bounded worst-case wait</td><td>Last prompt in a batch waits for the other 31</td></tr>
+<tr><td>1,000+</td><td>Overhead amortized further</td><td>Worst-case wait grows with batch size; one slow embed call blocks the whole batch</td></tr>
 </table>
 
-<p>Wayfair's pricing stack never had the fourth option; it lived with the middle two, tuned per feed by the teams that owned them. <code>semantic-cache-engine</code>'s DESIGN.md picks the fourth option on purpose, because the input this time is a prompt, and a prompt has no single numeric field a percentage band could bound.</p>
+<p>WhiteFalcon's cadence makes the same trade in the opposite direction: hourly compaction accepts a coarser bucket sooner, so recent data stays queryable at fine granularity for the 3&ndash;7 day hot window before it gets folded into the 3-hour and daily merges. A batch size and a compaction interval are both answering "how long am I willing to let work accumulate before I pay the fixed cost to process it," just measured in prompts instead of hours.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a fixed tolerance band is the cheap version of "close enough," and it works until the thing you're comparing has more than one dimension that can drift independently &mdash; which is exactly where a single similarity score, tuned and monitored, earns its complexity.</p>
+<p class="prose-so-what"><strong>So what:</strong> there's no batch size or compaction interval that's correct in the abstract &mdash; both are a bet on how much latency the system downstream can tolerate in exchange for how much fixed cost gets amortized away, and that bet has to be made deliberately, not defaulted to.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -315,51 +311,50 @@ flowchart LR
   }
 }}%%
 flowchart LR
-  Update["Incoming update"]
-  Exact{"Exact key match?"}
-  NearDup{"Within tolerance?"}
-  Hit["Treat as cache hit"]
-  Miss["Recompute, cache miss"]
+  Prompt["Prompt arrives"]
+  Hash["Compute prompt_hash"]
+  Batch["Accumulate to 32"]
+  Embed["One embed API call"]
+  Upsert["Upsert, ON CONFLICT skip"]
+  Store["pgvector prompts table"]
 
-  Update --> Exact
-  Exact -->|no| NearDup
-  NearDup -->|yes| Hit
-  NearDup -->|no| Miss
+  Prompt --> Hash --> Batch --> Embed --> Upsert --> Store
 </pre>
 
-<h2 id="what-transfers-to-prompts">What Transfers to Prompt Caching</h2>
+<h2 id="idempotency-is-what-makes-batching-safe">Idempotency Is What Makes Batching Safe to Retry</h2>
 
-<p><code>semantic-cache-engine</code>'s DESIGN.md keys its similarity threshold per tenant, defaulting to 0.94 on embedding cosine similarity, with an explicit false-positive budget of 0.1% and a monotonic decay function that tightens the threshold as a cached entry ages toward its 30-day ceiling. That decay policy is the direct answer to a problem Wayfair's fixed-band approach never solved cleanly: a tolerance that's safe on day one of a cache entry's life is not automatically safe on day twenty-nine.</p>
+<p>Batching alone isn't the win. A batched call that fails halfway through and gets retried is a liability if the retry re-writes rows that already landed &mdash; that's a double-write, not a safe redo. <code>pkg/cachestore</code>'s upsert is <code>ON CONFLICT (tenant_id, prompt_hash) DO NOTHING</code>, so a retried batch that re-embeds and re-upserts prompts it already processed simply does nothing extra on the rows that already exist.</p>
 
-<p>The rejected alternative worth naming: an ivfflat index over pgvector instead of hnsw. ivfflat is cheaper to build but requires a fixed number of clusters chosen up front, which fits a stable corpus poorly when tenant traffic patterns shift week to week — hnsw's graph structure tolerates that drift without a full reindex, at the cost of more memory per vector.</p>
+<div class="attr-box mine">
+  <div class="attr-label">My scope &mdash; Agoda, Bangkok, Apr&ndash;Sep 2024, Sr. Software Engineer, Core Infrastructure</div>
+  I extended WhiteFalcon's Scala query engine to correctly merge quantiles across the hot/cold tier boundary and added a new Kubernetes cardinality dimension to the RoaringBitmap index. I did not build the compaction jobs described above &mdash; this post uses their cadence as the pattern, not a claim that I designed them.
+</div>
 
-<p class="prose-so-what"><strong>So what:</strong> Wayfair's pricing feed taught the tolerance-versus-precision tradeoff at the level of one numeric field; a prompt cache has to solve the same tradeoff across an entire embedding space, which is why the decay policy and the false-positive budget aren't optional extras — they're the part of the design that makes the threshold trustworthy past day one.</p>
+<p>WhiteFalcon's compaction gets the same safety property from a different mechanism: it merges immutable, already-landed Parquet files. A compaction pass that's interrupted and re-run doesn't corrupt anything, because merging the same set of files twice produces the same output as merging them once &mdash; the operation is idempotent by construction, the same way <code>ON CONFLICT DO NOTHING</code> makes the embedding worker's upsert idempotent by construction.</p>
 
-<h2 id="what-this-design-doesnt-prove-yet">What This Design Doesn't Prove Yet</h2>
+<p class="prose-so-what"><strong>So what:</strong> without idempotency, a retried batch is a bug waiting for the right failure to trigger it; with idempotency, a retried batch is indistinguishable from success, and that's the property that makes both systems safe to batch aggressively instead of cautiously.</p>
 
-<p>The honest gap: today is a DESIGN.md day, not a running system. There's no live embedding model wired up in this sandbox, no pgvector migration applied, and no measured false-positive rate against real prompt traffic — the 0.94 threshold and the 0.1% budget are design targets, not numbers pulled off a dashboard.</p>
+<h2 id="what-this-doesnt-prove-yet">What This Doesn't Prove Yet</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> a tolerance threshold is a hypothesis until it's measured against traffic that can actually violate it, and the honest version of this post says so instead of quoting 0.94 like it's already been proven safe.</p>
+<p>The honest gap: 22 of 22 unit tests pass &mdash; normalization, batching, and upsert-SQL construction are covered &mdash; but the integration test for actual pgvector idempotency is gated behind <code>-tags=integration</code> and a live <code>PGVECTOR_DSN</code>, and there's no Postgres instance with pgvector installed in this sandbox to run it against. The upsert's idempotency is verified at the SQL-construction level, not against a real database yet.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a unit test that checks the upsert statement is shaped correctly is not the same claim as a test that ran the statement against a real table twice and confirmed the second run was a no-op &mdash; that gap is logged as follow-on CI scope, not silently dropped.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 60 of 150 &mdash; Semantic Cache &mdash; Wayfair Pricing Deja Vu</p>
-  <p><em>Next up:</em> <a href="day-61-embeddings-are-batch-jobs.html">Day 61 &mdash; Embeddings Are Batch Jobs</a></p>
+  <p>Experience &middot; Day 61 of 150 &mdash; Embeddings Are Batch Jobs</p>
+  <p><em>Next up:</em> Day 62 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-61-embeddings-are-batch-jobs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 61 &mdash; Embeddings Are Batch Jobs (today's follow-up — the DESIGN.md above becomes real code, batched and idempotent)</span>
+      <span>Day 60 &mdash; Semantic Cache — Wayfair Pricing Deja Vu (yesterday's post — the design this worker's code now implements)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 59 &mdash; TraceForge Launch — From Flight Recorder to Agent Ops (yesterday's post — closes Month 2's TraceForge arc before RouteIQ opens today)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Supplier APIs and Token Buckets — the Wayfair circuit-breaker post this one shares its bulk-processing framework with</span>
+      <span>Building a TSDB at Agoda — the full WhiteFalcon system tour this post's compaction anchor is drawn from</span>
     </a>
   </div>
 </div>
@@ -370,22 +365,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-aletheia-actually-cached">What Aletheia Actually Cached</a></li>
-      <li><a href="#the-near-duplicate-problem">The Near-Duplicate Problem</a></li>
-      <li><a href="#options-for-tolerance">Options for Building Tolerance</a></li>
-      <li><a href="#what-transfers-to-prompts">What Transfers to Prompt Caching</a></li>
-      <li><a href="#what-this-design-doesnt-prove-yet">What This Doesn't Prove Yet</a></li>
+      <li><a href="#what-shipped-today">What Shipped Today</a></li>
+      <li><a href="#compaction-cadence-as-the-model">Compaction Cadence as the Model</a></li>
+      <li><a href="#batch-size-is-a-knob-not-a-constant">Batch Size Is a Tuning Knob</a></li>
+      <li><a href="#idempotency-is-what-makes-batching-safe">Idempotency Makes Batching Safe</a></li>
+      <li><a href="#what-this-doesnt-prove-yet">What This Doesn't Prove Yet</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-60-semantic-cache-wayfair-pricing-deja-vu.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-61-embeddings-are-batch-jobs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Semantic+Cache+%E2%80%94+Wayfair+Pricing+Deja+Vu+%E2%80%94+Experience+%C2%B7+Day+60+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-60-semantic-cache-wayfair-pricing-deja-vu.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Embeddings+Are+Batch+Jobs+%E2%80%94+Experience+%C2%B7+Day+61+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-61-embeddings-are-batch-jobs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -398,17 +393,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D59</span> Experience</div>
-          <a href="day-59-traceforge-launch-flight-recorder-to-agent-ops.html" class="series-post-title">TraceForge Launch &mdash; From Flight Recorder to Agent Ops</a>
+          <div class="series-post-kicker"><span class="series-post-num">D60</span> Experience</div>
+          <a href="day-60-semantic-cache-wayfair-pricing-deja-vu.html" class="series-post-title">Semantic Cache &mdash; Wayfair Pricing Deja Vu</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D60</span> Experience &middot; now</div>
-          <div class="series-post-title">Semantic Cache &mdash; Wayfair Pricing Deja Vu</div>
-          <div class="series-post-desc">Aletheia's exact-match price cache couldn't tell noise from signal in a 250k-update supplier feed — the same tolerance problem semantic-cache-engine's similarity threshold now solves for prompts</div>
+          <div class="series-post-kicker"><span class="series-post-num">D61</span> Experience &middot; now</div>
+          <div class="series-post-title">Embeddings Are Batch Jobs</div>
+          <div class="series-post-desc">A batch-of-32 embedding worker and WhiteFalcon's hourly-to-daily compaction cadence solve the same amortization problem — idempotency is what makes both safe to retry</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D61</span> Experience</div>
-          <a href="day-61-embeddings-are-batch-jobs.html" class="series-post-title">Embeddings Are Batch Jobs</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D62</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
