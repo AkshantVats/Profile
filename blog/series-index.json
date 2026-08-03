@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-59-traceforge-agent-observability-distributed-tracing-money.html",
+          "kicker": "AI Learning · Day 59 of 150",
+          "title": "Day 59 — TraceForge — Agent Observability Is Distributed Tracing With Money on the Line",
+          "subtitle": "Collector, analyzer, replay, benchmark — Month 2 product essay",
+          "date": "2026-08-03",
+          "slug": "day-59-traceforge-agent-observability-distributed-tracing-money",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-59-traceforge-agent-observability-distributed-tracing-money.html",
+          "coverImage": "blog/assets/covers/day-59-traceforge-agent-observability-distributed-tracing-money.png",
+          "desc": "Collector, analyzer, replay, benchmark — Month 2's product essay: an agent trace matters because every step on it can be billed to a tenant, and one dropped column can hide that bill from the dashboard meant to show it."
+        },
+        {
           "href": "blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html",
           "kicker": "AI Learning · Day 58 of 150",
           "title": "Day 58 — Month 2 Synthesis — Agents Are Distributed Systems",

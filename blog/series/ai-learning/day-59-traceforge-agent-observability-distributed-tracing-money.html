@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 58 &mdash; Month 2 Synthesis &mdash; Agents Are Distributed Systems | AI Learning Series</title>
-<meta name="description" content="Collector ingests, analyzer finds patterns, replay engine reruns deterministically, benchmark runner grades the diff — four weeks of TraceForge posts collapse into one thesis: an agent trace is a distributed transaction log, and every DS technique applies to it directly.">
-<meta property="og:title" content="Day 58 &mdash; Month 2 Synthesis &mdash; Agents Are Distributed Systems">
-<meta property="og:description" content="Idempotency, replay, divergence detection, backpressure — none of these are new ideas invented for agents. They're the same distributed systems primitives applied to a trace that happens to have a probabilistic step in the middle.">
+<title>Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line | AI Learning Series</title>
+<meta name="description" content="Collector, analyzer, replay, benchmark — Month 2's product essay. An agent trace isn't interesting because it's an agent; it's interesting because every step on it can be billed to a tenant, and one dropped column can hide that bill from the one dashboard meant to show it.">
+<meta property="og:title" content="Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line">
+<meta property="og:description" content="A trace answers 'what happened.' A trace with a tenant and a cost column answers 'what did it cost, and who does it get billed to' — the harder, more valuable question Month 2's four TraceForge components were quietly building toward.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-58-month-2-synthesis-agents-are-distributed-systems.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-59-traceforge-agent-observability-distributed-tracing-money.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-agent-observability-distributed-tracing-money.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-58-month-2-synthesis-agents-are-distributed-systems.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-59-traceforge-agent-observability-distributed-tracing-money.png">
 <meta property="article:published_time" content="2026-08-03">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 58 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 59 of 150</span>
     <span class="tag">Platform Engineering</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Synthesis</span>
+    <span class="tag">Product Essay</span>
   </div>
-  <h1 class="post-title">Day 58 &mdash; Month 2 Synthesis &mdash; Agents Are Distributed Systems</h1>
-  <p class="post-subtitle">TraceForge thesis in one page. Idempotency, replay, divergence detection, backpressure — none of these are new ideas invented for agents. They're distributed systems primitives applied to a trace with a probabilistic step in the middle.</p>
+  <h1 class="post-title">Day 59 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</h1>
+  <p class="post-subtitle">Collector, analyzer, replay, benchmark &mdash; Month 2's product essay. A trace answers "what happened." A trace with a tenant and a cost column answers "what did it cost, and who gets billed" &mdash; the harder question Month 2 was quietly building toward.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 58 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 59 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 3, 2026</span>
     <div class="meta-divider"></div>
@@ -208,41 +208,41 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-58-month-2-synthesis-agents-are-distributed-systems.png" alt="Day 58 — Month 2 Synthesis — Agents Are Distributed Systems" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-59-traceforge-agent-observability-distributed-tracing-money.png" alt="Day 59 — TraceForge — Agent Observability Is Distributed Tracing With Money on the Line" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Tomorrow RouteIQ routes; today you trace &mdash; platform story continues.</p>
+<p>A trace that only answers "what happened" is a debugging tool.</p>
 
-<p>That's the whole arc of Month 2 in one sentence, and it's worth pausing on before Month 3 opens a new chapter. Every TraceForge post since Day 30 has been building toward one claim: an agent run isn't a new kind of thing that needs new theory. It's a distributed system trace with a probabilistic step bolted onto the front, and every distributed-systems technique already applies to it directly.</p>
+<p>The moment it also answers "what did this cost, and which tenant gets billed for it," it stops being a debugging tool and becomes a product &mdash; the difference between a tool your own team tolerates and one someone else would pay to run. TraceForge crossed that line this week, and the crossing wasn't a new feature. It was closing a gap between two things that were already supposed to agree and quietly didn't.</p>
 
-<h2 id="the-arc-four-weeks-in-one-sentence">The Arc: Four Weeks in One Sentence</h2>
-
-<p>Collector ingests. Analyzer finds patterns. Replay engine gives deterministic reruns.</p>
-
-<p>Benchmark runner &mdash; today's code, the code the last two weeks of Experience posts have been building rehearsals for &mdash; turns replay into a graded comparison between two agent runs.</p>
-
-<p>Each stage exists because the previous one exposed a gap. The collector alone gave a pile of spans nobody could act on; the analyzer turned spans into named failure patterns; the replay engine turned a named pattern into something reproducible on demand; the benchmark runner turned reproducibility into a number two runs could be compared by.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> none of these four stages was planned as a monolith on Day 30 &mdash; each one is the answer to a question the previous stage's users couldn't answer, which is the same way most production observability stacks actually get built.</p>
-
-<h2 id="the-core-thesis">The Core Thesis</h2>
+<h2 id="four-components-one-ledger">Four Components, One Ledger</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; the tool-call sequence as a distributed transaction log</div>
-  A distributed transaction log records every step a transaction took across services, in order, so two replicas that should have reached the same end state can be checked against each other. An agent's tool-call sequence is that same log with an LLM call standing in for one of the steps: <code>compare.Result</code>'s divergence report is nothing more than a diff between two transaction logs that were supposed to reach the same end state and one of them took a different step at some point.
+  <div class="attr-label">DS analogy &mdash; one clearinghouse ledger, not two reconciled ones</div>
+  A bank clearinghouse keeps one ledger with a transaction-type column &mdash; deposit, withdrawal, transfer &mdash; instead of three separate ledgers that have to be reconciled against each other nightly. TraceForge's <code>inference_events</code> table works the same way: LensAI's native inference events and <code>agent-benchmark-runner</code>'s benchmark-batch events land in the same table, discriminated by a <code>source</code> column, so nobody has to reconcile two warehouses to answer one question.
 </div>
 
-<p>Once you see it this way, the rest of the month's mechanisms stop looking like AI-specific inventions and start looking like renamed distributed-systems primitives. <code>eventlog</code>'s append-only step record is a write-ahead log (the durability pattern where every change is recorded before it's applied, so a crash never loses a step). <code>ToolMocker</code>'s freeze-and-replay is idempotent retry testing &mdash; the same call, replayed, always returns the same result.</p>
+<p>Four components built that ledger over four weeks. Each answers a distinct dollar-shaped question, not just a distinct technical one.</p>
 
-<p><code>pkg/diff</code>'s structural comparison is the same "compare by key, not by byte" discipline that makes a JSON diff useful instead of noisy.</p>
+<table>
+<tr><th>Component</th><th>The dollar question it answers</th></tr>
+<tr><td><code>traceforge</code> (collector)</td><td>Which tenant's request produced this span, and what did it cost to serve</td></tr>
+<tr><td><code>tool-call-analyzer</code></td><td>Which tool calls in a run are burning the most cost or time, dual-written onto LensAI's cost pipeline</td></tr>
+<tr><td><code>agent-replay-engine</code></td><td>Can this exact run be re-executed for free, without re-paying the LLM API for a live rerun</td></tr>
+<tr><td><code>agent-benchmark-runner</code></td><td>Did the money spent benchmarking two agents actually resolve which one is cheaper to run in production</td></tr>
+</table>
 
-<p class="prose-so-what"><strong>So what:</strong> the thesis isn't a metaphor for readability &mdash; it's a claim about where to look for solutions, and it held up in practice for four straight weeks of TraceForge posts.</p>
+<p class="prose-so-what"><strong>So what:</strong> Month 2's four posts read like four separate mechanisms, but every one of them exists to keep a dollar figure attached to a specific tenant, request, or benchmark batch &mdash; the technical thesis and the money thesis are the same thesis, viewed from two angles.</p>
 
-<h2 id="every-ds-technique-applies-directly">Every DS Technique Applies Directly</h2>
+<h2 id="the-gap-a-promise-with-no-enforcement">The Gap: A Promise With No Enforcement</h2>
+
+<p><code>agent-benchmark-runner/pkg/lensai</code> has dual-written a <code>Source: "benchmark_run"</code> field onto every batch-completion event since it was built, with a code comment promising a single Grafana board could join inference cost and benchmark cost by tenant because of it. That promise had never been checked end to end.</p>
+
+<p>LensAI's ingestion service &mdash; the Rust struct that actually receives the event over HTTP &mdash; had no <code>source</code> field to put it in. Every dual-written event's discriminator was silently discarded before Kafka ever saw it, which means every dollar figure tagged <code>benchmark_run</code> had nowhere to land in the warehouse the comment promised it would reach.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,67 +262,69 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Collector["Collector ingests"]
-  Analyzer["Analyzer finds patterns"]
-  Replay["Replay engine reruns"]
-  Bench["Benchmark runner grades"]
-  Div["Divergence report"]
+  Collector["traceforge collector"]
+  Analyzer["tool-call-analyzer"]
+  Replay["agent-replay-engine"]
+  Bench["agent-benchmark-runner"]
+  Table["inference_events table"]
+  Board["One Grafana board"]
 
-  Collector --> Analyzer
-  Analyzer --> Replay
-  Replay --> Bench
-  Bench --> Div
+  Collector --> Table
+  Analyzer --> Table
+  Bench --> Table
+  Replay -.->|no live cost| Table
+  Table --> Board
 </pre>
 
-<table>
-<tr><th>DS technique</th><th>Where it showed up in TraceForge</th></tr>
-<tr><td>Idempotency</td><td>ToolMocker keys on (tool_name, input_hash) so a repeated call returns the same recorded result</td></tr>
-<tr><td>Replay</td><td>replay.Run walks the recorded event log deterministically, with an optional stop-at-step halt</td></tr>
-<tr><td>Divergence detection</td><td>pkg/diff compares ToolName + InputHash per step, the first structural disagreement wins</td></tr>
-<tr><td>Backpressure</td><td>tool-call-analyzer splits fast span ingest from slow ClickHouse aggregation so one never stalls the other</td></tr>
-</table>
+<p class="prose-so-what"><strong>So what:</strong> a wire format that silently drops an unrecognized field is more dangerous than one that rejects it &mdash; a rejection fails loudly the first time; a silent drop looks correct in every test that only checks the sender's side, for as long as nobody builds the dashboard that would have caught it.</p>
 
-<p>None of these four rows required inventing anything. Each one is a technique that already had a name before an LLM ever called a tool, applied to a trace that happens to include one non-deterministic step.</p>
+<h2 id="why-cost-stays-at-zero-on-purpose">Why Cost Stays at Zero, on Purpose</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> the table above is the actual deliverable of Month 2 &mdash; not four separate features, but four confirmations that the transaction-log framing predicts where the next mechanism will come from.</p>
+<p>The obvious next question: if a benchmark batch has a cost, why does <code>pkg/lensai.ToEvent</code> hard-code <code>CostUSD</code> to 0.0 instead of estimating one? Because <code>orchestrator.Summary</code> carries no cost data, and the cost figure that does exist for a batch &mdash; <code>pkg/report.CostReport</code>, built in Week 8 &mdash; is scoped to the two-agent comparison output, not the single-agent path this dual-write runs on.</p>
 
-<h2 id="what-changes-tomorrow">What Changes Tomorrow</h2>
+<p>Estimating a number here would double-count against a cost already tracked correctly elsewhere. A missing number a reader can see is safer than a wrong number that looks complete.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">weeks, one observability chapter</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">thesis: trace = transaction log</span></div>
-  <div class="stat-cell"><span class="stat-num">60</span><span class="stat-label">Day RouteIQ opens optimization</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">event sources, one table</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">cost_usd on benchmark_run, by design</span></div>
+  <div class="stat-cell"><span class="stat-num">172</span><span class="stat-label">tests green after the fix</span></div>
 </div>
 
-<p>RouteIQ, starting around Day 60, is a routing and caching layer &mdash; it decides which model or path an agent's next step should take, which is a decision that only makes sense once you can already see what past steps looked like. TraceForge spent Month 2 building the "see what happened" half of that pair; RouteIQ spends Month 3 building the "decide what happens next" half.</p>
+<p class="prose-so-what"><strong>So what:</strong> "always zero, and here's why" is a more trustworthy number on a dashboard than a plausible-looking estimate nobody can audit &mdash; the discipline that kept Week 8's cost report honest is the same discipline that keeps this dual-write honest.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> Month 2 closes the observability chapter, not because there's nothing left to observe, but because RouteIQ's optimization decisions have nothing to act on until an observability layer like TraceForge exists underneath them.</p>
+<h2 id="what-this-buys-a-product-not-a-team">What This Buys a Product, Not Just a Team</h2>
 
-<h2 id="what-this-synthesis-doesnt-prove">What This Synthesis Doesn't Prove</h2>
+<p>A team can tolerate a promise that isn't enforced, because someone eventually notices in Slack and files a fix. A product can't &mdash; an installer reading the README's cross-product claim has no Slack channel to notice in, only a dashboard that either shows the join or doesn't.</p>
 
-<p>A thesis that "every DS technique applies" is easy to state and harder to falsify &mdash; four confirming examples aren't proof the framing holds for every mechanism RouteIQ will need next month. Consistent hashing for cache placement and sampling policy for routing decisions haven't been tested against this thesis yet, because they haven't been built yet.</p>
+<p>Closing the <code>trace_id</code>/<code>source</code> gap this week is what makes today's HN launch draft (<code>docs/hn-launch-traceforge.md</code>) an honest document instead of an aspirational one &mdash; the Grafana dashboard it references now runs against columns that actually exist, not ones a comment merely promised would.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the honest claim after four weeks is "this framing has been useful every time so far," not "this framing is guaranteed to keep working" &mdash; and Month 3 is where that claim actually gets tested.</p>
+<p class="prose-so-what"><strong>So what:</strong> the difference between an internal tool and a launched product isn't more features &mdash; it's that every claim the documentation makes has to survive a stranger checking it, with no one around to explain the gap away.</p>
+
+<h2 id="what-this-essay-doesnt-prove">What This Essay Doesn't Prove</h2>
+
+<p>The honest gap: the cross-product dashboard is validated against the ClickHouse schema and the Go/Rust wire format, column by column &mdash; not against a live Grafana instance rendering real traffic, because no Grafana server was available in this build's sandbox. "The query references the right columns" and "the panel shows the number a viewer expects" are different claims.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> today's essay earns the first claim, not the second &mdash; and the honest version of a product launch names that gap instead of quietly hoping nobody checks.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 58 of 150 &mdash; Month 2 Synthesis &mdash; Agents Are Distributed Systems</p>
-  <p><em>Next up:</em> <a href="day-59-traceforge-agent-observability-distributed-tracing-money.html">Day 59 &mdash; TraceForge — Agent Observability Is Distributed Tracing With Money on the Line</a></p>
+  <p>AI Learning &middot; Day 59 of 150 &mdash; TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</p>
+  <p><em>Next up:</em> Day 60 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-57-launch-narrative-benchmark-as-hero-demo.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 57 &mdash; Launch Narrative — Benchmark as Hero Demo (yesterday's post — the same Report struct this post's transaction-log framing describes)</span>
+      <span>Day 58 &mdash; Month 2 Synthesis — Agents Are Distributed Systems (yesterday's post — the transaction-log thesis this essay reframes as a cost question)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive — the scheduling-not-ML reframe this post's synthesis extends)</span>
+      <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-58-traceforge-agents-need-a-flight-recorder.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-59-traceforge-launch-flight-recorder-to-agent-ops.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 58 &mdash; TraceForge — Agents Need a Flight Recorder (today's companion Experience post — the Delivery Hero postmortem habit behind the divergence report this post generalizes)</span>
+      <span>Day 59 &mdash; TraceForge Launch — From Flight Recorder to Agent Ops (today's companion Experience post — the Delivery Hero contract framing behind the same trace_id/source gap)</span>
     </a>
   </div>
 </div>
@@ -333,22 +335,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-arc-four-weeks-in-one-sentence">The Arc: Four Weeks, One Sentence</a></li>
-      <li><a href="#the-core-thesis">The Core Thesis</a></li>
-      <li><a href="#every-ds-technique-applies-directly">Every DS Technique Applies</a></li>
-      <li><a href="#what-changes-tomorrow">What Changes Tomorrow</a></li>
-      <li><a href="#what-this-synthesis-doesnt-prove">What This Doesn't Prove</a></li>
+      <li><a href="#four-components-one-ledger">Four Components, One Ledger</a></li>
+      <li><a href="#the-gap-a-promise-with-no-enforcement">The Gap: A Promise With No Enforcement</a></li>
+      <li><a href="#why-cost-stays-at-zero-on-purpose">Why Cost Stays at Zero, on Purpose</a></li>
+      <li><a href="#what-this-buys-a-product-not-a-team">What This Buys a Product</a></li>
+      <li><a href="#what-this-essay-doesnt-prove">What This Doesn't Prove</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-58-month-2-synthesis-agents-are-distributed-systems.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-59-traceforge-agent-observability-distributed-tracing-money.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Month+2+Synthesis+%E2%80%94+Agents+Are+Distributed+Systems+%E2%80%94+AI+Learning+%C2%B7+Day+58+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-58-month-2-synthesis-agents-are-distributed-systems.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=TraceForge+%E2%80%94+Agent+Observability+Is+Distributed+Tracing+With+Money+on+the+Line+%E2%80%94+AI+Learning+%C2%B7+Day+59+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-59-traceforge-agent-observability-distributed-tracing-money.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -361,17 +363,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D57</span> AI Learning</div>
-          <a href="day-57-launch-narrative-benchmark-as-hero-demo.html" class="series-post-title">Launch Narrative &mdash; Benchmark as Hero Demo</a>
+          <div class="series-post-kicker"><span class="series-post-num">D58</span> AI Learning</div>
+          <a href="day-58-month-2-synthesis-agents-are-distributed-systems.html" class="series-post-title">Month 2 Synthesis &mdash; Agents Are Distributed Systems</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D58</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Month 2 Synthesis &mdash; Agents Are Distributed Systems</div>
-          <div class="series-post-desc">Collector, analyzer, replay, benchmark — four weeks collapse into one thesis: an agent trace is a distributed transaction log, and every DS technique applies to it directly</div>
+          <div class="series-post-kicker"><span class="series-post-num">D59</span> AI Learning &middot; now</div>
+          <div class="series-post-title">TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</div>
+          <div class="series-post-desc">Collector, analyzer, replay, benchmark — Month 2's product essay: an agent trace matters because every step on it can be billed to a tenant, and one dropped column can hide that bill.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D59</span> AI Learning</div>
-          <a href="day-59-traceforge-agent-observability-distributed-tracing-money.html" class="series-post-title">TraceForge &mdash; Agent Observability Is Distributed Tracing With Money on the Line</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D60</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
