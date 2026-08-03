@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html",
+          "kicker": "AI Learning · Day 58 of 150",
+          "title": "Day 58 — Month 2 Synthesis — Agents Are Distributed Systems",
+          "subtitle": "TraceForge thesis in one page",
+          "date": "2026-08-03",
+          "slug": "day-58-month-2-synthesis-agents-are-distributed-systems",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-58-month-2-synthesis-agents-are-distributed-systems.html",
+          "coverImage": "blog/assets/covers/day-58-month-2-synthesis-agents-are-distributed-systems.png",
+          "desc": "Collector, analyzer, replay, benchmark — four weeks collapse into one thesis: an agent trace is a distributed transaction log, and every DS technique (idempotency, replay, divergence detection, backpressure) applies to it directly."
+        },
+        {
           "href": "blog/series/ai-learning/day-57-launch-narrative-benchmark-as-hero-demo.html",
           "kicker": "AI Learning · Day 57 of 150",
           "title": "Day 57 — Launch Narrative — Benchmark as Hero Demo",
