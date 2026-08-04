@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-66-hard-vs-soft-limits.html",
+          "kicker": "AI Learning · Day 66 of 150",
+          "title": "Day 66 — Hard vs Soft Limits",
+          "subtitle": "Block vs downgrade",
+          "date": "2026-08-05",
+          "slug": "day-66-hard-vs-soft-limits",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-66-hard-vs-soft-limits.html",
+          "coverImage": "blog/assets/covers/day-66-hard-vs-soft-limits.png",
+          "desc": "Soft limit routes to a cheaper model — the same peak-demand instinct behind a delivery platform's surge pricing. A single cutoff forces a binary choice between warning too late and blocking too early; three thresholds let each one do one job."
+        },
+        {
           "href": "blog/series/ai-learning/day-65-token-budgets-as-rate-limits.html",
           "kicker": "AI Learning · Day 65 of 150",
           "title": "Day 65 — Token Budgets as Rate Limits",
