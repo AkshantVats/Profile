@@ -648,6 +648,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-64-pgvector-under-load.html",
+          "kicker": "Experience · Day 64 of 150",
+          "title": "Day 64 — pgvector Under Load",
+          "subtitle": "Agoda · index hot spots",
+          "date": "2026-08-04",
+          "slug": "day-64-pgvector-under-load",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html",
+          "coverImage": "blog/assets/covers/day-64-pgvector-under-load.png",
+          "desc": "An index's cost is never evenly spread across its keys — some tag values, some vectors, some tenants are hotter than others. Agoda's RoaringBitmap cardinality incident and today's flat-load pgvector test share the same blind spot: skew, not the average, is what determines the tail."
+        },
+        {
           "href": "blog/series/experience/day-63-hit-rate-without-honesty-is-vanity.html",
           "kicker": "Experience · Day 63 of 150",
           "title": "Day 63 — Hit Rate Without Honesty Is Vanity",
