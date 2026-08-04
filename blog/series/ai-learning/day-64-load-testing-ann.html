@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 63 &mdash; Cache Quality Metrics | AI Learning Series</title>
-<meta name="description" content="Track thumbs-down rate on cache hits if you can. A hit rate alone tells you how often the cache fired, never whether it fired correctly — precision and recall applied to a similarity threshold, and why a single fixed default is a point on a curve, not a proof.">
-<meta property="og:title" content="Day 63 &mdash; Cache Quality Metrics">
-<meta property="og:description" content="A classifier that always predicts yes gets a great hit rate and a useless accuracy. A similarity threshold that's too loose gets the same shape of lie — semantic-cache-engine's threshold-sweep tool makes the precision/recall tradeoff visible instead of assumed.">
+<title>Day 64 &mdash; Load Testing ANN | AI Learning Series</title>
+<meta name="description" content="Same k6 discipline as ingestion — p99 under SLA. A closed-loop load harness measures whether an index's own query cost is within budget; it does not measure what an open-loop generator would see once a slowdown starts piling requests up behind it.">
+<meta property="og:title" content="Day 64 &mdash; Load Testing ANN">
+<meta property="og:description" content="Coordinated omission, closed-loop vs open-loop load generation, and why pkg/loadtest's p99 for semantic-cache-engine's hnsw index is a lower bound, not the whole story.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-63-cache-quality-metrics.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-63-cache-quality-metrics.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-64-load-testing-ann.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-load-testing-ann.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-63-cache-quality-metrics.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-load-testing-ann.png">
 <meta property="article:published_time" content="2026-08-04">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 63 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 64 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Evaluation</span>
+    <span class="tag">Load Testing</span>
   </div>
-  <h1 class="post-title">Day 63 &mdash; Cache Quality Metrics</h1>
-  <p class="post-subtitle">Hit rate, precision proxy, TTL. Track thumbs-down rate on cache hits if you can &mdash; a hit rate alone tells you how often the cache fired, never whether firing was the right call.</p>
+  <h1 class="post-title">Day 64 &mdash; Load Testing ANN</h1>
+  <p class="post-subtitle">1k QPS methodology. Same k6 discipline as ingestion &mdash; p99 under SLA, except this time the harness is measuring one specific thing and staying honest about everything it isn't.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 63 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 64 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 4, 2026</span>
     <div class="meta-divider"></div>
@@ -207,35 +207,39 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-63-cache-quality-metrics.png" alt="Day 63 — Cache Quality Metrics" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-64-load-testing-ann.png" alt="Day 64 — Load Testing ANN" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Track thumbs-down rate on cache hits if you can.</p>
+<p>Same k6 discipline as ingestion &mdash; p99 under SLA.</p>
 
-<p>A classifier that always predicts "yes" gets a great accuracy score on any dataset where "yes" is the common answer, and a useless one everywhere else &mdash; the score looks good precisely because it stopped measuring anything. A similarity threshold that's slightly too loose gets the same shape of lie: hit rate climbs, because a looser threshold matches more prompts, and nothing in that number distinguishes a match that was actually correct from one that merely cleared the bar.</p>
+<p>The ingestion pipeline's README states its target in exactly that shape: 1 million events a minute, P99 under 100 milliseconds, measured with k6 against a running service. Today's ticket asked for the same discipline applied to <code>semantic-cache-engine</code>'s cache lookup: 1,000 queries a second, p99 under 15 milliseconds. Same shape of number, very different harness underneath it, and the harness is where the interesting part actually lives.</p>
 
-<h2 id="precision-recall-and-a-dial">Precision, Recall, and a Dial With Two Failure Modes</h2>
+<h2 id="closed-loop-vs-open-loop">Closed-Loop vs. Open-Loop, and Why the Difference Matters</h2>
 
-<p><code>semantic-cache-engine</code>'s similarity threshold is a single dial with two distinct failure directions. Raise it &mdash; require a closer match before calling something a hit &mdash; and precision goes up: fewer of the prompts you call "duplicate" actually aren't. Recall goes down at the same time, because fewer real duplicates clear the stricter bar, so more of them fall through to a real inference call that a looser threshold would have caught.</p>
+<p>A load generator has to decide what happens when a request is slow. A closed-loop generator waits: fire the next request only once a worker is free, whether that's immediately or after a slow call finally returns. An open-loop generator doesn't wait at all &mdash; it fires at a fixed rate no matter what the system under test is doing, the way independent real clients actually behave, because no real client waits for someone else's request to finish before sending its own.</p>
 
-<p>Lower the threshold and both effects invert. There's no setting that maximizes precision and recall simultaneously &mdash; DESIGN.md's <code>0.94</code> design estimate and the shipped <code>0.92</code> default are both single points on that curve, chosen by judgment rather than read off a measured tradeoff, until something actually sweeps the curve and shows where the points fall.</p>
+<p>That difference sounds academic until a real slowdown hits. A closed-loop harness's workers stall on the slow calls and simply stop generating new load &mdash; fewer requests get sent during the slowdown, not more, so the harness quietly measures less traffic exactly when there was more to measure. An open-loop generator keeps firing at the same rate regardless, and the requests that would have piled up behind the slow ones actually do pile up, which is what a real production traffic spike would do too.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a single number like "0.92" describes a point, not a policy &mdash; you can't know whether it's a good point without seeing the curve it sits on.</p>
+<p>This gap between what a closed-loop harness reports and what really happened has a name: coordinated omission.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a closed-loop p99 is a lower bound on what an open-loop generator at the same nominal rate would report, never an upper bound &mdash; it can only look better than reality, not worse.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a smoke detector, not a single sensitivity setting</div>
-  A smoke detector tuned to never miss a real fire will also scream at burnt toast &mdash; high recall, low precision, and a lot of false alarms you learn to ignore. Tune it to only alarm on unmistakable smoke and it stays quiet through some real fires that looked ambiguous early on &mdash; high precision, lower recall, and a fire that got a few extra minutes to grow. There's no dial setting that eliminates both failure modes at once; the manufacturer's default is a stance about which one they'd rather you risk.
+  <div class="attr-label">DS analogy &mdash; a toll booth with one lane</div>
+  A toll booth with one lane open times each car as it passes through, and the average wait per car looks fine right up until a burst of traffic arrives. A closed-loop measurement is like a stopwatch that only starts once a car reaches the booth &mdash; it never counts the cars still waiting in the growing line behind the burst. An open-loop measurement counts the whole line, including everyone who hasn't reached the booth yet, which is the only way to see the queue building before it clears.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> the cache's similarity threshold makes the exact same bet, just in cosine similarity instead of parts-per-million smoke density &mdash; too loose and "close enough" prompts get treated as duplicates they aren't; too tight and the cache stays quiet on prompts that really were reusable.</p>
+<p class="prose-so-what"><strong>So what:</strong> the harness's job is to measure the tail, and coordinated omission is exactly the failure mode that hides the tail from a harness that isn't built to see it.</p>
 
-<h2 id="a-threshold-sweep-makes-the-curve-visible">A Threshold Sweep Makes the Curve Visible</h2>
+<h2 id="what-pkg-loadtest-actually-measures">What <code>pkg/loadtest</code> Actually Measures</h2>
 
-<p>Today's code adds <code>cmd/threshold-sweep</code>: given a held-out set of labeled prompt pairs (true near-duplicates and true distinct pairs), it classifies every pair at several candidate thresholds and reports precision, recall, and false-positive rate at each one. That's the difference between assuming <code>0.92</code> is reasonable and actually seeing what happens on either side of it.</p>
+<p>Today's harness (<code>pkg/loadtest</code>, <code>cmd/loadtest</code>) is closed-loop, deliberately, and the doc comments say so rather than pretending otherwise: a ticker fires at the target QPS, each tick dispatches onto a bounded worker pool, and a worker that's still busy on the previous call just doesn't pick up the next tick. That's a real, documented limitation, not an oversight &mdash; it means today's p99 numbers describe "is this index's own query cost within budget at this concurrency," not "what would a real, uncoordinated burst of production traffic actually do to the tail."</p>
+
+<p>The harness also measures one specific call, <code>FindNearest</code> &mdash; the hnsw index query itself &mdash; and deliberately not the full lookup path that also calls an embedding API first. Embedding latency and index latency are two different systems with two different SLAs; folding them into one number would mean a slow OpenAI response gets blamed on index tuning, which is the wrong team fixing the wrong problem.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -255,67 +259,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Pair["Labeled prompt pair"]
-  Score["Similarity score"]
-  Sweep["Compare vs each threshold"]
-  Classify["Hit or miss per threshold"]
-  Agg["Aggregate precision, recall, FPR"]
+  Tick["Ticker fires at target QPS"]
+  Sem["Bounded worker pool"]
+  Call["FindNearest call"]
+  Time["Latency recorded"]
+  Sort["Sorted into percentiles"]
 
-  Pair --> Score --> Sweep --> Classify --> Agg
+  Tick --> Sem --> Call --> Time --> Sort
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the sweep doesn't tell you the one right threshold &mdash; it turns "I chose 0.92" into "here's what 0.92 costs and buys compared to 0.88 and 0.96," which is the only form of that decision you can actually defend.</p>
+<p class="prose-so-what"><strong>So what:</strong> a load-test number is only as meaningful as the one thing it was scoped to measure, and today's scope is "the index's read path under bounded concurrency," stated plainly enough that nobody mistakes it for more.</p>
 
-<h2 id="a-precision-proxy-without-ground-truth">A Precision Proxy Without Ground Truth</h2>
+<h2 id="what-todays-numbers-actually-say">What Today's Numbers Actually Say</h2>
 
-<p>The threshold sweep above needs labels: pairs marked "duplicate" or "distinct" ahead of time. Production traffic doesn't come pre-labeled &mdash; nobody tags a live prompt as "this was actually a duplicate of that cached one," so a live false-positive rate needs some other source of truth.</p>
-
-<p>DESIGN.md's original answer was a sampled human or LLM-judge review pass over cache hits. Today's code ships the smallest real slice of that instead: a thumbs-down webhook a user can hit when a cached answer was visibly wrong, which is the hook's opening line made literal &mdash; track thumbs-down rate on cache hits if you can, because it's the cheapest real signal available before a full review pipeline exists.</p>
-
-<p>The honest framing matters here: thumbs-down count divided by hit count is a <strong>lower bound</strong> on the true false-positive rate, not the rate itself. A wrong hit a user didn't notice, or noticed and didn't bother to flag, never shows up in that ratio &mdash; so a proxy reading low is evidence of "not many complaints," not proof of "few wrong hits."</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a proxy metric is still useful precisely because it's honest about being a proxy &mdash; the moment it gets presented as the real number, its floor becomes an invisible ceiling on how bad anyone thinks the problem is.</p>
-
-<h2 id="what-todays-sweep-actually-found">What Today's Sweep Actually Found</h2>
-
-<p>Running the sweep required a real embedding call to score similarity the same way production does &mdash; and this sandbox's OpenAI key is out of quota, confirmed by a live probe before falling back to anything. The fallback is a local bag-of-words cosine similarity over shared words, not shared meaning, run purely so the sweep tooling itself could be exercised against real numbers instead of none.</p>
-
-<p>That proxy's numbers turned out to be instructive on their own: "delete my account" and "how do I delete my account" &mdash; two prompts with opposite intent, DESIGN.md's own example of a dangerous false hit &mdash; scored <em>higher</em> on word overlap than several genuine paraphrases that happened to use different words for the same request. Word overlap and semantic similarity are measuring different things, and this sweep's numbers are only honest evidence about the first one.</p>
+<p>No Docker daemon is available in this sandbox &mdash; a live probe confirmed it, the same gap a prior day logged for the root docker-compose stack &mdash; so every number below is against <code>pkg/loadtest.MemStore</code>, an in-memory store that sleeps a fixed simulated latency instead of a real pgvector round trip. At 1,000 target QPS and a 2 millisecond simulated latency, the harness reported a p99 of 2.71 milliseconds; raising the simulated latency to 15 milliseconds &mdash; the ticket's own SLA boundary &mdash; correctly pushed p99 to 16.15 milliseconds instead of silently rounding down.</p>
 
 <table>
-<tr><th>Signal</th><th>What it measures</th><th>What it can't tell you</th></tr>
-<tr><td>Hit rate</td><td>How often the cache fired</td><td>Whether firing was correct</td></tr>
-<tr><td>Thumbs-down proxy</td><td>Complaints per hit, from users who noticed</td><td>Wrong hits nobody flagged</td></tr>
-<tr><td>Local word-overlap sweep</td><td>Lexical similarity on a labeled set</td><td>Semantic similarity on real embeddings</td></tr>
+<tr><th>Run</th><th>Sim latency</th><th>Concurrency</th><th>p99</th><th>What it shows</th></tr>
+<tr><td>Headline</td><td>2ms</td><td>64</td><td>2.71ms</td><td>Harness overhead is under 1ms at the tail</td></tr>
+<tr><td>SLA boundary</td><td>15ms</td><td>64</td><td>16.15ms</td><td>Correctly reports over-budget instead of rounding down</td></tr>
+<tr><td>Concurrency-starved</td><td>20ms</td><td>16</td><td>21.15ms</td><td>Achieved QPS drops to 772 when pool capacity &lt; target rate</td></tr>
 </table>
 
-<p class="prose-so-what"><strong>So what:</strong> every signal in this pipeline is a proxy for something you'd rather measure directly, and the useful move isn't picking the "best" proxy &mdash; it's knowing exactly which question each one is answering, and which question it just looks like it's answering.</p>
+<p>The concurrency-starved run is the most useful one of the three: at 16 workers and 20 milliseconds per call, the pool can only sustain about 800 requests a second, and the harness's achieved throughput dropped to match &mdash; not a bug, the harness correctly surfacing "not enough concurrency" instead of pretending it hit 1,000 QPS anyway.</p>
 
-<h2 id="what-this-post-doesnt-prove">What This Post Doesn't Prove</h2>
+<p class="prose-so-what"><strong>So what:</strong> a load-test harness that degrades honestly under an undersized pool is more useful than one that hides the shortfall, because "raise concurrency or lower per-call latency" is a real, actionable finding and a silently-inflated QPS number is not.</p>
 
-<p>The honest gap: nothing here validates whether <code>0.92</code> is well-chosen against real embedding-space cosine similarity, because the sweep that ran today used a lexical proxy on a small, deliberately adversarial 24-pair set, not production traffic scored by <code>text-embedding-3-small</code>. The precision/recall tradeoff this post argues for is real and general; the specific numbers in today's benchmark are not evidence about the deployed threshold.</p>
+<h2 id="what-this-doesnt-prove">What This Doesn't Prove</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> "a threshold needs a measured tradeoff, not a guess" is a claim this post earns; "0.92 is that measured tradeoff's answer" is a claim only a real embedding-backed sweep against real traffic could make, and today's code took the first step toward that without pretending to have taken the second.</p>
+<p>The honest gap: <code>MemStore</code>'s latency is a flat number applied to every call, with a single synthetic tenant seeded once. A real pgvector index's cost depends on how many vectors are actually in it and how unevenly traffic lands across tenants, and neither effect exists in a flat simulated number. Today's companion Experience post works through why that specific gap &mdash; skew, not average load &mdash; is the harder and more realistic failure mode, using an index Akshant watched blow up unevenly in production as the concrete example.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> "the harness computes percentiles correctly under bounded concurrency" is a claim today's runs actually support; "semantic-cache-engine's production p99 is under 15ms" is a claim only a live pgvector instance under realistic, skewed traffic could make, and today's numbers don't reach far enough to make it.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 63 of 150 &mdash; Cache Quality Metrics</p>
-  <p><em>Next up:</em> <a href="day-64-load-testing-ann.html">Day 64 — Load Testing ANN</a></p>
+  <p>AI Learning &middot; Day 64 of 150 &mdash; Load Testing ANN</p>
+  <p><em>Next up:</em> Day 65 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-62-ann-search-at-qps.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-63-cache-quality-metrics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 62 &mdash; ANN Search at QPS (yesterday's post — the index that finds the candidate this threshold judges)</span>
+      <span>Day 63 &mdash; Cache Quality Metrics (yesterday's post — whether the threshold that decided "close enough" was right)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-63-hit-rate-without-honesty-is-vanity.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 63 &mdash; Hit Rate Without Honesty Is Vanity (today's companion Experience post — the same single-signal blind spot, seen through a production incident)</span>
+      <span>Day 64 &mdash; pgvector Under Load (today's companion Experience post — why skew, not average load, is the failure mode this harness can't see yet)</span>
     </a>
   </div>
 </div>
@@ -326,22 +320,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#precision-recall-and-a-dial">Precision, Recall, and a Dial</a></li>
-      <li><a href="#a-threshold-sweep-makes-the-curve-visible">A Threshold Sweep Makes It Visible</a></li>
-      <li><a href="#a-precision-proxy-without-ground-truth">A Precision Proxy Without Truth</a></li>
-      <li><a href="#what-todays-sweep-actually-found">What Today's Sweep Found</a></li>
-      <li><a href="#what-this-post-doesnt-prove">What This Post Doesn't Prove</a></li>
+      <li><a href="#closed-loop-vs-open-loop">Closed-Loop vs. Open-Loop</a></li>
+      <li><a href="#what-pkg-loadtest-actually-measures">What pkg/loadtest Measures</a></li>
+      <li><a href="#what-todays-numbers-actually-say">What Today's Numbers Say</a></li>
+      <li><a href="#what-this-doesnt-prove">What This Doesn't Prove</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-63-cache-quality-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-64-load-testing-ann.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Cache+Quality+Metrics+%E2%80%94+AI+Learning+%C2%B7+Day+63+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-63-cache-quality-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Load+Testing+ANN+%E2%80%94+AI+Learning+%C2%B7+Day+64+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-64-load-testing-ann.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -354,17 +347,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D62</span> AI Learning</div>
-          <a href="day-62-ann-search-at-qps.html" class="series-post-title">ANN Search at QPS</a>
+          <div class="series-post-kicker"><span class="series-post-num">D63</span> AI Learning</div>
+          <a href="day-63-cache-quality-metrics.html" class="series-post-title">Cache Quality Metrics</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D63</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Cache Quality Metrics</div>
-          <div class="series-post-desc">Hit rate, precision proxy, TTL — a hit rate alone tells you how often the cache fired, never whether firing was the right call</div>
+          <div class="series-post-kicker"><span class="series-post-num">D64</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Load Testing ANN</div>
+          <div class="series-post-desc">1k QPS methodology — same k6 discipline as ingestion, and why a closed-loop harness's p99 is a lower bound, not the whole story</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D64</span> AI Learning</div>
-          <a href="day-64-load-testing-ann.html" class="series-post-title">Load Testing ANN</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D65</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

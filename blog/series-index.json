@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-64-load-testing-ann.html",
+          "kicker": "AI Learning · Day 64 of 150",
+          "title": "Day 64 — Load Testing ANN",
+          "subtitle": "1k QPS methodology",
+          "date": "2026-08-04",
+          "slug": "day-64-load-testing-ann",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-64-load-testing-ann.html",
+          "coverImage": "blog/assets/covers/day-64-load-testing-ann.png",
+          "desc": "Same k6 discipline as ingestion — p99 under SLA. A closed-loop harness measures whether an index's own query cost is within budget; coordinated omission is why its p99 is a lower bound, not the whole story."
+        },
+        {
           "href": "blog/series/ai-learning/day-63-cache-quality-metrics.html",
           "kicker": "AI Learning · Day 63 of 150",
           "title": "Day 63 — Cache Quality Metrics",
