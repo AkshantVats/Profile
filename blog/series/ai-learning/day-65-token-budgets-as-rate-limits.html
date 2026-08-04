@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 64 &mdash; Load Testing ANN | AI Learning Series</title>
-<meta name="description" content="Same k6 discipline as ingestion — p99 under SLA. A closed-loop load harness measures whether an index's own query cost is within budget; it does not measure what an open-loop generator would see once a slowdown starts piling requests up behind it.">
-<meta property="og:title" content="Day 64 &mdash; Load Testing ANN">
-<meta property="og:description" content="Coordinated omission, closed-loop vs open-loop load generation, and why pkg/loadtest's p99 for semantic-cache-engine's hnsw index is a lower bound, not the whole story.">
+<title>Day 65 &mdash; Token Budgets as Rate Limits | AI Learning Series</title>
+<meta name="description" content="Lua atomicity again — budgets race like rate limits. Why a token bucket, the right tool for bounding a rate, is the wrong tool for bounding a total, and why cost-budget-enforcer needed a different Redis algorithm than ingestion's existing rate limiter.">
+<meta property="og:title" content="Day 65 &mdash; Token Budgets as Rate Limits">
+<meta property="og:description" content="A token bucket answers 'how fast'; a budget asks 'how much, total, this window' — the same Lua-atomicity discipline, a different algorithm, and the same race if you get the atomicity part wrong either way.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-64-load-testing-ann.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-load-testing-ann.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-65-token-budgets-as-rate-limits.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-as-rate-limits.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-load-testing-ann.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-as-rate-limits.png">
 <meta property="article:published_time" content="2026-08-04">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 64 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 65 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Load Testing</span>
+    <span class="tag">Rate Limiting</span>
   </div>
-  <h1 class="post-title">Day 64 &mdash; Load Testing ANN</h1>
-  <p class="post-subtitle">1k QPS methodology. Same k6 discipline as ingestion &mdash; p99 under SLA, except this time the harness is measuring one specific thing and staying honest about everything it isn't.</p>
+  <h1 class="post-title">Day 65 &mdash; Token Budgets as Rate Limits</h1>
+  <p class="post-subtitle">Sliding windows in Redis. Lua atomicity again &mdash; budgets race like rate limits, but the algorithm underneath a budget has to answer a different question than the one a rate limiter answers.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 64 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 65 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 4, 2026</span>
     <div class="meta-divider"></div>
@@ -207,39 +207,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-64-load-testing-ann.png" alt="Day 64 — Load Testing ANN" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-65-token-budgets-as-rate-limits.png" alt="Day 65 — Token Budgets as Rate Limits" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Same k6 discipline as ingestion &mdash; p99 under SLA.</p>
+<p>Lua atomicity again &mdash; budgets race like rate limits.</p>
 
-<p>The ingestion pipeline's README states its target in exactly that shape: 1 million events a minute, P99 under 100 milliseconds, measured with k6 against a running service. Today's ticket asked for the same discipline applied to <code>semantic-cache-engine</code>'s cache lookup: 1,000 queries a second, p99 under 15 milliseconds. Same shape of number, very different harness underneath it, and the harness is where the interesting part actually lives.</p>
+<p>The root <code>ingestion</code> service already has a per-tenant rate limiter: a Redis-backed token bucket, checked and decremented in one Lua script so two concurrent requests can't both read "tokens available" and both spend the same tokens. Today's ticket needed the identical atomicity discipline for a different question &mdash; not "is this tenant sending too fast," but "has this tenant spent too much, in total, this window." Same Redis, same Lua-script pattern, and a completely different algorithm underneath it, because the two questions aren't actually the same question wearing different units.</p>
 
-<h2 id="closed-loop-vs-open-loop">Closed-Loop vs. Open-Loop, and Why the Difference Matters</h2>
+<h2 id="rate-vs-total">A Token Bucket Answers "How Fast," Not "How Much"</h2>
 
-<p>A load generator has to decide what happens when a request is slow. A closed-loop generator waits: fire the next request only once a worker is free, whether that's immediately or after a slow call finally returns. An open-loop generator doesn't wait at all &mdash; it fires at a fixed rate no matter what the system under test is doing, the way independent real clients actually behave, because no real client waits for someone else's request to finish before sending its own.</p>
+<p><code>ingestion</code>'s rate limiter (<code>ingestion/src/rate_limit/token_bucket.rs</code>) refills continuously: every check computes <code>elapsed_ms</code> since the last refill, adds back <code>elapsed_ms / 1000 * rps</code> tokens up to a capacity ceiling, then spends from whatever's left. That continuous refill is exactly the right behavior for smoothing a rate &mdash; a tenant that sends nothing for ten seconds gets ten seconds of banked capacity back, so a legitimate burst after a quiet period isn't punished for the quiet period that preceded it.</p>
 
-<p>That difference sounds academic until a real slowdown hits. A closed-loop harness's workers stall on the slow calls and simply stop generating new load &mdash; fewer requests get sent during the slowdown, not more, so the harness quietly measures less traffic exactly when there was more to measure. An open-loop generator keeps firing at the same rate regardless, and the requests that would have piled up behind the slow ones actually do pile up, which is what a real production traffic spike would do too.</p>
-
-<p>This gap between what a closed-loop harness reports and what really happened has a name: coordinated omission.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a closed-loop p99 is a lower bound on what an open-loop generator at the same nominal rate would report, never an upper bound &mdash; it can only look better than reality, not worse.</p>
+<p>That same continuous refill is exactly the wrong behavior for a budget. A budget's entire point is a hard total over a period &mdash; "at most X tokens this hour" &mdash; and a bucket that hands capacity back as time passes will let a tenant who spent their allowance early get more allowance mid-window, which isn't a budget anymore, it's a rate limit with a specific number attached. The two mechanisms optimize for opposite things: a rate limiter wants old capacity to come back so bursts don't get punished forever; a budget wants old spend to stay counted so a total stays a total.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a toll booth with one lane</div>
-  A toll booth with one lane open times each car as it passes through, and the average wait per car looks fine right up until a burst of traffic arrives. A closed-loop measurement is like a stopwatch that only starts once a car reaches the booth &mdash; it never counts the cars still waiting in the growing line behind the burst. An open-loop measurement counts the whole line, including everyone who hasn't reached the booth yet, which is the only way to see the queue building before it clears.
+  <div class="attr-label">DS analogy &mdash; a water meter, not a leaking tank</div>
+  A token bucket is a tank with a slow leak refilling it: draw from the tank, and given enough idle time it tops back up on its own. A household water bill doesn't work that way. The meter only ever counts up during a billing period, and the "budget" — however many gallons the tariff allows before a surcharge kicks in — is measured against that running total, not against whatever the tank happens to hold right now. A sliding-window budget is the water meter: it tracks cumulative draw against a fixed period, and nothing about the algorithm hands allowance back mid-period the way a refilling tank would.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> the harness's job is to measure the tail, and coordinated omission is exactly the failure mode that hides the tail from a harness that isn't built to see it.</p>
+<p class="prose-so-what"><strong>So what:</strong> picking a rate-limiting algorithm starts with naming which question is actually being asked — bounding a rate and bounding a total look similar enough to reach for the same tool, and reaching for the wrong one produces a budget that quietly isn't one.</p>
 
-<h2 id="what-pkg-loadtest-actually-measures">What <code>pkg/loadtest</code> Actually Measures</h2>
+<h2 id="two-bucket-approximation">The Weighted Two-Bucket Approximation</h2>
 
-<p>Today's harness (<code>pkg/loadtest</code>, <code>cmd/loadtest</code>) is closed-loop, deliberately, and the doc comments say so rather than pretending otherwise: a ticker fires at the target QPS, each tick dispatches onto a bounded worker pool, and a worker that's still busy on the previous call just doesn't pick up the next tick. That's a real, documented limitation, not an oversight &mdash; it means today's p99 numbers describe "is this index's own query cost within budget at this concurrency," not "what would a real, uncoordinated burst of production traffic actually do to the tail."</p>
+<p>Once the question is "total this window," there are still two honest ways to answer it. A sliding window <em>log</em> keeps every individual event's timestamp and re-sums whatever falls inside the current window on every check &mdash; exact, but its memory and CPU cost grows with request volume, unbounded per tenant. A sliding window <em>counter</em> keeps exactly two numbers per tenant &mdash; the current fixed-length bucket's total and the previous bucket's total &mdash; and approximates the "true" sliding total as a linear blend of the two, weighted by how far into the current bucket the check falls: <code>current + previous * (1 - elapsed_fraction)</code>.</p>
 
-<p>The harness also measures one specific call, <code>FindNearest</code> &mdash; the hnsw index query itself &mdash; and deliberately not the full lookup path that also calls an embedding API first. Embedding latency and index latency are two different systems with two different SLAs; folding them into one number would mean a slow OpenAI response gets blamed on index tuning, which is the wrong team fixing the wrong problem.</p>
+<p>The counter is what <code>cost-budget-enforcer</code> uses, for the same reason most production rate limiters do: O(1) memory and a single Redis round trip per tenant, regardless of how many requests that tenant sends. The cost is the word "approximates" &mdash; a linear blend assumes the previous bucket's spend was itself spread evenly across its own window, which is never exactly true, so the weighted total is an estimate, not an exact reconstruction of "tokens spent in the last N seconds looking backward from right now."</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -259,57 +255,65 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Tick["Ticker fires at target QPS"]
-  Sem["Bounded worker pool"]
-  Call["FindNearest call"]
-  Time["Latency recorded"]
-  Sort["Sorted into percentiles"]
+  Prev["Previous bucket total"]
+  Cur["Current bucket total"]
+  Frac["Elapsed fraction of window"]
+  Weight["Weight previous by remainder"]
+  Sum["Weighted sum"]
+  Check["Compare to budget"]
 
-  Tick --> Sem --> Call --> Time --> Sort
+  Prev --> Weight
+  Frac --> Weight
+  Weight --> Sum
+  Cur --> Sum
+  Sum --> Check
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> a load-test number is only as meaningful as the one thing it was scoped to measure, and today's scope is "the index's read path under bounded concurrency," stated plainly enough that nobody mistakes it for more.</p>
+<p>The reason a fixed-reset counter (spend resets to zero at a clean clock boundary, no blending) isn't good enough is boundary gaming: a tenant who spends their full budget in the last second before a reset, then spends it again in the first second after, has spent two full budgets inside two real seconds — the fixed counter sees two separate, individually-compliant windows and never notices. Blending the previous bucket's weighted remainder into the current check is what closes that gap; a burst that straddles the boundary is still counted against, just approximately, instead of not at all.</p>
 
-<h2 id="what-todays-numbers-actually-say">What Today's Numbers Actually Say</h2>
+<p class="prose-so-what"><strong>So what:</strong> the two-bucket blend is a specific, named tradeoff — bounded memory in exchange for an approximation error at the boundary — not an accident of implementation; a sliding window log would remove the approximation entirely, at a cost in memory this design explicitly chose not to pay.</p>
 
-<p>No Docker daemon is available in this sandbox &mdash; a live probe confirmed it, the same gap a prior day logged for the root docker-compose stack &mdash; so every number below is against <code>pkg/loadtest.MemStore</code>, an in-memory store that sleeps a fixed simulated latency instead of a real pgvector round trip. At 1,000 target QPS and a 2 millisecond simulated latency, the harness reported a p99 of 2.71 milliseconds; raising the simulated latency to 15 milliseconds &mdash; the ticket's own SLA boundary &mdash; correctly pushed p99 to 16.15 milliseconds instead of silently rounding down.</p>
+<h2 id="same-race-two-systems">The Same Race, Two Different Systems</h2>
+
+<p>Both algorithms still share the failure this post opened on. <code>ingestion</code>'s token bucket reads current tokens, computes the refill, and writes the decremented result back — three steps that have to happen as one atomic unit, or two concurrent requests for the same tenant can both read "enough tokens," both pass, and the tenant ends up having spent more than the bucket ever actually held. <code>cost-budget-enforcer</code>'s counter has the identical shape: read current and previous totals, compute the weighted sum, compare against budget, increment if under — and every one of those steps has to be the same atomic unit for the same reason.</p>
 
 <table>
-<tr><th>Run</th><th>Sim latency</th><th>Concurrency</th><th>p99</th><th>What it shows</th></tr>
-<tr><td>Headline</td><td>2ms</td><td>64</td><td>2.71ms</td><td>Harness overhead is under 1ms at the tail</td></tr>
-<tr><td>SLA boundary</td><td>15ms</td><td>64</td><td>16.15ms</td><td>Correctly reports over-budget instead of rounding down</td></tr>
-<tr><td>Concurrency-starved</td><td>20ms</td><td>16</td><td>21.15ms</td><td>Achieved QPS drops to 772 when pool capacity &lt; target rate</td></tr>
+<tr><th>Algorithm</th><th>Memory / tenant</th><th>Exactness</th><th>Answers</th></tr>
+<tr><td>Token bucket (<code>ingestion</code>, live today)</td><td>O(1)</td><td>Exact for its own model</td><td>How fast — refills as time passes</td></tr>
+<tr><td>Fixed window counter</td><td>O(1)</td><td>Gameable at the boundary</td><td>How much, but leaks at reset edges</td></tr>
+<tr><td>Sliding window counter (<code>cost-budget-enforcer</code>, this design)</td><td>O(1)</td><td>Linear approximation</td><td>How much, boundary-safe, bounded memory</td></tr>
+<tr><td>Sliding window log</td><td>O(requests)</td><td>Exact</td><td>How much, exact, unbounded cost</td></tr>
 </table>
 
-<p>The concurrency-starved run is the most useful one of the three: at 16 workers and 20 milliseconds per call, the pool can only sustain about 800 requests a second, and the harness's achieved throughput dropped to match &mdash; not a bug, the harness correctly surfacing "not enough concurrency" instead of pretending it hit 1,000 QPS anyway.</p>
+<p>Both Redis scripts run as a single <code>EVALSHA</code> call specifically so the read-compute-write sequence can't be interrupted by another request for the same key — Redis's single-threaded execution model is what makes "atomic" free instead of requiring an external lock. That's the one design decision today's module inherited unchanged from the rate limiter it sits beside, even though almost everything else about the algorithm had to change.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a load-test harness that degrades honestly under an undersized pool is more useful than one that hides the shortfall, because "raise concurrency or lower per-call latency" is a real, actionable finding and a silently-inflated QPS number is not.</p>
+<p class="prose-so-what"><strong>So what:</strong> the algorithm changed because the question changed, but the atomicity requirement didn't, because the race that produces an overspent bucket and the race that produces an overspent budget are the same race — a check and an act, split across two round trips, with another request able to land in between.</p>
 
-<h2 id="what-this-doesnt-prove">What This Doesn't Prove</h2>
+<h2 id="what-this-doesnt-prove">What This Design Doesn't Prove Yet</h2>
 
-<p>The honest gap: <code>MemStore</code>'s latency is a flat number applied to every call, with a single synthetic tenant seeded once. A real pgvector index's cost depends on how many vectors are actually in it and how unevenly traffic lands across tenants, and neither effect exists in a flat simulated number. Today's companion Experience post works through why that specific gap &mdash; skew, not average load &mdash; is the harder and more realistic failure mode, using an index Akshant watched blow up unevenly in production as the concrete example.</p>
+<p>No live Redis instance ran in this sandbox — the Lua script in today's <code>DESIGN.md</code> is validated by reading, the same constraint prior design-only days have logged. That means the approximation error the two-bucket blend introduces is a documented property of the algorithm, not a measured one: nobody has yet run a real skewed traffic pattern against it and reported how far the weighted estimate actually drifts from an exact sliding-window-log total under realistic bursts.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "the harness computes percentiles correctly under bounded concurrency" is a claim today's runs actually support; "semantic-cache-engine's production p99 is under 15ms" is a claim only a live pgvector instance under realistic, skewed traffic could make, and today's numbers don't reach far enough to make it.</p>
+<p class="prose-so-what"><strong>So what:</strong> "the sliding window counter is O(1) and boundary-safer than a fixed counter" is a claim this design supports on its own terms; "the approximation error stays small enough in practice" is a claim only a live Redis instance under real traffic could make, and today's design doc doesn't reach that far — the same honesty gap today's companion Experience post works through for the finance side of this same design.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 64 of 150 &mdash; Load Testing ANN</p>
-  <p><em>Next up:</em> <a href="day-65-token-budgets-as-rate-limits.html">Day 65 &mdash; Token Budgets as Rate Limits</a></p>
+  <p>AI Learning &middot; Day 65 of 150 &mdash; Token Budgets as Rate Limits</p>
+  <p><em>Next up:</em> Day 66 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-63-cache-quality-metrics.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-64-load-testing-ann.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 63 &mdash; Cache Quality Metrics (yesterday's post — whether the threshold that decided "close enough" was right)</span>
+      <span>Day 64 &mdash; Load Testing ANN (yesterday's post — a different Redis-adjacent measurement gap, seen through an index instead of a budget)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 64 &mdash; pgvector Under Load (today's companion Experience post — why skew, not average load, is the failure mode this harness can't see yet)</span>
+      <span>Day 65 &mdash; Token Budgets — Finance Meets Gateway (today's companion Experience post — the same three-threshold design, seen through a Wayfair supplier cost guardrail instead of the Redis algorithm)</span>
     </a>
   </div>
 </div>
@@ -320,21 +324,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#closed-loop-vs-open-loop">Closed-Loop vs. Open-Loop</a></li>
-      <li><a href="#what-pkg-loadtest-actually-measures">What pkg/loadtest Measures</a></li>
-      <li><a href="#what-todays-numbers-actually-say">What Today's Numbers Say</a></li>
-      <li><a href="#what-this-doesnt-prove">What This Doesn't Prove</a></li>
+      <li><a href="#rate-vs-total">A Token Bucket Answers "How Fast"</a></li>
+      <li><a href="#two-bucket-approximation">The Weighted Two-Bucket Approximation</a></li>
+      <li><a href="#same-race-two-systems">The Same Race, Two Systems</a></li>
+      <li><a href="#what-this-doesnt-prove">What This Doesn't Prove Yet</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-64-load-testing-ann.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-65-token-budgets-as-rate-limits.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Load+Testing+ANN+%E2%80%94+AI+Learning+%C2%B7+Day+64+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-64-load-testing-ann.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Token+Budgets+as+Rate+Limits+%E2%80%94+AI+Learning+%C2%B7+Day+65+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-65-token-budgets-as-rate-limits.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -347,17 +351,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D63</span> AI Learning</div>
-          <a href="day-63-cache-quality-metrics.html" class="series-post-title">Cache Quality Metrics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D64</span> AI Learning</div>
+          <a href="day-64-load-testing-ann.html" class="series-post-title">Load Testing ANN</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D64</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Load Testing ANN</div>
-          <div class="series-post-desc">1k QPS methodology — same k6 discipline as ingestion, and why a closed-loop harness's p99 is a lower bound, not the whole story</div>
+          <div class="series-post-kicker"><span class="series-post-num">D65</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Token Budgets as Rate Limits</div>
+          <div class="series-post-desc">Sliding windows in Redis — why a token bucket answers "how fast" and a budget needs an algorithm that answers "how much, total"</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D65</span> AI Learning</div>
-          <a href="day-65-token-budgets-as-rate-limits.html" class="series-post-title">Token Budgets as Rate Limits</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D66</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

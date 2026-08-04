@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-65-token-budgets-as-rate-limits.html",
+          "kicker": "AI Learning · Day 65 of 150",
+          "title": "Day 65 — Token Budgets as Rate Limits",
+          "subtitle": "Sliding windows in Redis",
+          "date": "2026-08-04",
+          "slug": "day-65-token-budgets-as-rate-limits",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-65-token-budgets-as-rate-limits.html",
+          "coverImage": "blog/assets/covers/day-65-token-budgets-as-rate-limits.png",
+          "desc": "Lua atomicity again — budgets race like rate limits, but the algorithm underneath a budget answers a different question than the one ingestion's token bucket answers. A token bucket smooths a rate; a budget bounds a total, and the two aren't interchangeable."
+        },
+        {
           "href": "blog/series/ai-learning/day-64-load-testing-ann.html",
           "kicker": "AI Learning · Day 64 of 150",
           "title": "Day 64 — Load Testing ANN",
