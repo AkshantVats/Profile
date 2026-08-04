@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-63-cache-quality-metrics.html",
+          "kicker": "AI Learning · Day 63 of 150",
+          "title": "Day 63 — Cache Quality Metrics",
+          "subtitle": "Hit rate, precision proxy, TTL",
+          "date": "2026-08-04",
+          "slug": "day-63-cache-quality-metrics",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-63-cache-quality-metrics.html",
+          "coverImage": "blog/assets/covers/day-63-cache-quality-metrics.png",
+          "desc": "A hit rate alone tells you how often the cache fired, never whether firing was correct — precision and recall applied to a similarity threshold, and why a single fixed default is a point on a curve, not a proof."
+        },
+        {
           "href": "blog/series/ai-learning/day-62-ann-search-at-qps.html",
           "kicker": "AI Learning · Day 62 of 150",
           "title": "Day 62 — ANN Search at QPS",
