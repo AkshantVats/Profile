@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 64 &mdash; pgvector Under Load | Experience Series</title>
-<meta name="description" content="An index's cost is never evenly spread — some tag values, some vectors, some tenants are hotter than others, and that skew, not the average, is what determines tail latency. Agoda's RoaringBitmap cardinality incident and today's pgvector load test share the same blind spot.">
-<meta property="og:title" content="Day 64 &mdash; pgvector Under Load">
-<meta property="og:description" content="A RoaringBitmap index balloons on specific hot tag values, not uniformly — the same shape of risk a flat, evenly-distributed load test against semantic-cache-engine's HNSW index can't see either.">
+<title>Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway | Experience Series</title>
+<meta name="description" content="A supplier's cost change and a tenant's token spend are the same shape of problem — a number that grows unpredictably and needs a guardrail that degrades gracefully instead of just blocking. Wayfair's base-cost violation guardrail and today's cost-budget-enforcer design share that shape.">
+<meta property="og:title" content="Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway">
+<meta property="og:description" content="A hard reject-only guardrail and a silent no-op are both wrong for the same reason — one stops the business, the other doesn't protect it. Wayfair's supplier cost violation flow and cost-budget-enforcer's three-threshold Redis design pick the same third option.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-pgvector-under-load.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-finance-meets-gateway.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-64-pgvector-under-load.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-finance-meets-gateway.png">
 <meta property="article:published_time" content="2026-08-04">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 64 of 150</span>
+    <span class="tag accent">Experience &middot; Day 65 of 150</span>
     <span class="tag">Platform Engineering</span>
-    <span class="tag">Observability</span>
-    <span class="tag">Agoda</span>
+    <span class="tag">Cost Guardrails</span>
+    <span class="tag">Wayfair</span>
   </div>
-  <h1 class="post-title">Day 64 &mdash; pgvector Under Load</h1>
-  <p class="post-subtitle">An index's cost is never evenly spread across its keys &mdash; some tag values, some vectors, some tenants are hotter than others, and that skew is what determines tail latency, not the average. Today's load test measured the easy case and left the real one honestly unmeasured.</p>
+  <h1 class="post-title">Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway</h1>
+  <p class="post-subtitle">A supplier's cost change and a tenant's token spend are the same shape of problem: a number that can run away, guarded by a rule that has to choose between blocking outright and doing nothing at all &mdash; unless someone designs a third option.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 64 of 150</span>
+    <span class="meta-item">Experience &middot; Day 65 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 4, 2026</span>
     <div class="meta-divider"></div>
@@ -208,41 +208,61 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-64-pgvector-under-load.png" alt="Day 64 — pgvector Under Load" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-65-token-budgets-finance-meets-gateway.png" alt="Day 65 — Token Budgets — Finance Meets Gateway" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket was "load test the cache lookup, p99 under 15ms." I wrote the harness, seeded one synthetic tenant, ran it at 1,000 requests a second, and got a clean p99 of 2.7 milliseconds. It's a real number from a real run. It's also measuring the one traffic pattern that was never going to be the problem &mdash; every tenant getting exactly the same, evenly distributed load.</p>
+<p>Today's ticket was a design doc, not a code change: <code>cost-budget-enforcer</code>, a per-tenant sliding-window cap on LLM token spend. No incident forced this one &mdash; it's a guardrail being designed ahead of the traffic that would need it, the same way a finance control gets written before the first supplier tries to game it. That's worth saying plainly, because the two systems I'm about to compare are separated by eighteen months and an entire domain, and the honest link between them is a shared shape of problem, not a shared outage.</p>
 
-<p>I've watched an index blow up from uneven load before, just not a vector index. It was a RoaringBitmap, at Agoda, and it didn't balloon everywhere at once.</p>
+<p>The shape is this: a number that a third party controls and that can grow past what the business can absorb, guarded by a rule that has exactly two easy answers &mdash; block everything past the line, or don't enforce a line at all &mdash; and both easy answers are wrong for symmetrical reasons.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2.71ms</span><span class="stat-label">p99, flat synthetic load</span></div>
-  <div class="stat-cell"><span class="stat-num">300K&rarr;60M</span><span class="stat-label">series from one added label</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">tenant seeded in today's run</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Thresholds, not 1 (today's design)</span></div>
+  <div class="stat-cell"><span class="stat-num">20k+</span><span class="stat-label">Suppliers on the pricing engine I led</span></div>
+  <div class="stat-cell"><span class="stat-num">99.99%</span><span class="stat-label">Availability target, same framework</span></div>
 </div>
 
-<h2 id="the-bitmap-that-balloons-unevenly">The Bitmap That Balloons Unevenly</h2>
+<h2 id="the-two-easy-answers">The Two Easy Answers, and Why Both Are Wrong</h2>
 
-<p>WhiteFalcon's index &mdash; the Agoda team's design, not mine &mdash; is one RoaringBitmap per tag value, mapping to the set of series IDs carrying that value. A query for <code>model=X</code> fetches one bitmap; a query for <code>model=X AND cluster=Y</code> intersects two. The structure is elegant precisely because most tag values are sparse: most series don't carry a given value, so most bitmaps stay small.</p>
+<p>A hard reject-only guardrail is the simplest thing to build: define a ceiling, block anything past it, done. It also fails in public the first time it fires, because "done" means the caller gets nothing &mdash; no partial service, no degraded mode, just a wall. For a pricing platform where a supplier's cost submission feeds live storefront prices, or an LLM tenant whose product depends on an answer coming back, a hard wall at the ceiling turns a spend problem into an availability problem.</p>
 
-<p>The cardinality constraint is what makes that elegance conditional. Bitmaps grow with distinct values times series count, and a high-traffic metric with a high-cardinality tag doesn't grow its index evenly &mdash; it balloons the specific bitmaps for that tag's values, while every other bitmap in the same index stays exactly as small as before.</p>
+<p>A silent no-op &mdash; log the overage, enforce nothing &mdash; is the opposite failure. It protects availability perfectly and the budget not at all. Whoever asked for the cap in the first place, finance or a platform owner, gets a number that was never actually a limit, just a suggestion nobody could see was being ignored until the bill or the incident review showed up.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> an index's average size was never the number that mattered. The one bitmap having a bad day was.</p>
+<p class="prose-so-what"><strong>So what:</strong> a guardrail that only knows "allow" and "block" is choosing between an availability failure and a budget failure, and the honest fix is a design that doesn't force that choice at all.</p>
 
-<h2 id="the-alert-that-only-watched-the-average">The Incident: An Alert That Only Watched the Average</h2>
+<h2 id="wayfair-cost-guardrails">What a Real Cost Guardrail Looked Like at Wayfair</h2>
 
-<p>I spent about five months at Agoda as a Senior Engineer on WhiteFalcon, the team's in-house time-series database handling roughly 1.5 trillion events a day across a Kafka-to-Rust-to-Redis-to-Ceph/S3 pipeline. I didn't design the RoaringBitmap engine or the alerting stack around it &mdash; I was there for the incident that exposed what neither one was watching for.</p>
+<p>I led the Pricing Adjustment (PAS) and Pricing, Promotions &amp; Discounts teams at Wayfair, and the systems those teams owned sat downstream of one specific kind of third-party-controlled number: a supplier's submitted base cost. Suppliers update their own cost figures through the Unified Cost Management System (UCMS), and those figures propagate into the pricing engine's total-cost calculation &mdash; which means a submitted cost that's wrong, or a jump that's implausible, is exactly the "third party controls a number that feeds your system" problem, just denominated in dollars-per-SKU instead of tokens-per-request.</p>
+
+<div class="attr-box team">
+  <div class="attr-label">Team scope &mdash; Wayfair, Sr. SWE III, PAS &amp; Pricing Promotion teams, Nov 2024 &ndash; Mar 2026</div>
+  UCMS tracks supplier base-cost changes with a dedicated violations table and change log &mdash; a cost submission that crosses a configured threshold is flagged rather than either silently accepted or hard-blocked at the API layer. The bulk cost-change pipeline processing those submissions was team-owned infrastructure serving 20,000+ suppliers.
+</div>
 
 <div class="attr-box mine">
-  <div class="attr-label">What I observed &mdash; Agoda, Senior Engineer, WhiteFalcon TSDB, ~5 months</div>
-  Prometheus scrape duration crept up while request rate stayed flat. Root cause: a <code>pod</code> label had been added to a fleet-wide metric, and every new pod multiplied the existing series count on top of the values already there &mdash; <code>model_id (200) &times; tenant_id (500) &times; status (3) = 300,000</code> series for one metric, and adding <code>pod (50) &times; zone (4)</code> on top opened the door to 60 million combinations. No alert fired until scrape targets started failing outright.
+  <div class="attr-label">My contribution</div>
+  I architected the GCP event-driven Global Pricing &amp; Promotion Engine that reduced price propagation from hours to sub-seconds across those 20k+ suppliers, and built the high-throughput bulk processing framework &mdash; with distributed rate limiting and circuit breakers &mdash; that kept that pipeline at 99.99% availability under peak load. The guardrail-vs-availability tradeoff in today's design doc is the same one that framework had to make on every cost change flowing through it.
 </div>
 
-<p>Nothing about that growth was uniform. One label, on one metric, multiplied one set of bitmaps &mdash; every other tag's index kept its ordinary size the whole time. An alert watching the fleet's average scrape duration had no way to see one metric's specific bitmaps ballooning underneath an average that still looked fine.</p>
+<p>The violation flow doesn't reject a flagged cost change outright &mdash; a legitimate cost increase (a real supply-chain shock, say) has to be able to land, just with more scrutiny than a routine update. And it doesn't silently accept it either, because an unflagged, unbounded cost jump feeding straight into the pricing engine is exactly the failure mode a finance control exists to prevent. The answer UCMS lands on is a third state between the two: flagged-but-not-blocked, visible to whoever reviews it, distinct from both the routine path and an outright rejection.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the same organization that needed sub-second price propagation also needed a guardrail on the input feeding that propagation &mdash; speed and a cost cap were never in tension, because the cap was designed to degrade the review path, not the propagation path.</p>
+
+<h2 id="three-thresholds-not-one">Three Thresholds, Not One</h2>
+
+<p>Today's <code>cost-budget-enforcer</code> design doc makes the same three-way split explicit, denominated in tokens instead of dollars-per-SKU:</p>
+
+<table>
+<tr><th>Threshold</th><th>Wayfair analog</th><th>cost-budget-enforcer action</th></tr>
+<tr><td>Early warning</td><td>Cost change flagged in violations table</td><td>Webhook fires at 80% of budget; traffic unaffected</td></tr>
+<tr><td>Soft limit</td><td>Flagged change routed to manual/extra review, not blocked</td><td>New requests route to a cheaper fallback model</td></tr>
+<tr><td>Hard limit</td><td>(No direct analog &mdash; UCMS never fully blocks a submission)</td><td>Requests rejected with HTTP 429 (Too Many Requests) + Retry-After header</td></tr>
+</table>
+
+<p>The one place the analogy breaks is instructive rather than incidental: UCMS never has a true hard-block state, because a supplier's cost figure, however implausible, is still information the business needs to see and adjudicate &mdash; discarding it outright isn't an option the domain allows. An LLM token budget has no equivalent obligation to "see" the request that would have gone over budget; rejecting it costs nothing the domain values. So the hard limit exists here specifically because the two domains diverge on what a rejection actually loses, not despite the parallel &mdash; a design borrowed from one context still has to be checked against what's different in the new one, not copied wholesale.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,55 +282,42 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["New pod label added"] --> B["One tag's bitmaps balloon"]
-  B --> C["Fleet average stays flat"]
-  C --> D["Alert watches only the average"]
-  D --> E["Alert fires too late"]
-  B --> F["Per-tenant skew, not average"]
-  F --> G["Today's load test misses this"]
+  A["Supplier cost submission"] --> B{"Violation check"}
+  B -->|"under threshold"| C["Routine pricing path"]
+  B -->|"over threshold"| D["Flagged for review, not blocked"]
+  E["Tenant token request"] --> F{"Budget check"}
+  F -->|"under 100%"| G["Configured model"]
+  F -->|"100-120%"| H["Cheaper fallback model"]
+  F -->|"over 120%"| I["429, hard block"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> a monitoring signal built on an average can only ever see problems that show up in the average, and skew is the specific failure mode that hides from one.</p>
+<p class="prose-so-what"><strong>So what:</strong> the shared shape is "warn, then degrade, then only block as a last resort" &mdash; where the two systems diverge is exactly where the cost of a rejection diverges, and that divergence is a design decision, not an oversight.</p>
 
-<h2 id="what-actually-fixed-it">What Actually Fixed It</h2>
+<h2 id="what-transferred-and-what-didnt">What Transferred, and What Had to Be Rebuilt</h2>
 
-<p>The fix WhiteFalcon shipped after the incident wasn't a smarter average. It was a hard ceiling on the thing that actually caused the skew: a 10,000-label budget per metric, plus a required cross-product analysis before any new tag could ship. That guardrail doesn't watch scrape duration at all &mdash; it watches the combinatorial growth one step upstream of it, before any one bitmap gets the chance to become the hot one.</p>
+<p>What transferred cleanly: the instinct that a guardrail's job is to protect the budget without making the system unavailable, and that doing both requires more than one threshold. What didn't transfer at all: the mechanism. UCMS's violation flow is a human-review queue &mdash; a flagged cost change waits for a person.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the fix for a skew-shaped blind spot is never a better average &mdash; it's a budget on the thing that produces the skew in the first place.</p>
+<p><code>cost-budget-enforcer</code>'s soft limit has to resolve in the same request's latency budget, with no human in the loop, which is why it routes to a cheaper model instead of a review queue. Same philosophy, completely different implementation, because a synchronous inference gateway and an asynchronous supplier-cost pipeline have different latency contracts on the thing that has to happen once a threshold is crossed.</p>
 
-<h2 id="same-shape-different-index">Same Shape, Different Index</h2>
+<div class="pullquote"><p>A finance control and a rate limiter solve the same problem &mdash; the mechanism that resolves it has to fit the latency the domain actually allows.</p></div>
 
-<p>pgvector's hnsw index &mdash; what <code>semantic-cache-engine</code>'s cache lookup queries on every request &mdash; is a graph, not a bitmap, but it has the same kind of risk. A tenant with ten cached prompts and a tenant with a hundred thousand don't cost the index the same amount per query; the hot tenant's queries walk a much larger neighborhood of the graph than everyone else's do. An aggregate QPS number spread evenly across tenants, which is exactly what today's harness ran, never produces that hot tenant at all.</p>
-
-<p>That's why today's <code>pkg/loadtest</code> reports percentiles and not just a mean &mdash; p50/p95/p99 over every call, not one averaged number. It's the right instinct for the reason Agoda's alert lacked it: an average across a skewed population erases the skew by construction, and percentiles at least leave room for a hot tail to show up if one exists in the traffic you actually sent.</p>
-
-<div class="pullquote"><p>Percentiles are necessary for seeing skew. They aren't sufficient if the load you generated never had any skew in it to see.</p></div>
-
-<p class="prose-so-what"><strong>So what:</strong> measuring the right statistic on the wrong traffic still gives you the wrong answer, just with more decimal places of confidence in it.</p>
-
-<h2 id="what-this-load-test-doesnt-prove-yet">What This Load Test Doesn't Prove Yet</h2>
-
-<p>The honest gap: today's run seeded exactly one tenant and drove every request against it, at a simulated flat 2 millisecond round trip &mdash; no Docker daemon was available to stand up a real pgvector instance, so there was no real index size, no real disk I/O, and critically, no real skew to measure at all. A p99 of 2.71 milliseconds under those conditions says the harness's own concurrency and percentile math work. It says nothing yet about what happens when one tenant has a hundred thousand cached prompts and the rest have ten.</p>
-
-<p>That's the same gap the 10,000-label budget closed at Agoda, just not yet closed here: a guardrail on the thing that produces the skew, or at minimum a load test that seeds skew on purpose instead of seeding it away by accident. Neither exists yet in <code>semantic-cache-engine</code>. Today's number is real; it just isn't the number that would tell you whether one hot tenant could take the whole cache's tail latency past budget.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a load test that can't produce the failure mode you actually care about isn't wrong, it's just answering a smaller question than the one on the ticket &mdash; and the smaller question is worth stating out loud instead of quietly standing in for the bigger one.</p>
+<p class="prose-so-what"><strong>So what:</strong> porting a design pattern across domains means keeping the part that's actually general (three thresholds, not two) and rebuilding the part that isn't (what "degrade" means when there's no human in the loop to ask).</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 64 of 150 &mdash; pgvector Under Load</p>
-  <p><em>Next up:</em> <a href="day-65-token-budgets-finance-meets-gateway.html">Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway</a></p>
+  <p>Experience &middot; Day 65 of 150 &mdash; Token Budgets &mdash; Finance Meets Gateway</p>
+  <p><em>Next up:</em> Day 66 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-63-hit-rate-without-honesty-is-vanity.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 63 &mdash; Hit Rate Without Honesty Is Vanity (yesterday's post — the same single-signal blind spot, seen through a hit-rate dashboard instead of an index)</span>
+      <span>Day 64 &mdash; pgvector Under Load (yesterday's post — a different Agoda-anchored guardrail gap, seen through an index instead of a budget)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Cardinality Is the Silent Killer — the full RoaringBitmap and label-explosion post this incident is drawn from</span>
+      <span>Supplier APIs and Token Buckets (the direct precedent — Wayfair's per-supplier request-rate limiter and fail-open circuit breaker, the request-rate sibling of today's dollar-denominated budget)</span>
     </a>
   </div>
 </div>
@@ -321,22 +328,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-bitmap-that-balloons-unevenly">The Bitmap That Balloons Unevenly</a></li>
-      <li><a href="#the-alert-that-only-watched-the-average">The Alert That Only Watched the Average</a></li>
-      <li><a href="#what-actually-fixed-it">What Actually Fixed It</a></li>
-      <li><a href="#same-shape-different-index">Same Shape, Different Index</a></li>
-      <li><a href="#what-this-load-test-doesnt-prove-yet">What This Doesn't Prove Yet</a></li>
+      <li><a href="#the-two-easy-answers">The Two Easy Answers</a></li>
+      <li><a href="#wayfair-cost-guardrails">What a Real Guardrail Looked Like</a></li>
+      <li><a href="#three-thresholds-not-one">Three Thresholds, Not One</a></li>
+      <li><a href="#what-transferred-and-what-didnt">What Transferred, What Didn't</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-64-pgvector-under-load.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-65-token-budgets-finance-meets-gateway.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=pgvector+Under+Load+%E2%80%94+Experience+%C2%B7+Day+64+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-64-pgvector-under-load.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Token+Budgets+%E2%80%94+Finance+Meets+Gateway+%E2%80%94+Experience+%C2%B7+Day+65+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-65-token-budgets-finance-meets-gateway.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -349,17 +355,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D63</span> Experience</div>
-          <a href="day-63-hit-rate-without-honesty-is-vanity.html" class="series-post-title">Hit Rate Without Honesty Is Vanity</a>
+          <div class="series-post-kicker"><span class="series-post-num">D64</span> Experience</div>
+          <a href="day-64-pgvector-under-load.html" class="series-post-title">pgvector Under Load</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D64</span> Experience &middot; now</div>
-          <div class="series-post-title">pgvector Under Load</div>
-          <div class="series-post-desc">An index's cost is never evenly spread — skew, not the average, is what determines tail latency</div>
+          <div class="series-post-kicker"><span class="series-post-num">D65</span> Experience &middot; now</div>
+          <div class="series-post-title">Token Budgets &mdash; Finance Meets Gateway</div>
+          <div class="series-post-desc">A supplier's cost change and a tenant's token spend are the same shape of problem — a guardrail that has to degrade, not just block</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D65</span> Experience</div>
-          <a href="day-65-token-budgets-finance-meets-gateway.html" class="series-post-title">Token Budgets &mdash; Finance Meets Gateway</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D66</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
