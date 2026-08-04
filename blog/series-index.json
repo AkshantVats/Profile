@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-62-ann-search-at-qps.html",
+          "kicker": "AI Learning · Day 62 of 150",
+          "title": "Day 62 — ANN Search at QPS",
+          "subtitle": "pgvector indexes and latency",
+          "date": "2026-08-04",
+          "slug": "day-62-ann-search-at-qps",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-62-ann-search-at-qps.html",
+          "coverImage": "blog/assets/covers/day-62-ann-search-at-qps.png",
+          "desc": "IVFFlat vs HNSW is a MergeTree-ORDER-BY-shaped decision: made once, expensive to change, and the thing that determines whether the cache lookup path's nearest-neighbor query is fast for the life of the table."
+        },
+        {
           "href": "blog/series/ai-learning/day-61-embedding-pipelines.html",
           "kicker": "AI Learning · Day 61 of 150",
           "title": "Day 61 — Embedding Pipelines",
