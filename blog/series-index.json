@@ -660,6 +660,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-65-token-budgets-finance-meets-gateway.html",
+          "kicker": "Experience · Day 65 of 150",
+          "title": "Day 65 — Token Budgets — Finance Meets Gateway",
+          "subtitle": "Wayfair · spend caps",
+          "date": "2026-08-04",
+          "slug": "day-65-token-budgets-finance-meets-gateway",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html",
+          "coverImage": "blog/assets/covers/day-65-token-budgets-finance-meets-gateway.png",
+          "desc": "A hard reject-only guardrail and a silent no-op are both wrong for the same reason. Wayfair's supplier cost violation flow and cost-budget-enforcer's three-threshold Redis design both pick a third option — degrade, don't just block."
+        },
+        {
           "href": "blog/series/experience/day-64-pgvector-under-load.html",
           "kicker": "Experience · Day 64 of 150",
           "title": "Day 64 — pgvector Under Load",
