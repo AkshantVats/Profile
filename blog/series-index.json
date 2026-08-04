@@ -636,6 +636,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-63-hit-rate-without-honesty-is-vanity.html",
+          "kicker": "Experience · Day 63 of 150",
+          "title": "Day 63 — Hit Rate Without Honesty Is Vanity",
+          "subtitle": "Agoda · dashboard trust",
+          "date": "2026-08-04",
+          "slug": "day-63-hit-rate-without-honesty-is-vanity",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-63-hit-rate-without-honesty-is-vanity.html",
+          "coverImage": "blog/assets/covers/day-63-hit-rate-without-honesty-is-vanity.png",
+          "desc": "A cache hit-rate panel with no false-positive signal beside it has the same blind spot as a Prometheus alert that went dark the moment cardinality exploded at Agoda — a number that only counts successes can't tell you when it stops seeing the failure."
+        },
+        {
           "href": "blog/series/experience/day-62-false-positives-dollar-cost.html",
           "kicker": "Experience · Day 62 of 150",
           "title": "Day 62 — False Positives Have a Dollar Cost",
