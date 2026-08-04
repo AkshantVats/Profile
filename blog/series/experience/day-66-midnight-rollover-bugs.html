@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway | Experience Series</title>
-<meta name="description" content="A supplier's cost change and a tenant's token spend are the same shape of problem — a number that grows unpredictably and needs a guardrail that degrades gracefully instead of just blocking. Wayfair's base-cost violation guardrail and today's cost-budget-enforcer design share that shape.">
-<meta property="og:title" content="Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway">
-<meta property="og:description" content="A hard reject-only guardrail and a silent no-op are both wrong for the same reason — one stops the business, the other doesn't protect it. Wayfair's supplier cost violation flow and cost-budget-enforcer's three-threshold Redis design pick the same third option.">
+<title>Day 66 &mdash; Midnight Rollover Bugs | Experience Series</title>
+<meta name="description" content="A window boundary anchored to whenever the first event after reset happens to arrive isn't a rounding error — it's a silent drift waiting for the right traffic pattern to turn it into a double-count. Walmart WeIoT's daily telemetry rollups and today's cost-budget-enforcer window math hit the same bug class from opposite directions.">
+<meta property="og:title" content="Day 66 &mdash; Midnight Rollover Bugs">
+<meta property="og:description" content="A window that starts counting whenever the first event after reset happens to show up will drift a little every day — and drift compounds. The fix in both systems was the same: stop letting traffic decide where the boundary is.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-finance-meets-gateway.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-66-midnight-rollover-bugs.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-66-midnight-rollover-bugs.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-65-token-budgets-finance-meets-gateway.png">
-<meta property="article:published_time" content="2026-08-04">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-66-midnight-rollover-bugs.png">
+<meta property="article:published_time" content="2026-08-05">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 65 of 150</span>
+    <span class="tag accent">Experience &middot; Day 66 of 150</span>
     <span class="tag">Platform Engineering</span>
-    <span class="tag">Cost Guardrails</span>
-    <span class="tag">Wayfair</span>
+    <span class="tag">Time Windows</span>
+    <span class="tag">Walmart</span>
   </div>
-  <h1 class="post-title">Day 65 &mdash; Token Budgets &mdash; Finance Meets Gateway</h1>
-  <p class="post-subtitle">A supplier's cost change and a tenant's token spend are the same shape of problem: a number that can run away, guarded by a rule that has to choose between blocking outright and doing nothing at all &mdash; unless someone designs a third option.</p>
+  <h1 class="post-title">Day 66 &mdash; Midnight Rollover Bugs</h1>
+  <p class="post-subtitle">A window boundary that starts wherever the first event after reset happens to land isn't a rounding error &mdash; it's a slow drift, invisible in every test that doesn't specifically time a request against the clock.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 65 of 150</span>
+    <span class="meta-item">Experience &middot; Day 66 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 4, 2026</span>
+    <span class="meta-item">August 5, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,61 +208,46 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-65-token-budgets-finance-meets-gateway.png" alt="Day 65 — Token Budgets — Finance Meets Gateway" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-66-midnight-rollover-bugs.png" alt="Day 66 — Midnight Rollover Bugs" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket was a design doc, not a code change: <code>cost-budget-enforcer</code>, a per-tenant sliding-window cap on LLM token spend. No incident forced this one &mdash; it's a guardrail being designed ahead of the traffic that would need it, the same way a finance control gets written before the first supplier tries to game it. That's worth saying plainly, because the two systems I'm about to compare are separated by eighteen months and an entire domain, and the honest link between them is a shared shape of problem, not a shared outage.</p>
+<p>Writing today's unit tests &mdash; <code>cost-budget-enforcer</code>'s rollover-at-UTC-midnight test, specifically &mdash; I caught myself phrasing the assertion the way I'd have phrased a bug ticket seven years ago: "the window shouldn't start wherever traffic happens to land." That phrasing is a scar, not a design preference. I've watched a window boundary drift for exactly that reason before, on a system where the boundary mattered a lot more than a code review comment would suggest.</p>
 
-<p>The shape is this: a number that a third party controls and that can grow past what the business can absorb, guarded by a rule that has exactly two easy answers &mdash; block everything past the line, or don't enforce a line at all &mdash; and both easy answers are wrong for symmetrical reasons.</p>
+<p>The bug class is almost insultingly simple to describe and easy to miss in practice: a counter that resets "at the start of a new window" has to decide what "start" means, and if that decision is <em>whenever the first request after expiry happens to arrive</em> instead of a fixed point on the clock, the boundary isn't fixed at all &mdash; it's wherever traffic put it last time. Every window after that inherits the previous window's drift, and the drift only ever grows.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Thresholds, not 1 (today's design)</span></div>
-  <div class="stat-cell"><span class="stat-num">20k+</span><span class="stat-label">Suppliers on the pricing engine I led</span></div>
-  <div class="stat-cell"><span class="stat-num">99.99%</span><span class="stat-label">Availability target, same framework</span></div>
+  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors on the ingestion layer I architected</span></div>
+  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities on daily energy-optimization loops</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Lines of code that separate a fixed boundary from a drifting one</span></div>
 </div>
 
-<h2 id="the-two-easy-answers">The Two Easy Answers, and Why Both Are Wrong</h2>
+<h2 id="the-daily-rollup-problem">Daily Rollups Have to Agree on What "Today" Means</h2>
 
-<p>A hard reject-only guardrail is the simplest thing to build: define a ceiling, block anything past it, done. It also fails in public the first time it fires, because "done" means the caller gets nothing &mdash; no partial service, no degraded mode, just a wall. For a pricing platform where a supplier's cost submission feeds live storefront prices, or an LLM tenant whose product depends on an answer coming back, a hard wall at the ceiling turns a spend problem into an availability problem.</p>
-
-<p>A silent no-op &mdash; log the overage, enforce nothing &mdash; is the opposite failure. It protects availability perfectly and the budget not at all. Whoever asked for the cap in the first place, finance or a platform owner, gets a number that was never actually a limit, just a suggestion nobody could see was being ignored until the bill or the incident review showed up.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a guardrail that only knows "allow" and "block" is choosing between an availability failure and a budget failure, and the honest fix is a design that doesn't force that choice at all.</p>
-
-<h2 id="wayfair-cost-guardrails">What a Real Cost Guardrail Looked Like at Wayfair</h2>
-
-<p>I led the Pricing Adjustment (PAS) and Pricing, Promotions &amp; Discounts teams at Wayfair, and the systems those teams owned sat downstream of one specific kind of third-party-controlled number: a supplier's submitted base cost. Suppliers update their own cost figures through the Unified Cost Management System (UCMS), and those figures propagate into the pricing engine's total-cost calculation &mdash; which means a submitted cost that's wrong, or a jump that's implausible, is exactly the "third party controls a number that feeds your system" problem, just denominated in dollars-per-SKU instead of tokens-per-request.</p>
+<p>At Walmart Labs, I architected the WeIoT SmartBuildings ingestion layer on Azure IoT Hub &mdash; seven million-plus sensors, tens of millions of telemetry points a minute, feeding real-time HVAC control loops on Azure Stream Analytics that automated energy optimization across fifty-plus global facilities. A lot of that optimization runs on a daily cycle: a facility's HVAC schedule ramps against a daily energy target, and the system that tracks "how much has this facility used today, against today's target" has to agree, unambiguously, on when "today" started and when it ends.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Team scope &mdash; Wayfair, Sr. SWE III, PAS &amp; Pricing Promotion teams, Nov 2024 &ndash; Mar 2026</div>
-  UCMS tracks supplier base-cost changes with a dedicated violations table and change log &mdash; a cost submission that crosses a configured threshold is flagged rather than either silently accepted or hard-blocked at the API layer. The bulk cost-change pipeline processing those submissions was team-owned infrastructure serving 20,000+ suppliers.
+  <div class="attr-label">Team scope &mdash; Walmart Labs, Software Engineer II, WeIoT SmartBuildings Platform, Aug 2018 &ndash; May 2021</div>
+  The SmartBuildings platform ingested sensor telemetry at seven million-plus data points and tens of millions of points per minute, and drove real-time HVAC control loops through Azure Stream Analytics across fifty-plus facilities globally &mdash; each on its own local operating schedule, all funneling into a shared ingestion layer.
 </div>
 
 <div class="attr-box mine">
   <div class="attr-label">My contribution</div>
-  I architected the GCP event-driven Global Pricing &amp; Promotion Engine that reduced price propagation from hours to sub-seconds across those 20k+ suppliers, and built the high-throughput bulk processing framework &mdash; with distributed rate limiting and circuit breakers &mdash; that kept that pipeline at 99.99% availability under peak load. The guardrail-vs-availability tradeoff in today's design doc is the same one that framework had to make on every cost change flowing through it.
+  I architected that ingestion layer on Azure IoT Hub and the Stream Analytics jobs that turned raw telemetry into the HVAC control loops driving energy optimization. Getting a per-facility daily rollup to agree with itself, across a fleet spanning that many facilities and that much telemetry volume, was a smaller-sounding problem than the ingestion layer itself &mdash; and a much easier one to get subtly wrong.
 </div>
 
-<p>The violation flow doesn't reject a flagged cost change outright &mdash; a legitimate cost increase (a real supply-chain shock, say) has to be able to land, just with more scrutiny than a routine update. And it doesn't silently accept it either, because an unflagged, unbounded cost jump feeding straight into the pricing engine is exactly the failure mode a finance control exists to prevent. The answer UCMS lands on is a third state between the two: flagged-but-not-blocked, visible to whoever reviews it, distinct from both the routine path and an outright rejection.</p>
+<p>A daily aggregation window that's anchored to "whenever the first telemetry point after the last reset arrived" looks correct in every unit test that fires a fixed sequence of events at fixed offsets from each other, because that's exactly the condition under which a drifting boundary and a fixed one produce identical output. It only diverges from a fixed boundary when real traffic timing enters the picture &mdash; a facility that goes briefly quiet right at midnight, a retry storm that delays the "first" event by a few seconds, a deploy that restarts the aggregation job mid-window. None of those are exotic; all of them are exactly the kind of thing that happens somewhere, every day, across fifty-plus facilities.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the same organization that needed sub-second price propagation also needed a guardrail on the input feeding that propagation &mdash; speed and a cost cap were never in tension, because the cap was designed to degrade the review path, not the propagation path.</p>
+<p class="prose-so-what"><strong>So what:</strong> a test suite that only ever sends events at clean, predictable offsets from each other will never catch a boundary that drifts, because drift is a property of when things happen in wall-clock time, not a property of the sequence of events &mdash; which is exactly the blind spot a test has to be written specifically to close.</p>
 
-<h2 id="three-thresholds-not-one">Three Thresholds, Not One</h2>
+<h2 id="why-drift-compounds">Why the Drift Compounds Instead of Canceling Out</h2>
 
-<p>Today's <code>cost-budget-enforcer</code> design doc makes the same three-way split explicit, denominated in tokens instead of dollars-per-SKU:</p>
+<p>The intuitive hope is that a boundary drifting a few seconds early one day and a few seconds late the next would average out over a month. It doesn't, because the drift isn't symmetric random noise &mdash; it's a one-directional function of whatever delayed the window's first event, and delays are far more common than early arrivals (a quiet period, a retry, a cold start all push the boundary later; almost nothing pushes it earlier). A boundary that only ever drifts later accumulates: day 1's rollup is a few seconds short of a true day, day 2 inherits day 1's drift and adds its own, and by the end of a month the "daily" rollup has silently become something closer to a 23-hour-and-change rollup that nobody configured on purpose.</p>
 
-<table>
-<tr><th>Threshold</th><th>Wayfair analog</th><th>cost-budget-enforcer action</th></tr>
-<tr><td>Early warning</td><td>Cost change flagged in violations table</td><td>Webhook fires at 80% of budget; traffic unaffected</td></tr>
-<tr><td>Soft limit</td><td>Flagged change routed to manual/extra review, not blocked</td><td>New requests route to a cheaper fallback model</td></tr>
-<tr><td>Hard limit</td><td>(No direct analog &mdash; UCMS never fully blocks a submission)</td><td>Requests rejected with HTTP 429 (Too Many Requests) + Retry-After header</td></tr>
-</table>
-
-<p>The one place the analogy breaks is instructive rather than incidental: UCMS never has a true hard-block state, because a supplier's cost figure, however implausible, is still information the business needs to see and adjudicate &mdash; discarding it outright isn't an option the domain allows. An LLM token budget has no equivalent obligation to "see" the request that would have gone over budget; rejecting it costs nothing the domain values. So the hard limit exists here specifically because the two domains diverge on what a rejection actually loses, not despite the parallel &mdash; a design borrowed from one context still has to be checked against what's different in the new one, not copied wholesale.</p>
+<p>For an energy-optimization loop, that's not a cosmetic bug. A rollup that's consistently short of a true 24 hours under-reports consumption against a facility's daily target, which either makes the optimization loop look better than it is or, worse, lets the loop keep ramping HVAC load past the point a correctly-measured day would have throttled it.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -282,42 +267,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Supplier cost submission"] --> B{"Violation check"}
-  B -->|"under threshold"| C["Routine pricing path"]
-  B -->|"over threshold"| D["Flagged for review, not blocked"]
-  E["Tenant token request"] --> F{"Budget check"}
-  F -->|"under 100%"| G["Configured model"]
-  F -->|"100-120%"| H["Cheaper fallback model"]
-  F -->|"over 120%"| I["429, hard block"]
+  A["First event after reset"] --> B["Boundary = arrival time"]
+  B --> C["Window slightly short"]
+  C --> D["Next reset inherits drift"]
+  D --> B
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the shared shape is "warn, then degrade, then only block as a last resort" &mdash; where the two systems diverge is exactly where the cost of a rejection diverges, and that divergence is a design decision, not an oversight.</p>
+<p class="prose-so-what"><strong>So what:</strong> a boundary that drifts in only one direction doesn't average out to zero &mdash; it accumulates, which means the bug gets harder to notice the longer it runs undetected, not easier.</p>
 
-<h2 id="what-transferred-and-what-didnt">What Transferred, and What Had to Be Rebuilt</h2>
+<h2 id="the-fix-both-times">The Fix Is the Same Two Lines, Twice</h2>
 
-<p>What transferred cleanly: the instinct that a guardrail's job is to protect the budget without making the system unavailable, and that doing both requires more than one threshold. What didn't transfer at all: the mechanism. UCMS's violation flow is a human-review queue &mdash; a flagged cost change waits for a person.</p>
+<p>Today's <code>cost-budget-enforcer</code> module hit a smaller-stakes version of the identical decision. Its <code>DESIGN.md</code> describes a Redis hash tracking a <code>window_start</code> timestamp that gets set to "now" whenever a request arrives after the previous window expired &mdash; the same first-event-anchors-the-boundary pattern, just for a token budget instead of an energy rollup. Implementing it today, I changed that one detail: instead of storing when the window started, the window's identity is computed fresh on every call as <code>floor(now / window_seconds)</code> &mdash; an integer division against wall-clock time, not a value read back from state that some earlier request happened to set.</p>
 
-<p><code>cost-budget-enforcer</code>'s soft limit has to resolve in the same request's latency budget, with no human in the loop, which is why it routes to a cheaper model instead of a review queue. Same philosophy, completely different implementation, because a synchronous inference gateway and an asynchronous supplier-cost pipeline have different latency contracts on the thing that has to happen once a threshold is crossed.</p>
+<p>That one change removes the drift mechanism entirely, because there's no longer a "first event decides the boundary" step for traffic timing to perturb. Two UTC timestamps land in the same window if and only if they divide down to the same integer, full stop &mdash; a fact about the calendar, not a fact about which request happened to arrive first. The unit test that exercises this &mdash; a request at 23:59:59 and a request at 00:00:01 landing in different windows, deterministically, regardless of what either request's payload looks like &mdash; is the direct descendant of the daily-rollup bug I'd have wanted at Walmart: a test that specifically times events against a boundary, instead of only against each other.</p>
 
-<div class="pullquote"><p>A finance control and a rate limiter solve the same problem &mdash; the mechanism that resolves it has to fit the latency the domain actually allows.</p></div>
+<p class="prose-so-what"><strong>So what:</strong> the fix isn't more code, more monitoring, or a wider test matrix &mdash; it's removing the one place where the algorithm let something other than the clock decide where a window starts, which turns an entire bug class into a fact you can assert in two lines.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> porting a design pattern across domains means keeping the part that's actually general (three thresholds, not two) and rebuilding the part that isn't (what "degrade" means when there's no human in the loop to ask).</p>
+<h2 id="what-transferred-and-what-didnt">What Transferred, and What Didn't</h2>
+
+<p>What transferred cleanly: the boundary itself has to be a pure function of time, never a side effect of traffic. What didn't transfer: at Walmart, "midnight" meant fifty-plus different local midnights across facility timezones, which made the aggregation layer's timezone handling the harder half of the problem &mdash; a detail a single, UTC-only Redis token budget doesn't have to solve at all, because every tenant's window resets at the same instant regardless of where the request came from. Today's fix is a strictly easier version of the same problem, and it's still worth getting right the first time, because the version of this bug that ships quietly is the one that only shows up in a monthly rollup nobody's watching closely enough to catch early.</p>
+
+<div class="pullquote"><p>A window boundary set by whatever request happens to arrive first isn't wrong every time &mdash; it's wrong exactly often enough to be worse than being wrong every time.</p></div>
+
+<p class="prose-so-what"><strong>So what:</strong> a bug that's invisible under normal test timing and only surfaces under real traffic patterns is precisely the kind of bug worth writing a targeted regression test for the moment you recognize the shape of it &mdash; which is what today's <code>TestWindowRollsOverAtUTCMidnight</code> is, seven years and one very different system later.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 65 of 150 &mdash; Token Budgets &mdash; Finance Meets Gateway</p>
-  <p><em>Next up:</em> <a href="day-66-midnight-rollover-bugs.html">Day 66 &mdash; Midnight Rollover Bugs</a></p>
+  <p>Experience &middot; Day 66 of 150 &mdash; Midnight Rollover Bugs</p>
+  <p><em>Next up:</em> Day 67 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 64 &mdash; pgvector Under Load (yesterday's post — a different Agoda-anchored guardrail gap, seen through an index instead of a budget)</span>
+      <span>Day 65 &mdash; Token Budgets — Finance Meets Gateway (yesterday's post — the three-threshold design this window math belongs to)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Supplier APIs and Token Buckets (the direct precedent — Wayfair's per-supplier request-rate limiter and fail-open circuit breaker, the request-rate sibling of today's dollar-denominated budget)</span>
+      <span>Seven Million IoT Sensors — Failure Modes Textbooks Skip (the direct precedent — Walmart SmartBuildings failure modes at the same ingestion scale)</span>
     </a>
   </div>
 </div>
@@ -328,9 +316,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-two-easy-answers">The Two Easy Answers</a></li>
-      <li><a href="#wayfair-cost-guardrails">What a Real Guardrail Looked Like</a></li>
-      <li><a href="#three-thresholds-not-one">Three Thresholds, Not One</a></li>
+      <li><a href="#the-daily-rollup-problem">Daily Rollups and "Today"</a></li>
+      <li><a href="#why-drift-compounds">Why Drift Compounds</a></li>
+      <li><a href="#the-fix-both-times">The Fix Is the Same Two Lines</a></li>
       <li><a href="#what-transferred-and-what-didnt">What Transferred, What Didn't</a></li>
     </ul>
   </div>
@@ -338,11 +326,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-65-token-budgets-finance-meets-gateway.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-66-midnight-rollover-bugs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Token+Budgets+%E2%80%94+Finance+Meets+Gateway+%E2%80%94+Experience+%C2%B7+Day+65+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-65-token-budgets-finance-meets-gateway.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Midnight+Rollover+Bugs+%E2%80%94+Experience+%C2%B7+Day+66+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-66-midnight-rollover-bugs.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +343,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D64</span> Experience</div>
-          <a href="day-64-pgvector-under-load.html" class="series-post-title">pgvector Under Load</a>
+          <div class="series-post-kicker"><span class="series-post-num">D65</span> Experience</div>
+          <a href="day-65-token-budgets-finance-meets-gateway.html" class="series-post-title">Token Budgets — Finance Meets Gateway</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D65</span> Experience &middot; now</div>
-          <div class="series-post-title">Token Budgets &mdash; Finance Meets Gateway</div>
-          <div class="series-post-desc">A supplier's cost change and a tenant's token spend are the same shape of problem — a guardrail that has to degrade, not just block</div>
+          <div class="series-post-kicker"><span class="series-post-num">D66</span> Experience &middot; now</div>
+          <div class="series-post-title">Midnight Rollover Bugs</div>
+          <div class="series-post-desc">A window boundary that drifts based on traffic timing isn't a rounding error — it's a one-directional drift that compounds until a rollup quietly stops meaning what it says</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D66</span> Experience</div>
-          <a href="day-66-midnight-rollover-bugs.html" class="series-post-title">Midnight Rollover Bugs</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D67</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

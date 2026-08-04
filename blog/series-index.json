@@ -672,6 +672,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-66-midnight-rollover-bugs.html",
+          "kicker": "Experience · Day 66 of 150",
+          "title": "Day 66 — Midnight Rollover Bugs",
+          "subtitle": "Walmart · UTC boundaries",
+          "date": "2026-08-05",
+          "slug": "day-66-midnight-rollover-bugs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-66-midnight-rollover-bugs.html",
+          "coverImage": "blog/assets/covers/day-66-midnight-rollover-bugs.png",
+          "desc": "A window boundary anchored to whenever the first event after reset happens to arrive isn't a rounding error — it's a one-directional drift. Walmart WeIoT's daily telemetry rollups and today's cost-budget-enforcer window math hit the same bug class from opposite directions."
+        },
+        {
           "href": "blog/series/experience/day-65-token-budgets-finance-meets-gateway.html",
           "kicker": "Experience · Day 65 of 150",
           "title": "Day 65 — Token Budgets — Finance Meets Gateway",
