@@ -1,35 +1,41 @@
 # Akshant Sharma
 
-Staff Engineer. I build high-throughput distributed systems and the infrastructure layer that sits underneath product features — ingestion engines, storage primitives, real-time event pipelines.
+Systems-focused Software Engineer with nearly 9 years architecting large-scale distributed systems, cloud-native platforms, and mission-critical backend infrastructure.
+
+Currently building **Inferix** — an open-source AI control plane (observe → route → detect drift → retrain). Flagship code: [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming).
 
 **Blog tooling:** `python scripts/html_to_linkedin_article.py <post.html>` — LinkedIn article export ([scripts/README.md](scripts/README.md)).
 
-Currently building [`infra-ai-streaming`](https://github.com/AkshantVats/infra-ai-streaming) — open-source AI inference observability: Rust ingestion, Kafka, ClickHouse analytics, Grafana dashboards for tenant throughput and model P99.
+---
+
+## Experience
+
+| Company | Role | Tenure |
+|---|---|---|
+| **Wayfair** · Bengaluru | Sr. Software Engineer III · PAS & Pricing Promotions | Nov 2024 – Mar 2026 |
+| **Agoda** · Bangkok | Sr. Software Engineer · Core Infrastructure · WhiteFalcon TSDB | Apr 2024 – Sep 2024 |
+| **Delivery Hero** · Berlin | Sr. Software Engineer · Global Logistics Platform | Jun 2021 – Mar 2024 |
+| **Walmart Labs** · Bengaluru | Software Engineer II · WeIoT SmartBuildings | Aug 2018 – May 2021 |
+| **Integration Wizards** · Bengaluru | IoT Lead · Industrial IoT Platform | Mar 2017 – Aug 2018 |
 
 ---
 
 ## What I'm Building
 
-**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** `active`
-
-An open-source AI inference observability pipeline built for the event volume and metric cardinality that standard monitoring tools break under.
+**[infra-ai-streaming](https://github.com/AkshantVats/infra-ai-streaming)** `active` · LensAI / Inferix observability spine
 
 ```
 Rust ingestion engine → Kafka → Go consumer → ClickHouse → Grafana
 ```
 
 - Axum HTTP server with channel-based backpressure; batched events to Kafka via rdkafka
-- Go consumer: ClickHouse batch writer (1k events / 500ms), circuit breaker, Redis overflow, DLQ
+- Go consumer: ClickHouse batch writer, circuit breaker, Redis overflow, DLQ
 - Local stack: Redpanda, ClickHouse, Redis, Prometheus, Grafana (`docker compose up`)
-- Pipeline self-metrics in OBSERVABILITY.md (ingestion P50/P95/P99, consumer lag, DLQ depth)
-- Next: Grafana panels for throughput, P99 by model, cost/hour, consumer lag
 - Target: 1M events/min, sub-100ms ingestion P99
 
 ---
 
 ## Technical Bets
-
-Things I'm doubling down on:
 
 - **Rust** for systems programming where performance guarantees are non-negotiable
 - **AI infrastructure** — inference pipelines, LLM observability, cost optimization at the API layer
@@ -43,9 +49,9 @@ Things I'm doubling down on:
 
 | Scale | System | Stack |
 |---|---|---|
-| 1.5T events / day | Time-series database @ Agoda | Rust · Scala · Ceph |
-| 7M+ unique sensors | SmartBuildings IoT platform @ Walmart | Azure IoT Hub · Stream Analytics |
-| 5,000 geo-events / sec | End-to-end rider tracking @ Delivery Hero | OSRM · AWS EKS · Kinesis |
+| 1.5T events / day | WhiteFalcon TSDB @ Agoda | Rust · Scala · Kafka · Ceph |
+| 7M+ unique sensors | SmartBuildings IoT @ Walmart | Azure IoT Hub · Stream Analytics |
+| 5,000 geo-events / sec | Rider tracking @ Delivery Hero | OSRM · AWS EKS · Kinesis |
 | 250k+ SKU updates / supplier | Global Pricing Engine @ Wayfair | GCP · Kafka · BigQuery |
 | 1M+ daily orders | Logistics platform @ Delivery Hero | AWS EKS · SQS · Kinesis |
 
@@ -68,7 +74,7 @@ Observability  OpenTelemetry · Prometheus · Grafana · ELK
 
 Technical posts on distributed systems, AI infrastructure, and the gap between the two.
 
-→ [LinkedIn](https://linkedin.com/in/akshantsharma07)
+→ [Blog](https://akshantvats.github.io/Profile/blog/) · [LinkedIn](https://linkedin.com/in/akshantsharma07)
 
 ---
 
@@ -76,6 +82,7 @@ Technical posts on distributed systems, AI infrastructure, and the gap between t
 
 - LinkedIn — [akshantsharma07](https://linkedin.com/in/akshantsharma07)
 - Email — akshant3@gmail.com
+- Profile — [akshantvats.github.io/Profile](https://akshantvats.github.io/Profile/)
 
 ---
 

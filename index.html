@@ -6,7 +6,7 @@
 <title>Akshant Sharma — Staff Engineer</title>
 <meta name="description" content="Staff Engineer specialising in distributed systems and AI infrastructure. 1.5T events/day, 7M IoT sensors, real-time logistics at scale.">
 <meta property="og:title" content="Akshant Sharma — Staff Engineer">
-<meta property="og:description" content="Distributed systems and AI infrastructure. 7.5 years building the layer underneath.">
+<meta property="og:description" content="Distributed systems and AI infrastructure. Nearly 9 years building the layer underneath.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0f0f0e">
 <script>(function(){var t=localStorage.getItem("theme");if(t==="light")return;document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -496,6 +496,7 @@ section { margin-bottom: 3.25rem; }
 .bdh { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .bwm { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .bbs { background: #f4f4f5; color: var(--sub); border: 1px solid var(--line); }
+.biw { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; }
 .em { flex: 1; min-width: 0; }
 .er { font-weight: 600; font-size: 0.9375rem; color: var(--text); margin-bottom: 2px; }
 .eco { font-size: 0.8125rem; color: var(--muted); }
@@ -770,6 +771,7 @@ html[data-theme="dark"] .bag { background: rgba(52, 211, 153, 0.12); color: #6ee
 html[data-theme="dark"] .bdh { background: rgba(248, 113, 113, 0.12); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }
 html[data-theme="dark"] .bwm { background: rgba(251, 191, 36, 0.12); color: #fcd34d; border-color: rgba(251, 191, 36, 0.25); }
 html[data-theme="dark"] .bbs { background: rgba(255, 255, 255, 0.06); color: var(--sub); border-color: var(--line); }
+html[data-theme="dark"] .biw { background: rgba(45, 212, 191, 0.12); color: #5eead4; border-color: rgba(45, 212, 191, 0.25); }
 
 /* FOOTER */
 footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16px; }
@@ -849,7 +851,7 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
 <section class="hero rev">
   <div class="eyebrow">Staff engineer · distributed systems + AI infra</div>
   <h1>Building the layer<br><span class="ghost">underneath.</span></h1>
-  <p class="sub">7.5 years on the infrastructure that rarely shows up in demos — <b>ingestion engines, event pipelines, and real-time storage</b> built for load most systems were never meant to see.</p>
+  <p class="sub">Nearly 9 years on the infrastructure that rarely shows up in demos — <b>ingestion engines, event pipelines, and real-time storage</b> built for load most systems were never meant to see. Currently building <b>Inferix</b>.</p>
   <div class="btns">
     <a href="https://github.com/AkshantVats" class="btn bs">GitHub</a>
     <a href="https://linkedin.com/in/akshantsharma07" class="btn btn-li">LinkedIn</a>
@@ -874,16 +876,14 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
     <div class="ec open">
       <div class="et" onclick="tog(this)">
         <div class="badge bwf">WF</div>
-        <div class="em"><div class="er">Sr. Software Engineer III — Led PAS &amp; Pricing Teams</div><div class="eco">Wayfair · Bengaluru</div></div>
+        <div class="em"><div class="er">Sr. Software Engineer III · PAS &amp; Pricing Promotions</div><div class="eco">Wayfair · Bengaluru</div></div>
         <div class="ep">Nov 2024 – Mar 2026</div>
         <div class="chev">▼</div>
       </div>
       <div class="eb">
         <ul class="ebl">
-          <li>Led two engineering teams — <strong>PAS (Pricing Attribute Services)</strong> and <strong>Pricing, Promotions &amp; Discounts</strong> — owning end-to-end delivery across both product areas simultaneously.</li>
-          <li>Architected a high-throughput <strong>Global Pricing &amp; Promotion Engine on GCP</strong>, reducing price propagation latency from hours to sub-seconds across 250k+ SKU updates per supplier.</li>
-          <li>Engineered a bulk processing framework for ingesting and validating <strong>250k+ SKU updates per supplier in near real-time</strong> with 99.99% availability under burst traffic.</li>
-          <li>Implemented resilient distributed patterns — <strong>rate limiting and circuit breakers</strong> — to stabilise the supplier platform under peak global load.</li>
+          <li>Architected a GCP event-driven <strong>Global Pricing &amp; Promotion Engine</strong> reducing price propagation from hours to sub-seconds across <strong>20k+ global suppliers</strong>, leading two product teams end-to-end.</li>
+          <li>Engineered a high-throughput bulk processing framework for <strong>250k+ SKU updates per supplier</strong> in near real-time at 99.99% availability — distributed rate limiting and circuit breakers eliminated cascading failures under peak load.</li>
         </ul>
         <div class="etags">
           <span class="etag">GCP</span><span class="etag">Kafka</span><span class="etag">BigQuery</span><span class="etag">Kubernetes</span><span class="etag">Java</span><span class="etag">Circuit Breakers</span>
@@ -894,18 +894,17 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
     <div class="ec">
       <div class="et" onclick="tog(this)">
         <div class="badge bag">AG</div>
-        <div class="em"><div class="er">Sr. Software Engineer III</div><div class="eco">Agoda · Bangkok</div></div>
+        <div class="em"><div class="er">Sr. Software Engineer · Core Infrastructure · WhiteFalcon TSDB</div><div class="eco">Agoda · Bangkok</div></div>
         <div class="ep">Apr 2024 – Sep 2024</div>
         <div class="chev">▼</div>
       </div>
       <div class="eb">
         <ul class="ebl">
-          <li>Contributed to a proprietary hyperscale <strong>Time Series Database (TSDB)</strong> ingesting <strong>1.5 trillion events per day</strong> — a hybrid Rust (storage) + Scala (query) architecture for high-cardinality metrics that off-the-shelf solutions couldn't handle.</li>
-          <li>Built a <strong>direct-to-Ceph persistence layer</strong>, bypassing POSIX file system overhead with a custom Rust storage engine optimised for disk I/O and high write throughput with strict consistency.</li>
-          <li>Optimised the retrieval ecosystem using <strong>Kafka + Redis tiering</strong> for hot/cold data separation, keeping query latency flat as storage scaled linearly.</li>
+          <li>Contributed to <strong>WhiteFalcon</strong> — Agoda's in-house Rust + Scala TSDB on Kafka at <strong>1.5T events/day</strong>; extended the query engine for cross-tier Redis/S3 queries, solving the quantile merge problem for correct P95/P99 across arbitrary time ranges.</li>
+          <li>Extended RoaringBitmap inverted index for Kubernetes dimensions (Rust ingestion + series ID generation), preventing cardinality explosion; migrated cold-tier Parquet Snappy → Zstd for 15–20% storage reduction at &lt;1% read latency impact.</li>
         </ul>
         <div class="etags">
-          <span class="etag">Rust</span><span class="etag">Scala</span><span class="etag">Ceph</span><span class="etag">Kafka</span><span class="etag">Redis</span><span class="etag">TSDB</span>
+          <span class="etag">Rust</span><span class="etag">Scala</span><span class="etag">Kafka</span><span class="etag">Redis</span><span class="etag">S3</span><span class="etag">TSDB</span>
         </div>
       </div>
     </div>
@@ -913,15 +912,14 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
     <div class="ec">
       <div class="et" onclick="tog(this)">
         <div class="badge bdh">DH</div>
-        <div class="em"><div class="er">Sr. Software Engineer</div><div class="eco">Delivery Hero · Berlin</div></div>
-        <div class="ep">Jun 2022 – Jul 2023</div>
+        <div class="em"><div class="er">Sr. Software Engineer · Global Logistics Platform</div><div class="eco">Delivery Hero · Berlin</div></div>
+        <div class="ep">Jun 2021 – Mar 2024</div>
         <div class="chev">▼</div>
       </div>
       <div class="eb">
         <ul class="ebl">
-          <li>Scaled the Global Logistics Platform to support <strong>1M+ daily orders</strong> across international markets, architecting high-availability microservices on AWS EKS handling 10k+ concurrent requests at peak with zero downtime.</li>
-          <li>Built the <strong>end-to-end rider tracking system</strong> — a geospatial engine using OSRM processing <strong>5,000+ map adjustments per second</strong> for real-time route visualisation, significantly reducing support volume.</li>
-          <li>Designed an <strong>async event ingestion pipeline</strong> using AWS SQS and Kinesis, decoupling order processing from notifications to eliminate cascading failures and guarantee sub-second delivery status updates.</li>
+          <li>Scaled the logistics platform to <strong>1M+ daily orders</strong> on AWS EKS (10k+ concurrent requests, zero downtime); built end-to-end rider tracking processing <strong>5k+ real-time route updates/sec</strong> via OSRM.</li>
+          <li>Eliminated cascading failures with an async SQS + Kinesis pipeline decoupling order processing from notifications — guaranteed sub-second delivery status for millions of active users at peak.</li>
         </ul>
         <div class="etags">
           <span class="etag">AWS EKS</span><span class="etag">OSRM</span><span class="etag">Kinesis</span><span class="etag">SQS</span><span class="etag">Java</span><span class="etag">Geospatial</span>
@@ -931,37 +929,35 @@ footer { border-top: 1px solid var(--line); padding: 32px 0 48px; margin-top: 16
 
     <div class="ec">
       <div class="et" onclick="tog(this)">
-        <div class="badge bbs">BS</div>
-        <div class="em"><div class="er">Sr. Software Engineer</div><div class="eco">BrowserStack · Mumbai</div></div>
-        <div class="ep">May 2021 – Dec 2021</div>
+        <div class="badge bwm">WM</div>
+        <div class="em"><div class="er">Software Engineer II · WeIoT SmartBuildings Platform</div><div class="eco">Walmart Labs · Bengaluru</div></div>
+        <div class="ep">Aug 2018 – May 2021</div>
         <div class="chev">▼</div>
       </div>
       <div class="eb">
         <ul class="ebl">
-          <li>Engineered <strong>low-level device instrumentation</strong> for Camera Image Injection and Biometrics by reverse-engineering mobile binaries to intercept and mock hardware sensor streams at the OS API layer.</li>
-          <li>Enabled <strong>fully automated testing of FaceID/TouchID</strong> on remote physical devices by hooking into native iOS and Android APIs without modifying application source code.</li>
+          <li>Architected SmartBuildings ingestion on Azure IoT Hub for <strong>7M+ sensors</strong> at tens of millions of telemetry points/min; engineered real-time HVAC control loops via Azure Stream Analytics across 50+ global facilities.</li>
+          <li>Built a fault-tolerant edge-to-cloud OTA firmware framework — reliable config and update delivery for millions of distributed devices under intermittent network conditions.</li>
         </ul>
         <div class="etags">
-          <span class="etag">Java</span><span class="etag">Objective-C</span><span class="etag">Node.js</span><span class="etag">Reverse Engineering</span><span class="etag">GCP</span>
+          <span class="etag">Azure IoT Hub</span><span class="etag">Stream Analytics</span><span class="etag">Edge Computing</span><span class="etag">Java</span><span class="etag">C#</span>
         </div>
       </div>
     </div>
 
     <div class="ec">
       <div class="et" onclick="tog(this)">
-        <div class="badge bwm">WM</div>
-        <div class="em"><div class="er">Software Engineer II</div><div class="eco">Walmart Labs · Bengaluru</div></div>
-        <div class="ep">Aug 2018 – May 2021</div>
+        <div class="badge biw">IW</div>
+        <div class="em"><div class="er">IoT Lead · Industrial IoT Platform</div><div class="eco">Integration Wizards · Bengaluru</div></div>
+        <div class="ep">Mar 2017 – Aug 2018</div>
         <div class="chev">▼</div>
       </div>
       <div class="eb">
         <ul class="ebl">
-          <li>Architected the <strong>WeIoT SmartBuildings platform</strong> on Azure IoT Hub, managing connections for <strong>7M+ unique sensors</strong> and processing tens of millions of telemetry points per minute across global facilities.</li>
-          <li>Engineered <strong>real-time HVAC control loops</strong> using Azure Stream Analytics to automate energy adjustments across 50+ global facilities, driving measurable cost reductions at enterprise scale.</li>
-          <li>Designed a <strong>fault-tolerant edge-to-cloud OTA firmware framework</strong>, enabling reliable updates for millions of distributed devices even under intermittent network conditions.</li>
+          <li>Built the IIoT ingestion backbone for Dover USA — 100% data delivery for oil well and compressor telemetry in low-bandwidth environments; edge-compute preprocessing filtered and aggregated locally before cloud transmission.</li>
         </ul>
         <div class="etags">
-          <span class="etag">Azure IoT Hub</span><span class="etag">Stream Analytics</span><span class="etag">Edge Computing</span><span class="etag">Java</span><span class="etag">C#</span>
+          <span class="etag">Industrial IoT</span><span class="etag">Edge Computing</span><span class="etag">Telemetry</span><span class="etag">Java</span>
         </div>
       </div>
     </div>

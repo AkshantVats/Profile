@@ -1,6 +1,6 @@
 # Akshant Sharma
 
-> Staff distributed systems engineer building LensAI — open-source AI inference observability via eBPF. 150 days of public building across two blog series: AI Learning (learning AI infra through a distributed systems lens) and Experience (production war stories from Agoda, Delivery Hero, Wayfair, Walmart Labs).
+> Systems-focused Software Engineer with nearly 9 years building large-scale distributed systems. Currently building Inferix — open-source AI control plane. 150 days of public building across AI Learning and Experience series (Agoda, Delivery Hero, Wayfair, Walmart Labs, Integration Wizards).
 
 Homepage: https://akshantvats.github.io/Profile/
 Blog: https://akshantvats.github.io/Profile/blog/
