@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 61 &mdash; Embedding Pipelines | AI Learning Series</title>
-<meta name="description" content="prompt_hash idempotency is Kafka exactly-once for vectors — a batched embedding worker that upserts on ON CONFLICT DO NOTHING gets the same safe-retry guarantee Kafka's dedup key gives a producer, just applied to embeddings instead of messages.">
-<meta property="og:title" content="Day 61 &mdash; Embedding Pipelines">
-<meta property="og:description" content="Batching amortizes an embedding API's fixed per-call cost. Idempotency is what makes that batching safe to retry. Backfill is the same loop, pointed at old data instead of new.">
+<title>Day 62 &mdash; ANN Search at QPS | AI Learning Series</title>
+<meta name="description" content="IVFFlat vs HNSW is the same kind of decision as a ClickHouse MergeTree ORDER BY key: made once, expensive to change, and the thing that determines whether a query is fast for the life of the table. semantic-cache-engine's schema already picked one — this post explains why.">
+<meta property="og:title" content="Day 62 &mdash; ANN Search at QPS">
+<meta property="og:description" content="Exact nearest-neighbor search doesn't scale past a few thousand rows. IVFFlat and HNSW are two different bets on how to approximate it — one needs to know your data's shape in advance, the other builds its shortcuts as it goes.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-61-embedding-pipelines.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embedding-pipelines.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-62-ann-search-at-qps.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-62-ann-search-at-qps.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-61-embedding-pipelines.png">
-<meta property="article:published_time" content="2026-08-03">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-62-ann-search-at-qps.png">
+<meta property="article:published_time" content="2026-08-04">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,21 +185,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 61 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 62 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Embeddings</span>
+    <span class="tag">Vector Search</span>
   </div>
-  <h1 class="post-title">Day 61 &mdash; Embedding Pipelines</h1>
-  <p class="post-subtitle">Batch, idempotency, backfill. <code>prompt_hash</code> idempotency is Kafka exactly-once for vectors &mdash; a redelivered message and a retried embedding batch are the same problem, solved by the same trick: a dedup key that makes doing the work twice as safe as doing it once.</p>
+  <h1 class="post-title">Day 62 &mdash; ANN Search at QPS</h1>
+  <p class="post-subtitle">pgvector indexes and latency. IVFFlat vs HNSW &mdash; pick like you pick a MergeTree order key: made once, expensive to change, and the decision that determines whether a query is fast for the life of the table.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 61 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 62 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 3, 2026</span>
+    <span class="meta-item">August 4, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">7 min read</span>
   </div>
@@ -207,27 +207,41 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-61-embedding-pipelines.png" alt="Day 61 — Embedding Pipelines" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-62-ann-search-at-qps.png" alt="Day 62 — ANN Search at QPS" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p><code>prompt_hash</code> idempotency is Kafka exactly-once for vectors.</p>
+<p>IVFFlat vs HNSW &mdash; pick like you pick a MergeTree order key.</p>
 
-<p>Kafka's exactly-once semantics don't come from magic &mdash; they come from a dedup key: a producer ID and a sequence number that let the broker recognize a redelivered message as one it's already processed, instead of processing it twice. <code>semantic-cache-engine</code>'s embedding worker gets the same guarantee for a completely different kind of data, using the same trick: hash the normalized prompt into a <code>prompt_hash</code>, and let a retried batch collide harmlessly into rows that already exist.</p>
+<p>A MergeTree table's <code>ORDER BY</code> defines which columns are physically sorted together on disk, and that choice determines which queries get a fast index-assisted scan and which ones fall back to reading everything. You pick it once, before you know the exact shape of every future query, and changing it later means rewriting the table. A vector index type is the same kind of decision, just for nearest-neighbor search instead of range scans &mdash; and <code>semantic-cache-engine</code>'s schema already made that call today's lookup path depends on.</p>
 
-<h2 id="the-fixed-cost-that-batching-amortizes">The Fixed Cost That Batching Amortizes</h2>
+<h2 id="why-exact-search-doesnt-scale">Why Exact Nearest-Neighbor Search Doesn't Scale</h2>
+
+<p>Finding the truly closest vector to a query is simple to describe: compute the distance to every stored vector, keep the smallest. It's also linear in the number of rows, which is fine at a few thousand vectors and unusable at millions &mdash; a cache table that's supposed to save latency can't spend more time searching for a match than the inference call it's trying to avoid.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> approximate nearest-neighbor (ANN) search exists because exact search's correctness guarantee isn't worth its cost at scale &mdash; trading a small, bounded chance of missing the true closest match for a large, predictable speedup is the better deal once the table is big enough to matter.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a bank teller batching deposit slips, not processing them one at a time</div>
-  A teller who opens a new transaction, verifies it, and closes it out for every single deposit pays that open-verify-close overhead once per customer, no matter how small the deposit. A teller who waits until ten slips have accumulated, then runs all ten through the ledger system in one pass, pays that same overhead once for ten transactions instead of ten times. The embedding worker's batch of 32 is the second teller: one embedding API call, with its fixed authentication and network overhead, covers 32 prompts instead of 1.
+  <div class="attr-label">DS analogy &mdash; an airport terminal's two-tier signage, not a single long hallway</div>
+  Finding your gate by reading every door in a mile-long terminal is exact search: correct, but slow enough to miss your flight. Real terminals use two tiers of signage instead &mdash; big overhead signs that jump you to the right wing in a few glances, then small gate-number signs that narrow it down once you're close. You give up the guarantee of reading every door and accept that, on the rarest occasion, a sign might be angled wrong &mdash; in exchange for finding your gate in under a minute instead of an hour.
 </div>
 
-<p>An embedding API call carries a fixed cost that has nothing to do with how much text is inside the request &mdash; opening a connection, authenticating, waiting in the provider's queue. Call the API once per prompt and every prompt pays that fixed cost in full. Call it once per batch of 32 and the fixed cost gets divided 32 ways, while the actual embedding work &mdash; the part that scales with how much text there is &mdash; stays roughly the same either way.</p>
+<h2 id="ivfflat-zones-decided-in-advance">IVFFlat: Zones Decided Before You Know How Full They'll Get</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> batching doesn't make embedding cheaper because the model does less work &mdash; it makes embedding cheaper because the fixed overhead around the model gets paid far fewer times for the same number of prompts.</p>
+<p>IVFFlat clusters the vector space into a fixed number of buckets &mdash; the <code>lists</code> parameter &mdash; chosen by running a clustering pass over a representative sample of the data before the index can answer a single query. A search only checks the handful of buckets nearest the query vector instead of every row, which is where the speedup comes from.</p>
+
+<p>The catch is in that word "representative": the clustering pass needs enough rows to produce buckets that reflect the data's actual shape, so an index built on a mostly-empty table starts with poorly-shaped zones and keeps that shape as more rows arrive. A cache table starts at zero rows per tenant and grows continuously &mdash; the exact condition IVFFlat's training step handles worst.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> IVFFlat's zones are drawn on a map before the city is built, and a cache that starts empty and grows forever is a city that never stops changing shape.</p>
+
+<h2 id="hnsw-a-graph-that-builds-as-it-goes">HNSW: A Layered Graph That Builds as It Goes</h2>
+
+<p>HNSW (Hierarchical Navigable Small World) takes a different approach: instead of pre-computing zones, it builds a multi-layer graph where each new vector gets linked to a handful of its nearest existing neighbors &mdash; <code>m</code> links per node &mdash; as it's inserted. The top layer has few nodes and long-range links for big jumps across the space; each layer below adds more nodes and shorter links, until the bottom layer holds every vector with only its closest neighbors connected.</p>
+
+<p>A search starts at the top layer, hops toward the query vector using the long-range links, then drops down a layer and repeats with progressively finer links &mdash; the same two-tier structure the airport analogy described, except the graph builds itself one insertion at a time instead of requiring a training pass over a finished dataset. <code>ef_construction</code> controls how thorough that per-insertion linking search is: higher values produce a better-connected graph at the cost of slower writes.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -246,77 +260,72 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart LR
-  Arrive["Prompts arrive"]
-  Accum["Accumulate to 32"]
-  Embed["Embed batch, one call"]
-  Hash["Compute prompt_hash each"]
-  Upsert["Upsert, ON CONFLICT skip"]
-  Store["Stored in pgvector"]
+flowchart TB
+  Top["Top layer, long jumps"]
+  Mid["Middle layer, medium jumps"]
+  Bottom["Bottom layer, every vector"]
+  Query["Query vector arrives"]
 
-  Arrive --> Accum --> Embed --> Hash --> Upsert --> Store
+  Query --> Top --> Mid --> Bottom
 </pre>
 
-<h2 id="why-a-retried-batch-should-be-a-no-op">Why a Retried Batch Should Be a No-Op, Not a Risk</h2>
-
-<p>Batching creates a new failure mode that per-item calls don't have: a batch of 32 can fail after embedding 20 of them and upserting 15, leaving an ambiguous partial state behind. The naive fix &mdash; just retry the whole batch &mdash; is only safe if retrying doesn't corrupt what already landed. That's exactly what <code>ON CONFLICT (tenant_id, prompt_hash) DO NOTHING</code> buys: a retried batch re-embeds and re-attempts the upsert for all 32 prompts, but the 15 that already exist as rows simply don't get touched again.</p>
+<p class="prose-so-what"><strong>So what:</strong> HNSW trades IVFFlat's one-time training cost for a small per-insertion linking cost, which is the better trade exactly when the table's final size isn't known upfront &mdash; the case for almost every cache.</p>
 
 <table>
-<tr><th>Scenario</th><th>Without idempotency</th><th>With prompt_hash + ON CONFLICT DO NOTHING</th></tr>
-<tr><td>Batch retried after partial failure</td><td>Risk of duplicate rows or double-embed cost</td><td>Already-written rows are skipped, no duplicates</td></tr>
-<tr><td>Same prompt appears twice in one batch</td><td>Two embed calls, two write attempts</td><td>In-run dedup collapses to one embed + one upsert</td></tr>
-<tr><td>Worker restarted mid-run</td><td>Unclear which prompts were already processed</td><td>Re-running from the last known point is always safe</td></tr>
+<tr><th>Property</th><th>IVFFlat</th><th>HNSW</th></tr>
+<tr><td>Build step</td><td>Requires a clustering pass over sample data</td><td>Builds incrementally, no training step</td></tr>
+<tr><td>Behavior on a growing table</td><td>Recall degrades until enough rows justify the original zones</td><td>Recall stays consistent as vectors are added</td></tr>
+<tr><td>Memory</td><td>Lower, buckets are compact</td><td>Higher, every node stores links at every layer it appears in</td></tr>
+<tr><td>Write cost</td><td>Fast insert, no per-row linking</td><td>Slower insert, each vector links to <code>m</code> neighbors per layer</td></tr>
 </table>
 
-<p>Kafka's producer-side dedup key solves the identical shape of problem for messages: a broker that sees a sequence number it's already committed treats the redelivery as a no-op instead of a second message. <code>prompt_hash</code> is that same sequence number, just keyed on the content of the prompt instead of a producer's send order.</p>
+<h2 id="pick-like-a-mergetree-order-key">Why This Is a MergeTree-Key Decision, Not a Runtime Flag</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> exactly-once delivery and idempotent writes are the same underlying guarantee wearing different names &mdash; both convert "this happened twice" from a correctness bug into an event nobody downstream needs to notice.</p>
-
-<h2 id="the-batch-size-tradeoff">The Batch-Size Tradeoff Is a Latency-for-Cost Trade</h2>
-
-<p>32 isn't free of downsides. The last prompt to arrive in a batch waits for the other 31 before it gets embedded, so a bigger batch trades worse worst-case latency for better cost amortization. A batch of 1 has zero wait and zero amortization; a batch of 1,000 amortizes overhead about as far as it can go, at the cost of the slowest prompt in that batch waiting for 999 others.</p>
+<p>A MergeTree table's <code>ORDER BY</code> shapes which columns sit next to each other on disk, and Day 34's post on this series covered why getting that wrong means rewriting the table rather than tuning a setting. A pgvector index type is the same category of decision: <code>schema/001_semantic_cache_entries.sql</code> builds <code>hnsw (embedding vector_cosine_ops)</code> once, at table-creation time, and switching to IVFFlat later means dropping and rebuilding the index against however much data has accumulated by then &mdash; not flipping a query-time flag.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">32</span><span class="stat-label">worker's batch size</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">embed call per batch</span></div>
-  <div class="stat-cell"><span class="stat-num">22/22</span><span class="stat-label">unit tests passing</span></div>
+  <div class="stat-cell"><span class="stat-num">16</span><span class="stat-label">m (graph degree)</span></div>
+  <div class="stat-cell"><span class="stat-num">64</span><span class="stat-label">ef_construction</span></div>
+  <div class="stat-cell"><span class="stat-num">1536</span><span class="stat-label">embedding dimensions</span></div>
 </div>
 
-<p>32 sits closer to the low-latency end than the max-amortization end on purpose: it's small enough that a worst-case wait stays bounded to roughly 32 prompts' worth of accumulation time, while still cutting the per-prompt fixed-cost overhead down by more than an order of magnitude compared to calling per-item.</p>
+<p class="prose-so-what"><strong>So what:</strong> the reason to reason about IVFFlat vs HNSW before writing a single query is the same reason to reason about a MergeTree <code>ORDER BY</code> before the first insert &mdash; both are physical layout decisions wearing an index-type name, and physical layout decisions are exactly the ones that punish being deferred.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> there's no batch size that's correct independent of what's waiting on the other end &mdash; a batch tuned for a background backfill job can be much larger than a batch tuned for a worker sitting in a user-facing request path.</p>
+<h2 id="what-todays-code-actually-does-with-it">What Today's Code Actually Does With It</h2>
 
-<h2 id="backfill-is-the-same-loop-pointed-backwards">Backfill Is the Same Loop, Pointed at Old Data</h2>
+<p><code>pkg/cachestore.FindNearest</code> doesn't specify the index by name in its query &mdash; it runs <code>ORDER BY embedding &lt;=&gt; $1 LIMIT 1</code> and lets Postgres's planner choose the <code>hnsw</code> index the schema already declared, the same way a query that filters on a MergeTree's sort columns lets ClickHouse's planner use the primary index without being told to. <code>pkg/lookup.Lookup</code> then compares the single nearest candidate's cosine similarity against the tenant's configured threshold before deciding it's a hit &mdash; a decision layered entirely on top of the index, not inside it.</p>
 
-<p>Because the worker's upsert is idempotent, it doesn't need a separate "backfill mode." Pointing the exact same batch-and-upsert loop at a historical log of prompts instead of a live stream produces the same safe outcome: prompts that were already embedded get skipped by the conflict clause, and only genuinely new <code>prompt_hash</code> values get embedded and written. Running the backfill twice, or running it while the live worker is also processing overlapping data, is safe for the same reason a retried batch is safe.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> idempotency doesn't just make retries free &mdash; it collapses "process new data" and "reprocess old data" into the same code path, which is one fewer system to design, test, and maintain separately.</p>
+<p class="prose-so-what"><strong>So what:</strong> the index type determines whether the nearest-neighbor candidate is found fast and reliably; the threshold determines whether that candidate is trusted &mdash; two separate decisions that only work correctly if each one is right on its own terms.</p>
 
 <h2 id="what-this-post-doesnt-prove">What This Post Doesn't Prove</h2>
 
-<p>The honest gap: 22 of 22 unit tests pass for normalization, batching, and dedup logic, but there's no live embedding API or pgvector instance wired into this sandbox, so no real latency or cost numbers back the batch-size reasoning above &mdash; it's argued from first principles, not measured against production traffic. The integration test that would prove the upsert's idempotency against a real database is written but gated behind a live <code>PGVECTOR_DSN</code> this environment doesn't have.</p>
+<p>The honest gap: this post argues HNSW's incremental-build property from how the algorithm works, not from a measured recall or query-per-second number against <code>semantic-cache-engine</code>'s actual table, because there's no live pgvector instance in this sandbox to run either index against real data. <code>m=16</code> and <code>ef_construction=64</code> are the schema's chosen values, not benchmarked ones &mdash; they're reasonable defaults, not numbers earned by measurement yet.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "batching amortizes fixed cost" and "idempotency makes retries safe" are claims backed by how the code is structured; "32 is the right batch size for this workload" is a claim only a real measurement against real traffic can make, and this post only earns the first two.</p>
+<p class="prose-so-what"><strong>So what:</strong> "HNSW handles a growing table better than IVFFlat" is a claim about the algorithms that's true independent of this specific deployment; "16 and 64 are the right values for this workload" is a claim only a QPS and recall benchmark against real traffic can make, and this post only earns the first one.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 61 of 150 &mdash; Embedding Pipelines</p>
-  <p><em>Next up:</em> <a href="day-62-ann-search-at-qps.html">Day 62 &mdash; ANN Search at QPS</a></p>
+  <p>AI Learning &middot; Day 62 of 150 &mdash; ANN Search at QPS</p>
+  <p><em>Next up:</em> Day 63 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-60-semantic-caching-economics.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-61-embedding-pipelines.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 60 &mdash; Semantic Caching Economics (yesterday's post — the threshold economics this worker's embeddings now feed)</span>
+      <span>Day 61 &mdash; Embedding Pipelines (yesterday's post — the worker that fills the table this index searches)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-34-trace-storage-layout-sort-keys-matter.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 34 &mdash; Trace Storage Layout — Sort Keys Matter (the MergeTree ORDER BY post this index-type analogy is drawn from)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-61-embeddings-are-batch-jobs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-62-false-positives-dollar-cost.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 61 &mdash; Embeddings Are Batch Jobs (today's companion Experience post — the same amortization pattern, first seen in TSDB compaction)</span>
+      <span>Day 62 &mdash; False Positives Have a Dollar Cost (today's companion Experience post — the threshold this index's candidates get checked against)</span>
     </a>
   </div>
 </div>
@@ -327,22 +336,23 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-fixed-cost-that-batching-amortizes">The Fixed Cost Batching Amortizes</a></li>
-      <li><a href="#why-a-retried-batch-should-be-a-no-op">Why a Retried Batch Is a No-Op</a></li>
-      <li><a href="#the-batch-size-tradeoff">The Batch-Size Tradeoff</a></li>
-      <li><a href="#backfill-is-the-same-loop-pointed-backwards">Backfill, Pointed Backwards</a></li>
-      <li><a href="#what-this-post-doesnt-prove">What This Doesn't Prove</a></li>
+      <li><a href="#why-exact-search-doesnt-scale">Why Exact Search Doesn't Scale</a></li>
+      <li><a href="#ivfflat-zones-decided-in-advance">IVFFlat: Zones Decided in Advance</a></li>
+      <li><a href="#hnsw-a-graph-that-builds-as-it-goes">HNSW: A Graph That Builds as It Goes</a></li>
+      <li><a href="#pick-like-a-mergetree-order-key">Pick Like a MergeTree Order Key</a></li>
+      <li><a href="#what-todays-code-actually-does-with-it">What Today's Code Does With It</a></li>
+      <li><a href="#what-this-post-doesnt-prove">What This Post Doesn't Prove</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-61-embedding-pipelines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-62-ann-search-at-qps.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Embedding+Pipelines+%E2%80%94+AI+Learning+%C2%B7+Day+61+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-61-embedding-pipelines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=ANN+Search+at+QPS+%E2%80%94+AI+Learning+%C2%B7+Day+62+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-62-ann-search-at-qps.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +365,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D60</span> AI Learning</div>
-          <a href="day-60-semantic-caching-economics.html" class="series-post-title">Semantic Caching Economics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D61</span> AI Learning</div>
+          <a href="day-61-embedding-pipelines.html" class="series-post-title">Embedding Pipelines</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D61</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Embedding Pipelines</div>
-          <div class="series-post-desc">prompt_hash idempotency is Kafka exactly-once for vectors — batch amortizes cost, idempotency makes retries and backfill safe</div>
+          <div class="series-post-kicker"><span class="series-post-num">D62</span> AI Learning &middot; now</div>
+          <div class="series-post-title">ANN Search at QPS</div>
+          <div class="series-post-desc">IVFFlat vs HNSW — pick like you pick a MergeTree order key: made once, and the decision that determines whether a query is fast for the life of the table</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D62</span> AI Learning</div>
-          <a href="day-62-ann-search-at-qps.html" class="series-post-title">ANN Search at QPS</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D63</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
