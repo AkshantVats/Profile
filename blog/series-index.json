@@ -624,6 +624,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-62-false-positives-dollar-cost.html",
+          "kicker": "Experience · Day 62 of 150",
+          "title": "Day 62 — False Positives Have a Dollar Cost",
+          "subtitle": "Delivery Hero · wrong ETA",
+          "date": "2026-08-04",
+          "slug": "day-62-false-positives-dollar-cost",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-62-false-positives-dollar-cost.html",
+          "coverImage": "blog/assets/covers/day-62-false-positives-dollar-cost.png",
+          "desc": "A cache similarity threshold and OSRM's map-match confidence score both bet correctness against cost — semantic-cache-engine's 0.92 default and a false-positive budget make that bet measurable instead of just felt-safe."
+        },
+        {
           "href": "blog/series/experience/day-61-embeddings-are-batch-jobs.html",
           "kicker": "Experience · Day 61 of 150",
           "title": "Day 61 — Embeddings Are Batch Jobs",
