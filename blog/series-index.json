@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-67-live-config-for-spend.html",
+          "kicker": "AI Learning · Day 67 of 150",
+          "title": "Day 67 — Live Config for Spend",
+          "subtitle": "Admin APIs without restart",
+          "date": "2026-08-05",
+          "slug": "day-67-live-config-for-spend",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-67-live-config-for-spend.html",
+          "coverImage": "blog/assets/covers/day-67-live-config-for-spend.png",
+          "desc": "Budget PATCH is a feature flag for money — and a config change spanning an in-memory store and a Kafka topic with no shared transaction needs a saga's compensating action, not a bigger lock."
+        },
+        {
           "href": "blog/series/ai-learning/day-66-hard-vs-soft-limits.html",
           "kicker": "AI Learning · Day 66 of 150",
           "title": "Day 66 — Hard vs Soft Limits",
