@@ -684,6 +684,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-67-live-budget-patch-ops-cant-wait.html",
+          "kicker": "Experience · Day 67 of 150",
+          "title": "Day 67 — Live Budget PATCH — Ops Can't Wait for Deploy",
+          "subtitle": "Delivery Hero · live tuning",
+          "date": "2026-08-05",
+          "slug": "day-67-live-budget-patch-ops-cant-wait",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-67-live-budget-patch-ops-cant-wait.html",
+          "coverImage": "blog/assets/covers/day-67-live-budget-patch-ops-cant-wait.png",
+          "desc": "A deploy gate does two jobs — validation and provenance — and a live-editable admin lever only earns the right to skip it by rebuilding both explicitly, not just going faster."
+        },
+        {
           "href": "blog/series/experience/day-66-midnight-rollover-bugs.html",
           "kicker": "Experience · Day 66 of 150",
           "title": "Day 66 — Midnight Rollover Bugs",
