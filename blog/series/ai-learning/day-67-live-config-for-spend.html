@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 66 &mdash; Hard vs Soft Limits | AI Learning Series</title>
-<meta name="description" content="Soft limit routes to a cheaper model — the same peak-demand instinct behind a delivery platform's surge pricing. A single cutoff forces a binary choice between warning too late and blocking too early; three thresholds let each one do one job.">
-<meta property="og:title" content="Day 66 &mdash; Hard vs Soft Limits">
-<meta property="og:description" content="Block vs downgrade. Why a single threshold can't do a rate limiter's whole job, and why the gap between a soft limit and a hard one has to be wide enough for the softer failure mode to actually run.">
+<title>Day 67 &mdash; Live Config for Spend | AI Learning Series</title>
+<meta name="description" content="Budget PATCH is a feature flag for money — and the moment a config change spans two systems with no shared transaction, you need a compensating action, not a bigger lock. Today's Admin API is a fifteen-line saga: mutate the store, publish the audit record, undo the mutation if the record never lands.">
+<meta property="og:title" content="Day 67 &mdash; Live Config for Spend">
+<meta property="og:description" content="No database gives you a transaction that spans an in-memory store and a Kafka topic. The saga pattern's answer — a local change plus an explicit compensating action — shows up in fifteen lines of Go, no framework required.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-66-hard-vs-soft-limits.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-66-hard-vs-soft-limits.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-67-live-config-for-spend.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-67-live-config-for-spend.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-66-hard-vs-soft-limits.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-67-live-config-for-spend.png">
 <meta property="article:published_time" content="2026-08-05">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 66 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 67 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Admission Control</span>
+    <span class="tag">Saga Pattern</span>
   </div>
-  <h1 class="post-title">Day 66 &mdash; Hard vs Soft Limits</h1>
-  <p class="post-subtitle">Block vs downgrade. Soft limit routes to a cheaper model &mdash; the same peak-demand instinct behind a delivery platform charging more instead of simply refusing new orders when demand outstrips capacity.</p>
+  <h1 class="post-title">Day 67 &mdash; Live Config for Spend</h1>
+  <p class="post-subtitle">Budget PATCH is a feature flag for money. And the moment a config change has to span two systems with no shared transaction between them, the answer isn't a bigger lock &mdash; it's a compensating action.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 66 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 67 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 5, 2026</span>
     <div class="meta-divider"></div>
@@ -207,33 +207,37 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-66-hard-vs-soft-limits.png" alt="Day 66 — Hard vs Soft Limits" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-67-live-config-for-spend.png" alt="Day 67 — Live Config for Spend" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Soft limit routes to a cheaper model &mdash; the same instinct behind a delivery platform raising the price on a ride or an order instead of just turning riders away when every driver in a zone is already busy. Neither system treats "demand exceeds capacity" as a single yes/no gate. Both treat it as a range, with more than one thing that can happen depending on how far past capacity the moment actually is.</p>
+<p>Budget PATCH is a feature flag for money. A feature flag flips a boolean and changes what code path a request takes; today's Admin API flips a number and changes how much of a tenant's spend gets through before the enforcer starts degrading or blocking &mdash; same shape of lever, applied to a dollar amount instead of a rollout percentage.</p>
 
-<h2 id="the-single-threshold-trap">Why One Threshold Can't Do a Rate Limiter's Whole Job</h2>
+<p>That framing makes the endpoint sound simple, and the endpoint itself mostly is: parse a tenant ID, merge a patch, validate, done. What isn't simple is the constraint sitting one layer underneath &mdash; the change has to land in two places, an in-memory config store and a Kafka audit topic, and there is no database transaction spanning both of them. That constraint is where today's post actually lives.</p>
 
-<p>A limiter with exactly one cutoff has to pick a single number and live with both of that number's failure modes at once. Set the cutoff conservatively and you warn (or block) long before there's any real problem, wasting headroom the system never needed to give up. Set it aggressively and by the time the limiter fires, the thing it was supposed to prevent has mostly already happened.</p>
+<h2 id="two-systems-no-shared-transaction">Two Systems, No Shared Transaction</h2>
 
-<p>There's no single value that's simultaneously "early enough to matter" and "late enough to not be noise," because those are two different jobs, and a single number can only optimize for one.</p>
+<p>A single-database write has an easy answer to "what if it fails partway through": the transaction aborts, nothing committed, retry from a clean slate. <code>pkg/admin.Handler</code> doesn't get that answer, because the two things it needs to happen &mdash; commit the config change, durably record why &mdash; live in different systems that have never heard of each other's commit log.</p>
 
-<p>Today's <code>cost-budget-enforcer</code> implementation makes that explicit by refusing to collapse the job into one number. Three thresholds, each doing exactly one job: 80% of budget fires an early warning with zero traffic impact; 100% routes new requests to a cheaper fallback model instead of the tenant's configured one; 120% rejects outright with a <code>429</code> and a <code>Retry-After</code>. Three separate jobs, three separate triggers &mdash; nothing is asked to do double duty.</p>
+<p>Kafka doesn't know about the in-memory <code>LiveStore</code>; the store doesn't know about Kafka. Wrapping both in one ACID transaction isn't an engineering choice available here &mdash; it isn't available at all, the same way it isn't available for a payment service updating its own ledger and calling a third-party processor, or an order service writing a row and publishing an event. Two systems, one logical operation, zero shared transaction: that combination shows up constantly once you're looking for it, and it has a name.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a restaurant kitchen at capacity, not a doorman with a headcount</div>
-  A doorman with a single headcount limit has one lever: let the next party in, or don't. A kitchen running past its comfortable ticket volume has a middle option a doorman doesn't &mdash; it can keep seating tables and switch to a shorter, faster express menu, serving everyone something instead of turning the next party away outright. Only when the kitchen is genuinely out of capacity, not just busy, does it actually stop taking new tickets. cost-budget-enforcer's three thresholds are the same three stages: comfortable, degraded-but-served, and actually full.
+  <div class="attr-label">DS analogy &mdash; a two-key safe deposit box, not a bigger vault door</div>
+  A bank vault door is one lock: turn the key, everything inside is accessible, in one atomic action. A safe deposit box is different on purpose &mdash; it takes two separate keys, held by two separate parties, and neither key alone opens anything. Today's Patch-then-Publish pipeline is the second design, not the first: two separate, non-atomic steps, each of which can fail independently, coordinated by an explicit rule for what happens when only one of them succeeds &mdash; not one bigger lock that makes the coordination problem disappear.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a system that can only say "allow" or "deny" is modeling capacity as binary when it usually isn't &mdash; there's almost always a middle state where degraded service is strictly better than either full service or none, and a single threshold has no way to express that middle state at all.</p>
+<p class="prose-so-what"><strong>So what:</strong> reaching for a bigger transaction is the wrong instinct the moment two systems don't share a commit log &mdash; the actual tool is a protocol for what happens when step one succeeds and step two doesn't, not a lock wide enough to pretend the two steps are one.</p>
 
-<h2 id="why-twenty-points-of-runway">Why the Hard Limit Isn't Just the Soft Limit Plus a Margin</h2>
+<h2 id="the-saga-shape">The Saga Pattern, in Fifteen Lines</h2>
 
-<p>The gap between the soft limit (100% of budget) and the hard limit (120%) isn't padding &mdash; it's runway, sized on purpose. If the hard limit sat at exactly 100%, the fallback-routed traffic the soft limit is supposed to enable would have nowhere to run: the instant a tenant crosses into "route to the cheaper model," they'd also already be at the hard block, and the softer failure mode would never actually get exercised in practice. Twenty points of headroom is what lets the cheaper-model path absorb a burst's tail before the hard stop actually engages.</p>
+<p>The pattern that names this situation is the <strong>saga</strong>: a sequence of local transactions, each in its own system, where every step that changes state has a corresponding <em>compensating</em> step that undoes it if a later step in the sequence fails. No two-phase commit, no distributed lock manager &mdash; just an explicit "if this fails, here's how we undo that" written into the code path itself.</p>
+
+<p><code>pkg/admin.Handler.ServeHTTP</code> is a two-step saga with one compensating action, and it fits in about fifteen lines. Step one: <code>LiveStore.Patch</code> commits the new config locally. Step two: <code>audit.Publish</code> sends the record to Kafka.</p>
+
+<p>If step two fails, the compensating action is <code>LiveStore.Set(tenantID, before)</code> &mdash; the store's undo, applied synchronously, in the same request, before the client ever sees a response.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -253,51 +257,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Under 80% budget"] --> P["Pass through"]
-  B["80-100% budget"] --> W["Warn, unaffected"]
-  C["100-120% budget"] --> D["Cheaper fallback model"]
-  E["Over 120% budget"] --> R["429, hard block"]
+  S1["Step 1: patch store"] --> S2["Step 2: publish audit"]
+  S2 -->|"success"| C["Saga complete"]
+  S2 -->|"failure"| K["Compensate: undo step 1"]
 </pre>
 
-<p>This is the same reasoning a delivery platform's demand-based pricing runs on, one level removed from the exact mechanism: when demand approaches a zone's capacity, the response isn't an immediate hard cutoff of new orders &mdash; it's a degraded-but-served state (a higher price, a longer estimate) that keeps the system serving requests while demand is elevated, with an actual capacity ceiling still sitting further out as the real backstop. The specific lever differs &mdash; price versus model quality &mdash; but the shape of the decision is the same three-state machine: comfortable, degraded, full.</p>
+<p class="prose-so-what"><strong>So what:</strong> a saga doesn't require a framework, an orchestrator, or even a name in the code &mdash; it requires knowing, for every step that changes shared state, exactly what "undo this" means, and calling that function on the failure path instead of hoping the failure path never runs.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> sizing the gap between "start degrading" and "actually stop" is itself a design decision with a concrete purpose &mdash; too small and the degraded state never gets used; too large and the hard limit stops meaning anything close to the configured budget.</p>
+<h2 id="why-order-and-direction-matter">Why the Order of the Two Steps Isn't Arbitrary</h2>
 
-<h2 id="the-decision-is-cheap-the-atomicity-isnt">The Threshold Comparison Is the Easy Part</h2>
+<p>The sequence matters as much as the compensation. Patch runs before Publish, not after, because the audit event needs a committed before/after pair to describe &mdash; publishing first would mean auditing a change that might still fail to commit. Committing first and compensating on audit failure is the right order specifically because the audit record is the thing that must never be wrong, not merely the thing that must never be missing.</p>
 
-<p>Once a weighted token count exists (yesterday's post covered how that count itself is computed), mapping it to one of four actions is a single switch statement &mdash; the hard part was never the decision logic, it's making sure the count feeding that decision is correct under concurrent access. <code>pkg/enforcer.Check</code> in today's implementation is almost entirely branching on a percentage; every line of actual complexity lives one layer down, in the atomic Redis script that produces the percentage in the first place.</p>
+<p>Flip that priority &mdash; imagine a variant that published the audit record first and committed the config change second &mdash; and the compensating action would have to un-publish a Kafka message, which Kafka's append-only log makes structurally impossible. The direction chosen here (mutate an undoable in-memory store, then commit to an unforgeable append-only log) isn't incidental; it's the saga's compensating step landing on the one side of the pipeline where undoing is actually a thing you can do.</p>
 
-<p>That split &mdash; cheap decision logic on top of an atomicity-hardened count &mdash; is a pattern worth naming on its own, because it's easy to over-engineer the wrong half. A four-way threshold switch doesn't need to be fast or clever; it needs to be obviously correct, which a plain <code>switch</code> over ordered comparisons is. The place that actually earns careful engineering &mdash; a Lua script, tested against a real interpreter, exercised with twenty concurrent goroutines &mdash; is the one place a race would silently produce a wrong number.</p>
+<table>
+<tr><th>Pattern</th><th>Coordination</th><th>Failure handling</th><th>Where it fits here</th></tr>
+<tr><td>2PC / distributed transaction</td><td>Coordinator blocks all participants</td><td>Global abort</td><td>Not available — Kafka and an in-process map share no coordinator</td></tr>
+<tr><td>Saga (this post)</td><td>None — steps run independently</td><td>Explicit compensating action per step</td><td><code>pkg/admin.Handler</code>: Patch, Publish, compensate on Publish failure</td></tr>
+<tr><td>Outbox pattern</td><td>Single DB transaction + async relay</td><td>Relay retries until delivered</td><td>Would fit if the store were a real DB, not an in-process map</td></tr>
+</table>
 
-<p class="prose-so-what"><strong>So what:</strong> not every part of a guardrail deserves equal engineering effort &mdash; the decision that consumes a number can stay simple precisely because the number itself was made trustworthy somewhere else, and conflating the two is how a codebase ends up over-testing the easy part and under-testing the hard one.</p>
+<p class="prose-so-what"><strong>So what:</strong> which half of a two-system operation gets the compensating action isn't a coin flip &mdash; it belongs on whichever side can actually be undone, and an append-only log by design volunteers to be the side that can't.</p>
 
-<h2 id="what-this-doesnt-prove-yet">What Today's Tests Prove, and What They Don't</h2>
+<h2 id="what-this-doesnt-prove">What a Passing Test Suite Proves, and What a Real Cluster Would Add</h2>
 
-<p>Unlike yesterday's design-only day, today's implementation is actually tested &mdash; 19 tests, all passing, run against <code>miniredis</code>'s real Lua interpreter rather than a mock, plus a twenty-goroutine concurrency test confirming the atomic script closes the race a naive read-then-write would leave open. That's a meaningfully stronger claim than "the design should work" — the Lua script itself executed, the UTC-midnight rollover happened on a real (if embedded) Redis-compatible engine, and the threshold math produced the exact actions the design specifies at each boundary.</p>
+<p><code>TestPatchRollsBackWhenAuditPublishFails</code> proves the compensating action fires correctly against a fake publisher configured to fail &mdash; the logic is exercised, deterministically, on every test run. What it doesn't prove is what happens under a real Kafka cluster's failure modes: a publish that times out ambiguously rather than failing cleanly, a partial write the producer can't tell succeeded or didn't, a retry that double-publishes after the handler already compensated once.</p>
 
-<p>What it doesn't prove: how the weighted-count approximation behaves under a real, skewed production traffic pattern against a live Redis instance under network latency, or whether 20 points of soft-to-hard runway is the right number for actual tenant burst shapes rather than a reasonable-sounding default. <code>miniredis</code> is a faithful single-process Lua interpreter, not a network hop, not a Redis cluster under load, and not real traffic.</p>
+<p>Those are real saga hazards &mdash; the literature calls the ambiguous case "the coordinator's dilemma," and it's the reason production saga implementations often add idempotency keys and retry-safe compensations rather than treating a single compensating call as sufficient. Today's implementation is the pattern's core shape, tested against its core failure mode, not yet hardened against Kafka's messier ones &mdash; the same honest gap this module has logged since Day 65's DESIGN.md: no live broker in this sandbox to exercise the messy cases against.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "the algorithm and the atomicity are correct" is a claim today's test suite actually earns; "the specific thresholds are right for real traffic" is a claim only production data can make, and that gap is exactly why the alert threshold exists at 80% instead of assuming the design got the numbers right on the first guess.</p>
+<div class="pullquote"><p>A saga doesn't remove the seam between two systems &mdash; it just makes the seam a place you designed on purpose, instead of a place you discover during an incident.</p></div>
+
+<p class="prose-so-what"><strong>So what:</strong> "the compensating action runs when it should" is a claim a unit test against a fake can fully earn; "the compensating action is safe under every way a real Kafka cluster can half-fail" is a claim that needs a live cluster and a much longer list of injected failures to earn, and the gap between those two claims is exactly what separates a saga's core logic from a saga that's production-hardened.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 66 of 150 &mdash; Hard vs Soft Limits</p>
-  <p><em>Next up:</em> <a href="day-67-live-config-for-spend.html">Day 67 &mdash; Live Config for Spend</a></p>
+  <p>AI Learning &middot; Day 67 of 150 &mdash; Live Config for Spend</p>
+  <p><em>Next up:</em> Day 68 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-65-token-budgets-as-rate-limits.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-66-hard-vs-soft-limits.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 65 &mdash; Token Budgets as Rate Limits (yesterday's post — the sliding-window counter that produces the weighted count these thresholds compare against)</span>
+      <span>Day 66 &mdash; Hard vs Soft Limits (yesterday's post — the threshold decision this Admin API now edits live)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-66-midnight-rollover-bugs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-67-live-budget-patch-ops-cant-wait.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 66 &mdash; Midnight Rollover Bugs (today's companion Experience post — the same module's window-boundary fix, seen through a Walmart telemetry-rollup lens instead of the threshold decision)</span>
+      <span>Day 67 &mdash; Live Budget PATCH — Ops Can't Wait for Deploy (today's companion Experience post — the same Admin API, seen through a Delivery Hero ops-lever lens instead of the coordination mechanism)</span>
     </a>
   </div>
 </div>
@@ -308,21 +318,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-single-threshold-trap">One Threshold Can't Do the Job</a></li>
-      <li><a href="#why-twenty-points-of-runway">Why the Hard Limit Has Runway</a></li>
-      <li><a href="#the-decision-is-cheap-the-atomicity-isnt">The Decision Is the Easy Part</a></li>
-      <li><a href="#what-this-doesnt-prove-yet">What Today's Tests Prove</a></li>
+      <li><a href="#two-systems-no-shared-transaction">Two Systems, No Transaction</a></li>
+      <li><a href="#the-saga-shape">The Saga Pattern, in 15 Lines</a></li>
+      <li><a href="#why-order-and-direction-matter">Why the Order Isn't Arbitrary</a></li>
+      <li><a href="#what-this-doesnt-prove">What a Test Suite Proves</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-66-hard-vs-soft-limits.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-67-live-config-for-spend.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Hard+vs+Soft+Limits+%E2%80%94+AI+Learning+%C2%B7+Day+66+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-66-hard-vs-soft-limits.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Live+Config+for+Spend+%E2%80%94+AI+Learning+%C2%B7+Day+67+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-67-live-config-for-spend.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,17 +345,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D65</span> AI Learning</div>
-          <a href="day-65-token-budgets-as-rate-limits.html" class="series-post-title">Token Budgets as Rate Limits</a>
+          <div class="series-post-kicker"><span class="series-post-num">D66</span> AI Learning</div>
+          <a href="day-66-hard-vs-soft-limits.html" class="series-post-title">Hard vs Soft Limits</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D66</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Hard vs Soft Limits</div>
-          <div class="series-post-desc">Block vs downgrade — why one threshold can't do a rate limiter's whole job, and why the soft-to-hard gap is sized on purpose</div>
+          <div class="series-post-kicker"><span class="series-post-num">D67</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Live Config for Spend</div>
+          <div class="series-post-desc">Budget PATCH is a feature flag for money — and a change spanning two systems with no shared transaction needs a saga's compensating action, not a bigger lock</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D67</span> AI Learning</div>
-          <a href="day-67-live-config-for-spend.html" class="series-post-title">Live Config for Spend</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D68</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
