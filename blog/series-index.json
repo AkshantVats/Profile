@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-72-l1-l2-stack-design.html",
+          "kicker": "AI Learning · Day 72 of 150",
+          "title": "Day 72 — L1/L2 Stack Design",
+          "subtitle": "Redis then pgvector",
+          "date": "2026-08-06",
+          "slug": "day-72-l1-l2-stack-design",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-72-l1-l2-stack-design.html",
+          "coverImage": "blog/assets/covers/day-72-l1-l2-stack-design.png",
+          "desc": "A CPU never reports one blended cache-hit number across L1/L2/L3 — a Redis-then-pgvector prompt cache needs the identical per-level accounting."
+        },
+        {
           "href": "blog/series/ai-learning/day-71-canonicalization-rules.html",
           "kicker": "AI Learning · Day 71 of 150",
           "title": "Day 71 — Canonicalization Rules",
