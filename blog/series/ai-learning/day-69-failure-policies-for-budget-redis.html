@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 68 &mdash; Gateway Middleware Ordering | AI Learning Series</title>
-<meta name="description" content="A budget check, a cache lookup, and a model call are three middleware stages in a chain — and the chain's correctness lives entirely in which stage runs first. Get the order wrong and the fastest cache in the world still leaks spend on a tenant it should have blocked.">
-<meta property="og:title" content="Day 68 &mdash; Gateway Middleware Ordering">
-<meta property="og:description" content="Order matters — wrong order leaks spend. A stub gateway that checks budget before cache before model, tested with a spy that proves a blocked request never touches either downstream stage.">
+<title>Day 69 &mdash; Failure Policies for Budget Redis | AI Learning Series</title>
+<meta name="description" content="Every gate that checks a dependency before letting something expensive through has an unwritten answer to one question: what happens when the dependency doesn't show up. A budget enforcer's Redis check is one instance of a pattern that shows up anywhere a cheap guard protects a costly operation.">
+<meta property="og:title" content="Day 69 &mdash; Failure Policies for Budget Redis">
+<meta property="og:description" content="Document the outage mode — auditors will ask. Fail-open and fail-closed aren't a right answer and a wrong one; they're two different bets about what an outage is allowed to cost, and only one of them can be the silent default.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-68-gateway-middleware-ordering.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-68-gateway-middleware-ordering.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-69-failure-policies-for-budget-redis.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-69-failure-policies-for-budget-redis.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-68-gateway-middleware-ordering.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-69-failure-policies-for-budget-redis.png">
 <meta property="article:published_time" content="2026-08-06">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 68 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 69 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Middleware</span>
+    <span class="tag">Fault Tolerance</span>
   </div>
-  <h1 class="post-title">Day 68 &mdash; Gateway Middleware Ordering</h1>
-  <p class="post-subtitle">Order matters &mdash; wrong order leaks spend. A budget check, a cache lookup, and a model call are three stages in a chain, and the chain's entire cost guarantee lives in which one runs first.</p>
+  <h1 class="post-title">Day 69 &mdash; Failure Policies for Budget Redis</h1>
+  <p class="post-subtitle">Document the outage mode &mdash; auditors will ask. Fail-open and fail-closed aren't a right answer and a wrong one; they're two different bets about what an outage is allowed to cost, and a gate that never wrote its bet down is a gate whose behavior nobody can predict until it's already failed.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 68 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 69 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 6, 2026</span>
     <div class="meta-divider"></div>
@@ -207,41 +207,40 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-68-gateway-middleware-ordering.png" alt="Day 68 — Gateway Middleware Ordering" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-69-failure-policies-for-budget-redis.png" alt="Day 69 — Failure Policies for Budget Redis" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A middleware chain is usually presented as a list: request comes in, passes through stage one, then stage two, then stage three, response comes out. The list framing hides the one property that actually determines whether the chain is correct &mdash; not which stages exist, but which one gets to run first.</p>
+<p><strong>Document the outage mode — auditors will ask.</strong> That's the whole ticket for today, and it's a smaller instruction than it sounds.</p>
 
-<p>Today's stub gateway has exactly three stages: check the tenant's budget, look up the semantic cache, call the model. Reorder those three and the code still compiles, the types still line up, and the chain still "works" in the sense that a request still gets a response &mdash; it just stops being the chain that was supposed to protect anyone's spend.</p>
+<p>It doesn't say build a new failure mode. It says the failure mode already exists, whether or not anyone chose it on purpose, and the job is to turn an accident of one <code>if err != nil</code> branch into a decision someone can defend later.</p>
 
-<h2 id="a-chain-where-order-isnt-cosmetic">A Chain Where Order Isn't Cosmetic</h2>
+<h2 id="every-gate-has-an-unwritten-answer">Every Gate Has an Unwritten Answer</h2>
 
-<p>Chain of Responsibility, the design pattern this shape belongs to, is usually taught as if the stages were interchangeable &mdash; each handler decides whether to act and whether to pass the request along, and the pattern's job is just wiring them together. That framing quietly assumes every stage is cheap and side-effect-free to invoke, which is exactly the assumption a cost-control chain can't make.</p>
+<p>A rate limiter, a firewall rule, an auth check, a budget enforcer — all four share one shape. Something cheap sits in front of something expensive or risky, consults a piece of state to decide whether to let a request through, and forwards or rejects based on the answer. None of that shape says what happens when the cheap check itself can't run.</p>
 
-<p>A cache lookup isn't free. A real semantic cache can cost a paid embedding-API call on a miss, and a model call obviously costs money outright. The moment even one stage in the chain has a real cost to invoking it, the chain's order stops being a style choice and becomes the thing that decides whether an over-budget tenant gets stopped before any of that cost happens, or after.</p>
+<p>That question doesn't go away just because nobody answered it. It gets answered anyway, by whatever the code happens to do in its error branch — and if that branch was written before anyone thought about it as a policy decision, the actual behavior in production is whatever fell out of habit, not whatever the system's operators would have chosen if asked directly.</p>
+
+<h2 id="a-checkpoint-that-cant-check-ids">A Checkpoint That Can't Check IDs</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a bouncer's line, not a self-serve bar</div>
-  A bar with a bouncer checks ID at the door, before anyone reaches the counter to order a drink. A bar that let people order first and checked ID on the way out would still "work" in the sense that drinks get served and IDs eventually get checked &mdash; but every underage order already cost the bar a poured drink it can't get back. The ID check has to be the first stage specifically because every stage after it has a cost that, once incurred, can't be un-incurred.
+  <div class="attr-label">DS analogy &mdash; the airport checkpoint whose scanner just went dark</div>
+  An airport security checkpoint's scanner fails mid-shift. The airport has exactly two honest options: wave every passenger through unscreened so flights keep boarding on schedule, or close the lane and let the queue back up until the scanner's fixed. Nobody would accept a third option where the airport quietly does one of these and never tells anyone which — passengers, airline staff, and regulators all need to know which bet was made, because "we're not sure what happened at gate 14 for the last forty minutes" is its own kind of failure, independent of which bet turned out to be right.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a chain of stages with different costs isn't fully specified by which stages exist &mdash; it's only fully specified once you've also fixed which one has the right to run first, and that decision belongs to whichever stage's failure mode is "reject before spending," not to whichever stage happens to be cheapest to write first.</p>
+<p class="prose-so-what"><strong>So what:</strong> the two options at a broken checkpoint aren't "safe" and "unsafe" — closing the lane has its own cost, a grounded flight — they're two different, both-legitimate answers to "what matters more right now," and the failure that actually damages trust is not writing down which one the checkpoint took.</p>
 
-<h2 id="three-orderings-one-correct">Three Orderings, One Correct</h2>
+<h2 id="two-policies-neither-universally-right">Two Policies, Neither Universally Right</h2>
 
-<p>Put the same three stages in different orders and the failure mode changes shape each time. Budget, then cache, then model &mdash; the order today's gateway implements &mdash; means a blocked tenant never reaches the cache or the model, so a block's cost is provably zero.</p>
-
-<p>Cache, then budget, then model looks almost identical on a fast path, because a cache hit never reaches the budget check either way. It diverges exactly on a miss: a tenant already over budget still pays for the cache lookup &mdash; and whatever that lookup itself costs &mdash; before the budget check ever gets a chance to reject the request.</p>
+<p>Applied to a budget enforcer sitting in front of a paid model call, the same two options become fail-open (forward the request, meter it later or not at all) and fail-closed (reject with a clear error, meter nothing). Each one optimizes a different failure mode, and the table below is the actual shape of the tradeoff — not a ranking, a fork.</p>
 
 <table>
-<tr><th>Order</th><th>Blocked tenant's cost</th><th>Where the leak happens</th></tr>
-<tr><td>Budget &rarr; Cache &rarr; Model</td><td>Zero, always</td><td>None &mdash; blocked requests never reach Cache or Model</td></tr>
-<tr><td>Cache &rarr; Budget &rarr; Model</td><td>One cache lookup's cost, on every miss</td><td>Cache runs before the check that was supposed to gate it</td></tr>
-<tr><td>Model &rarr; Budget &rarr; Cache</td><td>One full model call's cost, always</td><td>The most expensive stage runs unconditionally</td></tr>
+<tr><th>Policy</th><th>What breaks during an outage</th><th>What stays intact</th></tr>
+<tr><td>Fail open</td><td>Spend ceiling — cost is unbounded for the outage's duration</td><td>Every request still gets served</td></tr>
+<tr><td>Fail closed</td><td>Availability — every gated request gets rejected</td><td>Spend ceiling holds exactly, even during the outage</td></tr>
 </table>
 
 <pre class="mermaid">
@@ -262,60 +261,69 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  R["Request"] --> B["Check budget"]
-  B -->|"blocked"| Z["Reject, cost=0"]
-  B -->|"ok"| C["Cache lookup"]
-  C -->|"hit"| H["Serve cached, cost=0"]
-  C -->|"miss"| M["Call model, real cost"]
+  R["Request arrives"] --> G["Check budget in Redis"]
+  G -->|"Redis reachable"| D["Pass / degrade / block"]
+  G -->|"Redis down, fail open"| F["Forward, unmetered"]
+  G -->|"Redis down, fail closed"| C["Reject, 503"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the three orderings aren't three equally valid designs with different tradeoffs &mdash; only one of them makes "a block costs zero" a claim that's actually true, and the other two just move the leak to a different stage instead of closing it.</p>
+<p class="prose-so-what"><strong>So what:</strong> a fork with two legitimate branches can't be collapsed into one default without erasing information — whichever branch gets hardcoded is a real policy choice being made silently, for every caller, whether or not any caller would have chosen it.</p>
 
-<h2 id="proving-order-with-a-spy">Proving Order With a Spy, Not a Log Line</h2>
+<h2 id="the-checker-shouldnt-be-the-one-deciding">The Checker Shouldn't Be the One Deciding</h2>
 
-<p>The tempting way to test an ordering claim is to assert on the outcome: send a request that should be blocked, check that the response says blocked, check that <code>cost_usd</code> came back zero. That test would pass even if the implementation quietly ran the cache lookup anyway and just discarded its cost &mdash; the assertion never looks at whether the downstream stage was invoked, only at what the final number says.</p>
+<p>There's a second design question hiding inside the first one: even once you've decided fail-open and fail-closed should both exist, which piece of code gets to pick between them? The tempting answer is the component that discovers the failure — the code that just watched a Redis call time out is right there, holding the error, closest to the moment of truth.</p>
 
-<p>Today's test suite asserts on the call itself instead. <code>TestHandleBlockedNeverTouchesCacheOrModel</code> wraps both the cache client and the model client in a spy that records whether it was ever invoked, then checks that spy directly &mdash; not the response, the spy.</p>
+<p>That's the wrong owner. A component whose only job is "check the budget and report what happened" doesn't have — and shouldn't have — an opinion about whether a rate-limit gate and a spend gate should treat the same Redis outage the same way.</p>
+
+<p>Those are different callers with different risk tolerances, and only the caller knows which one applies to the request in front of it. The checker's job stays narrow specifically so its answer means the same thing no matter who's asking.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Downstream clients a blocked request must never touch</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Fixed order the gateway enforces: budget, then cache, then model</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">LensAI event sources — one per way a request can actually leave the chain</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Error branch the checker already had — no new branch added to the check itself</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Callers that each independently decide what to do with that error</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">New opinions given to the component that only discovers the failure</span></div>
 </div>
 
-<p>That distinction matters because an outcome-only test and a call-only test can both pass against a correct implementation, but only the call-only test fails against a specific class of regression: someone reordering the stages while leaving the final response shape untouched. A refactor that swapped Cache and Budget would still return the right JSON on a block &mdash; it just wouldn't be free anymore, and only a spy watching the calls themselves would catch that.</p>
+<p class="prose-so-what"><strong>So what:</strong> "who decides" is a design question with its own right answer, separate from "what are the choices" — and getting it wrong doesn't show up as a bug today, it shows up later as every caller of a shared checker being stuck with one caller's risk tolerance.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> when the property under test is "stage X never runs," the only test that actually verifies it watches the call itself, because any test that only watches the final output can be satisfied by an implementation that does the expensive thing and hides the receipt.</p>
+<div class="pullquote"><p>A gate that never wrote down its own failure mode isn't neutral — it's just untested in the one direction that matters most.</p></div>
 
-<div class="pullquote"><p>A chain of responsibility with real costs attached to its stages doesn't have an arbitrary order to wire together — it has exactly one order where the guarantee is true, and every other order that compiles.</p></div>
+<h2 id="measuring-instead-of-assuming">Measuring Instead of Assuming</h2>
 
-<h2 id="what-ordering-doesnt-fix">What Getting the Order Right Doesn't Fix</h2>
+<p>It's easy to assume the safer-sounding option is also the slower one — reject-and-verify sounds like it should cost more than forward-and-move-on. Measured directly, against a real (if local) Redis instance, a fail-closed rejection turned out to be roughly 40 times cheaper per request than a successful check, because rejecting skips the round trip to Redis entirely; forwarding doesn't skip anything.</p>
 
-<p>Fixing the order solves the sequencing problem, not every problem the chain will eventually face. A real cache and a real model, called concurrently across many requests for the same tenant, can still race on the budget counter itself &mdash; that's a different hazard, the one <code>pkg/store</code>'s Lua-script atomicity already closes at the counter level, one layer below where <code>pkg/gateway</code> operates.</p>
+<p>That result doesn't change which policy is right for a given tenant — it changes what "right" is actually being traded against. The cost of fail-closed isn't CPU time on the rejected request.</p>
 
-<p>Today's stub also can't say anything about a real cache's actual hit rate or a real provider's actual latency, because both clients are fakes standing in for a fixed order this post is entirely about proving. Getting the sequence right is a precondition for a trustworthy cost guarantee, not a substitute for the concurrency and integration hardening a real backend will still need.</p>
+<p>It's availability, for exactly the duration of the outage, for exactly the tenants who opted into that trade. A benchmark's job here isn't to declare a winner; it's to rule out a hidden third cost nobody was accounting for.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> ordering is the first bug class a cost-sensitive chain has to eliminate, because every other correctness property &mdash; concurrency safety, real backend behavior &mdash; is being measured against a sequence of stages that has to already be the right one, or none of those later guarantees mean what they claim to.</p>
+<p class="prose-so-what"><strong>So what:</strong> "which policy is cheaper" and "which policy is right" are different questions, and answering the first one with real numbers is what stops an assumption about the second one from going unchallenged.</p>
+
+<h2 id="what-writing-it-down-doesnt-solve">What Writing It Down Doesn't Solve</h2>
+
+<p>Documenting the outage mode and making it configurable doesn't make the outage shorter, and it doesn't tell an operator which tenants should be on which policy — that's a business judgment about risk tolerance, not something a config schema can infer on its own. It also doesn't cover every dependency a system has; the same question exists for every other cheap-guard-in-front-of-expensive-thing pair a service depends on, and each one needs its own honest answer, not a blanket rule copied from this one.</p>
+
+<p>What it does solve is the much narrower, much more common failure: an operator, an auditor, or a future engineer reading the code and being unable to tell whether the current behavior was chosen or just happened. That gap — between "this is what the system does" and "this is what the system was designed to do" — is exactly what a documented, per-caller policy closes.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the value of documenting an outage mode isn't that it prevents the outage — it's that it converts "nobody's sure what this system does under failure" into a claim someone can check, defend, and change on purpose the next time the tradeoff needs to move.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 68 of 150 &mdash; Gateway Middleware Ordering</p>
-  <p><em>Next up:</em> <a href="day-69-failure-policies-for-budget-redis.html">Day 69 &mdash; Failure Policies for Budget Redis</a></p>
+  <p>AI Learning &middot; Day 69 of 150 &mdash; Failure Policies for Budget Redis</p>
+  <p><em>Next up:</em> Day 70 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-67-live-config-for-spend.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-68-gateway-middleware-ordering.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 67 &mdash; Live Config for Spend (yesterday's post — the same cost-budget-enforcer module, the saga pattern behind its Admin API)</span>
+      <span>Day 68 &mdash; Gateway Middleware Ordering (yesterday's post — the same cost-budget-enforcer module, ordering instead of failure policy)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 &mdash; Continuous Batching in vLLM (the series' gold-standard mechanism deep-dive)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-68-stub-gateway-compose-before-polish.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-69-fail-closed-vs-open-pick-and-document.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 68 &mdash; Stub Gateway — Compose Before Polish (today's companion Experience post — the same gateway, seen through an inherited-pipeline-lineage lens instead of the ordering mechanism)</span>
+      <span>Day 69 &mdash; Fail Closed vs Open — Pick and Document (today's companion Experience post — the same policy, seen through an Agoda WhiteFalcon lens instead of the general pattern)</span>
     </a>
   </div>
 </div>
@@ -326,21 +334,23 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-chain-where-order-isnt-cosmetic">A Chain Where Order Isn't Cosmetic</a></li>
-      <li><a href="#three-orderings-one-correct">Three Orderings, One Correct</a></li>
-      <li><a href="#proving-order-with-a-spy">Proving Order With a Spy</a></li>
-      <li><a href="#what-ordering-doesnt-fix">What Ordering Doesn't Fix</a></li>
+      <li><a href="#every-gate-has-an-unwritten-answer">Every Gate Has an Unwritten Answer</a></li>
+      <li><a href="#a-checkpoint-that-cant-check-ids">A Checkpoint That Can't Check IDs</a></li>
+      <li><a href="#two-policies-neither-universally-right">Two Policies, Neither Right</a></li>
+      <li><a href="#the-checker-shouldnt-be-the-one-deciding">The Checker Shouldn't Decide</a></li>
+      <li><a href="#measuring-instead-of-assuming">Measuring Instead of Assuming</a></li>
+      <li><a href="#what-writing-it-down-doesnt-solve">What Writing It Down Doesn't Solve</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-68-gateway-middleware-ordering.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-69-failure-policies-for-budget-redis.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Gateway+Middleware+Ordering+%E2%80%94+AI+Learning+%C2%B7+Day+68+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-68-gateway-middleware-ordering.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Failure+Policies+for+Budget+Redis+%E2%80%94+AI+Learning+%C2%B7+Day+69+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-69-failure-policies-for-budget-redis.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -353,17 +363,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D67</span> AI Learning</div>
-          <a href="day-67-live-config-for-spend.html" class="series-post-title">Live Config for Spend</a>
+          <div class="series-post-kicker"><span class="series-post-num">D68</span> AI Learning</div>
+          <a href="day-68-gateway-middleware-ordering.html" class="series-post-title">Gateway Middleware Ordering</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D68</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Gateway Middleware Ordering</div>
-          <div class="series-post-desc">Order matters — wrong order leaks spend. Proving a chain's cost guarantee with a spy on the downstream calls, not just the final response.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D69</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Failure Policies for Budget Redis</div>
+          <div class="series-post-desc">Document the outage mode — auditors will ask. Fail-open and fail-closed are both legitimate; the failure is never writing down which one a system took.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D69</span> AI Learning</div>
-          <a href="day-69-failure-policies-for-budget-redis.html" class="series-post-title">Failure Policies for Budget Redis</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D70</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

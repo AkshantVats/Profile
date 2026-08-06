@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-69-failure-policies-for-budget-redis.html",
+          "kicker": "AI Learning · Day 69 of 150",
+          "title": "Day 69 — Failure Policies for Budget Redis",
+          "subtitle": "503 vs passthrough",
+          "date": "2026-08-06",
+          "slug": "day-69-failure-policies-for-budget-redis",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-69-failure-policies-for-budget-redis.html",
+          "coverImage": "blog/assets/covers/day-69-failure-policies-for-budget-redis.png",
+          "desc": "Document the outage mode — auditors will ask. Fail-open and fail-closed are both legitimate policies for the same Redis dependency; the actual failure is never writing down which one a system took."
+        },
+        {
           "href": "blog/series/ai-learning/day-68-gateway-middleware-ordering.html",
           "kicker": "AI Learning · Day 68 of 150",
           "title": "Day 68 — Gateway Middleware Ordering",
