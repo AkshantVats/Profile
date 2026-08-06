@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 70 &mdash; Exact Match Before Fuzzy | Experience Series</title>
-<meta name="description" content="A cheap, exact check ahead of an expensive, approximate one isn't a shortcut — it's the same tiering discipline WhiteFalcon's hot Redis tier and cold Ceph/S3 tier already run on, applied to a cache instead of a database. Today's prompt-fingerprinter design doc makes that discipline explicit.">
-<meta property="og:title" content="Day 70 &mdash; Exact Match Before Fuzzy">
-<meta property="og:description" content="Checking Redis before Ceph isn't premature optimization when the cost gap between the two tiers is real and measured. prompt-fingerprinter's SHA-256 cache borrows that same ordering, one layer earlier than WhiteFalcon ever needed it.">
+<title>Day 71 &mdash; Normalization Is Contract Testing | Experience Series</title>
+<meta name="description" content="A Bigtable row key keyed on OCID instead of supplier_part_id, and a prompt normalized to canonical bytes before hashing, are the same bet: every writer and every reader has to agree on one definition of a key, or a lookup silently misses. Today's prompt-fingerprinter code makes that bet concrete.">
+<meta property="og:title" content="Day 71 &mdash; Normalization Is Contract Testing">
+<meta property="og:description" content="Wayfair's pricing keyspace and prompt-fingerprinter's cache key share an unenforced contract: writer and reader must compute the same canonical form, every time, or the lookup just quietly misses.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-70-exact-match-before-fuzzy.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-70-exact-match-before-fuzzy.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-71-normalization-is-contract-testing.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-71-normalization-is-contract-testing.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-70-exact-match-before-fuzzy.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-71-normalization-is-contract-testing.png">
 <meta property="article:published_time" content="2026-08-06">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 70 of 150</span>
+    <span class="tag accent">Experience &middot; Day 71 of 150</span>
     <span class="tag">RouteIQ</span>
-    <span class="tag">Cache Hierarchy</span>
-    <span class="tag">Agoda</span>
+    <span class="tag">Canonical Keys</span>
+    <span class="tag">Wayfair</span>
   </div>
-  <h1 class="post-title">Day 70 &mdash; Exact Match Before Fuzzy</h1>
-  <p class="post-subtitle">A cheap, exact check ahead of an expensive, approximate one isn't a shortcut &mdash; it's the same tiering discipline WhiteFalcon's hot Redis tier and cold Ceph/S3 tier already run on, just applied to a cache instead of a database. Today's prompt-fingerprinter design doc is that discipline written down one layer earlier than WhiteFalcon ever needed it.</p>
+  <h1 class="post-title">Day 71 &mdash; Normalization Is Contract Testing</h1>
+  <p class="post-subtitle">A Bigtable row key built from OCID instead of supplier_part_id, and a prompt hashed only after it passes through one shared normalize() function, are the same promise made twice &mdash; every writer and every reader has to compute the identical canonical form, or the lookup just quietly misses.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 70 of 150</span>
+    <span class="meta-item">Experience &middot; Day 71 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 6, 2026</span>
     <div class="meta-divider"></div>
@@ -208,46 +208,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-70-exact-match-before-fuzzy.png" alt="Day 70 — Exact Match Before Fuzzy" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-71-normalization-is-contract-testing.png" alt="Day 71 — Normalization Is Contract Testing" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket opens a new module instead of extending an existing one: <code>prompt-fingerprinter</code>, a SHA-256 exact-match cache that sits ahead of <code>semantic-cache-engine</code>'s embedding-similarity lookup, RouteIQ's third module in six weeks. Design-only, same shape as Day 60 and Day 65 — a written decision before any Go code exists to enforce it.</p>
+<p>Today's ticket closes out what Day 70's DESIGN.md left as a written promise: <code>pkg/fingerprint</code> now has a real <code>Normalize()</code>, <code>Fingerprint()</code>, and <code>RedisKey()</code> in Go, and a property test suite that checks the promise holds — equivalent prompts collide, distinct ones don't. The interesting part isn't the SHA-256 call. It's the one rule the whole module depends on: every caller has to normalize the exact same way, or the cache silently stops working for nobody's fault in particular.</p>
 
-<p>The decision itself is small enough to say in one line: check the cheap, exact thing before the expensive, approximate thing. I'd already lived inside a system that made that exact call, just for a different reason than caching.</p>
+<p>I'd depended on that same rule before, just written into a Bigtable row key instead of a hash function.</p>
 
-<h2 id="a-query-router-i-extended-but-didnt-design">A Query Router I Extended, But Didn't Design</h2>
+<h2 id="a-key-two-systems-had-to-agree-on">A Key Two Systems Had to Agree On</h2>
 
-<p>I spent about five months at Agoda as a Senior Engineer on WhiteFalcon, the team's in-house time-series database. WhiteFalcon keeps the last three to seven days of data in Redis, bucketed in time windows, queried at per-hour granularity because that window is where almost all query load lands. Everything older lives in Ceph, backing S3, as compacted Parquet — coarser granularity, a real disk read instead of an in-memory bucket lookup.</p>
+<p>At Wayfair I led the PAS and Pricing, Promotions &amp; Discounts teams, owning delivery across both areas at once. Part of that work was architecting a GCP event-driven pricing engine that cut price propagation from hours to sub-seconds across 20,000+ suppliers, alongside a high-throughput bulk processing framework handling 250,000+ SKU updates per supplier in near real-time, at 99.99% availability.</p>
 
-<p>A query that falls entirely inside the hot window never touches Ceph at all. The Agoda team built that routing into the query engine before I joined: check whether the requested range fits inside the retention boundary, and only reach for the colder, slower tier when it doesn't. I didn't design that boundary or the compaction jobs that feed it — that's Agoda team infrastructure, not mine.</p>
+<p>Both of those systems wrote into the same keyspace PAS's read model already used: Bigtable rows keyed on <code>catalog_id + ocid</code> — an internal product identifier, not the supplier-facing part number a supplier's feed actually arrives with. Delphi, the pricing computation engine, only ever reads by that composite key.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">My contribution &mdash; Agoda, Senior Engineer, WhiteFalcon TSDB, ~5 months</div>
-  I extended the Scala query engine to handle the case the router alone couldn't solve: a time range that spans both tiers. That meant fetching histogram bucket counts from Redis and from Parquet/S3 separately, then merging the two distributions before computing a single correct quantile — because a query answer that silently skipped the cold tier, or merged two already-computed percentiles instead of two raw distributions, would have been wrong in a way nobody querying Grafana could see.
+<div class="attr-box team">
+  <div class="attr-label">Team decision I inherited &mdash; Wayfair, PAS read-model design</div>
+  Keying Bigtable rows on <code>catalog_id + ocid</code> rather than <code>supplier_part_id</code> was already PAS's design when I joined: Delphi's point-lookups are always by OCID, so aligning the row key with that access pattern avoids a secondary translation layer between the two. That decision predates my tenure — it's PAS team infrastructure, not something I designed.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> the cross-tier merge work only existed because the hot-tier-first routing decision already existed underneath it — I was extending a system whose cheap-tier-first shape was a given, not something I chose.</p>
+<p>What I owned was upstream of it: every one of those 250,000+ SKU updates a supplier sent had to resolve to the exact OCID Delphi's read model expected before my framework's write ever reached Bigtable, at a throughput where a resolution step that drifted even slightly — a stale mapping table, a supplier feed that occasionally sent a part ID Delphi's catalog hadn't seen yet — wouldn't crash anything. It would just write a row Delphi's point-lookup would never find.</p>
 
-<h2 id="why-checking-redis-first-was-never-a-close-call">Why Checking Redis First Was Never a Close Call</h2>
+<p class="prose-so-what"><strong>So what:</strong> a canonical key isn't self-enforcing just because one team designed it well — every producer feeding that keyspace has to independently arrive at the same resolved value, and my framework's correctness depended on doing that resolution the same way, every time, at 250k updates a supplier.</p>
 
-<p>The order WhiteFalcon's router picks isn't a stylistic preference. A Redis bucket read for an in-window range is a single in-memory lookup. A cold-tier read means Ceph resolving object placement across its OSDs, then a Parquet file scan over NVMe-backed storage, then decompression — real work, even before the query engine merges anything. Checking the hot tier first isn't an optimization layered on top of a working design; it's the design, because the cost gap between the two tiers is large enough that getting the order backwards would make every recent-data query pay a cold-tier tax it never needed to pay.</p>
+<h2 id="why-one-function-not-many">Why One Function, Not Many</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> an ordering choice earns its place when the cost gap between the two options is real and measured, not assumed — and WhiteFalcon's hot/cold split is exactly that kind of measured gap, not a guess.</p>
+<p>The Wayfair pricing stack never had a single shared "resolve to OCID" call that every writer used — the bulk framework, the RFP intake path, and the manual-override tooling each had their own resolution logic, written by different teams at different times. It worked, mostly, because OCID resolution was simple enough that independent implementations rarely disagreed. But "rarely" is doing real work in that sentence, and a mismatch would surface as a missing price, not an error anyone could grep for.</p>
 
-<h2 id="the-same-shape-one-layer-earlier">The Same Shape, One Layer Earlier</h2>
-
-<p><code>prompt-fingerprinter</code> takes that identical discipline and applies it one layer earlier than WhiteFalcon ever needed to. A SHA-256 fingerprint of a normalized prompt is a Redis <code>GET</code> — one round trip, sub-millisecond. <code>semantic-cache-engine</code>'s lookup needs an embedding-model call before its <code>pgvector</code> similarity search can even run — a network hop the fingerprint check never pays. Checking the fingerprint cache first means a byte-identical retry, a replayed batch job, or a double-submitted request never reaches the embedding pipeline at all.</p>
+<p><code>prompt-fingerprinter</code>'s DESIGN.md makes the opposite bet explicit: <code>pkg/fingerprint.Normalize()</code> is <em>the</em> normalization path, and both this module and <code>semantic-cache-engine</code>'s embedding pipeline are meant to call it rather than re-implement "trim and canonicalize" separately. Today's Go implementation is that single-function decision made real — trim and collapse whitespace on message content, then re-serialize through a <code>map[string]any</code> round-trip so key ordering can never leak into the hashed bytes, all inside one function every caller shares.</p>
 
 <table>
-<thead><tr><th></th><th>WhiteFalcon hot/cold routing</th><th>prompt-fingerprinter / semantic cache</th></tr></thead>
+<thead><tr><th></th><th>Wayfair PAS keyspace</th><th>prompt-fingerprinter cache key</th></tr></thead>
 <tbody>
-<tr><td>Cheap tier</td><td>Redis, in-memory bucket read</td><td>Redis, SHA-256 key <code>GET</code></td></tr>
-<tr><td>Expensive tier</td><td>Ceph/S3, Parquet scan + decompress</td><td>Embedding call + pgvector similarity search</td></tr>
-<tr><td>Why cheap goes first</td><td>Most queries fall inside the retention window</td><td>Most duplicate traffic is byte-identical, not merely similar</td></tr>
+<tr><td>Canonical form</td><td>OCID, resolved from supplier_part_id</td><td>Normalized JSON bytes, from raw prompt</td></tr>
+<tr><td>Who has to agree</td><td>Every write path into Bigtable</td><td>Every caller of Fingerprint()</td></tr>
+<tr><td>Failure mode on drift</td><td>Write lands at a key Delphi never reads</td><td>Equivalent prompt gets treated as new</td></tr>
+<tr><td>Enforcement</td><td>Convention across independent resolvers</td><td>One shared Normalize() function</td></tr>
 </tbody>
 </table>
 
@@ -269,45 +268,52 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Query arrives"] --> B{"In hot window?"}
-  B -->|"yes"| C["Redis bucket read"]
-  B -->|"no"| D["Ceph / S3 Parquet scan"]
-  E["Prompt arrives"] --> F{"Fingerprint hit?"}
-  F -->|"yes"| G["Redis GET, done"]
-  F -->|"no"| H["Embedding + pgvector"]
+  A["Bulk write, 250k SKUs/supplier"] --> B["Resolve to OCID"]
+  B --> C["Bigtable write, catalog+ocid"]
+  D["Delphi price read"] --> C
+  E["Prompt arrives"] --> F["Normalize canonical bytes"]
+  F --> G["SHA-256, Redis GET"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the two systems are separated by a database and a cache, but the underlying bet is identical — spend the cheap check first, and let the expensive path only run for the traffic that actually needs it.</p>
+<p class="prose-so-what"><strong>So what:</strong> "one function, every call path" isn't a style preference — it's the difference between a canonical key that's a convention several teams happen to follow and one that's structurally impossible to compute two different ways.</p>
+
+<h2 id="the-contract-nothing-checks">The Contract Nothing Checks</h2>
+
+<p>Calling this "contract testing" is more than a label. A contract test exists because a producer and a consumer can each pass their own unit tests while silently disagreeing about the shape of what passes between them — the failure only shows up at the boundary, in production, when nobody's looking at either service in isolation. A canonical key has the identical shape of risk: Wayfair's resolvers and Delphi's reader could each be internally correct and still disagree at the boundary if one resolver's mapping table lagged.</p>
+
+<p>Nothing in either system runs an actual contract test today. Wayfair's PAS keyspace relied on convention and code review across resolvers; <code>prompt-fingerprinter</code> relies on <code>Normalize()</code> being the only function anyone calls, which is a stronger guarantee only as long as it stays true — a future caller that hand-rolls its own trimming logic instead of importing the package reintroduces the exact drift risk Day 70's DESIGN.md called out by name.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a shared normalization function is a much better contract enforcement mechanism than convention across independent resolvers, but it's still a convention — "import this package" — not a runtime check, and that gap is worth being honest about rather than pretending the design closes it.</p>
 
 <h2 id="where-the-parallel-breaks">Where the Parallel Breaks</h2>
 
-<p>The honest gap matters as much as the parallel. WhiteFalcon's hot and cold tiers are the same data at different ages — a bucket's contents flow from Redis into Ceph on a schedule, whether or not anyone queries them again. There's a lifecycle connecting the two tiers even when nothing is actively reading from them.</p>
+<p>The two canonical forms aren't the same kind of thing, and that difference matters more than the similarity. An OCID is an opaque identifier assigned once, upstream, by a catalog system — callers look it up, they don't recompute it from a supplier's raw feed bytes. <code>prompt-fingerprinter</code>'s canonical form is derived: every caller re-runs the identical whitespace-collapse-and-canonicalize logic on raw content, every single time, and the fingerprint only exists because that computation reproduced identically.</p>
 
-<p><code>prompt-fingerprinter</code> and <code>semantic-cache-engine</code> have no equivalent lifecycle. A fingerprint miss doesn't mean the prompt "ages into" the semantic tier — it means a second, independent lookup runs against a different index entirely, and either cache can be populated, evicted, or expire without the other one noticing. The two caches share a design principle and, per Day 70's DESIGN.md, a hash definition — they don't share a pipeline the way WhiteFalcon's tiers do.</p>
+<p>That makes prompt-fingerprinter's contract strictly harder to keep. Wayfair's resolvers could drift on a stale mapping table, an operational bug with an operational fix. A normalize function that's re-derived on every call has no equivalent "just refresh the cache" recovery — if the logic itself ever forks between two call sites, every prompt hashed under the forked version silently stops colliding with prompts hashed under the original, and there's no mapping table to go check.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> borrowing an ordering principle from one system doesn't mean borrowing its whole architecture — the part that generalizes is "cheap check first," and the part that doesn't is whatever machinery happens to connect the two tiers in the system the idea came from.</p>
+<p class="prose-so-what"><strong>So what:</strong> borrowing "canonical key, one shared definition" from Wayfair's keyspace doesn't mean the failure modes transfer too — a derived canonical form has to get the computation right on every single call, forever, in a way a looked-up identifier never has to.</p>
 
-<div class="pullquote"><p>Checking the cheap tier first isn't an optimization bolted onto a working design — when the cost gap is real and measured, it is the design.</p></div>
+<div class="pullquote"><p>A canonical key is a contract between everyone who writes to it and everyone who reads from it — and like any contract nobody tests at runtime, it only holds as long as every party keeps agreeing to the same definition.</p></div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 70 of 150 &mdash; Exact Match Before Fuzzy</p>
-  <p><em>Next up:</em> <a href="day-71-normalization-is-contract-testing.html">Day 71 &mdash; Normalization Is Contract Testing</a></p>
+  <p>Experience &middot; Day 71 of 150 &mdash; Normalization Is Contract Testing</p>
+  <p><em>Next up:</em> Day 72 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-69-fail-closed-vs-open-pick-and-document.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-70-exact-match-before-fuzzy.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 69 &mdash; Fail Closed vs Open — Pick and Document (yesterday's post — same Agoda tenure, a Redis outage policy instead of a routing order)</span>
+      <span>Day 70 &mdash; Exact Match Before Fuzzy (yesterday's post — the DESIGN.md this code implements)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-64-pgvector-under-load.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-65-token-budgets-finance-meets-gateway.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 64 &mdash; pgvector Under Load (the other Agoda WhiteFalcon post — same tenure, the semantic tier this design sits in front of)</span>
+      <span>Day 65 &mdash; Token Budgets — Finance Meets Gateway (the other Wayfair post — same supplier-scale pricing stack, a guardrail tradeoff instead of a keyspace)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-60-semantic-cache-wayfair-pricing-deja-vu.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 60 &mdash; Semantic Cache — Wayfair Pricing Deja Vu (the module this cache now sits in front of, on the day it opened)</span>
+      <span>Day 60 &mdash; Semantic Cache — Wayfair Pricing Deja Vu (near-duplicate tolerance in the same pricing system — the opposite end of the exact-vs-fuzzy spectrum from today's post)</span>
     </a>
   </div>
 </div>
@@ -318,9 +324,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-query-router-i-extended-but-didnt-design">A Query Router I Extended</a></li>
-      <li><a href="#why-checking-redis-first-was-never-a-close-call">Why Redis First Was No Contest</a></li>
-      <li><a href="#the-same-shape-one-layer-earlier">The Same Shape, One Layer Earlier</a></li>
+      <li><a href="#a-key-two-systems-had-to-agree-on">A Key Two Systems Agreed On</a></li>
+      <li><a href="#why-one-function-not-many">Why One Function, Not Many</a></li>
+      <li><a href="#the-contract-nothing-checks">The Contract Nothing Checks</a></li>
       <li><a href="#where-the-parallel-breaks">Where the Parallel Breaks</a></li>
     </ul>
   </div>
@@ -328,11 +334,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-70-exact-match-before-fuzzy.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-71-normalization-is-contract-testing.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Exact+Match+Before+Fuzzy+%E2%80%94+Experience+%C2%B7+Day+70+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-70-exact-match-before-fuzzy.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Normalization+Is+Contract+Testing+%E2%80%94+Experience+%C2%B7+Day+71+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-71-normalization-is-contract-testing.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -345,17 +351,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D69</span> Experience</div>
-          <a href="day-69-fail-closed-vs-open-pick-and-document.html" class="series-post-title">Fail Closed vs Open — Pick and Document</a>
+          <div class="series-post-kicker"><span class="series-post-num">D70</span> Experience</div>
+          <a href="day-70-exact-match-before-fuzzy.html" class="series-post-title">Exact Match Before Fuzzy</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D70</span> Experience &middot; now</div>
-          <div class="series-post-title">Exact Match Before Fuzzy</div>
-          <div class="series-post-desc">A cheap exact check ahead of an expensive approximate one — WhiteFalcon's hot/cold tier routing and prompt-fingerprinter's new cache both bet on the same ordering.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D71</span> Experience &middot; now</div>
+          <div class="series-post-title">Normalization Is Contract Testing</div>
+          <div class="series-post-desc">A Bigtable row key and a prompt cache key make the same unenforced promise — every writer and reader must compute the identical canonical form, or the lookup silently misses.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D71</span> Experience</div>
-          <a href="day-71-normalization-is-contract-testing.html" class="series-post-title">Normalization Is Contract Testing</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D72</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
