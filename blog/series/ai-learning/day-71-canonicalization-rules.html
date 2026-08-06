@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 70 &mdash; Prompt Fingerprints | AI Learning Series</title>
-<meta name="description" content="Exact cache is dedup at ingress. Before an LLM gateway pays for an embedding call and a similarity search, it can ask a cheaper question first: has this exact prompt, byte for byte, already been answered? A SHA-256 fingerprint of the canonical form is how that question gets asked in under a millisecond.">
-<meta property="og:title" content="Day 70 &mdash; Prompt Fingerprints">
-<meta property="og:description" content="A duplicate isn't merely similar to itself — it's identical, and identical deserves a cheaper answer than similar does. Today's design doc gives prompt-fingerprinter its own SHA-256 cache tier, checked before the semantic cache ever gets asked.">
+<title>Day 71 &mdash; Canonicalization Rules | AI Learning Series</title>
+<meta name="description" content="A hash function has no opinion about meaning, only bytes — so before anything gets hashed, every caller has to agree on exactly which bytes represent 'the same thing.' Whitespace collapse and sorted JSON keys are today's rules; Git objects and AWS request signing run the identical discipline.">
+<meta property="og:title" content="Day 71 &mdash; Canonicalization Rules">
+<meta property="og:description" content="Canonicalization isn't prompt-fingerprinter's invention — it's the same rule Git uses to hash a commit and AWS uses to verify a signed request: agree on one byte-exact form before anything gets hashed, or two equal things stop looking equal.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-70-prompt-fingerprints.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-70-prompt-fingerprints.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-71-canonicalization-rules.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-71-canonicalization-rules.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-70-prompt-fingerprints.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-71-canonicalization-rules.png">
 <meta property="article:published_time" content="2026-08-06">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 70 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 71 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Caching</span>
+    <span class="tag">Data Modeling</span>
   </div>
-  <h1 class="post-title">Day 70 &mdash; Prompt Fingerprints</h1>
-  <p class="post-subtitle">Exact cache is dedup at ingress. Before an LLM gateway pays for an embedding call and a similarity search, it can ask a cheaper question first: has this exact prompt, byte for byte, already been answered — and a SHA-256 fingerprint of its canonical form is how that question gets asked in under a millisecond.</p>
+  <h1 class="post-title">Day 71 &mdash; Canonicalization Rules</h1>
+  <p class="post-subtitle">Whitespace collapse and sorted JSON keys aren't prompt-fingerprinter's invention — they're the same rules Git uses to hash a commit and AWS uses to verify a signed request, applied one layer earlier than either of those systems ever needed them.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 70 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 71 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 6, 2026</span>
     <div class="meta-divider"></div>
@@ -207,49 +207,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-70-prompt-fingerprints.png" alt="Day 70 — Prompt Fingerprints" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-71-canonicalization-rules.png" alt="Day 71 — Canonicalization Rules" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p><strong>Exact cache is dedup at ingress.</strong> That's the whole idea behind today's design doc, and like most good ideas it fits in one sentence because the hard part isn't the concept — it's noticing that the concept applies before the expensive work runs, not after.</p>
+<p><strong>A hash function has no opinion about meaning &mdash; only bytes.</strong></p>
 
-<p>A gateway sitting in front of an LLM has, at minimum, two ways to avoid calling the model again: recognize that this exact prompt was already answered, or recognize that a similar-enough prompt was already answered. Those sound like the same feature at different precision levels. They're not — they're different questions, answered by different mechanisms, at different costs.</p>
+<p>Feed it "hello world" and "hello world\n" and it will return two completely different digests, with total confidence, and zero awareness that a human would call those the same string.</p>
 
-<h2 id="the-ticket-stub-and-the-vague-description">The Ticket Stub and the Vague Description</h2>
+<p>That's not a flaw in SHA-256. It's the whole contract: identical input, identical output; anything else is out of scope. Which means the burden of deciding what counts as "the same" has to be settled before the hash function ever runs — and that decision is what a canonicalization rule actually is.</p>
+
+<h2 id="the-three-rules-normalize-follows">The Three Rules Normalize() Follows</h2>
+
+<p>Today's <code>prompt-fingerprinter</code> code ships <code>Normalize()</code>, and it follows exactly three rules, in order. Trim leading and trailing whitespace from each message's content. Collapse every internal run of whitespace — a newline, a tab, three spaces from a re-wrapped line — down to one space.</p>
+
+<p>Then the part that matters most: re-serialize the whole thing as canonical JSON, decoding into a generic map and letting the language's own sorted-key map marshaling decide field order, rather than trusting whatever order the original request happened to arrive in.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> two of the three rules clean up incidental noise a human would recognize immediately; the third rule — key ordering — cleans up noise that's invisible to a human entirely, because nobody reads raw JSON byte order, but a hash function reads nothing else.</p>
+
+<h2 id="a-rule-thats-older-than-llm-caching">A Rule That's Older Than LLM Caching</h2>
 
 <div class="attr-box team">
-  <div class="attr-label">DS analogy &mdash; a valet lot with two ways to find your car</div>
-  Hand a valet a numbered ticket stub, and they walk straight to the spot the number maps to — no judgment involved, no comparison, just an exact lookup. Lose the ticket, and the same valet has to ask what the car looks like, then walk the lot comparing your description ("silver sedan, roof rack") against every silver sedan parked there, accepting some risk of picking the wrong one if two cars are close enough. Both methods find a car. Only one of them is a lookup; the other is a search.
+  <div class="attr-label">DS analogy &mdash; how Git decides two commits are the same commit</div>
+  Git never hashes your files directly. It hashes a canonical serialization: a tree object listing each entry's mode, type, and content hash, sorted by filename, with no extra whitespace. Two developers who create the identical file tree in a different order — add file A then B, versus B then A — still produce byte-identical tree objects, because Git throws away "the order I happened to type things in" before it ever computes a SHA. The canonical form is the thing that gets hashed; the order of operations that produced it is deliberately invisible to the hash.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> an exact match and a similarity match aren't the same operation running at different confidence levels — one is a deterministic lookup by identity, the other is a comparison across a whole set of candidates, and the second one is strictly more expensive no matter how good the comparison gets.</p>
+<p>AWS Signature Version 4 runs the identical discipline for a completely different reason: request authentication. Before a client and AWS's servers can agree a request wasn't tampered with, both sides independently build a "canonical request" string — HTTP method, sorted and trimmed headers, canonical query string — and sign that, not the raw HTTP request as it appeared on the wire. If the client's canonicalization drifts from the server's by even one header's whitespace, the signatures stop matching and every request fails closed.</p>
 
-<h2 id="why-bytes-arent-the-ticket-number">Why Bytes Aren't the Ticket Number</h2>
+<p class="prose-so-what"><strong>So what:</strong> "agree on a canonical form before hashing" isn't a prompt-caching trick — it's the same load-bearing assumption underneath content-addressed storage and request signing, two systems with nothing else in common except that both would break silently if their canonicalization rules ever diverged between the two sides computing them.</p>
 
-<p>A prompt request isn't naturally a ticket stub. Two calls can carry the identical intent and still arrive as different bytes — a trailing newline, a JSON serializer that orders keys differently, incidental whitespace from a retry. Hashing those raw bytes would hand out two different stub numbers for what is, functionally, the same car.</p>
+<h2 id="why-the-rules-have-to-be-exhaustive">Why the Rules Have to Be Exhaustive</h2>
 
-<p>Normalization is what turns an arbitrary request into a deterministic stub: trim the incidental whitespace, collapse the rest, re-serialize as canonical JSON with keys in a fixed order. Only after that normalization does hashing produce a number two equivalent requests can actually agree on.</p>
+<p>The dangerous version of a canonicalization bug is never "we forgot to trim whitespace" — that fails loudly and gets caught in the first test someone writes. The dangerous version is a rule nobody thought to write down: unicode normalization form (an accented character has more than one valid byte encoding), floating-point formatting (<code>0.7</code> versus <code>0.70</code> versus <code>7e-1</code>), or a map implementation whose "sorted" guarantee turns out to be language-specific rather than universal.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a fingerprint is only as good as the canonical form it's computed over — skip normalization and the exact-match cache silently degrades into "exact match, as long as the client library serializes JSON the same way every time," which is not a promise any cache should be making.</p>
-
-<h2 id="the-hash-was-never-the-slow-part">The Hash Was Never the Slow Part</h2>
-
-<p>SHA-256 is a deliberately heavier hash than the workload strictly needs for speed — xxhash or murmur3 would compute faster. The reason to pay for SHA-256 anyway is that the thing being optimized here was never the hash computation; it's the embedding-model round trip one tier downstream. A Redis <code>GET</code> is already sub-millisecond regardless of which hash produced the key, so the hash algorithm's speed is nearly free to spend on something else: collision resistance, which is what stands between "cache hit" and "served the wrong tenant's cached answer."</p>
+<p>Go's <code>encoding/json</code> sorts map keys deterministically when marshaling a <code>map[string]any</code>, which is exactly why <code>Normalize()</code> routes through one — but that guarantee is Go's, not JSON's. A second service written in a language whose map marshaling doesn't sort keys, hand-rolling its own version of the same three rules, could produce a fingerprint for the identical logical prompt that never matches the Go version's.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">&lt;1ms</span><span class="stat-label">Target for a fingerprint Redis GET — one round trip, no embedding call</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Network hop a fingerprint hit skips entirely — the call to an embedding model</span></div>
-  <div class="stat-cell"><span class="stat-num">64</span><span class="stat-label">Hex characters in a SHA-256 fingerprint — fixed width, independent of prompt length</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Canonicalization steps — trim, collapse, sort-by-reserialize</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Shared function every caller must import, not reimplement</span></div>
+  <div class="stat-cell"><span class="stat-num">64</span><span class="stat-label">Hex chars in the resulting fingerprint, regardless of prompt length</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> when a cheap operation sits ahead of an expensive one, optimizing the cheap operation's own runtime past a certain point stops mattering — what's worth spending its slack on is correctness, because the cheap step's entire job is deciding, reliably, whether the expensive step needs to run at all.</p>
-
-<h2 id="ordering-as-the-actual-optimization">Ordering as the Actual Optimization</h2>
-
-<p>The fingerprint cache and the semantic cache aren't competing designs — they're two tiers, checked in a fixed order, each catching a different shape of duplicate. A fingerprint hit means "this exact request was seen before." A semantic hit means "a differently-worded request with the same intent was seen before." Checking fingerprint first costs nothing extra on a miss — one Redis round trip is negligible next to the embedding call the semantic tier was going to make regardless — and it removes every byte-identical retry from ever reaching that embedding call at all.</p>
+<p class="prose-so-what"><strong>So what:</strong> "canonicalize before you hash" is only half the rule — the other half is "canonicalize identically everywhere," and that half quietly depends on implementation details (a specific stdlib's map ordering, a specific unicode form) that a spec written in prose can miss even when the code is careful.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -269,43 +271,44 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Prompt arrives"] --> B["Normalize + hash"]
-  B --> C{"Fingerprint hit?"}
-  C -->|"yes"| D["Serve cached, done"]
-  C -->|"no"| E["Semantic cache check"]
-  E -->|"hit"| D
-  E -->|"miss"| F["Call the model"]
+  A["Caller A, same package"] --> N["Normalize()"]
+  B["Caller B, same package"] --> N
+  N --> H["Identical fingerprint"]
+  C["Caller C, own logic"] --> D["Divergent bytes"]
+  D --> M["Fingerprint never matches"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> dedup at ingress isn't about making any single cache faster — it's about shrinking what the expensive tiers downstream ever have to look at, so their cost scales with novel traffic instead of total traffic.</p>
+<p class="prose-so-what"><strong>So what:</strong> the single-shared-function design isn't just cleaner code — it's the only version of "canonicalize identically everywhere" that doesn't depend on every future caller, in every future language, independently rediscovering the same exhaustive rule list.</p>
 
-<div class="pullquote"><p>A duplicate isn't merely similar to itself — it's identical, and identical deserves the cheapest answer a system has.</p></div>
+<div class="pullquote"><p>A hash function only ever answers "are these bytes identical" — canonicalization is the whole system's answer to the harder question, "should these be treated as the same thing."</p></div>
 
-<h2 id="what-a-fingerprint-cant-catch">What a Fingerprint Can't Catch</h2>
+<h2 id="what-canonicalization-still-cant-fix">What Canonicalization Still Can't Fix</h2>
 
-<p>A prompt that changes one word — "summarize this doc" versus "give me a summary of this document" — produces a completely different SHA-256 fingerprint despite meaning the same thing. That's not a bug in the design; it's the boundary of what an exact-match cache was ever supposed to do. Catching that pair is the semantic tier's job, not this one's, and asking the fingerprint layer to catch it would mean abandoning the deterministic collision-resistance guarantee that makes it trustworthy in the first place.</p>
+<p>None of this closes the gap between "byte-identical" and "means the same thing." <code>"summarize this"</code> and <code>"give me a summary"</code> canonicalize to two entirely different fingerprints, correctly — canonicalization was never trying to catch paraphrases, only to stop incidental formatting differences from masquerading as meaningful ones.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a system with two cache tiers isn't hedging against one tier being wrong — it's assigning each tier a boundary it can guarantee, and the two boundaries together cover more duplicate traffic than either one honestly could alone.</p>
+<p>That's a feature of the boundary, not a gap in the design. Catching paraphrases is <code>semantic-cache-engine</code>'s job, with its own cost and its own tolerance for false positives; asking the fingerprint layer to catch them too would mean giving up the one property — deterministic, unambiguous equality — that makes it trustworthy in the first place.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a canonicalization rule earns its keep by being narrow and exhaustive within that narrow scope, not by trying to stretch toward "understanding" what a request means — the moment it tries to do both, it does neither reliably.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 70 of 150 &mdash; Prompt Fingerprints</p>
-  <p><em>Next up:</em> <a href="day-71-canonicalization-rules.html">Day 71 &mdash; Canonicalization Rules</a></p>
+  <p>AI Learning &middot; Day 71 of 150 &mdash; Canonicalization Rules</p>
+  <p><em>Next up:</em> Day 72 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-69-failure-policies-for-budget-redis.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-70-prompt-fingerprints.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 69 &mdash; Failure Policies for Budget Redis (yesterday's post — the previous RouteIQ module, a different cheap-guard-before-expensive-operation shape)</span>
+      <span>Day 70 &mdash; Prompt Fingerprints (yesterday's post — the design doc this implementation makes real)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-60-semantic-caching-economics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 60 &mdash; Semantic Caching Economics (the tier this fingerprint cache now sits in front of)</span>
+      <span>Day 60 &mdash; Semantic Caching Economics (the tier that catches what canonicalization deliberately doesn't)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-70-exact-match-before-fuzzy.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-71-normalization-is-contract-testing.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 70 &mdash; Exact Match Before Fuzzy (today's companion Experience post — the same ordering principle, seen through an Agoda WhiteFalcon lens)</span>
+      <span>Day 71 &mdash; Normalization Is Contract Testing (today's companion Experience post — the same canonical-key discipline, seen through a Wayfair pricing-keyspace lens)</span>
     </a>
   </div>
 </div>
@@ -316,22 +319,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-ticket-stub-and-the-vague-description">Ticket Stub vs Vague Description</a></li>
-      <li><a href="#why-bytes-arent-the-ticket-number">Why Bytes Aren't the Ticket Number</a></li>
-      <li><a href="#the-hash-was-never-the-slow-part">The Hash Was Never the Slow Part</a></li>
-      <li><a href="#ordering-as-the-actual-optimization">Ordering as the Optimization</a></li>
-      <li><a href="#what-a-fingerprint-cant-catch">What a Fingerprint Can't Catch</a></li>
+      <li><a href="#the-three-rules-normalize-follows">The Three Rules Normalize() Follows</a></li>
+      <li><a href="#a-rule-thats-older-than-llm-caching">A Rule Older Than LLM Caching</a></li>
+      <li><a href="#why-the-rules-have-to-be-exhaustive">Why the Rules Must Be Exhaustive</a></li>
+      <li><a href="#what-canonicalization-still-cant-fix">What Canonicalization Can't Fix</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-70-prompt-fingerprints.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-71-canonicalization-rules.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Prompt+Fingerprints+%E2%80%94+AI+Learning+%C2%B7+Day+70+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-70-prompt-fingerprints.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Canonicalization+Rules+%E2%80%94+AI+Learning+%C2%B7+Day+71+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-71-canonicalization-rules.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -344,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D69</span> AI Learning</div>
-          <a href="day-69-failure-policies-for-budget-redis.html" class="series-post-title">Failure Policies for Budget Redis</a>
+          <div class="series-post-kicker"><span class="series-post-num">D70</span> AI Learning</div>
+          <a href="day-70-prompt-fingerprints.html" class="series-post-title">Prompt Fingerprints</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D70</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Prompt Fingerprints</div>
-          <div class="series-post-desc">Exact cache is dedup at ingress. A SHA-256 fingerprint of a canonical prompt answers "have I seen this exact request" in under a millisecond, before any embedding call runs.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D71</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Canonicalization Rules</div>
+          <div class="series-post-desc">Whitespace collapse and sorted JSON keys are the same rules Git uses to hash a commit and AWS uses to sign a request — applied to a prompt instead.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D71</span> AI Learning</div>
-          <a href="day-71-canonicalization-rules.html" class="series-post-title">Canonicalization Rules</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D72</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

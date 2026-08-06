@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-71-canonicalization-rules.html",
+          "kicker": "AI Learning · Day 71 of 150",
+          "title": "Day 71 — Canonicalization Rules",
+          "subtitle": "Whitespace, JSON key order",
+          "date": "2026-08-06",
+          "slug": "day-71-canonicalization-rules",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-71-canonicalization-rules.html",
+          "coverImage": "blog/assets/covers/day-71-canonicalization-rules.png",
+          "desc": "Whitespace collapse and sorted JSON keys are the same rules Git uses to hash a commit and AWS uses to sign a request — canonicalization is older than LLM caching, just applied to a prompt now."
+        },
+        {
           "href": "blog/series/ai-learning/day-70-prompt-fingerprints.html",
           "kicker": "AI Learning · Day 70 of 150",
           "title": "Day 70 — Prompt Fingerprints",
