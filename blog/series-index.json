@@ -708,6 +708,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-69-fail-closed-vs-open-pick-and-document.html",
+          "kicker": "Experience · Day 69 of 150",
+          "title": "Day 69 — Fail Closed vs Open — Pick and Document",
+          "subtitle": "Agoda · outage modes",
+          "date": "2026-08-06",
+          "slug": "day-69-fail-closed-vs-open-pick-and-document",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-69-fail-closed-vs-open-pick-and-document.html",
+          "coverImage": "blog/assets/covers/day-69-fail-closed-vs-open-pick-and-document.png",
+          "desc": "Fail-open and fail-closed are both correct choices — for different tenants. WhiteFalcon's hot-tier retention boundary at Agoda and cost-budget-enforcer's Redis outage policy both pose the same question, and the answer only holds once someone writes it down."
+        },
+        {
           "href": "blog/series/experience/day-68-stub-gateway-compose-before-polish.html",
           "kicker": "Experience · Day 68 of 150",
           "title": "Day 68 — Stub Gateway — Compose Before Polish",
