@@ -732,6 +732,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-71-normalization-is-contract-testing.html",
+          "kicker": "Experience · Day 71 of 150",
+          "title": "Day 71 — Normalization Is Contract Testing",
+          "subtitle": "Wayfair · canonical keys",
+          "date": "2026-08-06",
+          "slug": "day-71-normalization-is-contract-testing",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-71-normalization-is-contract-testing.html",
+          "coverImage": "blog/assets/covers/day-71-normalization-is-contract-testing.png",
+          "desc": "A Bigtable row key and a prompt cache key make the same unenforced promise — every writer and reader must compute the identical canonical form, or the lookup silently misses."
+        },
+        {
           "href": "blog/series/experience/day-70-exact-match-before-fuzzy.html",
           "kicker": "Experience · Day 70 of 150",
           "title": "Day 70 — Exact Match Before Fuzzy",
