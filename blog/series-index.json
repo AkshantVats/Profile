@@ -720,6 +720,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-70-exact-match-before-fuzzy.html",
+          "kicker": "Experience · Day 70 of 150",
+          "title": "Day 70 — Exact Match Before Fuzzy",
+          "subtitle": "Agoda · tiered caches",
+          "date": "2026-08-06",
+          "slug": "day-70-exact-match-before-fuzzy",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-70-exact-match-before-fuzzy.html",
+          "coverImage": "blog/assets/covers/day-70-exact-match-before-fuzzy.png",
+          "desc": "A cheap exact check ahead of an expensive approximate one isn't a shortcut — it's the same tiering discipline WhiteFalcon's hot Redis tier and cold Ceph/S3 tier already run on, applied to a cache instead of a database."
+        },
+        {
           "href": "blog/series/experience/day-69-fail-closed-vs-open-pick-and-document.html",
           "kicker": "Experience · Day 69 of 150",
           "title": "Day 69 — Fail Closed vs Open — Pick and Document",
