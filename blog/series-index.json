@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-68-gateway-middleware-ordering.html",
+          "kicker": "AI Learning · Day 68 of 150",
+          "title": "Day 68 — Gateway Middleware Ordering",
+          "subtitle": "Budget → cache → route",
+          "date": "2026-08-06",
+          "slug": "day-68-gateway-middleware-ordering",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-68-gateway-middleware-ordering.html",
+          "coverImage": "blog/assets/covers/day-68-gateway-middleware-ordering.png",
+          "desc": "Order matters — wrong order leaks spend. A spy on the downstream calls, not just the final response, is what actually proves a blocked request never touches the cache or the model."
+        },
+        {
           "href": "blog/series/ai-learning/day-67-live-config-for-spend.html",
           "kicker": "AI Learning · Day 67 of 150",
           "title": "Day 67 — Live Config for Spend",
