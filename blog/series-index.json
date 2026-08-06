@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-70-prompt-fingerprints.html",
+          "kicker": "AI Learning · Day 70 of 150",
+          "title": "Day 70 — Prompt Fingerprints",
+          "subtitle": "SHA-256 of canonical form",
+          "date": "2026-08-06",
+          "slug": "day-70-prompt-fingerprints",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-70-prompt-fingerprints.html",
+          "coverImage": "blog/assets/covers/day-70-prompt-fingerprints.png",
+          "desc": "Exact cache is dedup at ingress. A SHA-256 fingerprint of a canonical prompt answers \"have I seen this exact request\" in under a millisecond, before any embedding call runs."
+        },
+        {
           "href": "blog/series/ai-learning/day-69-failure-policies-for-budget-redis.html",
           "kicker": "AI Learning · Day 69 of 150",
           "title": "Day 69 — Failure Policies for Budget Redis",
