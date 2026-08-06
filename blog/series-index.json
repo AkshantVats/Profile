@@ -744,6 +744,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-72-two-tier-cache-metrics.html",
+          "kicker": "Experience · Day 72 of 150",
+          "title": "Day 72 — Two-Tier Cache Metrics",
+          "subtitle": "Agoda · hit ratio by tier",
+          "date": "2026-08-06",
+          "slug": "day-72-two-tier-cache-metrics",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-72-two-tier-cache-metrics.html",
+          "coverImage": "blog/assets/covers/day-72-two-tier-cache-metrics.png",
+          "desc": "WhiteFalcon's Redis/Ceph split and prompt-fingerprinter's L1/L2 split ask the same question one layer apart: which tier did the work."
+        },
+        {
           "href": "blog/series/experience/day-71-normalization-is-contract-testing.html",
           "kicker": "Experience · Day 71 of 150",
           "title": "Day 71 — Normalization Is Contract Testing",
