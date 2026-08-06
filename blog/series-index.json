@@ -696,6 +696,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-68-stub-gateway-compose-before-polish.html",
+          "kicker": "Experience · Day 68 of 150",
+          "title": "Day 68 — Stub Gateway — Compose Before Polish",
+          "subtitle": "Stealth · vertical slice",
+          "date": "2026-08-06",
+          "slug": "day-68-stub-gateway-compose-before-polish",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-68-stub-gateway-compose-before-polish.html",
+          "coverImage": "blog/assets/covers/day-68-stub-gateway-compose-before-polish.png",
+          "desc": "A pipeline's stage order has to be proven before any one stage gets optimized — a stub gateway that checks budget before cache before model, and never touches cache or model on a block."
+        },
+        {
           "href": "blog/series/experience/day-67-live-budget-patch-ops-cant-wait.html",
           "kicker": "Experience · Day 67 of 150",
           "title": "Day 67 — Live Budget PATCH — Ops Can't Wait for Deploy",
