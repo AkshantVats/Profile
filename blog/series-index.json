@@ -768,6 +768,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-74-otel-for-cache-tiers.html",
+          "kicker": "Experience · Day 74 of 150",
+          "title": "Day 74 — OTel for Cache Tiers",
+          "subtitle": "Delivery Hero · trace the decision",
+          "date": "2026-08-07",
+          "slug": "day-74-otel-for-cache-tiers",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-74-otel-for-cache-tiers.html",
+          "coverImage": "blog/assets/covers/day-74-otel-for-cache-tiers.png",
+          "desc": "A Delivery Hero rider-tracking system answered 'why this route' by replaying history after the fact. Today's OpenTelemetry span answers the cache-tier version of that question by recording it the moment it happens."
+        },
+        {
           "href": "blog/series/experience/day-73-hash-collisions-happen.html",
           "kicker": "Experience · Day 73 of 150",
           "title": "Day 73 — Hash Collisions Happen",
