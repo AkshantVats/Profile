@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-73-collision-handling.html",
+          "kicker": "AI Learning · Day 73 of 150",
+          "title": "Day 73 — Collision Handling",
+          "subtitle": "TTL isolation on clash",
+          "date": "2026-08-07",
+          "slug": "day-73-collision-handling",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-73-collision-handling.html",
+          "coverImage": "blog/assets/covers/day-73-collision-handling.png",
+          "desc": "A hash-keyed cache can't detect a collision — the fix is the same shape as a rare UUID collision: scope the key, and bound how long you trust it."
+        },
+        {
           "href": "blog/series/ai-learning/day-72-l1-l2-stack-design.html",
           "kicker": "AI Learning · Day 72 of 150",
           "title": "Day 72 — L1/L2 Stack Design",
