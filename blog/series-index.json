@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-75-canonical-forms-before-hashing.html",
+          "kicker": "AI Learning · Day 75 of 150",
+          "title": "Day 75 — Prompt Fingerprinting — Canonical Forms Before Hashing",
+          "subtitle": "Same idea as normalizing SKU keys before Redis lookup",
+          "date": "2026-08-07",
+          "slug": "day-75-canonical-forms-before-hashing",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-75-canonical-forms-before-hashing.html",
+          "coverImage": "blog/assets/covers/day-75-canonical-forms-before-hashing.png",
+          "desc": "How prompt-fingerprinter normalizes a request into canonical form before hashing it, so byte-different-but-equivalent prompts still collide into the same cache key — with today's real benchmark: 7.47µs p50 on an L1 hit, 32.6% hit rate on a duplicate-heavy workload."
+        },
+        {
           "href": "blog/series/ai-learning/day-74-quality-scorer-preview.html",
           "kicker": "AI Learning · Day 74 of 150",
           "title": "Day 74 — Quality Scorer Preview",
