@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 72 &mdash; Two-Tier Cache Metrics | Experience Series</title>
-<meta name="description" content="A blended cache hit rate answers whether the cache is working. WhiteFalcon's Redis/Ceph split at Agoda and prompt-fingerprinter's L1/L2 split both need a sharper question: which tier did the work, because a hot-tier hit and a cold-tier hit cost entirely different amounts.">
-<meta property="og:title" content="Day 72 &mdash; Two-Tier Cache Metrics">
-<meta property="og:description" content="WhiteFalcon's hot/cold query split and prompt-fingerprinter's L1/L2 cache split ask the identical question one layer apart: which tier actually did the work. A single hit/miss number can't answer it.">
+<title>Day 73 &mdash; Hash Collisions Happen | Experience Series</title>
+<meta name="description" content="A version fingerprint let OTA-updated devices answer 'am I already current' without a re-download. At Walmart, two unrelated firmware payloads hashed to the same short fingerprint and one device group skipped an update it needed. The fix — wider hash plus a bounded reconciliation sync — is the direct ancestor of today's tenant-scoped, TTL-bound cache key.">
+<meta property="og:title" content="Day 73 &mdash; Hash Collisions Happen">
+<meta property="og:description" content="A short version fingerprint traded away collision resistance for a cheap on-device check. The fix wasn't detecting the collision — it was bounding it: scope the check, and don't trust it forever.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-72-two-tier-cache-metrics.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-72-two-tier-cache-metrics.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-73-hash-collisions-happen.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-73-hash-collisions-happen.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-72-two-tier-cache-metrics.png">
-<meta property="article:published_time" content="2026-08-06">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-73-hash-collisions-happen.png">
+<meta property="article:published_time" content="2026-08-07">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 72 of 150</span>
+    <span class="tag accent">Experience &middot; Day 73 of 150</span>
     <span class="tag">RouteIQ</span>
-    <span class="tag">Cache Observability</span>
-    <span class="tag">Agoda</span>
+    <span class="tag">Incident</span>
+    <span class="tag">Walmart</span>
   </div>
-  <h1 class="post-title">Day 72 &mdash; Two-Tier Cache Metrics</h1>
-  <p class="post-subtitle">A blended cache hit rate answers "is the cache working." WhiteFalcon's Redis-hot/Ceph-cold query split at Agoda and prompt-fingerprinter's L1/L2 cache split both need a sharper question &mdash; which tier did the work &mdash; because a hot hit and a cold hit cost entirely different amounts.</p>
+  <h1 class="post-title">Day 73 &mdash; Hash Collisions Happen</h1>
+  <p class="post-subtitle">A short version fingerprint let OTA-updated devices answer "am I already current" without a re-download. Two unrelated firmware payloads hashed to the same fingerprint, and one device group quietly skipped an update. The fix wasn't detecting the collision &mdash; it was bounding it.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 72 of 150</span>
+    <span class="meta-item">Experience &middot; Day 73 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 6, 2026</span>
+    <span class="meta-item">August 7, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,41 +208,49 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-72-two-tier-cache-metrics.png" alt="Day 72 — Two-Tier Cache Metrics" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-73-hash-collisions-happen.png" alt="Day 73 — Hash Collisions Happen" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket wires up prompt-fingerprinter's L1/L2 cache stack with three counters: <code>l1_hit</code>, <code>l2_hit</code>, <code>miss</code>. The interesting decision isn't the increment call. It's why a single hit/miss boolean was never going to be enough once a second tier existed &mdash; a question I'd already lived through at Agoda, just with time-series query tiers instead of cache tiers.</p>
+<p>Today's ticket runs a collision drill against prompt-fingerprinter's L1 cache: seed a corrupted entry at the key a hash clash would produce, confirm tenant scoping and a 30-day TTL both bound the damage. I'd already lived the un-drilled version of this failure once, seven years earlier, in firmware instead of Redis.</p>
 
-<h2 id="a-blended-number-that-hides-the-question-that-matters">A Blended Number That Hides the Question That Matters</h2>
+<h2 id="a-version-check-that-had-to-survive-intermittent-networks">A Version Check That Had to Survive Intermittent Networks</h2>
 
-<p>At Agoda I spent roughly five months as a Senior Engineer contributing to WhiteFalcon, the company's in-house time-series database. Redis holds the hot tier &mdash; the last three to seven days at per-hour granularity, the window that absorbs the overwhelming majority of query load. Everything older gets compacted down through Ceph into datetime-partitioned Parquet on S3, WhiteFalcon's cold tier.</p>
+<p>From August 2018 to May 2021 I worked on Walmart's WeIoT SmartBuildings platform, architecting the ingestion layer on Azure IoT Hub that carried telemetry from 7M+ sensors across 50+ global facilities, and building the fault-tolerant edge-to-cloud OTA (over-the-air) firmware framework that kept those facilities' devices in sync under intermittent network conditions.</p>
 
-<div class="attr-box team">
-  <div class="attr-label">Team decision I inherited &mdash; Agoda, WhiteFalcon architecture</div>
-  The hot/cold tier split itself &mdash; Redis for recent data, Ceph/S3 for everything older, compacted hourly then 3-hourly then daily &mdash; was Agoda's existing WhiteFalcon design, inspired by Apache Druid, before I joined. I didn't design the tiering; I extended the query engine that had to read across both tiers in a single request.
+<div class="attr-box mine">
+  <div class="attr-label">Mine &mdash; Walmart, WeIoT OTA firmware framework</div>
+  The ingestion layer and the OTA framework are both work I built directly, not inherited team infrastructure I extended &mdash; the failure this post walks through, and the fix, were mine to own end to end.
 </div>
 
-<p>My contribution sat on top of that split: extending the Scala query engine so a single Grafana request could span a time range crossing the hot/cold boundary, with a mathematically correct merge (histogram bucket counts added together, then one quantile computed on the merged result &mdash; not two separate P95s incorrectly summed). Building and debugging that path meant living inside a question a single "did this query succeed" boolean can't answer: for any given query, did it resolve entirely from Redis, entirely from cold storage, or did it have to touch both?</p>
+<p>A device on a flaky connection can't be trusted to keep an incrementing version counter in sync with the cloud &mdash; it might miss an update, retry a stale one, or apply two out of order. So the manifest that gated each rollout didn't ask a device to track "which update number am I on." It asked a cheaper question instead: does a short fingerprint of my current config match the fingerprint of the version I'm being told to skip to?</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a query success rate tells you the system is up. It says nothing about whether the query paid a single Redis round trip or a Ceph/S3 scan across compacted Parquet files &mdash; and those two costs aren't close enough to round together.</p>
+<p>A match meant "already current, no download needed." That check ran on-device, cheap enough to run on every poll, which is exactly why it used a short hash instead of something cryptographically heavier.</p>
 
-<h2 id="same-split-one-layer-earlier">Same Split, One Layer Earlier</h2>
+<p class="prose-so-what"><strong>So what:</strong> under an unreliable network, a device can't trust a counter it might have missed increments of &mdash; a fingerprint of the actual content sidesteps that entirely, at the cost of betting the fingerprint itself never lies.</p>
 
-<p>prompt-fingerprinter's dual-layer cache asks the identical question, one layer earlier in the request path and about prompts instead of time-series queries. An <code>l1_hit</code> is a Redis <code>GET</code> against a SHA-256 fingerprint &mdash; the cheapest possible resolution. An <code>l2_hit</code> means the fingerprint check missed and <code>semantic-cache-engine</code>'s embedding-model round trip had to run before a <code>pgvector</code> similarity search found a match.</p>
+<h2 id="the-day-two-groups-reported-already-on-latest">The Day Two Groups Reported "Already on Latest"</h2>
 
-<p>A <code>miss</code> means neither tier had an answer and the request paid full inference. Three outcomes, three completely different costs &mdash; exactly the shape WhiteFalcon's hot/cold split has, applied to cache resolution instead of query resolution.</p>
+<p>Two config payloads went out the same rollout cycle for two unrelated device groups at the same facility &mdash; one an HVAC control-loop tuning update, the other a sensor calibration update. Different content, different purpose, no relationship to each other. Their short fingerprints happened to match.</p>
+
+<p>The calibration group's devices polled the manifest, computed their own fingerprint against the current config, saw it match the target, and reported "already on latest." They weren't. The update they actually needed sat undelivered until the next scheduled reconciliation caught the drift.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the fingerprint check didn't fail loudly &mdash; it succeeded, on the wrong input, which is the entire danger of a collision: nothing about the failure looks like a failure from the inside.</p>
+
+<h2 id="blast-radius-one-facility-not-fifty">Blast Radius: One Facility, Not Fifty</h2>
+
+<p>The manifest scoped every fingerprint check to <code>{facility_id}:{device_group}</code> &mdash; a design choice made for routing, not for collision safety, but one that paid off as collision safety anyway. The mixup stayed inside one facility's one device group. It never had a path to any of the other 50+ facilities, because their manifests were keyed under entirely different scopes and a collision under one key has no way to be read back under another.</p>
 
 <table>
-<thead><tr><th></th><th>WhiteFalcon query engine</th><th>prompt-fingerprinter cache stack</th></tr></thead>
+<thead><tr><th></th><th>WeIoT OTA manifest</th><th>prompt-fingerprinter L1 cache</th></tr></thead>
 <tbody>
-<tr><td>Fast path</td><td>Redis hot tier, last 3&ndash;7 days</td><td>Redis L1, exact fingerprint match</td></tr>
-<tr><td>Slow path</td><td>Ceph/S3 cold tier, Parquet scan</td><td>L2, embedding call + pgvector search</td></tr>
-<tr><td>What a blended number hides</td><td>Whether the hot window is sized correctly</td><td>Whether most traffic is duplicates or genuinely novel</td></tr>
-<tr><td>Boundary basis</td><td>Recency (time)</td><td>Match type (exact vs. fuzzy)</td></tr>
+<tr><td>Fast-path key</td><td>Short hash of config payload</td><td>SHA-256 of normalized prompt</td></tr>
+<tr><td>Scope that bounds a collision</td><td><code>facility_id:device_group</code></td><td><code>tenant_id</code></td></tr>
+<tr><td>What went wrong</td><td>Short hash, real collision, silent skip</td><td>None &mdash; SHA-256, drill only</td></tr>
+<tr><td>Time-bound backstop</td><td>Periodic reconciliation sync</td><td>30-day hard TTL</td></tr>
 </tbody>
 </table>
 
@@ -264,53 +272,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Q["Grafana query"] --> H["Redis hot tier"]
-  H -->|"recent"| RH["Resolved hot"]
-  H -->|"too old"| C["Ceph and S3 cold"]
-  P["Prompt request"] --> L1["Redis L1 fingerprint"]
-  L1 -->|"exact match"| RL1["l1_hit"]
-  L1 -->|"miss"| L2["Semantic L2 lookup"]
+  A["Two configs, same facility"] --> B["Short fingerprint collides"]
+  B --> C["Group reports already current"]
+  D["Other 49 facilities"] -.->|"different scope key"| C
+  E["Reconciliation sync"] --> F["Drift caught, late"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> once a system has more than one place an answer can come from, "did it work" stops being the useful question &mdash; "which tier answered it" is what tells you whether the expensive tier is doing needless work or exactly the work it should.</p>
+<p class="prose-so-what"><strong>So what:</strong> the scoping that contained this incident wasn't designed for incident containment &mdash; it was the routing key doing collision-blast-radius work as a side effect, which is worth noticing precisely because it wasn't planned that way.</p>
 
-<h2 id="where-the-parallel-breaks-time-vs-match-type">Where the Parallel Breaks &mdash; Time vs. Match Type</h2>
+<h2 id="root-cause-a-cheap-hash-traded-away-the-one-property-we-needed">Root Cause: A Cheap Hash Traded Away the One Property We Needed</h2>
 
-<p>The two splits look identical in shape and aren't identical underneath. WhiteFalcon's tier boundary is purely a function of time: a query for data from four days ago is cold today and will still be cold tomorrow, regardless of anything about the query itself.</p>
+<p>The fingerprint used a short, non-cryptographic hash, chosen because it was cheap enough to compute on constrained edge hardware on every poll. That was the right call for cost. It was the wrong call for the one property a version check actually needs: two different inputs must not produce the same output, ever, not just rarely.</p>
 
-<p>prompt-fingerprinter's boundary has nothing to do with age. A prompt doesn't become more or less likely to need the semantic tier as it "ages" &mdash; its fate is decided entirely by whether an earlier, byte-identical version of it happens to already sit in Redis.</p>
+<p>Speed and collision resistance aren't the same axis, and this design picked the wrong one to optimize first. prompt-fingerprinter's DESIGN.md makes the opposite choice explicit today, for what reads like the identical reason: choose SHA-256 over a faster hash because the bottleneck it's protecting against &mdash; an embedding-model round trip, in that design's case &mdash; makes the hash's own cost irrelevant, so there's no reason to spend collision resistance buying speed nobody needed.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> borrowing "three-way tier accounting" from WhiteFalcon doesn't mean borrowing its capacity-planning logic too &mdash; sizing a time-based hot window is a retention-policy decision; sizing a match-based cache is a question about how repetitive your actual traffic is, and those call for different levers entirely.</p>
+<p class="prose-so-what"><strong>So what:</strong> a cheap hash is only the right call when nothing downstream cares about the rare case &mdash; and a version check, where "rare" still means "silently wrong forever," is exactly the case that does.</p>
 
-<h2 id="backfill-has-no-whitefalcon-analog">Backfill Has No WhiteFalcon Analog</h2>
+<h2 id="fix-and-guardrail-wider-hash-and-a-backstop-that-doesnt-trust-it-forever">Fix and Guardrail: Wider Hash, and a Backstop That Doesn't Trust It Forever</h2>
 
-<p>There's one piece of today's design that doesn't map onto WhiteFalcon at all. Cold Ceph/S3 data in WhiteFalcon never gets promoted back into the Redis hot tier on a query hit &mdash; there'd be no point. Data is cold because it's old, and reading it once doesn't make it more recent; the hot/cold boundary is governed by a retention window, not by which rows got queried.</p>
+<p>The fingerprint got wider &mdash; a real hash function, not a fast approximation. But the fix that actually mattered wasn't making the check better; it was refusing to let any fast-path check, however good, be trusted unconditionally forever.</p>
 
-<p>prompt-fingerprinter's stack does the opposite on purpose: an <code>l2_hit</code> writes its response back into Redis at the fingerprint key, so the very next byte-identical repeat of that prompt becomes an <code>l1_hit</code> instead of paying the embedding cost again. That's a real design decision with no "team precedent" behind it at Agoda to lean on, because WhiteFalcon's tiering was never solving the problem backfill solves here &mdash; it had no notion of a response earning its way into a faster tier by being asked for again.</p>
+<p>A periodic reconciliation sync started re-verifying every device's actual reported config against the manifest's target on a fixed schedule, independent of what the fingerprint check itself said. A wrong fingerprint match could still happen once. It couldn't happen and then stay uncorrected past the next reconciliation window.</p>
 
-<div class="pullquote"><p>A blended hit rate answers whether the cache works. A per-tier hit rate answers what it costs when it doesn't &mdash; and only one of those numbers tells you where to invest next.</p></div>
+<div class="pullquote"><p>Making the fast check better lowers how often it's wrong. Bounding how long you'll trust it is what keeps "less often" from becoming "silently forever" the one time it still is.</p></div>
 
-<p class="prose-so-what"><strong>So what:</strong> the parallel to WhiteFalcon was good for framing the observability question &mdash; three-way tier accounting instead of a blended number &mdash; but the actual policy for what to do once you can see the split had to be invented fresh for a cache that gets to promote its own hits, which a time-partitioned archive never needed to.</p>
+<p class="prose-so-what"><strong>So what:</strong> today's <code>HardTTL</code> on prompt-fingerprinter's L1 backfill is the same instinct in a different system &mdash; not a claim that SHA-256 will collide, but a refusal to let any cache entry, however unlikely to be wrong, go unverified against the source of truth indefinitely.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 72 of 150 &mdash; Two-Tier Cache Metrics</p>
-  <p><em>Next up:</em> <a href="day-73-hash-collisions-happen.html">Day 73 &mdash; Hash Collisions Happen</a></p>
+  <p>Experience &middot; Day 73 of 150 &mdash; Hash Collisions Happen</p>
+  <p><em>Next up:</em> Day 74 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-71-normalization-is-contract-testing.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-72-two-tier-cache-metrics.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 71 &mdash; Normalization Is Contract Testing (yesterday's post &mdash; the fingerprint primitives today's stack composes)</span>
+      <span>Day 72 &mdash; Two-Tier Cache Metrics (yesterday's post &mdash; the L1/L2 stack this collision drill exercises)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ota-at-scale-at-least-once-is-a-feature.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>When Percentiles Lie &mdash; Cross-Tier Queries (the WhiteFalcon cross-tier query work this post draws its parallel from)</span>
+      <span>OTA at Scale &mdash; At-Least-Once Is a Feature (the same WeIoT rollout framework, a delivery-ordering failure mode instead of a collision one)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/seven-million-iot-sensors-failure-modes.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Cardinality Is the Silent Killer (the other WhiteFalcon post &mdash; same system, an indexing failure mode instead of a tiering one)</span>
+      <span>Seven Million IoT Sensors &mdash; Failure Modes (the platform-plumbing scope note this post's attribution follows)</span>
     </a>
   </div>
 </div>
@@ -321,21 +327,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-blended-number-that-hides-the-question-that-matters">A Blended Number That Hides the Question</a></li>
-      <li><a href="#same-split-one-layer-earlier">Same Split, One Layer Earlier</a></li>
-      <li><a href="#where-the-parallel-breaks-time-vs-match-type">Where the Parallel Breaks</a></li>
-      <li><a href="#backfill-has-no-whitefalcon-analog">Backfill Has No WhiteFalcon Analog</a></li>
+      <li><a href="#a-version-check-that-had-to-survive-intermittent-networks">A Version Check for Bad Networks</a></li>
+      <li><a href="#the-day-two-groups-reported-already-on-latest">The Day Two Groups Collided</a></li>
+      <li><a href="#blast-radius-one-facility-not-fifty">Blast Radius: One Facility</a></li>
+      <li><a href="#root-cause-a-cheap-hash-traded-away-the-one-property-we-needed">Root Cause: The Wrong Tradeoff</a></li>
+      <li><a href="#fix-and-guardrail-wider-hash-and-a-backstop-that-doesnt-trust-it-forever">Fix and Guardrail</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-72-two-tier-cache-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-73-hash-collisions-happen.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Two-Tier+Cache+Metrics+%E2%80%94+Experience+%C2%B7+Day+72+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-72-two-tier-cache-metrics.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Hash+Collisions+Happen+%E2%80%94+Experience+%C2%B7+Day+73+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-73-hash-collisions-happen.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -348,17 +355,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D71</span> Experience</div>
-          <a href="day-71-normalization-is-contract-testing.html" class="series-post-title">Normalization Is Contract Testing</a>
+          <div class="series-post-kicker"><span class="series-post-num">D72</span> Experience</div>
+          <a href="day-72-two-tier-cache-metrics.html" class="series-post-title">Two-Tier Cache Metrics</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D72</span> Experience &middot; now</div>
-          <div class="series-post-title">Two-Tier Cache Metrics</div>
-          <div class="series-post-desc">WhiteFalcon's Redis/Ceph split and prompt-fingerprinter's L1/L2 split ask the same question one layer apart: which tier did the work.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D73</span> Experience &middot; now</div>
+          <div class="series-post-title">Hash Collisions Happen</div>
+          <div class="series-post-desc">WeIoT's OTA version-fingerprint mixup and today's collision drill share the same containment shape: scope the check, and bound how long you trust it.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D73</span> Experience</div>
-          <a href="day-73-hash-collisions-happen.html" class="series-post-title">Hash Collisions Happen</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D74</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
