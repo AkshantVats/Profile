@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-74-quality-scorer-preview.html",
+          "kicker": "AI Learning · Day 74 of 150",
+          "title": "Day 74 — Quality Scorer Preview",
+          "subtitle": "Routing needs scores",
+          "date": "2026-08-07",
+          "slug": "day-74-quality-scorer-preview",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-74-quality-scorer-preview.html",
+          "coverImage": "blog/assets/covers/day-74-quality-scorer-preview.png",
+          "desc": "A router that only weighs cost and latency is missing a signal. model-quality-scorer previews how quality joins the formula, scored asynchronously off the request path — the same shape as a Kubernetes scheduler reading a precomputed node score."
+        },
+        {
           "href": "blog/series/ai-learning/day-73-collision-handling.html",
           "kicker": "AI Learning · Day 73 of 150",
           "title": "Day 73 — Collision Handling",
