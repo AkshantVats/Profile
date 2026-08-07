@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-76-two-tier-cache-hierarchy.html",
+          "kicker": "AI Learning · Day 76 of 150",
+          "title": "Day 76 — Exact-Match vs Semantic Cache — Two-Tier Memory Hierarchy",
+          "subtitle": "L1 exact / L2 embedding, like CPU cache levels",
+          "date": "2026-08-08",
+          "slug": "day-76-two-tier-cache-hierarchy",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-76-two-tier-cache-hierarchy.html",
+          "coverImage": "blog/assets/covers/day-76-two-tier-cache-hierarchy.png",
+          "desc": "Why prompt-fingerprinter's exact-match L1 sits in front of semantic-cache-engine's embedding-based L2 — the same cheap-narrow-first shape a CPU's L1/L2 memory hierarchy uses — and how today's admin API makes L1's definition of \"duplicate\" tenant-configurable."
+        },
+        {
           "href": "blog/series/ai-learning/day-75-canonical-forms-before-hashing.html",
           "kicker": "AI Learning · Day 75 of 150",
           "title": "Day 75 — Prompt Fingerprinting — Canonical Forms Before Hashing",
