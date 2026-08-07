@@ -792,6 +792,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-76-circuit-breaker-half-open-state.html",
+          "kicker": "Experience · Day 76 of 150",
+          "title": "Day 76 — Supplier API Circuit Breakers — Half-Open State in Production",
+          "subtitle": "Wayfair: testing the recovery path before Black Friday, not just the trip",
+          "date": "2026-08-08",
+          "slug": "day-76-circuit-breaker-half-open-state",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-76-circuit-breaker-half-open-state.html",
+          "coverImage": "blog/assets/covers/day-76-circuit-breaker-half-open-state.png",
+          "desc": "The trip condition on Wayfair's supplier pricing circuit breaker shipped years ago. What got tested on purpose, for the first time, ahead of Black Friday was the half-open recovery path — and why a mechanism being correct and a mechanism being exercised are different claims."
+        },
+        {
           "href": "blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html",
           "kicker": "Experience · Day 75 of 150",
           "title": "Day 75 — Wayfair's Redis Lua Token Bucket at 250k SKU Scale",
