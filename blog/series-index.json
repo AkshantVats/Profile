@@ -756,6 +756,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-73-hash-collisions-happen.html",
+          "kicker": "Experience · Day 73 of 150",
+          "title": "Day 73 — Hash Collisions Happen",
+          "subtitle": "Walmart · OTA version mixups",
+          "date": "2026-08-07",
+          "slug": "day-73-hash-collisions-happen",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-73-hash-collisions-happen.html",
+          "coverImage": "blog/assets/covers/day-73-hash-collisions-happen.png",
+          "desc": "A short version fingerprint traded away collision resistance for a cheap on-device check at Walmart. The fix wasn't detecting the collision — it was bounding it, the same shape as today's tenant-scoped, TTL-bound cache key."
+        },
+        {
           "href": "blog/series/experience/day-72-two-tier-cache-metrics.html",
           "kicker": "Experience · Day 72 of 150",
           "title": "Day 72 — Two-Tier Cache Metrics",
