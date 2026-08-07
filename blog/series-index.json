@@ -780,6 +780,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html",
+          "kicker": "Experience · Day 75 of 150",
+          "title": "Day 75 — Wayfair's Redis Lua Token Bucket at 250k SKU Scale",
+          "subtitle": "Atomic INCR across replicas when pricing updates flooded APIs",
+          "date": "2026-08-07",
+          "slug": "day-75-wayfair-redis-lua-token-bucket",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html",
+          "coverImage": "blog/assets/covers/day-75-wayfair-redis-lua-token-bucket.png",
+          "desc": "Day 25's Lua rate limiter fixed a race condition. Day 75 is the rollout story: watching that atomic token bucket hold at 15,263 RPS batch bursts against a 250k+ SKU supplier catalog, and the tenant-scoped cache key that borrows the same discipline."
+        },
+        {
           "href": "blog/series/experience/day-74-otel-for-cache-tiers.html",
           "kicker": "Experience · Day 74 of 150",
           "title": "Day 74 — OTel for Cache Tiers",
