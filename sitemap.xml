@@ -768,4 +768,16 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/ai-learning/day-75-canonical-forms-before-hashing.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
