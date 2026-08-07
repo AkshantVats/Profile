@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 75 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale | Experience Series</title>
-<meta name="description" content="Day 25's Lua rate limiter fixed a race condition. Day 75 is the rollout story: what changed operationally once that atomic token bucket had to hold as Wayfair's supplier catalog scaled toward 250k+ SKUs, and what today's exact-match cache borrowed from the same discipline.">
-<meta property="og:title" content="Day 75 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale">
-<meta property="og:description" content="Atomic INCR across replicas when pricing updates flooded APIs. Before/after topology, the metrics that proved the fix held under real batch-run bursts, and the rollback check that almost pointed at the wrong culprit.">
+<title>Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production | Experience Series</title>
+<meta name="description" content="Wayfair's supplier pricing circuit breaker trips on five consecutive timeouts or a 50% error rate in 30 seconds — that part shipped years ago. What never got tested on purpose, until a deliberate drill ahead of Black Friday, was the half-open probe that decides whether the circuit actually recovers.">
+<meta property="og:title" content="Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production">
+<meta property="og:description" content="A circuit breaker's open transition gets exercised constantly. Its half-open recovery path rarely does — which is exactly the path a peak-traffic event turns from theoretical into expensive if nobody's watched it succeed first.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-75-wayfair-redis-lua-token-bucket.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-76-circuit-breaker-half-open-state.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-76-circuit-breaker-half-open-state.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-75-wayfair-redis-lua-token-bucket.png">
-<meta property="article:published_time" content="2026-08-07">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-76-circuit-breaker-half-open-state.png">
+<meta property="article:published_time" content="2026-08-08">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,64 +185,60 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 75 of 150</span>
-    <span class="tag">Rollout</span>
-    <span class="tag">Redis</span>
+    <span class="tag accent">Experience &middot; Day 76 of 150</span>
+    <span class="tag">Feature</span>
+    <span class="tag">Resilience</span>
     <span class="tag">Wayfair</span>
   </div>
-  <h1 class="post-title">Day 75 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale</h1>
-  <p class="post-subtitle">Atomic INCR across replicas when pricing updates flooded APIs. Day 25's Lua script fixed a race condition. This is what changed operationally once that fix had to hold as the supplier catalog scaled toward 250k+ SKUs.</p>
+  <h1 class="post-title">Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production</h1>
+  <p class="post-subtitle">The trip condition shipped years ago. What we tested on purpose, for the first time, ahead of Black Friday wasn't whether the breaker could open &mdash; it was whether it could actually come back.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 75 of 150</span>
+    <span class="meta-item">Experience &middot; Day 76 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 7, 2026</span>
+    <span class="meta-item">August 8, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-75-wayfair-redis-lua-token-bucket.png" alt="Day 75 — Wayfair's Redis Lua Token Bucket at 250k SKU Scale" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-76-circuit-breaker-half-open-state.png" alt="Day 76 — Supplier API Circuit Breakers — Half-Open State in Production" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket benchmarked prompt-fingerprinter's exact-match cache: hit rate, lookup latency, the numbers DESIGN.md promised back on Day 70. That's not a story on its own &mdash; it's a spreadsheet. What earned a post is the fingerprint cache's key format, because it borrows a discipline I first paid for the hard way on the rate limiter I wrote about on Day 25, at Wayfair, once that limiter had to hold at a scale the original fix was never tested against.</p>
+<p>I've written before about the circuit breaker guarding Wayfair's supplier pricing path &mdash; a mechanism that stops sending requests to a downstream service once it starts failing, the same way a household breaker cuts power before a fault does real damage. That post covers the trip condition, the <code>503</code> it returns, why it exists alongside the token bucket rather than instead of it. It never covers the other half of a circuit breaker's job: what happens after it opens.</p>
 
-<h2 id="the-limiter-before-a-window-that-could-lie-to-twelve-pods-at-once">The Limiter Before: A Window That Could Lie to Twelve Pods at Once</h2>
+<p>Today's ticket, an admin API that changes how <code>prompt-fingerprinter</code> decides two prompts are "the same," is what finally made me write about it.</p>
 
-<p>Wayfair's supplier pricing path runs submissions through <code>gst-acc-promotions</code> &mdash; the HTTP service, running 12 pods, that suppliers' pricing tools call &mdash; into PAS (<code>price-adjustment-system</code>), which routes into SPCS, the Supplier Price and Cost Service that actually persists a price change. SPCS caps every client at 8 concurrent batch calls, 100 parts each: 800 parts in flight before it starts returning 429s.</p>
+<h2 id="the-trip-condition-briefly-because-its-already-written-up">The Trip Condition, Briefly, Because It's Already Written Up</h2>
 
-<p>The rate limiter guarding that 800-part ceiling used to be a plain Redis <code>INCR</code> followed by an <code>EXPIRE</code>, two separate round trips. At window reset, all 12 <code>gst-acc-promotions</code> pods could <code>INCR</code> the same just-expired key in the same instant, every one of them get back <code>1</code>, and every one believe it was first through the door &mdash; SPCS's ceiling blown by roughly 12x before any <code>EXPIRE</code> landed to stop it.</p>
+<p>Supplier pricing submissions run through <code>gst-acc-promotions</code> into PAS, which routes into SPCS &mdash; the service that actually persists a price change. The breaker in front of that path trips on five consecutive timeouts, or a 50% error rate in a 30-second window, and once open it returns <code>503</code> to every request immediately, without touching SPCS at all. That's the mechanism I built and shipped, and it's covered in full elsewhere &mdash; I'm not re-deriving it here.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; Wayfair, pricing/promotions rate limiter and rollout</div>
-  The Lua token-bucket fix and this post's rollout &mdash; the topology change, the batch-run verification, the reconciliation-window check &mdash; are work I owned end to end on the supplier pricing submission path, not infrastructure I inherited and observed.
+  <div class="attr-label">Mine &mdash; Wayfair, supplier pricing circuit breaker and the Black Friday half-open drill</div>
+  The breaker itself, the trip thresholds, and the manual half-open verification process this post describes are work I owned end to end on the supplier pricing submission path &mdash; the same scope as the token-bucket rate limiter and rollout I've written about elsewhere in this series.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> two Redis commands that look atomic from the client side aren't atomic to Redis at all &mdash; the gap between them is exactly wide enough for every pod in a fleet to walk through it at once.</p>
+<p class="prose-so-what"><strong>So what:</strong> a breaker that trips correctly under load has proven exactly one thing &mdash; that it can tell "broken" from "working." It hasn't proven it can tell the reverse.</p>
 
-<h2 id="the-fix-i-already-wrote-about-a-lua-script-as-one-execution-unit">The Fix I Already Wrote About: A Lua Script as One Execution Unit</h2>
+<h2 id="the-half-open-transition-nobody-had-actually-watched">The Half-Open Transition Nobody Had Actually Watched</h2>
 
-<p>Day 25 covers the mechanism in full, so I won't re-paste the script here. The short version: a single Redis Lua script reads the token count and last-refill time with <code>HMGET</code>, computes the refill owed, and writes the new state with <code>HMSET</code> plus <code>EXPIRE</code> &mdash; all inside one script execution, which Redis guarantees no other command can interrupt.</p>
+<p>Standard circuit breaker design has a third state between open and closed: half-open. After a cooldown, the breaker lets exactly one probe request through. If it succeeds, the breaker closes and normal traffic resumes.</p>
 
-<p>A token bucket, for anyone who hasn't met the pattern: think of a bucket that refills at a fixed rate and drains one token per request, and a request only proceeds if a token is available &mdash; it smooths bursts the way a header tank smooths a pump's flow instead of the pipe seeing every surge directly. That single-execution guarantee is what a naive <code>INCR</code>+<code>EXPIRE</code> pair never had, and it's the reason 12 pods hitting a reset window can no longer each believe they were first.</p>
+<p>If it fails, the breaker reopens and waits again. It's a small piece of logic, and it's correct by construction &mdash; either the probe succeeds or it doesn't.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> Redis gives a Lua script the same isolation a database gives a stored procedure inside a transaction &mdash; not a faster rate limiter, but a structurally different one where "two commands mid-race" simply can't occur.</p>
+<p>What that correctness doesn't cover is everything happening around the probe at the exact moment it runs. SPCS's real outages, the ones that actually tripped our breaker in production, mostly lasted seconds to low minutes &mdash; short enough that the half-open transition ran and resolved without anyone watching it closely, because the incident was already over by the time anyone looked. The path existed, it presumably worked, and nobody had a specific memory of confirming that under real traffic rather than assuming it from the code.</p>
 
-<h2 id="what-changed-operationally-the-rollout-not-the-script">What Changed Operationally: The Rollout, Not the Script</h2>
-
-<p>Day 25 shipped the mechanism. What this post is actually about is what came after: PAS traffic wasn't flat while that fix aged into production. Average load sat around 3,414 RPS, with batch pricing runs pushing bursts to roughly 15,263 RPS &mdash; and the supplier catalog behind those submissions kept climbing toward the 250k+ SKUs per supplier the pricing engine was built to carry.</p>
-
-<p>A rate limiter that's provably correct at moderate load still has to prove it stays correct once the traffic it's gating gets five times spikier. The rollout wasn't a redeploy of new code &mdash; the Lua script itself didn't change after Day 25 &mdash; it was a period of watching the same atomic mechanism absorb burst shapes closer to what 250k+ SKUs of supplier catalog actually produces during a coordinated batch run.</p>
+<p class="prose-so-what"><strong>So what:</strong> a path that only ever runs during the tail end of an incident nobody was watching is, in practice, an untested path &mdash; regardless of how simple its logic is on paper.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,69 +258,55 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["12 pods call INCR"] --> B["Window resets"]
-  B --> C["All twelve read 1"]
-  C --> D["SPCS ceiling blown ~12x"]
-  E["12 pods call Lua script"] --> F["Atomic HMGET then HMSET"]
-  F --> G["800-part ceiling holds"]
+  CLOSED["Closed: normal traffic"] -->|"5 timeouts or 50% err/30s"| OPEN["Open: 503 everything"]
+  OPEN -->|"cooldown elapses"| HALFOPEN["Half-open: one probe"]
+  HALFOPEN -->|"probe succeeds"| CLOSED
+  HALFOPEN -->|"probe fails"| OPEN
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> a fix that's correct under a load test is a hypothesis until it's watched surviving the traffic shape it was actually built for &mdash; the rollout is where that hypothesis either gets confirmed or quietly fails in a way a synthetic benchmark never would have caught.</p>
+<h2 id="the-drill-forcing-open-on-purpose-before-black-friday">The Drill: Forcing Open on Purpose, Before Black Friday</h2>
 
-<h2 id="the-evidence-800-parts-in-flight-not-9600">The Evidence: 800 Parts in Flight, Not 9,600</h2>
+<p>Ahead of Black Friday, we forced the breaker open deliberately &mdash; a controlled downstream fault injected against a staging path shaped like the real one, not a real SPCS outage &mdash; and watched the half-open probe and recovery run under realistic pricing-submission traffic. The goal wasn't to test the state machine's logic. It was to test everything the logic assumes is well-behaved around it.</p>
 
-<p>The signal that mattered wasn't a dashboard counter going green. It was SPCS's own 429 rate staying flat across the highest-volume batch pricing runs, at the 15,263 RPS peak, instead of spiking the way it had under the old <code>INCR</code>+<code>EXPIRE</code> limiter every time a window reset landed mid-burst.</p>
+<p>Three things got checked that the breaker's own code has no way to check about itself: whether a flood of client retries, all arriving the instant the probe succeeds, could pile onto the newly-half-open breaker and trip it straight back open before it stabilized; whether the monitoring dashboard reflected the open-to-half-open-to-closed sequence quickly enough for someone to notice if recovery stalled; and whether the token bucket's own fail-open Redis policy, from the rate limiter I've written about separately, interacted badly with a breaker that's simultaneously trying to recover.</p>
 
-<table>
-<thead><tr><th></th><th>Before &mdash; INCR + EXPIRE</th><th>After &mdash; Lua token bucket</th></tr></thead>
-<tbody>
-<tr><td>Window-reset behavior</td><td>All 12 pods can win the race</td><td>Exactly one write per tick, atomically</td></tr>
-<tr><td>Worst-case in-flight parts</td><td>~9,600 (12x the 800-part ceiling)</td><td>800, enforced</td></tr>
-<tr><td>SPCS 429s at 15,263 RPS peak</td><td>Spiked at reset boundaries</td><td>Flat, ceiling-bound</td></tr>
-</tbody>
-</table>
+<p class="prose-so-what"><strong>So what:</strong> the drill wasn't testing whether the breaker's logic was correct &mdash; it already was, by construction. It was testing whether the system around that logic behaved the way the logic assumes.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the metric that proves a rate limiter works isn't its own internal counter &mdash; it's whether the downstream service it's protecting stops seeing the failure mode the limiter exists to prevent.</p>
+<h2 id="todays-code-the-same-pattern-a-different-mechanism">Today's Code: The Same Pattern, a Different Mechanism</h2>
 
-<h2 id="the-rollback-check-that-almost-blamed-the-wrong-thing">The Rollback Check That Almost Blamed the Wrong Thing</h2>
+<p><code>prompt-fingerprinter</code>'s new admin endpoint, <code>PUT /tenants/{id}/fingerprint-rules</code>, lets a tenant configure whether prompts get lowercased or stripped of punctuation before they're hashed. The moment that call lands, what counts as "the same prompt" for that tenant changes &mdash; a normalization rule change is a config deploy, live, on a path that decides whether a request costs a Redis <code>GET</code> or an embedding-model round trip.</p>
 
-<p>Partway through that observation window, a slow stretch of requests briefly looked like the Lua script itself was the new bottleneck &mdash; understandable, since "the new atomic thing is slower than the old racy thing" is exactly the kind of tradeoff a rollback plan needs to be ready to catch. The rollback plan itself was simple: the old <code>INCR</code>+<code>EXPIRE</code> code path stayed deployed behind a flag, ready to flip back if the script's own overhead was the real cost.</p>
+<p>The logic itself is correct by construction the same way the breaker's half-open state is: the code either applies the configured rule or it doesn't, and the unit tests for <code>Rules.Apply</code> prove it does. What actually matters &mdash; the thing worth deliberately exercising before trusting it &mdash; is whether the rule change produces the specific outcome it's supposed to under real traffic shape: two near-duplicate prompts that used to miss the cache now hitting it. That's exactly what today's integration test does: configure the rule, send two prompts differing only in case and punctuation, and confirm the second one resolves from the cache instead of paying for a second embedding call.</p>
 
-<p>Before reaching for that flag, a quick <code>redis-cli</code> check with script timing isolated where the latency actually lived: the Lua execution itself ran in single-digit milliseconds, well inside budget, and the slow stretch tracked with SPCS's own 429 backoff and retry behavior instead. Redis looked suspect for about ten minutes and turned out innocent &mdash; the rollback flag never got flipped.</p>
+<div class="pullquote"><p>A mechanism being provably correct and a mechanism being exercised are different claims. The first one comes from the code. The second one only comes from deliberately running the path that matters most before the day it matters most.</p></div>
 
-<p class="prose-so-what"><strong>So what:</strong> a rollback plan's value isn't only in the switch it provides &mdash; it's in forcing a verification step before flipping it, which is what turned "Redis looks slow" from an assumption into a ruled-out possibility.</p>
+<p class="prose-so-what"><strong>So what:</strong> whether it's a circuit breaker's recovery path or a cache's normalization rule, "the logic is correct" and "I've watched this specific scenario play out" are different bars &mdash; and the second one is the one worth clearing before a deploy that changes production behavior, not after.</p>
 
-<h2 id="the-same-discipline-in-todays-cache-key">The Same Discipline in Today's Cache Key</h2>
+<h2 id="what-the-drill-actually-bought">What the Drill Actually Bought</h2>
 
-<p>prompt-fingerprinter's exact-match cache, the thing I actually benchmarked today, keys every entry as <code>fingerprint:{tenant_id}:{fingerprint}</code> &mdash; a SHA-256 hash of the normalized prompt, scoped under a tenant ID rather than stored as a bare hash. DESIGN.md is explicit about why: a hash collision is cryptographically implausible under SHA-256, but "implausible" isn't the bar a shared cache should be built to, so the tenant scope means a collision, if it ever happened, stays contained to one tenant's keyspace instead of leaking a response across tenants.</p>
+<p>Black Friday's batch pricing runs came and went without the breaker tripping at all &mdash; SPCS held under peak load, so the drill's specific scenario (recovery under real traffic) never got a live rerun on the day itself. That's not a null result. The value of the drill wasn't insurance against that specific Black Friday; it was insurance against every future incident where the breaker does trip during a peak window, because now the half-open path has a known-good run on record instead of an assumption.</p>
 
-<p>That's the same shape as Day 25's fix, aimed at a different failure mode. The Lua script made a two-step race structurally impossible instead of merely rare; the tenant-scoped key makes cross-tenant leakage structurally impossible instead of merely unlikely. Neither fix depends on hoping a bad case doesn't line up with a worse one.</p>
-
-<p>Today's benchmark put real numbers on that cache's fast path: <code>TestLatencyPercentiles_L1Hit</code> measured a p50 of 7.47&micro;s for an L1 hit, and <code>TestHitRate_DuplicateWorkload</code> resolved 32.6% of a 35%-duplicate workload without ever reaching the semantic tier. Both numbers come from an in-process Redis stand-in, not a live instance, the same honest caveat this repo's own BENCHMARKS.md logs &mdash; but the key format underneath them doesn't depend on that caveat closing.</p>
-
-<div class="pullquote"><p>A racy INCR is wrong sometimes, under load, in a way a load test might not catch. A bare hash key is wrong once in an astronomically unlikely case that a load test can never catch at all. Both get fixed the same way: stop trusting the case won't happen, and make it structurally unable to.</p></div>
-
-<p class="prose-so-what"><strong>So what:</strong> at 250k+ SKUs of supplier catalog and at whatever tenant count this cache eventually serves, correctness can't rest on "this probably won't collide at the same moment" &mdash; it has to be true by construction, which is what an atomic script and a tenant-scoped key both buy, in their own corner of the same system.</p>
+<p class="prose-so-what"><strong>So what:</strong> the payoff of exercising a rarely-run path isn't always visible on the day you exercised it for &mdash; it's visible the next time that path actually has to run for real, with one less unknown in it.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 75 of 150 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale</p>
-  <p><em>Next up:</em> <a href="day-76-circuit-breaker-half-open-state.html">Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production</a></p>
+  <p>Experience &middot; Day 76 of 150 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production</p>
+  <p><em>Next up:</em> Day 77 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-25-redis-rate-limits-lua-race-conditions.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 25 &mdash; Redis Rate Limits and Lua Race Conditions (the original fix this post's rollout builds on)</span>
+      <span>Supplier APIs and Token Buckets &mdash; Wayfair's Real Circuit Breaker (the trip condition and token-bucket pairing this post's recovery-path story extends)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-74-otel-for-cache-tiers.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 74 &mdash; OTel for Cache Tiers (yesterday's post &mdash; the same prompt-fingerprinter stack this benchmark measures)</span>
+      <span>Day 75 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale (the fail-open Redis policy this post's drill checked against a recovering breaker)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-73-hash-collisions-happen.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 73 &mdash; Hash Collisions Happen (the collision-containment story this post's tenant-scoped key extends)</span>
+      <span>Day 73 &mdash; Hash Collisions Happen (another rarely-exercised failure mode designed for on purpose, rather than assumed away)</span>
     </a>
   </div>
 </div>
@@ -335,23 +317,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-limiter-before-a-window-that-could-lie-to-twelve-pods-at-once">The Limiter Before: A Lying Window</a></li>
-      <li><a href="#the-fix-i-already-wrote-about-a-lua-script-as-one-execution-unit">The Fix I Already Wrote About</a></li>
-      <li><a href="#what-changed-operationally-the-rollout-not-the-script">What Changed Operationally</a></li>
-      <li><a href="#the-evidence-800-parts-in-flight-not-9600">The Evidence: 800 Parts, Not 9,600</a></li>
-      <li><a href="#the-rollback-check-that-almost-blamed-the-wrong-thing">The Rollback Check</a></li>
-      <li><a href="#the-same-discipline-in-todays-cache-key">The Same Discipline Today</a></li>
+      <li><a href="#the-trip-condition-briefly-because-its-already-written-up">The Trip Condition, Briefly</a></li>
+      <li><a href="#the-half-open-transition-nobody-had-actually-watched">The Untested Half-Open Path</a></li>
+      <li><a href="#the-drill-forcing-open-on-purpose-before-black-friday">The Drill Before Black Friday</a></li>
+      <li><a href="#todays-code-the-same-pattern-a-different-mechanism">Today's Code, Same Pattern</a></li>
+      <li><a href="#what-the-drill-actually-bought">What the Drill Actually Bought</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-75-wayfair-redis-lua-token-bucket.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-76-circuit-breaker-half-open-state.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Wayfair%27s+Redis+Lua+Token+Bucket+at+250k+SKU+Scale+%E2%80%94+Experience+%C2%B7+Day+75+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-75-wayfair-redis-lua-token-bucket.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Supplier+API+Circuit+Breakers+%E2%80%94+Half-Open+State+in+Production+%E2%80%94+Experience+%C2%B7+Day+76+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-76-circuit-breaker-half-open-state.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -364,17 +345,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D74</span> Experience</div>
-          <a href="day-74-otel-for-cache-tiers.html" class="series-post-title">OTel for Cache Tiers</a>
+          <div class="series-post-kicker"><span class="series-post-num">D75</span> Experience</div>
+          <a href="day-75-wayfair-redis-lua-token-bucket.html" class="series-post-title">Wayfair's Redis Lua Token Bucket at 250k SKU Scale</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D75</span> Experience &middot; now</div>
-          <div class="series-post-title">Wayfair's Redis Lua Token Bucket at 250k SKU Scale</div>
-          <div class="series-post-desc">Day 25's Lua rate limiter fix, watched surviving the traffic shape it was built for: 15,263 RPS batch bursts against a 250k+ SKU supplier catalog.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D76</span> Experience &middot; now</div>
+          <div class="series-post-title">Supplier API Circuit Breakers &mdash; Half-Open State in Production</div>
+          <div class="series-post-desc">The trip condition shipped years ago. What got tested on purpose, ahead of Black Friday, was whether the breaker could actually come back.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D76</span> Experience</div>
-          <a href="day-76-circuit-breaker-half-open-state.html" class="series-post-title">Supplier API Circuit Breakers &mdash; Half-Open State in Production</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D77</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
