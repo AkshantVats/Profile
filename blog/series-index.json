@@ -840,6 +840,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-80-route-revisions-revisit-order-system.html",
+          "kicker": "Experience · Day 80 of 150",
+          "title": "Day 80 — Route Revisions and Revisit Order System — Compensating Bad Polylines",
+          "subtitle": "Delivery Hero · immutable Route { } snapshots · rollback without corrupting UI",
+          "date": "2026-08-08",
+          "slug": "day-80-route-revisions-revisit-order-system",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-80-route-revisions-revisit-order-system.html",
+          "coverImage": "blog/assets/covers/day-80-route-revisions-revisit-order-system.png",
+          "desc": "Route Service recomputes 5k+ times a second, and some recomputations disagree with what a support agent's screen already shows. Revisit Order System handles that by producing a new immutable Route revision instead of mutating the polyline in place — the same discipline RouteIQ's decision engine applies to a routing choice today."
+        },
+        {
           "href": "blog/series/experience/day-79-stream-analytics-to-kafka.html",
           "kicker": "Experience · Day 79 of 150",
           "title": "Day 79 — Walmart Stream Analytics Dropped Messages — Switching to Kafka",
