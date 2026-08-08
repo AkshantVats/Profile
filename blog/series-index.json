@@ -816,6 +816,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-78-decoupling-sqs-from-osrm.html",
+          "kicker": "Experience · Day 78 of 150",
+          "title": "Day 78 — Delivery Hero Async Pipelines — Why We Decoupled SQS from OSRM",
+          "subtitle": "5k events/sec only survived because scoring work was never on the hot path",
+          "date": "2026-08-08",
+          "slug": "day-78-decoupling-sqs-from-osrm",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-78-decoupling-sqs-from-osrm.html",
+          "coverImage": "blog/assets/covers/day-78-decoupling-sqs-from-osrm.png",
+          "desc": "The old rider-notification path sat in the same call chain as OSRM route recompute, so a throttled notification provider could stall routing for every rider behind it. The fix was an SQS-boundary decoupling with a shadow-mode rollout and a rollback flag I had to use once."
+        },
+        {
           "href": "blog/series/experience/day-77-p99-per-tenant-slos.html",
           "kicker": "Experience · Day 77 of 150",
           "title": "Day 77 — Agoda P99 Cannot Be Averaged Across Tenants",
