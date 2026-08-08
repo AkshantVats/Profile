@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 78 &mdash; Delivery Hero Async Pipelines &mdash; Why We Decoupled SQS from OSRM | Experience Series</title>
-<meta name="description" content="5k route updates a second only survived because notification delivery was never allowed to sit in the same call chain as routing. The fix wasn't a faster OSRM cluster — it was an SQS boundary between the two, and a rollback plan honest enough to admit the cutover could fail.">
-<meta property="og:title" content="Day 78 &mdash; Delivery Hero Async Pipelines &mdash; Why We Decoupled SQS from OSRM">
-<meta property="og:description" content="Before the decoupling, one slow notification call could stall a route recompute for every rider behind it. After: a Kafka-shaped SQS boundary, sub-second delivery updates, and a rollback plan I actually needed once.">
+<title>Day 79 &mdash; Score Normalization &mdash; Why 0&ndash;1 Beats Raw Likert | AI Learning Series</title>
+<meta name="description" content="A 78 out of 100 means something different depending on how many criteria and what weights produced it — averaging raw scores across rubrics is comparing two different rulers as if they were the same one. Today's normalized_score column exists to fix exactly that.">
+<meta property="og:title" content="Day 79 &mdash; Score Normalization &mdash; Why 0&ndash;1 Beats Raw Likert">
+<meta property="og:description" content="normalize.Score turns rubric.WeightedScore's 0-100 output into a 0-1 comparable unit, the same move a z-score makes when comparing two populations measured on different scales — plus the statistical noise floor that decides how much to trust a rollup's mean.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-78-decoupling-sqs-from-osrm.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-78-decoupling-sqs-from-osrm.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-79-score-normalization-0-1-vs-likert.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-78-decoupling-sqs-from-osrm.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-79-score-normalization-0-1-vs-likert.png">
 <meta property="article:published_time" content="2026-08-08">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,49 +185,50 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 78 of 150</span>
-    <span class="tag">Rollout</span>
-    <span class="tag">Async Pipelines</span>
-    <span class="tag">Delivery Hero</span>
+    <span class="tag accent">AI Learning &middot; Day 79 of 150</span>
+    <span class="tag">Distributed Systems</span>
+    <span class="tag">LLM-as-Judge</span>
   </div>
-  <h1 class="post-title">Day 78 &mdash; Delivery Hero Async Pipelines &mdash; Why We Decoupled SQS from OSRM</h1>
-  <p class="post-subtitle">5k route updates a second only survived because one slow notification call could no longer sit in the same path as a route recompute &mdash; and the fix needed a rollback plan I actually had to use once.</p>
+  <h1 class="post-title">Day 79 &mdash; Score Normalization &mdash; Why 0&ndash;1 Beats Raw Likert</h1>
+  <p class="post-subtitle">A 78 out of 100 doesn't mean the same thing on every rubric &mdash; today's job is putting every rubric's output on one comparable unit before anything averages across them.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 78 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 79 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 8, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-78-decoupling-sqs-from-osrm.png" alt="Day 78 — Delivery Hero Async Pipelines — Why We Decoupled SQS from OSRM" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-79-score-normalization-0-1-vs-likert.png" alt="Day 79 — Score Normalization — Why 0-1 Beats Raw Likert" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>At Delivery Hero, Route Service and Route Consumers both read from Order SQS, and both eventually call into OSRM (the routing engine that map-matches a rider's position and produces a polyline) to recompute a rider's route. That part of the topology was fine. The part that wasn't fine is that in an earlier version of the stack, the same request path that triggered a route recompute also triggered the rider notification &mdash; "your delivery is on the way," push and SMS both &mdash; as one synchronous call chain hanging off Order Service.</p>
+<p>Store both raw and normalized in <code>quality_scores</code> &mdash; that's the whole shape of today's work, and the reason for it isn't obvious until you look at what a raw score actually encodes. <code>rubric.WeightedScore</code> already outputs a number in <code>[0,100]</code> for every rubric, regardless of how many criteria that rubric has or how the weights are split across them.</p>
 
-<p>A route recompute is fast. A push notification provider having a slow afternoon is not something route computation should ever have to wait on. But it did, because nothing in the code enforced otherwise &mdash; the notification call was just the next line after the route update, in the same request.</p>
+<p>On the surface, that looks solved: every rubric produces the same range, so averaging across them should be fine. It isn't, and today's <code>normalize.Score</code> exists because of exactly why not.</p>
+
+<h2 id="the-problem">Two Rubrics, Same Range, Different Rulers</h2>
+
+<p>Day 77's <code>JudgeRubric</code> schema makes it legal for two <code>task_type</code>s to have rubrics with a different number of criteria and different weight distributions &mdash; a two-criterion summarization rubric weighted 60/40, say, versus a five-criterion extraction rubric weighted more evenly. Both output <code>[0,100]</code>. Both were produced by structurally different weighted sums.</p>
+
+<p>A rollup that averages <code>model_id=X</code>'s scores across both <code>task_type</code>s is quietly treating those two numbers as if they came off the same ruler, when they were measured on two different ones that just happen to share a range by coincidence.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; Delivery Hero, async pipeline design and rollout for the routing plane</div>
-  Order Service, Order SQS, and the OSRM cluster itself were existing platform infrastructure I inherited. My contribution was designing and rolling out the SQS-based decoupling between order/routing events and notification delivery, and the dual-write cutover strategy that got the routing plane to 1M+ daily orders and 5k+ route updates/sec on EKS without a rollback that customers noticed.
+  <div class="attr-label">DS analogy &mdash; z-scoring across populations</div>
+  A raw exam score of 78 means something different on a test with a mean of 50 and a spread of 10 than on a test with a mean of 75 and a spread of 20 &mdash; comparing the two raw numbers directly is comparing them on each test's own arbitrary scale. A z-score, <code>(x - mean) / stddev</code>, puts both onto the same unit: "how many standard deviations from this population's own center." <code>normalize.Score</code> doesn't compute a z-score &mdash; a rubric's <code>[0,100]</code> range is already fixed, not an open population &mdash; but it does the identical job at a smaller scale: collapsing <code>WeightedScore</code>'s output onto one interpretable unit, <code>[0,1]</code>, "fraction of this rubric's maximum," so a rollup comparing two different rubrics is comparing them on the same footing instead of a coincidentally shared range.
 </div>
 
-<h2 id="before">Before: One Call Chain, Two Unrelated Jobs</h2>
-
-<p>Picture the old path: Order Service receives a <code>RIDER PICKED UP</code> event, calls Route Service to recompute the polyline against OSRM, and then &mdash; still inside the same handler &mdash; calls the notification provider. If OSRM was healthy but the notification provider was throttling us, the handler blocked on the notification call anyway. Every rider whose event landed behind that one in the queue waited for a notification retry that had nothing to do with their own route.</p>
-
 <pre class="mermaid">
 %%{init: {
   'theme': 'base',
@@ -246,95 +247,82 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  EV["RIDER PICKED UP event"] --> OS["Order Service handler"]
-  OS --> RT["Route recompute via OSRM"]
-  OS --> NT["Notification send, same call"]
-  NT -->|"provider throttling"| BLOCK["Handler blocked"]
-  BLOCK -.->|"head-of-line"| NEXT["Next rider's event waits"]
+  WS["WeightedScore, 0-100"] --> NS["normalize.Score, 0-1"]
+  NS --> STORE["quality_scores, both columns"]
+  STORE --> ROLLUP["Rollup, averages 0-1 only"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the bug wasn't OSRM being slow &mdash; OSRM was fine &mdash; it was that two jobs with no real dependency on each other shared one failure domain, so the slower of the two set the ceiling for both.</p>
+<p class="prose-so-what"><strong>So what:</strong> "same numeric range" and "comparable unit" are not the same claim &mdash; two rubrics sharing <code>[0,100]</code> tells you nothing about whether averaging across them is valid, the same way two exams both scored out of 100 doesn't mean a 78 on each means the same thing.</p>
 
-<h2 id="after">After: SQS as the Boundary, Not Just a Queue</h2>
+<h2 id="why-both-columns">Why Store Both, Not Just Normalized</h2>
 
-<p>The fix split the handler into two consumers reading from Order SQS independently: one that only calls OSRM and writes the route object, and one that only sends the notification. Neither can block the other, because neither is inside the other's call stack anymore &mdash; they're two consumer groups pulling the same lifecycle events at their own pace.</p>
+<p><code>score</code> (0-100) is what the judge actually computed, and it's what a debugging session reading <code>rationale</code> next to it wants to see &mdash; DESIGN.md §6 already designed <code>rationale</code> for exactly that audit use case, and throwing away the raw number the moment it's written would make the row less legible for it. <code>normalized_score</code> is a derived, always-recomputable-from-<code>score</code> convenience column for the one thing raw scores are bad at: being averaged across a <code>model_id×task_type</code> boundary that mixes different rubrics.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-  EV["RIDER PICKED UP event"] --> SQS["Order SQS"]
-  SQS --> RC["Route Consumers"]
-  SQS --> NC["Notification consumer"]
-  RC --> OSRM["OSRM cluster"]
-  OSRM --> ROUTE["Route object to UI"]
-  NC -->|"independent retry"| PROV["Notification provider"]
-</pre>
+<p class="prose-so-what"><strong>So what:</strong> normalization isn't a replacement for the raw score, it's an addition &mdash; the raw number stays the source of truth for a human, the normalized number becomes the input for anything that has to average across a rubric boundary.</p>
 
-<p>Order SQS was already the lifecycle event bus &mdash; <code>PICKED UP</code>, <code>PLACED</code>, <code>RIDER ENQUE</code>, <code>RIDER PICKED UP</code> all flowed through it before this change. What changed is that notification delivery stopped being a side effect buried inside the routing handler and became its own consumer of the exact same stream, with its own retry policy and its own backlog if the provider degraded.</p>
+<h2 id="rollup-query">Today's Rollup Code, Concretely</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> the queue didn't need to get faster or bigger &mdash; it needed a second, independent reader, because the actual bug was architectural coupling, not throughput.</p>
+<p><code>pkg/rollup.Query(Window1h)</code> and <code>Query(Window24h)</code> return the <code>toStartOfHour</code>/<code>toStartOfDay(scored_at)</code>-grouped SQL that averages <code>normalized_score</code> &mdash; never raw <code>score</code> &mdash; per <code>model_id, task_type</code> bucket. This is the query-time aggregation DESIGN.md §6 already committed <code>model-quality-scorer</code> to, extended to operate on the unit that's actually safe to average.</p>
 
-<h2 id="rollback">The Rollback Plan I Needed Once</h2>
+<table>
+<thead><tr><th></th><th>Averaging raw score</th><th>Averaging normalized_score</th></tr></thead>
+<tbody>
+<tr><td>Same rubric, same weights</td><td>Valid</td><td>Valid</td></tr>
+<tr><td>Different criteria count</td><td>Silently wrong</td><td>Valid</td></tr>
+<tr><td>Different weight split</td><td>Silently wrong</td><td>Valid</td></tr>
+</tbody>
+</table>
 
-<p>We didn't cut over all traffic at once. The new notification consumer ran in shadow mode first &mdash; reading the stream, sending real notifications, but with the old synchronous path still live and authoritative &mdash; so we could compare delivery latency and failure rate before removing the old code path. Once shadow metrics matched, we flipped a percentage of riders to the new path behind a flag, watched for a day, then ramped to 100%.</p>
+<p class="prose-so-what"><strong>So what:</strong> the failure mode a mismatched unit produces isn't a crash or an obviously wrong number &mdash; it's a plausible-looking average that's quietly comparing things that were never on the same scale, which is exactly the kind of bug nobody notices until a routing decision built on it goes wrong for a reason no one can trace back to this.</p>
 
-<p>The rollback plan was simple on purpose: flip the flag back to the old synchronous path, leave the new consumer running but ignored. We used it exactly once, early in the rollout, when the new notification consumer's retry backoff was too aggressive and started tripping the provider's own rate limit &mdash; a self-inflicted throttling loop that the old path's more conservative retry hadn't triggered. Flipping back cost us a few hours of the old coupling returning, not a customer-visible outage, because the flag was a config change, not a redeploy.</p>
+<h2 id="noise-floor">A Number and Its Sample Count Are Two Different Facts</h2>
 
-<div class="pullquote"><p>A rollback plan you never test is a rollback plan you don't actually have. We tested ours by needing it.</p></div>
-
-<p class="prose-so-what"><strong>So what:</strong> shadow mode caught the two systems' latency profiles diverging before customers could notice, and the flag-based rollback turned one bad retry-tuning decision into an afternoon instead of an incident review.</p>
-
-<h2 id="metrics">What the Numbers Actually Showed</h2>
+<p>Normalization solves which unit is comparable. It doesn't solve how much to trust any one bucket's mean, which is the other half of today's work: <code>pkg/rollup.MinSamplesForConfidence = 30</code> and <code>StandardError</code> (<code>stddev / sqrt(n)</code>) are the statistical noise floor documented in <code>NOISE-FLOOR.md</code>.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">Route updates/sec</span></div>
-  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders on EKS</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;1s</span><span class="stat-label">Delivery status updates</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Customer-visible downtime</span></div>
+  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Min samples for confidence</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Rollup windows (1h, 24h)</span></div>
+  <div class="stat-cell"><span class="stat-num">0-1</span><span class="stat-label">Comparable score unit</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Score columns stored per row</span></div>
 </div>
 
-<p>The number that mattered most wasn't route throughput &mdash; OSRM could already keep up before this change. It was that delivery status updates stayed sub-second even during a notification-provider degradation, because a slow provider now only backed up the notification consumer's own lag metric, not the routing plane's.</p>
+<p>A 1h bucket with 4 samples and a 1h bucket with 400 samples can report the identical average and mean very different things &mdash; the same way a z-score computed from a 4-person sample and one computed from a 400-person sample carry very different confidence even at an identical value. 30 is the standard rule-of-thumb threshold from the Central Limit Theorem, below which the sampling distribution of the mean can't be reasonably approximated as normal, so the reported standard error understates the real uncertainty.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the metric that proves a decoupling worked isn't "the fast path got faster" &mdash; it's "the fast path stopped caring when the slow path had a bad day."</p>
+<div class="pullquote"><p>A mean without its sample count isn't a fact yet. It's a fact and a half — the confidence half is the one that's easy to leave out and expensive to be wrong about.</p></div>
 
-<h2 id="today">Today's Code: The Same Shape, a Different Queue</h2>
+<p class="prose-so-what"><strong>So what:</strong> a rollup consumer that only reads the average is one comparable-unit bug and one thin-bucket away from routing traffic on a number that was never trustworthy in the first place &mdash; normalization and the noise floor are two separate fixes because they're two separate ways a mean can quietly lie.</p>
 
-<p><code>model-quality-scorer</code>, which I implemented today, draws the identical boundary. A sampled request has already been served &mdash; cache lookup, budget check, and the model call all completed &mdash; before it ever reaches the <code>judge-requests</code> Kafka topic. Grading that response against a rubric is a full model call in its own right, exactly the kind of variable-latency work that has no business sitting in front of a response that already went out.</p>
+<h2 id="todays-experience-post">Today's Experience Post, Same Shape</h2>
 
-<p>Same failure isolation pattern, different provider on the other end: instead of a notification API that might throttle, it's a judge model that might time out. Instead of a flag-gated rollback to a synchronous path, it's a circuit breaker that stops pulling new samples once the judge's failure rate crosses 10% over a trailing window &mdash; the judge going quiet costs nothing user-facing, the same way a quiet notification provider no longer touched a rider's route.</p>
+<p>Today's companion Experience post tells a version of the same lesson from Walmart's WeIoT platform: a windowed stream query forgets everything the moment its boundary closes, the same way an un-normalized rollup forgets that its inputs came from different rubrics the moment it averages them. The fix in both cases wasn't processing faster or averaging harder &mdash; it was keeping the raw, retained facts (a replayable Kafka log there, a per-sample <code>quality_scores</code> row here) so a later computation can always be redone correctly instead of trusted once and forgotten.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "does this belong on the hot path" turned out to be a question worth asking again eight years and one industry later &mdash; the answer is still no whenever the work downstream of a response doesn't change what that response already was.</p>
+<p class="prose-so-what"><strong>So what:</strong> "keep the raw facts so you can always recompute" and "make sure what you're averaging is actually comparable" are two different disciplines that both point the same direction &mdash; toward a rollup you can trust because you can see exactly what it was built from.</p>
+
+<h2 id="what-comes-next">What Comes Next</h2>
+
+<p>Day 78's rollout table holds: Day 80 spends today's normalized, confidence-aware rollup in RouteIQ's weighted utility function, joining quality to the cost and latency signals the router already has. A low-confidence bucket, per <code>NOISE-FLOOR.md</code>, should fall back to the wider 24h window rather than feeding an under-sampled mean into a routing decision.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> today's normalization and noise floor only matter because a near-future day is going to trust these numbers enough to route real traffic on them &mdash; a comparable unit with no confidence signal would just be a more precisely wrong way to build that trust.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 78 of 150 &mdash; Delivery Hero Async Pipelines &mdash; Why We Decoupled SQS from OSRM</p>
-  <p><em>Next up:</em> <a href="day-79-stream-analytics-to-kafka.html">Day 79 — Walmart Stream Analytics Dropped Messages — Switching to Kafka</a></p>
+  <p>AI Learning &middot; Day 79 of 150 &mdash; Score Normalization &mdash; Why 0&ndash;1 Beats Raw Likert</p>
+  <p><em>Next up:</em> Day 80 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-78-async-evaluation-pipelines-throughput-over-latency.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Five Thousand Geo-Events Per Second (the stream shape and OSRM match-quality story this decoupling protected)</span>
+      <span>Day 78 — Async Evaluation Pipelines (yesterday's post, whose "What Comes Next" section previewed this exact scope)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-77-judge-rubrics-structured-data.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Ten Thousand Concurrent Requests &mdash; EKS Patterns (how Route Service and Route Consumers autoscale at peak, downstream of this same topology)</span>
+      <span>Day 77 — LLM-as-Judge — Rubrics as Structured Data (the JudgeRubric schema that makes different criteria counts and weight distributions legal across task_types)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-79-stream-analytics-to-kafka.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 79 — Walmart Stream Analytics Dropped Messages (today's companion Experience post — the same "keep the raw, retained facts" discipline, one layer up the stack)</span>
     </a>
   </div>
 </div>
@@ -345,22 +333,23 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#before">Before: One Call Chain</a></li>
-      <li><a href="#after">After: SQS as the Boundary</a></li>
-      <li><a href="#rollback">The Rollback Plan</a></li>
-      <li><a href="#metrics">What the Numbers Showed</a></li>
-      <li><a href="#today">Today's Code, Same Shape</a></li>
+      <li><a href="#the-problem">Two Rubrics, Different Rulers</a></li>
+      <li><a href="#why-both-columns">Why Store Both Columns</a></li>
+      <li><a href="#rollup-query">Today's Rollup Code</a></li>
+      <li><a href="#noise-floor">A Mean and Its Sample Count</a></li>
+      <li><a href="#todays-experience-post">Today's Experience Post</a></li>
+      <li><a href="#what-comes-next">What Comes Next</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-78-decoupling-sqs-from-osrm.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-79-score-normalization-0-1-vs-likert.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Delivery+Hero+Async+Pipelines+%E2%80%94+Experience+%C2%B7+Day+78+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-78-decoupling-sqs-from-osrm.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Score+Normalization+%E2%80%94+Why+0-1+Beats+Raw+Likert+%E2%80%94+AI+Learning+%C2%B7+Day+79+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-79-score-normalization-0-1-vs-likert.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -369,21 +358,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">Experience Series</div>
-      <div class="series-title">150 days of building in public</div>
+      <div class="series-label">AI Learning Series</div>
+      <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D77</span> Experience</div>
-          <a href="day-77-p99-per-tenant-slos.html" class="series-post-title">Agoda P99 Cannot Be Averaged Across Tenants</a>
+          <div class="series-post-kicker"><span class="series-post-num">D78</span> AI Learning</div>
+          <a href="day-78-async-evaluation-pipelines-throughput-over-latency.html" class="series-post-title">Async Evaluation Pipelines — Throughput Over Latency</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D78</span> Experience &middot; now</div>
-          <div class="series-post-title">Delivery Hero Async Pipelines &mdash; Why We Decoupled SQS from OSRM</div>
-          <div class="series-post-desc">5k events/sec only survived because scoring work was never on the hot path.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D79</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Score Normalization — Why 0-1 Beats Raw Likert</div>
+          <div class="series-post-desc">A comparable unit across rubrics, plus the sample-count floor that decides how much to trust a rollup's mean.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D79</span> Experience</div>
-          <a href="day-79-stream-analytics-to-kafka.html" class="series-post-title">Walmart Stream Analytics Dropped Messages — Switching to Kafka</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D80</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -396,7 +385,7 @@ flowchart LR
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
+      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
