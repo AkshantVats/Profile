@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-80-multi-objective-routing-scalarization.html",
+          "kicker": "AI Learning · Day 80 of 150",
+          "title": "Day 80 — Multi-Objective Routing — Scalarization and Weights",
+          "subtitle": "Weighted sum like cost-aware load balancing",
+          "date": "2026-08-08",
+          "slug": "day-80-multi-objective-routing-scalarization",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-80-multi-objective-routing-scalarization.html",
+          "coverImage": "blog/assets/covers/day-80-multi-objective-routing-scalarization.png",
+          "desc": "RouteIQ's decision.Utility scalarizes quality, cost, and latency into one ranked value via tenant-overridable weights — the same technique a cost-aware load balancer uses, plus the deterministic tie-break toward the cheaper model that scalarization's near-ties make necessary."
+        },
+        {
           "href": "blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html",
           "kicker": "AI Learning · Day 79 of 150",
           "title": "Day 79 — Score Normalization — Why 0–1 Beats Raw Likert",
