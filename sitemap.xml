@@ -816,4 +816,16 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html</loc>
+    <lastmod>2026-08-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/experience/day-79-stream-analytics-to-kafka.html</loc>
+    <lastmod>2026-08-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
