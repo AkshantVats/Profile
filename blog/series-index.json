@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-78-async-evaluation-pipelines-throughput-over-latency.html",
+          "kicker": "AI Learning · Day 78 of 150",
+          "title": "Day 78 — Async Evaluation Pipelines — Throughput Over Latency",
+          "subtitle": "Batch judge calls like micro-batched ClickHouse inserts",
+          "date": "2026-08-08",
+          "slug": "day-78-async-evaluation-pipelines-throughput-over-latency",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-78-async-evaluation-pipelines-throughput-over-latency.html",
+          "coverImage": "blog/assets/covers/day-78-async-evaluation-pipelines-throughput-over-latency.png",
+          "desc": "A judge call has already missed the request it's grading, so today's model-quality-scorer implementation batches judge calls sharing one resolved rubric template, backs them with a bounded retry and a per-task_type circuit breaker, and dead-letters failures with a reason instead of guessing a score."
+        },
+        {
           "href": "blog/series/ai-learning/day-77-judge-rubrics-structured-data.html",
           "kicker": "AI Learning · Day 77 of 150",
           "title": "Day 77 — LLM-as-Judge — Rubrics as Structured Data",

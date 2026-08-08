@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 77 &mdash; LLM-as-Judge &mdash; Rubrics as Structured Data | AI Learning Series</title>
-<meta name="description" content="A JudgeRubric is a versioned JSON schema, the same contract-first shape as the ingest API's InferenceEvent — not a paragraph of grading instructions someone retypes slightly differently every time they tune it. Today's DESIGN.md is model-quality-scorer's design-only day, and the rubric schema is the decision everything else depends on.">
-<meta property="og:title" content="Day 77 &mdash; LLM-as-Judge &mdash; Rubrics as Structured Data">
-<meta property="og:description" content="Grading against a fixed rubric with weighted criteria is a narrower job than generating the response being graded — narrow enough that the cheapest model in the fleet can do it, as long as the rubric itself is structured data, not prose.">
+<title>Day 78 &mdash; Async Evaluation Pipelines &mdash; Throughput Over Latency | AI Learning Series</title>
+<meta name="description" content="A judge call has already missed the request it's grading — nothing about scoring a response faster makes that response arrive sooner. Today's model-quality-scorer implementation optimizes for a different variable entirely: samples graded per hour, not milliseconds per sample.">
+<meta property="og:title" content="Day 78 &mdash; Async Evaluation Pipelines &mdash; Throughput Over Latency">
+<meta property="og:description" content="Batch judge calls sharing one resolved rubric template, the same amortization a micro-batched ClickHouse insert relies on — plus a bounded retry and a per-task_type circuit breaker so a stuck judge never turns into an unbounded backlog.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-77-judge-rubrics-structured-data.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-77-judge-rubrics-structured-data.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-78-async-evaluation-pipelines-throughput-over-latency.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-78-async-evaluation-pipelines-throughput-over-latency.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-77-judge-rubrics-structured-data.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-78-async-evaluation-pipelines-throughput-over-latency.png">
 <meta property="article:published_time" content="2026-08-08">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,19 +185,19 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 77 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 78 of 150</span>
     <span class="tag">Distributed Systems</span>
     <span class="tag">LLM-as-Judge</span>
   </div>
-  <h1 class="post-title">Day 77 &mdash; LLM-as-Judge &mdash; Rubrics as Structured Data</h1>
-  <p class="post-subtitle">A JudgeRubric is a versioned JSON schema, the same contract-first shape as an ingest event &mdash; not a paragraph of grading instructions someone retypes slightly differently every time they tune it.</p>
+  <h1 class="post-title">Day 78 &mdash; Async Evaluation Pipelines &mdash; Throughput Over Latency</h1>
+  <p class="post-subtitle">A judge call has already missed the request it's grading &mdash; nothing about scoring a response faster makes that response arrive sooner, so today's implementation optimizes for a completely different variable.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 77 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 78 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 8, 2026</span>
     <div class="meta-divider"></div>
@@ -207,26 +207,24 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-77-judge-rubrics-structured-data.png" alt="Day 77 — LLM-as-Judge — Rubrics as Structured Data" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-78-async-evaluation-pipelines-throughput-over-latency.png" alt="Day 78 — Async Evaluation Pipelines — Throughput Over Latency" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p><strong>A rubric that lives as a paragraph of grading instructions is a rubric nobody can diff.</strong> RouteIQ's router has had cost and latency signals since Day 60 and Day 65. What it's never had is quality &mdash; whether a response was actually <em>good</em>, not just cheap and fast &mdash; and today's <code>model-quality-scorer</code> DESIGN.md is the design-only day that decides how that third signal gets produced, starting with the shape of the rubric a judge model grades against.</p>
+<p>Kafka topic decouples scoring from user-facing path &mdash; that's the whole shape of today's work, and it changes what "fast" even means. Every sample <code>model-quality-scorer</code> grades has already been served to the user before it reaches <code>judge-requests</code>.</p>
 
-<h2 id="a-schema-not-a-paragraph">A Rubric Is a Schema, Not a Paragraph</h2>
+<p>Shaving milliseconds off one judge call doesn't make anyone's response arrive sooner; it just changes how many samples get graded per hour. That's the variable this implementation actually optimizes.</p>
 
-<p><code>JudgeRubric</code> is a small, versioned struct: a <code>task_type</code>, a version number, and a list of weighted <code>Criteria</code>, each with a name, a weight, and the exact instruction text the judge prompt embeds verbatim. The judge scores each criterion 0&ndash;10, and the final score is the weighted sum, normalized to 0&ndash;100.</p>
+<h2 id="throughput-not-latency">Why Throughput, Not Latency, Is the Real Metric</h2>
 
-<p>That's a deliberate choice against the obvious alternative: a paragraph telling the judge model "grade this response for helpfulness and accuracy." A paragraph like that gets rewritten slightly differently every time someone tunes it, and two slightly-different paragraphs graded against the same response can silently produce different scores for reasons nobody can point to in a diff.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a structured rubric means a score can always be traced back to exactly which weighted criteria produced it &mdash; the same reason the ingest API's <code>InferenceEvent</code> struct is a typed schema and not a log line someone parses with a regex.</p>
+<p>Yesterday's DESIGN.md set the target as 200 samples/hr/tenant &mdash; a coverage floor, not a per-sample speed requirement. Once the target is stated as a rate over an hour instead of a deadline per sample, the engineering problem changes shape: instead of asking "how fast can one judge call finish," the question becomes "how many judge calls can this pipeline sustain without falling behind its own queue."</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a judging panel's scorecard</div>
-  A gymnastics or figure-skating judge doesn't grade a routine by writing a paragraph of impressions. They score against a fixed, published rubric &mdash; execution, difficulty, artistry, each with its own weight &mdash; the same rubric every judge on the panel uses for every competitor that day. That's what makes two different judges' scores for two different routines comparable at all: the rubric is fixed structure, only the performance being measured against it changes. <code>JudgeRubric</code> plays the identical role for <code>model-quality-scorer</code> &mdash; Haiku isn't asked to form an impression, it's asked to fill in the same scorecard every other graded response fills in, for the same task_type.
+  <div class="attr-label">DS analogy &mdash; a micro-batched database insert</div>
+  A database driver that flushes one row per network round trip is correct but slow, not because any single insert is slow, but because the round-trip overhead repeats per row instead of being spread across many. A micro-batched insert accumulates rows, then pays that fixed overhead once for the whole batch &mdash; the same total work, amortized. <code>consumer.Run</code> does the identical thing with judge calls: it accumulates up to 25 messages (or two seconds, whichever comes first) before resolving a rubric and scoring the batch, instead of paying a fresh rubric lookup and a fresh judge round trip per sample.
 </div>
 
 <pre class="mermaid">
@@ -247,71 +245,91 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  req["Response already served"] --> sample{"Sample this one?"}
-  sample -->|"yes"| topic["Kafka judge-requests"]
-  topic --> haiku["Haiku grades JudgeRubric"]
-  haiku --> score["Score plus rationale"]
-  score --> ch["ClickHouse quality_scores"]
+  topic["Kafka judge-requests"] --> acc["Accumulate to batch"]
+  acc -->|"size or time limit"| rub["Resolve rubric once"]
+  rub --> score["Score each sample"]
+  score --> ch["Batched ClickHouse insert"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> the whole pipeline only works because grading is a lookup against a fixed schema, not a fresh judgment call every time &mdash; the same reason a judging panel publishes its rubric before the competition starts, not after.</p>
+<p class="prose-so-what"><strong>So what:</strong> a pipeline judged on throughput can trade a little per-sample latency for a lot of amortized overhead, and it should &mdash; nothing downstream is waiting on any individual score the way a user is waiting on their original response.</p>
 
-<h2 id="cheapest-model-that-can-grade">The Cheapest Model That Can Grade, Not the Model Being Graded</h2>
+<h2 id="shared-rubric">One Rubric Lookup, Not One Per Sample</h2>
 
-<p>Grading against a fixed rubric is a narrower task than generating the response being graded &mdash; closer to structured classification than open-ended writing. A tenant's actual inference traffic might route to any model in the fleet; the judge is fixed to Haiku regardless, because the job at hand never needs more than that.</p>
+<p>A batch of samples usually shares a <code>task_type</code> &mdash; a burst of summarization traffic, say &mdash; so resolving and validating the rubric once per batch instead of once per sample removes a repeated, entirely redundant piece of work. <code>FileRubricStore</code> caches a validated rubric after its first successful load specifically so this holds even across batches, not just within one.</p>
+
+<p>This only works because a rubric is immutable once loaded: <code>JudgeRubric.Version</code> is part of its identity, so a rubric change ships as a new version file rather than an edit to the one already cached. A cache that could go stale mid-batch would be a correctness bug, not a throughput optimization &mdash; but an append-only version scheme means the cached copy is never wrong, only eventually superseded by a version number no in-flight sample references yet.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> batching for throughput only stays safe when the thing being reused across the batch can't change underneath it &mdash; which is exactly why the rubric schema was designed as versioned and immutable back on Day 77, before today's consumer needed to lean on that property.</p>
+
+<h2 id="one-bounded-retry">One Bounded Retry Is a Loop You Refuse to Write</h2>
+
+<p>A judge call gets a 5-second timeout and exactly one retry on failure &mdash; not a retry loop, one retry. That's a deliberate ceiling: a genuinely unavailable judge retried in an unbounded loop doesn't recover any faster for the extra attempts, it just holds a worker hostage while the backlog behind it keeps growing.</p>
 
 <table>
-<thead><tr><th></th><th>Generating the response</th><th>Grading the response</th></tr></thead>
+<thead><tr><th></th><th>Unbounded retry loop</th><th>One bounded retry</th></tr></thead>
 <tbody>
-<tr><td>Task shape</td><td>Open-ended generation</td><td>Fixed rubric, weighted criteria</td></tr>
-<tr><td>Model needed</td><td>Whatever the request routed to</td><td>Haiku, always</td></tr>
-<tr><td>What matters most</td><td>Capability for the task</td><td>Consistency across runs</td></tr>
+<tr><td>Transient blip</td><td>Recovers, eventually</td><td>Recovers, in two attempts</td></tr>
+<tr><td>Judge genuinely down</td><td>Worker stuck, backlog grows unbounded</td><td>Fails fast, sample dead-lettered, worker moves on</td></tr>
+<tr><td>Who notices first</td><td>Nobody, until the queue is enormous</td><td>The circuit breaker, within minutes</td></tr>
 </tbody>
 </table>
 
-<p class="prose-so-what"><strong>So what:</strong> two runs of the same rubric against the same response should land on the same score, and a smaller model at a fixed temperature is easier to keep boring in that specific sense than a larger, more capable one &mdash; consistency is the property this job actually needs, not sophistication.</p>
+<p class="prose-so-what"><strong>So what:</strong> a retry that can't tell the difference between "slow right now" and "down" should assume the cheaper failure mode and move on &mdash; the circuit breaker is what actually handles "down," a single retry only ever needed to handle "slow right now."</p>
 
-<h2 id="rationale-not-just-a-number">The Rationale Field, Not Just the Number</h2>
+<h2 id="circuit-breaker-window">A Rate Over a Window, Not a Streak</h2>
 
-<p>Each graded sample lands in ClickHouse's <code>quality_scores</code> table with more than a number: <code>score</code>, and a short free-text <code>rationale</code> the judge writes alongside it. A bare integer explains nothing when it's low &mdash; a rationale is what turns "this response scored 42" into something a human can actually act on without re-running the judge by hand to guess why.</p>
+<p>The breaker that follows the retry doesn't count consecutive failures &mdash; it tracks a failure rate over a trailing five-minute window, per <code>task_type</code>. A consecutive-failure counter resets to zero the moment one call happens to succeed, even if nine of the last ten actually failed; a windowed rate doesn't get fooled by one lucky call in the middle of a bad stretch.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the rubric makes the score comparable across samples; the rationale makes any one score debuggable on its own &mdash; they're solving two different problems, and the schema needed a field for each.</p>
+<p>Once that rate crosses 10% over the window, the breaker stops pulling new samples for that <code>task_type</code> until the judge recovers &mdash; and because grading sits entirely outside the request path already served, that pause costs the user nothing. The only thing that pauses is coverage against the 200/hr target, which resumes the moment the judge does.</p>
 
-<h2 id="aggregation-waits">Aggregation Waits for the Dimension</h2>
+<p class="prose-so-what"><strong>So what:</strong> a circuit breaker's whole job is deciding when retrying stops being useful, and a windowed rate answers that question more honestly than a streak counter does &mdash; a streak can be reset by luck, a rate can't.</p>
 
-<p>Scores are stored per sample &mdash; <code>tenant_id</code>, <code>task_type</code>, <code>model_id</code>, <code>rubric_version</code>, <code>score</code>, <code>rationale</code> &mdash; and aggregated only at query time, sliced along whichever of those columns the question needs. Nothing gets pre-collapsed into one running average at write time, because a single blended number across every tenant and task type would hide the exact failure this module exists to catch.</p>
+<h2 id="dlq-with-a-reason">Dead-Lettered With a Reason, Not Silently Dropped</h2>
 
-<p>Today's companion Experience post tells the same story from a different system entirely: a platform review asked for one blended P99 across every tenant sharing a time-series database, and averaging would have hidden a real tenant's SLO breach behind everyone else's healthy traffic. Quality scores and latency percentiles don't merge losslessly across a dimension you might later need to slice by &mdash; keep the raw, dimension-scoped data, and aggregate only once the slicing dimension is already decided.</p>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Distinct DLQ reasons</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Fabricated scores</span></div>
+  <div class="stat-cell"><span class="stat-num">25</span><span class="stat-label">Max batch size</span></div>
+  <div class="stat-cell"><span class="stat-num">2s</span><span class="stat-label">Max flush interval</span></div>
+</div>
 
-<div class="pullquote"><p>A number that describes every tenant describes no tenant in particular. That's true whether the number is a P99 or a quality score &mdash; the failure it hides is invisible until the one tenant it's hiding stops being able to explain their own dashboard.</p></div>
+<p>Every sample that can't be scored lands in <code>judge-requests-dlq</code> tagged with exactly why: a malformed message, a rubric that failed validation, a judge that timed out twice, or a breaker that was already open. None of those four becomes a zero in <code>quality_scores</code>, and none of them gets silently skipped either &mdash; both would corrupt the same thing downstream, an aggregate that's supposed to mean "every input was actually graded."</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the rubric decides what "good" means for one task_type; the storage schema decides whether a routing regression stays visible or gets averaged into invisibility &mdash; both are design decisions this document had to make before a single line of the ingestion consumer gets written.</p>
+<div class="pullquote"><p>A judge that didn't answer isn't a bad score. It's missing data, and missing data that gets treated like a real answer is worse than missing data that stays visibly missing.</p></div>
+
+<p class="prose-so-what"><strong>So what:</strong> the DLQ isn't a place failures go to be forgotten, it's a place failures go to stay legible &mdash; a later rollup job can ask "how much of this hour's target coverage did we actually hit" honestly, because <code>judge_unavailable</code> samples never pretended to be scores.</p>
+
+<h2 id="todays-experience-post">Today's Experience Post, Same Shape</h2>
+
+<p>Today's companion Experience post tells the same story from a rider-tracking platform instead of a judge pipeline: route recompute and notification delivery used to share one call chain, until a slow notification provider could stall routing for every rider behind it. The fix was an SQS boundary, not a faster notification API &mdash; the same shape as putting a Kafka topic between a served response and the judge call grading it.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> "does this work belong on the hot path" is the same question whether the downstream work is a push notification or a model call &mdash; the answer is no whenever finishing that work doesn't change what already got returned to the caller.</p>
 
 <h2 id="what-comes-next">What Comes Next</h2>
 
-<p>Day 74's preview already laid out the next three days: Day 78 ships the Kafka consumer, the batched judge calls, and the ClickHouse write path this document commits to. Day 79 normalizes scores to 0&ndash;1 and rolls them up on 1h/24h windows, with a documented statistical noise floor so a thin rollup never masquerades as a confident one. Day 80 spends that rollup in a weighted utility function, tying quality together with the cost and latency signals RouteIQ's first two modules already produce.</p>
+<p>Day 74's rollout table still holds: Day 79 normalizes today's raw 0&ndash;100 scores and rolls them up on 1h/24h windows, with a documented statistical noise floor so a thin hour of samples never reports the same confidence as a full one. Day 80 spends that rollup in RouteIQ's weighted utility function, joining quality to the cost and latency signals the router already has.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a router can only combine signals it already has &mdash; everything this design commits to is making sure quality has a number waiting, in the same comparable, dimension-scoped shape as the two signals already sitting next to it.</p>
+<p class="prose-so-what"><strong>So what:</strong> today's batching, retry, and breaker discipline only matters because a later day is going to trust these numbers enough to route traffic on them &mdash; throughput without honesty about what didn't get graded would just be a faster way to build a rollup nobody should trust.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 77 of 150 &mdash; LLM-as-Judge &mdash; Rubrics as Structured Data</p>
-  <p><em>Next up:</em> <a href="day-78-async-evaluation-pipelines-throughput-over-latency.html">Day 78 &mdash; Async Evaluation Pipelines &mdash; Throughput Over Latency</a></p>
+  <p>AI Learning &middot; Day 78 of 150 &mdash; Async Evaluation Pipelines &mdash; Throughput Over Latency</p>
+  <p><em>Next up:</em> Day 79 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-77-judge-rubrics-structured-data.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 77 &mdash; LLM-as-Judge — Rubrics as Structured Data (yesterday's DESIGN.md, the rubric schema this consumer resolves and caches)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-78-decoupling-sqs-from-osrm.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 78 &mdash; Delivery Hero Async Pipelines (today's companion Experience post &mdash; the same off-the-hot-path decoupling, from a rider-tracking platform instead of a judge pipeline)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-74-quality-scorer-preview.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 74 &mdash; Quality Scorer Preview (the Kubernetes-scheduler DS analogy for why judging stays off the request path, and the Day 77&ndash;80 rollout table this post's DESIGN.md fulfills)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-77-p99-per-tenant-slos.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 77 &mdash; Agoda P99 Cannot Be Averaged Across Tenants (today's companion Experience post &mdash; the same per-tenant aggregation lesson, from a time-series database instead of a judge pipeline)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-76-two-tier-cache-hierarchy.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 76 &mdash; Exact-Match vs Semantic Cache (yesterday's post &mdash; the same RouteIQ arc, one module earlier)</span>
+      <span>Day 74 &mdash; Quality Scorer Preview (the Day 77&ndash;80 rollout table this post's implementation fulfills)</span>
     </a>
   </div>
 </div>
@@ -322,10 +340,12 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-schema-not-a-paragraph">A Schema, Not a Paragraph</a></li>
-      <li><a href="#cheapest-model-that-can-grade">Cheapest Model That Can Grade</a></li>
-      <li><a href="#rationale-not-just-a-number">Rationale, Not Just a Number</a></li>
-      <li><a href="#aggregation-waits">Aggregation Waits</a></li>
+      <li><a href="#throughput-not-latency">Throughput, Not Latency</a></li>
+      <li><a href="#shared-rubric">One Rubric Lookup</a></li>
+      <li><a href="#one-bounded-retry">One Bounded Retry</a></li>
+      <li><a href="#circuit-breaker-window">A Rate, Not a Streak</a></li>
+      <li><a href="#dlq-with-a-reason">Dead-Lettered With a Reason</a></li>
+      <li><a href="#todays-experience-post">Today's Experience Post</a></li>
       <li><a href="#what-comes-next">What Comes Next</a></li>
     </ul>
   </div>
@@ -333,11 +353,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-77-judge-rubrics-structured-data.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-78-async-evaluation-pipelines-throughput-over-latency.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=LLM-as-Judge+%E2%80%94+Rubrics+as+Structured+Data+%E2%80%94+AI+Learning+%C2%B7+Day+77+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-77-judge-rubrics-structured-data.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Async+Evaluation+Pipelines+%E2%80%94+Throughput+Over+Latency+%E2%80%94+AI+Learning+%C2%B7+Day+78+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-78-async-evaluation-pipelines-throughput-over-latency.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -350,17 +370,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D76</span> AI Learning</div>
-          <a href="day-76-two-tier-cache-hierarchy.html" class="series-post-title">Exact-Match vs Semantic Cache &mdash; Two-Tier Memory Hierarchy</a>
+          <div class="series-post-kicker"><span class="series-post-num">D77</span> AI Learning</div>
+          <a href="day-77-judge-rubrics-structured-data.html" class="series-post-title">LLM-as-Judge &mdash; Rubrics as Structured Data</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D77</span> AI Learning &middot; now</div>
-          <div class="series-post-title">LLM-as-Judge &mdash; Rubrics as Structured Data</div>
-          <div class="series-post-desc">A JudgeRubric is a versioned JSON schema, the same contract-first shape as an ingest event — not a paragraph of grading instructions retyped every time someone tunes it.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D78</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Async Evaluation Pipelines &mdash; Throughput Over Latency</div>
+          <div class="series-post-desc">Batch judge calls sharing one resolved rubric template, the same amortization a micro-batched ClickHouse insert relies on.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D78</span> AI Learning</div>
-          <a href="day-78-async-evaluation-pipelines-throughput-over-latency.html" class="series-post-title">Async Evaluation Pipelines &mdash; Throughput Over Latency</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D79</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
