@@ -804,6 +804,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-77-p99-per-tenant-slos.html",
+          "kicker": "Experience · Day 77 of 150",
+          "title": "Day 77 — Agoda P99 Cannot Be Averaged Across Tenants",
+          "subtitle": "Quantile merge taught me per-tenant SLOs or you lie to executives",
+          "date": "2026-08-08",
+          "slug": "day-77-p99-per-tenant-slos",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-77-p99-per-tenant-slos.html",
+          "coverImage": "blog/assets/covers/day-77-p99-per-tenant-slos.png",
+          "desc": "WhiteFalcon's cross-tier quantile merge fixed one seam — hot Redis P95 and cold Parquet P95 disagreeing. It didn't fix the day an executive asked for one blended platform P99, which would have hidden a real tenant's SLO breach behind everyone else's healthy traffic."
+        },
+        {
           "href": "blog/series/experience/day-76-circuit-breaker-half-open-state.html",
           "kicker": "Experience · Day 76 of 150",
           "title": "Day 76 — Supplier API Circuit Breakers — Half-Open State in Production",
