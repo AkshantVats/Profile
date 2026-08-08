@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html",
+          "kicker": "AI Learning · Day 79 of 150",
+          "title": "Day 79 — Score Normalization — Why 0–1 Beats Raw Likert",
+          "subtitle": "Comparable units across models like z-scored metrics",
+          "date": "2026-08-08",
+          "slug": "day-79-score-normalization-0-1-vs-likert",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html",
+          "coverImage": "blog/assets/covers/day-79-score-normalization-0-1-vs-likert.png",
+          "desc": "Two rubrics can both output 0-100 while being structurally different rulers, so today's normalize.Score converts to a 0-1 comparable unit — plus the 30-sample statistical noise floor that decides how much to trust a rollup bucket's mean."
+        },
+        {
           "href": "blog/series/ai-learning/day-78-async-evaluation-pipelines-throughput-over-latency.html",
           "kicker": "AI Learning · Day 78 of 150",
           "title": "Day 78 — Async Evaluation Pipelines — Throughput Over Latency",
@@ -827,6 +839,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-79-stream-analytics-to-kafka.html",
+          "kicker": "Experience · Day 79 of 150",
+          "title": "Day 79 — Walmart Stream Analytics Dropped Messages — Switching to Kafka",
+          "subtitle": "7M sensors exposed bounded-window limits; we owned offset recovery",
+          "date": "2026-08-08",
+          "slug": "day-79-stream-analytics-to-kafka",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-79-stream-analytics-to-kafka.html",
+          "coverImage": "blog/assets/covers/day-79-stream-analytics-to-kafka.png",
+          "desc": "A windowed Stream Analytics query has no memory past its own boundary, so a burst of reconnecting WeIoT sensors could push events past the window before they were processed. The fix was Kafka's replayable, offset-addressed log — the same durable-facts discipline today's quality_scores rollup leans on."
+        },
         {
           "href": "blog/series/experience/day-78-decoupling-sqs-from-osrm.html",
           "kicker": "Experience · Day 78 of 150",
