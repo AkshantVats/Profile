@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-77-judge-rubrics-structured-data.html",
+          "kicker": "AI Learning · Day 77 of 150",
+          "title": "Day 77 — LLM-as-Judge — Rubrics as Structured Data",
+          "subtitle": "Scoring rubric = JSON schema like event contracts",
+          "date": "2026-08-08",
+          "slug": "day-77-judge-rubrics-structured-data",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-77-judge-rubrics-structured-data.html",
+          "coverImage": "blog/assets/covers/day-77-judge-rubrics-structured-data.png",
+          "desc": "A JudgeRubric is a versioned JSON schema, the same contract-first shape as an ingest event — not a paragraph of grading instructions someone retypes slightly differently every time they tune it. Today's DESIGN.md decides how RouteIQ's third signal, quality, gets produced."
+        },
+        {
           "href": "blog/series/ai-learning/day-76-two-tier-cache-hierarchy.html",
           "kicker": "AI Learning · Day 76 of 150",
           "title": "Day 76 — Exact-Match vs Semantic Cache — Two-Tier Memory Hierarchy",
