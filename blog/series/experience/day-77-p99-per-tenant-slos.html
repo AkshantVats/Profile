@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production | Experience Series</title>
-<meta name="description" content="Wayfair's supplier pricing circuit breaker trips on five consecutive timeouts or a 50% error rate in 30 seconds — that part shipped years ago. What never got tested on purpose, until a deliberate drill ahead of Black Friday, was the half-open probe that decides whether the circuit actually recovers.">
-<meta property="og:title" content="Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production">
-<meta property="og:description" content="A circuit breaker's open transition gets exercised constantly. Its half-open recovery path rarely does — which is exactly the path a peak-traffic event turns from theoretical into expensive if nobody's watched it succeed first.">
+<title>Day 77 &mdash; Agoda P99 Cannot Be Averaged Across Tenants | Experience Series</title>
+<meta name="description" content="WhiteFalcon's cross-tier quantile merge fixed one seam: hot Redis data and cold Parquet data disagreeing about P95. It didn't fix the other one — the day an executive asked for a single platform P99, and averaging per-team numbers together would have hidden a real SLO breach behind a healthy-looking blend.">
+<meta property="og:title" content="Day 77 &mdash; Agoda P99 Cannot Be Averaged Across Tenants">
+<meta property="og:description" content="The histogram-merge fix that made cross-tier queries correct doesn't save you from a second, worse version of the same mistake: blending percentiles across tenants instead of storage tiers.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-76-circuit-breaker-half-open-state.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-76-circuit-breaker-half-open-state.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-77-p99-per-tenant-slos.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-77-p99-per-tenant-slos.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-76-circuit-breaker-half-open-state.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-77-p99-per-tenant-slos.png">
 <meta property="article:published_time" content="2026-08-08">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,60 +185,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 76 of 150</span>
-    <span class="tag">Feature</span>
-    <span class="tag">Resilience</span>
-    <span class="tag">Wayfair</span>
+    <span class="tag accent">Experience &middot; Day 77 of 150</span>
+    <span class="tag">Deep-Dive</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 76 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production</h1>
-  <p class="post-subtitle">The trip condition shipped years ago. What we tested on purpose, for the first time, ahead of Black Friday wasn't whether the breaker could open &mdash; it was whether it could actually come back.</p>
+  <h1 class="post-title">Day 77 &mdash; Agoda P99 Cannot Be Averaged Across Tenants</h1>
+  <p class="post-subtitle">The histogram-merge fix that made cross-tier queries correct doesn't save you from a second, worse version of the same mistake &mdash; and I only caught it because an executive asked for exactly the wrong number.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 76 of 150</span>
+    <span class="meta-item">Experience &middot; Day 77 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 8, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-76-circuit-breaker-half-open-state.png" alt="Day 76 — Supplier API Circuit Breakers — Half-Open State in Production" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-77-p99-per-tenant-slos.png" alt="Day 77 — Agoda P99 Cannot Be Averaged Across Tenants" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I've written before about the circuit breaker guarding Wayfair's supplier pricing path &mdash; a mechanism that stops sending requests to a downstream service once it starts failing, the same way a household breaker cuts power before a fault does real damage. That post covers the trip condition, the <code>503</code> it returns, why it exists alongside the token bucket rather than instead of it. It never covers the other half of a circuit breaker's job: what happens after it opens.</p>
+<p>I've written before about the quantile merge bug in WhiteFalcon, Agoda's in-house time-series database: a <strong>P99</strong> (the latency below which 99% of requests complete &mdash; the number that describes your slowest real users, not your typical one) computed from Redis's hot tier and a P99 computed from the Parquet cold tier cannot be averaged together into one honest cross-tier P99. The fix was to store raw histogram bucket counts instead of pre-computed percentiles, merge the buckets, and compute the percentile once on the merged result. That shipped, it was correct, and I thought the lesson was closed.</p>
 
-<p>Today's ticket, an admin API that changes how <code>prompt-fingerprinter</code> decides two prompts are "the same," is what finally made me write about it.</p>
+<p>It wasn't. The same bug came back wearing a different dimension, and this time an executive was the one who almost got lied to.</p>
 
-<h2 id="the-trip-condition-briefly-because-its-already-written-up">The Trip Condition, Briefly, Because It's Already Written Up</h2>
+<h2 id="new-dimension">A New Cardinality Dimension, Reused for a New Question</h2>
 
-<p>Supplier pricing submissions run through <code>gst-acc-promotions</code> into PAS, which routes into SPCS &mdash; the service that actually persists a price change. The breaker in front of that path trips on five consecutive timeouts, or a 50% error rate in a 30-second window, and once open it returns <code>503</code> to every request immediately, without touching SPCS at all. That's the mechanism I built and shipped, and it's covered in full elsewhere &mdash; I'm not re-deriving it here.</p>
+<p>Around the same time, I added a new tag dimension to WhiteFalcon's indexing layer: Kubernetes-level labels &mdash; pod and service identifiers &mdash; on top of the existing RoaringBitmap index the Agoda team had built.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; Wayfair, supplier pricing circuit breaker and the Black Friday half-open drill</div>
-  The breaker itself, the trip thresholds, and the manual half-open verification process this post describes are work I owned end to end on the supplier pricing submission path &mdash; the same scope as the token-bucket rate limiter and rollout I've written about elsewhere in this series.
+  <div class="attr-label">Mine &mdash; Agoda, WhiteFalcon cardinality dimension and cross-tier query engine</div>
+  The RoaringBitmap inverted index itself, the Kafka ingestion pipeline, and the Rust consumers were the Agoda team's design, built before I joined. My contribution was extending the Scala query engine for correct cross-tier quantile merges, and adding the new pod/service-level tag dimension to the index &mdash; a five-month engagement, not the system's original architecture.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a breaker that trips correctly under load has proven exactly one thing &mdash; that it can tell "broken" from "working." It hasn't proven it can tell the reverse.</p>
+<p>My first draft of that tag addition would have doubled the index's memory footprint overnight. I hadn't modeled the cross-product of the new dimension against the existing ones &mdash; two hundred model tags times five hundred tenant tags was already 300,000 series for one metric, and adding fifty pod values times four zone values on top of that was tens of millions of new combinations I hadn't accounted for. I caught it in review, not in production, which is the only reason it's a paragraph here and not its own postmortem.</p>
 
-<h2 id="the-half-open-transition-nobody-had-actually-watched">The Half-Open Transition Nobody Had Actually Watched</h2>
+<p class="prose-so-what"><strong>So what:</strong> the new tag dimension existed for one reason &mdash; it let every internal team that shipped metrics into WhiteFalcon slice their own latency numbers out from everyone else's, instead of only ever seeing the platform blended together.</p>
 
-<p>Standard circuit breaker design has a third state between open and closed: half-open. After a cooldown, the breaker lets exactly one probe request through. If it succeeds, the breaker closes and normal traffic resumes.</p>
+<h2 id="the-ask">"Just Give Me One P99 for the Whole Platform"</h2>
 
-<p>If it fails, the breaker reopens and waits again. It's a small piece of logic, and it's correct by construction &mdash; either the probe succeeds or it doesn't.</p>
+<p>A few weeks after that landed, a platform reliability review asked for a single headline number: one P99, representing WhiteFalcon-backed services as a whole, for a leadership dashboard. Every team's service already had its own P99 panel by then, scoped by the new service-level tag. What leadership wanted was the roll-up &mdash; one number, not forty.</p>
 
-<p>What that correctness doesn't cover is everything happening around the probe at the exact moment it runs. SPCS's real outages, the ones that actually tripped our breaker in production, mostly lasted seconds to low minutes &mdash; short enough that the half-open transition ran and resolved without anyone watching it closely, because the incident was already over by the time anyone looked. The path existed, it presumably worked, and nobody had a specific memory of confirming that under real traffic rather than assuming it from the code.</p>
+<p>The first proposal on the table was a request-weighted average of each team's already-computed P99: multiply each team's P99 by its share of total request volume, sum, done. It even had a name in the doc &mdash; "traffic-weighted blended P99." It read as reasonable. It was the exact same mistake as averaging Redis's P95 with Parquet's P95, just applied to a tenant dimension instead of a storage-tier dimension.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a path that only ever runs during the tail end of an incident nobody was watching is, in practice, an untested path &mdash; regardless of how simple its logic is on paper.</p>
+<h2 id="why-worse">Why This Version Is Worse, Not Just the Same</h2>
+
+<p>With cross-tier data, there's a real sense in which a single correct answer exists: one continuous request stream, artificially split by where it happened to be stored, and the merged histogram recovers the one true distribution that split obscured. Across tenants, that single true distribution doesn't exist in the same way &mdash; each team's SLO (their committed latency target) is a contract against their own traffic, not against the platform's blended traffic.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -258,55 +260,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  CLOSED["Closed: normal traffic"] -->|"5 timeouts or 50% err/30s"| OPEN["Open: 503 everything"]
-  OPEN -->|"cooldown elapses"| HALFOPEN["Half-open: one probe"]
-  HALFOPEN -->|"probe succeeds"| CLOSED
-  HALFOPEN -->|"probe fails"| OPEN
+  T["Per-tenant histograms"] --> P["Per-tenant P99, default view"]
+  P --> D["Exec dashboard"]
+  T -->|"explicit opt-in only"| B["Blended platform P99"]
+  B -.->|"never the headline"| D
 </pre>
 
-<h2 id="the-drill-forcing-open-on-purpose-before-black-friday">The Drill: Forcing Open on Purpose, Before Black Friday</h2>
+<p>A small, low-traffic team breaching their own SLO for hours would barely move a traffic-weighted blend, because the blend weights by request count &mdash; and a small team is, by definition, a small share of requests. The dashboard would show green. The team's actual users would not be having a green experience.</p>
 
-<p>Ahead of Black Friday, we forced the breaker open deliberately &mdash; a controlled downstream fault injected against a staging path shaped like the real one, not a real SPCS outage &mdash; and watched the half-open probe and recovery run under realistic pricing-submission traffic. The goal wasn't to test the state machine's logic. It was to test everything the logic assumes is well-behaved around it.</p>
+<p class="prose-so-what"><strong>So what:</strong> merging histograms fixed the case where one true number exists and storage boundaries were hiding it; blending tenants would have manufactured a number that hides a real SLO breach behind everyone else's traffic, which is a different and worse failure &mdash; it's not recovering a hidden truth, it's constructing a comfortable fiction.</p>
 
-<p>Three things got checked that the breaker's own code has no way to check about itself: whether a flood of client retries, all arriving the instant the probe succeeds, could pile onto the newly-half-open breaker and trip it straight back open before it stabilized; whether the monitoring dashboard reflected the open-to-half-open-to-closed sequence quickly enough for someone to notice if recovery stalled; and whether the token bucket's own fail-open Redis policy, from the rate limiter I've written about separately, interacted badly with a breaker that's simultaneously trying to recover.</p>
+<h2 id="the-fix">The Fix Was the Dashboard Default, Not the Math</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> the drill wasn't testing whether the breaker's logic was correct &mdash; it already was, by construction. It was testing whether the system around that logic behaved the way the logic assumes.</p>
+<p>I didn't need new math for this one &mdash; the histogram infrastructure from the cross-tier fix already supported per-tenant slicing, since the service-level tag was already indexed. What needed to change was the dashboard's default view: per-tenant P99 first, every team's number visible on its own row, with the worst-performing tenant surfaced rather than buried in an average.</p>
 
-<h2 id="todays-code-the-same-pattern-a-different-mechanism">Today's Code: The Same Pattern, a Different Mechanism</h2>
+<p>A blended platform figure still exists, because it's occasionally the right question &mdash; total infrastructure cost planning genuinely does care about aggregate load, for instance. It's opt-in, clearly labeled as a blend, and it is never the number leadership sees first.</p>
 
-<p><code>prompt-fingerprinter</code>'s new admin endpoint, <code>PUT /tenants/{id}/fingerprint-rules</code>, lets a tenant configure whether prompts get lowercased or stripped of punctuation before they're hashed. The moment that call lands, what counts as "the same prompt" for that tenant changes &mdash; a normalization rule change is a config deploy, live, on a path that decides whether a request costs a Redis <code>GET</code> or an embedding-model round trip.</p>
+<div class="pullquote"><p>Merging correctly and merging at all are different decisions. The cross-tier bug taught me how to merge correctly. This one taught me to ask, every time, whether the number should exist as a single merged value at all &mdash; or whether collapsing it is the actual bug.</p></div>
 
-<p>The logic itself is correct by construction the same way the breaker's half-open state is: the code either applies the configured rule or it doesn't, and the unit tests for <code>Rules.Apply</code> prove it does. What actually matters &mdash; the thing worth deliberately exercising before trusting it &mdash; is whether the rule change produces the specific outcome it's supposed to under real traffic shape: two near-duplicate prompts that used to miss the cache now hitting it. That's exactly what today's integration test does: configure the rule, send two prompts differing only in case and punctuation, and confirm the second one resolves from the cache instead of paying for a second embedding call.</p>
+<p class="prose-so-what"><strong>So what:</strong> the second time a "just average it" request showed up, the histogram machinery to do it correctly already existed &mdash; the harder problem was recognizing that correctness wasn't the axis that mattered this time, visibility per tenant was.</p>
 
-<div class="pullquote"><p>A mechanism being provably correct and a mechanism being exercised are different claims. The first one comes from the code. The second one only comes from deliberately running the path that matters most before the day it matters most.</p></div>
+<h2 id="today">Today's Code: The Same Shape, a Different System</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> whether it's a circuit breaker's recovery path or a cache's normalization rule, "the logic is correct" and "I've watched this specific scenario play out" are different bars &mdash; and the second one is the one worth clearing before a deploy that changes production behavior, not after.</p>
+<p><code>model-quality-scorer</code>'s design doc, which I wrote today, hits the identical fork in the road before a single line of Go exists for it. It samples live traffic, grades responses against a rubric, and scores land per tenant and per task type &mdash; a summarization request and a tool-call request aren't graded the same way, and one tenant's quality shouldn't be blended into another's average any more than their P99s should.</p>
 
-<h2 id="what-the-drill-actually-bought">What the Drill Actually Bought</h2>
+<p>The design commits to storing raw per-sample scores, keyed by tenant and task type, and computing any aggregate at query time along whichever dimension the question actually needs &mdash; never a single running global average written at the moment a score lands. That's not a coincidence of vocabulary between "quantile" and "quality score." It's the same underlying claim: a number that describes everyone describes no one in particular, and the failure it hides is invisible until the one tenant it's hiding stops being able to explain their own dashboard.</p>
 
-<p>Black Friday's batch pricing runs came and went without the breaker tripping at all &mdash; SPCS held under peak load, so the drill's specific scenario (recovery under real traffic) never got a live rerun on the day itself. That's not a null result. The value of the drill wasn't insurance against that specific Black Friday; it was insurance against every future incident where the breaker does trip during a peak window, because now the half-open path has a known-good run on record instead of an assumption.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> the payoff of exercising a rarely-run path isn't always visible on the day you exercised it for &mdash; it's visible the next time that path actually has to run for real, with one less unknown in it.</p>
+<p class="prose-so-what"><strong>So what:</strong> the WhiteFalcon lesson wasn't really about percentiles. It was about which dimension a number is allowed to collapse across before someone downstream starts making decisions with it &mdash; and that question follows you into every system that reports one figure for many tenants, not just time-series databases.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 76 of 150 &mdash; Supplier API Circuit Breakers &mdash; Half-Open State in Production</p>
-  <p><em>Next up:</em> <a href="day-77-p99-per-tenant-slos.html">Day 77 &mdash; Agoda P99 Cannot Be Averaged Across Tenants</a></p>
+  <p>Experience &middot; Day 77 of 150 &mdash; Agoda P99 Cannot Be Averaged Across Tenants</p>
+  <p><em>Next up:</em> Day 78 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Supplier APIs and Token Buckets &mdash; Wayfair's Real Circuit Breaker (the trip condition and token-bucket pairing this post's recovery-path story extends)</span>
+      <span>When Percentiles Lie &mdash; Cross-Tier Queries (the histogram-merge fix this post's tenant-dimension version builds on)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-75-wayfair-redis-lua-token-bucket.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 75 &mdash; Wayfair's Redis Lua Token Bucket at 250k SKU Scale (the fail-open Redis policy this post's drill checked against a recovering breaker)</span>
+      <span>Cardinality Is the Silent Killer (the RoaringBitmap cross-product discipline that caught the tag-explosion mistake in review, before production)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-73-hash-collisions-happen.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 73 &mdash; Hash Collisions Happen (another rarely-exercised failure mode designed for on purpose, rather than assumed away)</span>
+      <span>Building a TSDB at Agoda (the full WhiteFalcon system tour and all three of my contribution areas)</span>
     </a>
   </div>
 </div>
@@ -317,22 +317,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-trip-condition-briefly-because-its-already-written-up">The Trip Condition, Briefly</a></li>
-      <li><a href="#the-half-open-transition-nobody-had-actually-watched">The Untested Half-Open Path</a></li>
-      <li><a href="#the-drill-forcing-open-on-purpose-before-black-friday">The Drill Before Black Friday</a></li>
-      <li><a href="#todays-code-the-same-pattern-a-different-mechanism">Today's Code, Same Pattern</a></li>
-      <li><a href="#what-the-drill-actually-bought">What the Drill Actually Bought</a></li>
+      <li><a href="#new-dimension">A New Cardinality Dimension</a></li>
+      <li><a href="#the-ask">"Just Give Me One P99"</a></li>
+      <li><a href="#why-worse">Why This Version Is Worse</a></li>
+      <li><a href="#the-fix">The Fix Was the Default</a></li>
+      <li><a href="#today">Today's Code, Same Shape</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-76-circuit-breaker-half-open-state.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-77-p99-per-tenant-slos.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Supplier+API+Circuit+Breakers+%E2%80%94+Half-Open+State+in+Production+%E2%80%94+Experience+%C2%B7+Day+76+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-76-circuit-breaker-half-open-state.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Agoda+P99+Cannot+Be+Averaged+Across+Tenants+%E2%80%94+Experience+%C2%B7+Day+77+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-77-p99-per-tenant-slos.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -345,17 +345,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D75</span> Experience</div>
-          <a href="day-75-wayfair-redis-lua-token-bucket.html" class="series-post-title">Wayfair's Redis Lua Token Bucket at 250k SKU Scale</a>
+          <div class="series-post-kicker"><span class="series-post-num">D76</span> Experience</div>
+          <a href="day-76-circuit-breaker-half-open-state.html" class="series-post-title">Supplier API Circuit Breakers &mdash; Half-Open State in Production</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D76</span> Experience &middot; now</div>
-          <div class="series-post-title">Supplier API Circuit Breakers &mdash; Half-Open State in Production</div>
-          <div class="series-post-desc">The trip condition shipped years ago. What got tested on purpose, ahead of Black Friday, was whether the breaker could actually come back.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D77</span> Experience &middot; now</div>
+          <div class="series-post-title">Agoda P99 Cannot Be Averaged Across Tenants</div>
+          <div class="series-post-desc">Quantile merge taught me per-tenant SLOs, or you lie to executives.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D77</span> Experience</div>
-          <a href="day-77-p99-per-tenant-slos.html" class="series-post-title">Agoda P99 Cannot Be Averaged Across Tenants</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D78</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
