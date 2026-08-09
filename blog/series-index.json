@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-82-measuring-proxy-overhead-p99-not-mean.html",
+          "kicker": "AI Learning · Day 82 of 150",
+          "title": "Day 82 — Measuring Proxy Overhead — p99, Not Mean",
+          "subtitle": "Tail latency drives SLOs—same as Agoda P99 focus",
+          "date": "2026-08-09",
+          "slug": "day-82-measuring-proxy-overhead-p99-not-mean",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-82-measuring-proxy-overhead-p99-not-mean.html",
+          "coverImage": "blog/assets/covers/day-82-measuring-proxy-overhead-p99-not-mean.png",
+          "desc": "A mean of 2ms and a p99 of 40ms can describe the same proxy traffic — why fallback-chain's <10ms streaming-proxy target (DESIGN.md §4) has to be measured as a percentile from a merged histogram, not a running average, before Day 83's real number means anything."
+        },
+        {
           "href": "blog/series/ai-learning/day-81-fallback-chains-graceful-degradation.html",
           "kicker": "AI Learning · Day 81 of 150",
           "title": "Day 81 — Fallback Chains — Graceful Degradation in Inference",
