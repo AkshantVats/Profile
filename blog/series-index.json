@@ -864,6 +864,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-82-osrm-pool-saturation-pdb-tradeoffs.html",
+          "kicker": "Experience · Day 82 of 150",
+          "title": "Day 82 — Delivery Hero OSRM Pool Saturation — PDBs vs. the Lunch Rush",
+          "subtitle": "Delivery Hero · OSRM cluster · Route Service EKS · lunch-rush 8% error burn",
+          "date": "2026-08-09",
+          "slug": "day-82-osrm-pool-saturation-pdb-tradeoffs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-82-osrm-pool-saturation-pdb-tradeoffs.html",
+          "coverImage": "blog/assets/covers/day-82-osrm-pool-saturation-pdb-tradeoffs.png",
+          "desc": "OSRM's connection pool was sized for the average hour, not the lunch-rush spike that pushed it into an 8% error burn. Scaling Route Consumers out was the right fix and already blocked — by a PodDisruptionBudget tuned for routine node rotation that couldn't tell a legitimate scale-out from a disruption. The fix: a minAvailable floor that scales with the HPA's desired replica count instead of staying frozen at a number set for a calmer day."
+        },
+        {
           "href": "blog/series/experience/day-81-sub-second-sku-propagation-event-ordering.html",
           "kicker": "Experience · Day 81 of 150",
           "title": "Day 81 — Wayfair Sub-Second SKU Propagation — Event Ordering",
