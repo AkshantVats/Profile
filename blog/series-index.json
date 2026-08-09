@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-81-fallback-chains-graceful-degradation.html",
+          "kicker": "AI Learning · Day 81 of 150",
+          "title": "Day 81 — Fallback Chains — Graceful Degradation in Inference",
+          "subtitle": "An ordered ModelRef chain with a widening 2s/5s/8s timeout budget and a three-state circuit breaker",
+          "date": "2026-08-09",
+          "slug": "day-81-fallback-chains-graceful-degradation",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-81-fallback-chains-graceful-degradation.html",
+          "coverImage": "blog/assets/covers/day-81-fallback-chains-graceful-degradation.png",
+          "desc": "RouteIQ's fifth module answers what Day 77-80's quality-scorer and decision engine leave open: what happens when the chosen model doesn't respond. An ordered ModelRef chain, a cascading 2s/5s/8s timeout budget, a three-state circuit breaker that costs zero timeout on a known-down endpoint, and a chunked streaming proxy targeting under 10ms added latency."
+        },
+        {
           "href": "blog/series/ai-learning/day-80-multi-objective-routing-scalarization.html",
           "kicker": "AI Learning · Day 80 of 150",
           "title": "Day 80 — Multi-Objective Routing — Scalarization and Weights",
