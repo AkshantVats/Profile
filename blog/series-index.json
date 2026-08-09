@@ -876,6 +876,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html",
+          "kicker": "Experience · Day 83 of 150",
+          "title": "Day 83 — Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold",
+          "subtitle": "Agoda WhiteFalcon · cold-tier Parquet · Snappy to Zstd · 18% storage savings",
+          "date": "2026-08-09",
+          "slug": "day-83-cold-tier-compression-snappy-to-zstd",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html",
+          "coverImage": "blog/assets/covers/day-83-cold-tier-compression-snappy-to-zstd.png",
+          "desc": "Migrating WhiteFalcon's cold-tier Parquet compression from Snappy to Zstd cut storage 18% with under 1% average read-latency impact — but an average can hide a tail, so verification meant checking the same cross-tier percentile merge WhiteFalcon already computes, not just trusting the mean."
+        },
+        {
           "href": "blog/series/experience/day-82-osrm-pool-saturation-pdb-tradeoffs.html",
           "kicker": "Experience · Day 82 of 150",
           "title": "Day 82 — Delivery Hero OSRM Pool Saturation — PDBs vs. the Lunch Rush",
