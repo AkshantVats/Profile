@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-83-streaming-backpressure-buffer-size.html",
+          "kicker": "AI Learning · Day 83 of 150",
+          "title": "Day 83 — Streaming Token Delivery — Backpressure Basics",
+          "subtitle": "Buffer size ties to TTFB vs memory — TCP windowing analogy for SSE chunks",
+          "date": "2026-08-09",
+          "slug": "day-83-streaming-backpressure-buffer-size",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-83-streaming-backpressure-buffer-size.html",
+          "coverImage": "blog/assets/covers/day-83-streaming-backpressure-buffer-size.png",
+          "desc": "A slow client and a fast model stream are the same flow-control problem TCP's receive window already solved — why fallback-chain's ChunkRelay gets backpressure for free from a blocking read-write-flush loop, and what buffer size actually trades off between time-to-first-byte and memory."
+        },
+        {
           "href": "blog/series/ai-learning/day-82-measuring-proxy-overhead-p99-not-mean.html",
           "kicker": "AI Learning · Day 82 of 150",
           "title": "Day 82 — Measuring Proxy Overhead — p99, Not Mean",
