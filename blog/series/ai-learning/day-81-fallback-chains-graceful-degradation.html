@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 80 &mdash; Multi-Objective Routing &mdash; Scalarization and Weights | AI Learning Series</title>
-<meta name="description" content="Quality, cost, and latency are three different units — a quality point isn't a dollar isn't a millisecond. Today's RouteIQ decision engine collapses them into one ranked number the same way a cost-aware load balancer scores backends: a weighted sum, honestly named and honestly limited.">
-<meta property="og:title" content="Day 80 &mdash; Multi-Objective Routing &mdash; Scalarization and Weights">
-<meta property="og:description" content="decision.Utility joins a rollup.Row's quality signal with cost and latency into one scalar via tenant-overridable RoutingWeights, and Decide tie-breaks toward the cheaper model when two candidates land within epsilon of each other. The technique has a name — scalarization — and a real limit.">
+<title>Day 81 &mdash; Fallback Chains &mdash; Graceful Degradation in Inference | AI Learning Series</title>
+<meta name="description" content="An ordered ModelRef chain with a widening 2s/5s/8s timeout budget, a three-state circuit breaker that costs zero timeout on a known-down endpoint, and a streaming proxy targeting under 10ms added latency &mdash; RouteIQ's answer to what happens when the chosen model doesn't answer.">
+<meta property="og:title" content="Day 81 &mdash; Fallback Chains &mdash; Graceful Degradation in Inference">
+<meta property="og:description" content="Schema: an ordered ModelRef list with timeout_ms each. Today's design closes the gap Day 77-80's model-quality-scorer and decision engine left open &mdash; which model to try next when the chosen one times out, errors, or drops the connection.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-80-multi-objective-routing-scalarization.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-80-multi-objective-routing-scalarization.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-81-fallback-chains-graceful-degradation.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-81-fallback-chains-graceful-degradation.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-80-multi-objective-routing-scalarization.png">
-<meta property="article:published_time" content="2026-08-08">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-81-fallback-chains-graceful-degradation.png">
+<meta property="article:published_time" content="2026-08-09">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,47 +185,63 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 80 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 81 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Model Routing</span>
+    <span class="tag">Reliability</span>
+    <span class="tag">Circuit Breakers</span>
   </div>
-  <h1 class="post-title">Day 80 &mdash; Multi-Objective Routing &mdash; Scalarization and Weights</h1>
-  <p class="post-subtitle">A quality point, a dollar, and a millisecond can't be compared directly &mdash; today's job is picking one model anyway, by giving the tradeoff between them a name and an honest limit.</p>
+  <h1 class="post-title">Day 81 &mdash; Fallback Chains &mdash; Graceful Degradation in Inference</h1>
+  <p class="post-subtitle">When the model you asked for doesn't answer, what tries next isn't luck &mdash; it's an ordered list, a widening clock, and a breaker that already knows which endpoints aren't worth calling.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 80 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 81 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 8, 2026</span>
+    <span class="meta-item">August 9, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">13 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-80-multi-objective-routing-scalarization.png" alt="Day 80 — Multi-Objective Routing — Scalarization and Weights" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-81-fallback-chains-graceful-degradation.png" alt="Day 81 — Fallback Chains — Graceful Degradation in Inference" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Expose <code>RoutingWeights</code> per tenant in RouteIQ config &mdash; that's the concrete task today, and it only makes sense once you see the problem it's solving. RouteIQ has several model candidates for any given request, and no single one of them is simply "best."</p>
+<p>Schema: an ordered <code>ModelRef</code> list with <code>timeout_ms</code> on each entry. That's the entire seed of today's design &mdash; a tenant's fallback preference stored as an ordered slice, one number per hop &mdash; and everything else in this post exists to justify why that tiny schema is harder to get right than it looks.</p>
 
-<h2 id="the-problem">Three Axes, No Shared Unit</h2>
+<p>Day 77 through 80 built <code>model-quality-scorer</code> and <code>pkg/decision</code>: a system that scores candidate models on quality, cost, and latency, and picks a winner. What none of that code answers is what happens the instant the winner doesn't answer back &mdash; a timeout, a 5xx (an HTTP status code meaning the server itself failed, not the request), or a connection that just drops. That gap is <code>fallback-chain</code>, RouteIQ's fifth module, and today's work is a design document, not runtime code.</p>
 
-<p>One candidate model scores higher on Day 79's quality rollup but costs more and answers slower. Another is cheap and fast but scored lower on the same rubric. There's no way to rank these the way you'd rank a plain list of numbers, because quality, cost, and latency aren't the same kind of number.</p>
+<h2 id="chain-schema">The Schema: One Ordered List, Not a Primary Plus a Backup</h2>
 
-<p>A quality point is a fraction of a rubric's maximum. A cost is a number of dollars. A latency is a number of milliseconds. "Best" only starts to mean something once you decide how much each of those should count relative to the others &mdash; and that decision is exactly what today's code makes explicit instead of leaving implicit.</p>
+<p>The easy version of this feature is "try the primary, and if it fails, try some generic backup." That's the wrong shape, because a tenant's second choice is a real preference, not a detail RouteIQ should be deciding on the tenant's behalf.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; cost-aware load balancing</div>
-  A naive load balancer ranks backends by free capacity alone &mdash; one objective, trivially comparable, biggest number wins. A cost-aware load balancer scores each backend on a weighted combination of free capacity <em>and</em> its $/request cost instead &mdash; a spot-instance backend might be cheaper but slower to provision under load, so <code>score = w1&middot;capacity - w2&middot;cost</code>. Nobody finds that strange to do to a load balancer. Reducing several objectives to one number via a weighted sum has a name &mdash; scalarization &mdash; and it's exactly what <code>decision.Utility</code> does with quality, cost, and latency in place of capacity and spend.
-</div>
+<pre><code>type Chain struct {
+    TenantID string
+    Models   []ModelRef
+}
+
+type ModelRef struct {
+    ModelID   string
+    TimeoutMs int
+}</code></pre>
+
+<p>A tenant might rank Claude Sonnet above GPT-4o for cost reasons, or rule out a vendor entirely for a data-residency requirement. Order in the <code>Models</code> slice encodes that preference directly: index 0 goes first, and the chain isn't exhausted until every entry has been tried or skipped.</p>
+
+<p>Notice that <code>TimeoutMs</code> lives on the individual <code>ModelRef</code>, not as one constant shared by the whole chain. A request that has already waited through one failed attempt has different patience left than a request on its first attempt, which is the whole reason the next section's cascade exists.</p>
+
+<p>There's also no default chain for an unconfigured tenant. Silently routing a tenant with no configured preference through someone else's implicit fallback order would quietly violate the same per-tenant scoping that Day 77's quality rubrics and Day 79's budget windows already treat as non-negotiable, so an unconfigured tenant is a gap to surface, not a case to paper over.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the schema is deliberately boring &mdash; an ordered list and a number &mdash; because "second choice" needs to always mean the same specific model, never "whatever's left after the primary."</p>
+
+<h2 id="cascade">Why the Budget Widens: 2s &rarr; 5s &rarr; 8s</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -245,86 +261,141 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Q["Quality, rollup.Row"] --> U["Utility, weighted sum"]
-  C["Cost per call"] --> U
-  L["Latency P99"] --> U
-  U --> D["Decide, highest wins"]
-  D -->|"near-tie"| T["Tie-break, cheaper model"]
+  req["Request arrives"] --> a["Primary, 2s budget"]
+  a -->|"timeout/error"| b["Second choice, 5s budget"]
+  b -->|"timeout/error"| c["Third choice, 8s budget"]
+  a -->|"success"| resp["Stream response"]
+  b -->|"success"| resp
+  c -->|"success"| resp
+  c -->|"timeout/error"| fail["Chain exhausted, 5xx"]
 </pre>
 
-<p class="prose-so-what"><strong>So what:</strong> "add the objectives together" sounds too simple to need a name, but knowing it's called scalarization is the difference between reaching for it deliberately, inside a domain it actually fits, and stumbling into it by accident without knowing what it can't express.</p>
+<p>A timeout here just means "no response arrived within the allowed wait," whether the cause is a slow model, a network hiccup, or an outright error. The obvious instinct is to give every hop in the chain the same fixed budget &mdash; try for 2 seconds, try again for 2 seconds, try a third time for 2 seconds.</p>
 
-<h2 id="weights">Why Weights Are Per-Tenant, Not a Fixed Formula</h2>
-
-<p>Two tenants can legitimately disagree about how much latency should matter relative to cost. A real-time customer-support tenant might set a high <code>WLatency</code> and happily pay more for a faster model.</p>
-
-<p>A batch-report tenant might zero out <code>WLatency</code> entirely and optimize purely on quality-per-dollar. <code>WeightsForTenant</code>'s override map, falling back to <code>DefaultWeights</code> when a tenant hasn't set one, is what lets one <code>Decide</code> function serve both tenants correctly without a second code path.</p>
-
-<table>
-<tr><th>Tenant profile</th><th>Weight shape</th><th>Why</th></tr>
-<tr><td>Real-time support</td><td>High <code>WLatency</code></td><td>A slow answer is a bad answer, even a high-quality one</td></tr>
-<tr><td>Batch reporting</td><td><code>WLatency</code> near zero</td><td>Nothing is waiting on the response synchronously</td></tr>
-<tr><td>Unset (default)</td><td>Equal weights</td><td>A working starting point before a tenant tunes anything</td></tr>
-</table>
-
-<p class="prose-so-what"><strong>So what:</strong> the same utility formula serving every tenant correctly depends entirely on the weights being data, not code &mdash; a tenant's preference lives in a config map, not in a branch somebody has to remember to add.</p>
-
-<h2 id="limitation">What Scalarization Can't Express</h2>
-
-<p>A weighted sum can only represent tradeoffs that are linear in the objectives it combines. It cannot represent "I want quality above 0.8, no matter the cost, and only optimize cost past that point" &mdash; that's a constrained optimization problem, a genuinely different technique.</p>
-
-<p><code>Candidate.Validate</code> only range-checks inputs; it doesn't enforce a quality floor, and today's code doesn't pretend otherwise. Scalarization is the right tool exactly when a smooth tradeoff across all three axes is the actual goal &mdash; which matches RouteIQ's own stated aim from Day 77's DESIGN.md: judge quality alongside cost and latency, not instead of them.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> the honest version of this technique names its own blind spot &mdash; a hard constraint needs a different tool, and pretending a weighted sum can approximate one is how a routing decision quietly breaks a promise nobody wrote down.</p>
-
-<h2 id="tie-break">Why the Tie-Break Toward Cheaper Exists</h2>
-
-<p>Collapsing three objectives into one number produces genuine near-ties, not just edge cases. Two models can land within a hair of the same utility under a given set of weights while being meaningfully different candidates in every other sense.</p>
+<p>That instinct is wrong for a specific reason: a request that already waited 2 seconds for a primary that never answered is not well served by a second attempt capped at that same 2 seconds. The alternative to a slightly more patient second attempt is a guaranteed failure, so the budget widens instead of repeating &mdash; 2s for the primary, 5s for the second choice, 8s for the third.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Objectives scalarized</span></div>
-  <div class="stat-cell"><span class="stat-num">1e-6</span><span class="stat-label">Tie epsilon</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Deterministic winner, always</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Flapping between near-tied models</span></div>
+  <div class="stat-cell"><span class="stat-num">2s</span><span class="stat-label">Primary hop</span></div>
+  <div class="stat-cell"><span class="stat-num">5s</span><span class="stat-label">Second-choice hop</span></div>
+  <div class="stat-cell"><span class="stat-num">8s</span><span class="stat-label">Third-choice hop</span></div>
+  <div class="stat-cell"><span class="stat-num">15s</span><span class="stat-label">Worst-case total, all three</span></div>
 </div>
 
-<p><code>Decide</code> treats any candidate within <code>tieEpsilon</code> of the top utility as tied, and among those, prefers the cheaper one &mdash; a deterministic, externally meaningful rule instead of trusting whichever floating-point comparison happened to come out ahead. If cost also ties exactly, a lexicographic <code>ModelID</code> fallback keeps the same input always producing the same output.</p>
+<p>The cascade is additive, not one 15-second deadline pre-split three ways. A chain that succeeds on the first hop costs 2 seconds or less, never the full worst-case budget up front, because the cost of a fallback attempt should scale with how many attempts actually happen.</p>
 
-<div class="pullquote"><p>A load balancer with a near-tied score needs a second, deterministic rule too — round-robin, lowest ID, anything but an unstable pick that flaps between two backends on every request.</p></div>
+<p>Chain length caps at three hops in this design, matching the plan's three named tiers. A fourth configured entry is accepted by the schema, but the cascade reuses the 8-second tier for every hop past the third rather than inventing a timeout value this design never committed to.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the tie-break isn't a defensive afterthought bolted onto <code>Decide</code> &mdash; it's the necessary second half of scalarization, because collapsing three axes into one number is exactly the operation that manufactures ties a single scalar can't break on its own.</p>
+<p class="prose-so-what"><strong>So what:</strong> the widening budget is really a statement about patience &mdash; by the time hop two starts, the alternative to waiting a little longer isn't "waiting the short way instead," it's failing the request outright.</p>
+
+<h2 id="breaker-states">Three States, Not Two: Closed, Open, HalfOpen</h2>
+
+<p>Trying a chain in strict order only works if every entry is actually reachable. Spending 2 seconds of a request's fallback budget re-discovering that the primary has been down for the last ten minutes is 2 seconds this design has no business charging the request for &mdash; which is exactly what a <strong>circuit breaker</strong> exists to prevent: a component that tracks an endpoint's health separately from any single request, so a known-down endpoint can be skipped instead of retried.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; the breaker panel in your basement</div>
+  A household circuit breaker doesn't wait for a fire to decide a circuit is unsafe &mdash; it trips the instant it detects an overload, and once tripped, every outlet on that circuit goes dark until someone resets it. You also don't just flip it back to full power the moment you suspect the short is fixed: you reset it once, cautiously, and if it trips again immediately, you leave it off and call an electrician instead of testing your luck a second time. That's the exact shape of Closed, Open, and HalfOpen &mdash; healthy and live, tripped and skipped, and one cautious test before trusting it with real load again.
+</div>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+stateDiagram-v2
+  [*] --> Closed
+  Closed --> Open: probe fails 3x
+  Open --> HalfOpen: cooldown elapsed
+  HalfOpen --> Closed: probe succeeds
+  HalfOpen --> Open: probe fails
+</pre>
+
+<p><strong>Closed</strong> is the default, healthy state: the endpoint is a normal candidate in its position in the chain, tried under its own <code>ModelRef.TimeoutMs</code> like any other hop. <strong>Open</strong> means three consecutive health probes have failed, so the chain executor skips this entry entirely and spends zero timeout budget on it. <strong>HalfOpen</strong> is a single cautious probe issued after a fixed cooldown &mdash; success returns the endpoint to Closed, and failure sends it straight back to Open for another full cooldown.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the breaker's whole job is to make sure the 2s/5s/8s budget in the previous section is spent only on hops that have a real chance of answering, not on rediscovering the same outage on every single request.</p>
+
+<h2 id="probed-not-inferred">Why Health Is Probed, Not Inferred</h2>
+
+<p>It would be simpler to fold a request's own timeout straight into the breaker's failure count &mdash; a hop that times out counts as one strike against that endpoint. That shortcut has a real cost: one slow response during a genuine traffic spike isn't evidence an endpoint is down, it's just one noisy sample.</p>
+
+<p>Health in this design is measured out-of-band instead &mdash; a lightweight <code>HEAD /v1/models</code> check running on its own loop, decoupled from any tenant's live traffic. A dedicated probe means the breaker's state depends on the endpoint's actual reachability, not on whichever request happened to hit it hardest.</p>
+
+<p>This mirrors a split RouteIQ has already leaned on: Day 70's prompt fingerprinter keeps its admin-configured rules on a separate write path from its fast L1 lookup read path. Measuring health and consulting it inline are two different jobs, and conflating them makes the breaker only as reliable as its noisiest recent request.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a breaker that trusts live request timeouts as its only signal will flap open during ordinary load spikes &mdash; a separate probe loop is what lets "down" actually mean down.</p>
+
+<h2 id="streaming-proxy">The Proxy's Only Job: Copy Bytes Through</h2>
+
+<p>A fallback proxy that buffers a model's entire streamed response before forwarding it defeats the point of streaming &mdash; the client waits for the whole generation to finish either way, just with an extra hop of latency stacked on top. This design's proxy relays chunks as they arrive using <strong>chunked transfer encoding</strong>, an HTTP mechanism that lets a server send a response in pieces without knowing the total length up front.</p>
+
+<p>The target is under 10 milliseconds of added latency, measured as time-to-first-byte through the proxy versus a direct call to the same winning endpoint. Almost that entire 10ms budget is spent on the decision of which hop to call &mdash; the chain lookup and the breaker check &mdash; not on anything that happens after a connection opens.</p>
+
+<p>Once a hop is chosen, the proxy's job is to copy bytes through as they arrive, not to inspect, transform, or re-buffer them. Any added latency past the routing decision itself is treated as a proxy bug in this design, not a rounding error to shrug off.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the moment the proxy starts doing anything to a chunk besides forwarding it, every millisecond spent doing that is latency this module exists specifically not to add.</p>
+
+<h2 id="backpressure">Backpressure: The One Risk a Fast Path Creates</h2>
+
+<p>A proxy that forwards chunks as fast as the upstream model produces them still has to handle a client that reads slower than that. <strong>Backpressure</strong> means the point where a slow reader can't keep up with a fast writer, and the correct response is for the writer to pause, not to keep buffering in memory.</p>
+
+<p>If the downstream client's read is slow, this design's proxy pauses its read from the upstream model rather than accumulating an unbounded buffer. An unbounded buffer under backpressure is a memory-exhaustion risk under exactly the traffic pattern &mdash; many concurrent slow clients &mdash; that a production proxy is most likely to actually see.</p>
+
+<p>This document commits to the mechanism, not yet to a measured number: a future implementation day runs a k6 load test at 500 RPS (requests per second) with injected primary failures to find out what the real overhead is.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a streaming proxy's speed is only real if it survives its slowest client, and that's a backpressure problem, not a bandwidth one.</p>
 
 <h2 id="todays-experience-post">Today's Experience Post, Same Shape</h2>
 
-<p>Today's companion Experience post covers Delivery Hero's Revisit Order System, which never mutates a Route object in place &mdash; a new correct polyline becomes a new immutable revision instead. <code>decision.Decide</code> follows the identical discipline one layer down: it doesn't adjust a <code>Candidate</code>'s fields to mark it the winner, it ranks an unmodified slice of inputs and returns a brand-new <code>Decision</code> value.</p>
+<p>Today's companion Experience post covers Wayfair's <code>pricing_refresh</code> Kafka topic, where partition-key ordering guaranteed arrival order but not true recency &mdash; a retry could still let a stale price computation publish after a newer, correct one. The fix there was stamping a version at the moment computation started, not at publish time, so a consumer could always tell which update was actually newer regardless of arrival order.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "never let a value change silently under whoever's already holding it" turned out to be the same discipline at two very different layers of today's work &mdash; a routing object at Delivery Hero's scale, and a routing decision at RouteIQ's.</p>
+<p>Fallback-chain config has the same shape of problem waiting for it once it's live across multiple proxy replicas: if a tenant's chain gets reconfigured, every replica needs to agree on which version of that chain is current, and "whichever update arrived last" is exactly the arrival-order trap Wayfair's shadow-mode testing caught. Ordering a chain's config updates correctly is an event-sourcing problem, not a database-write problem, in the same way Wayfair's price updates turned out to be.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> "newer must win consistently, not just arrive last" turned out to be the same lesson at two different layers of today's work &mdash; a SKU's price at Wayfair's scale, and a tenant's fallback chain at RouteIQ's.</p>
+
+<h2 id="out-of-scope">What's Still Design, Not Code</h2>
+
+<p>Nothing in this post is running yet. No runtime code, no migrations, no new Kafka topics, and no live model endpoints called in this sandbox &mdash; today's output is the <code>Chain</code>/<code>ModelRef</code> schema, the 2s/5s/8s cascade, the three breaker states, and the chunked-relay streaming strategy as committed decisions.</p>
+
+<p>There's also no wiring yet into Day 80's <code>pkg/decision</code> output to auto-seed a chain's ordering from a routing decision &mdash; a tenant's fallback chain is configured independently for now, the same way Day 77's quality-scorer design deferred its own gateway wiring.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> naming the commitments before writing the code is what let this post explain the reasoning cleanly &mdash; the executor, the probe loop, and the Redis-backed unhealthy set all land on days that get to build on a design that's already been argued through once.</p>
 
 <h2 id="what-comes-next">What Comes Next</h2>
 
-<p>Today's <code>FromRollupRow</code> takes cost and latency as caller-supplied arguments, not real signals &mdash; a future day sources actual per-model pricing and observed p99 latency instead of test fixtures. <code>Decision.LowConfidence</code> already carries Day 79's noise-floor flag forward; wiring that into an actual routing guardrail, so a low-confidence bucket falls back to a wider window before it's trusted with a live decision, is deferred past today.</p>
+<p>Implementation lands across the following days: the chain executor itself trying GPT-4o, then Claude Sonnet, then a local Llama-3-70B under a k6 500 RPS chaos test, the streaming passthrough proxy with its overhead actually measured, active health probes backed by a Redis-held unhealthy set, and <code>routing_decision</code> events emitted to Kafka for LensAI's <code>routing_log</code> table.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> today's decision engine is honest about being a pure function waiting on real inputs &mdash; the scalarization and the tie-break are the part worth trusting first, because the cost and latency signals feeding them are still fixtures until a following day makes them real.</p>
+<p class="prose-so-what"><strong>So what:</strong> today's design is the part worth trusting first, because every number in the next section &mdash; the real added latency, the real P99 (99th-percentile) latency under chaos &mdash; is still a target until an implementation day measures it for real.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 80 of 150 &mdash; Multi-Objective Routing &mdash; Scalarization and Weights</p>
-  <p><em>Next up:</em> <a href="day-81-fallback-chains-graceful-degradation.html">Day 81 &mdash; Fallback Chains &mdash; Graceful Degradation in Inference</a></p>
+  <p>AI Learning &middot; Day 81 of 150 &mdash; Fallback Chains &mdash; Graceful Degradation in Inference</p>
+  <p><em>Next up:</em> Day 82 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-79-score-normalization-0-1-vs-likert.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-80-multi-objective-routing-scalarization.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 79 — Score Normalization (the quality rollup this post's Candidate.Quality is built from)</span>
+      <span>Day 80 — Multi-Objective Routing (decision.Decide's output is what fallback-chain steps in after)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-80-route-revisions-revisit-order-system.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-81-sub-second-sku-propagation-event-ordering.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 80 — Route Revisions and Revisit Order System (today's companion Experience post — the same "never mutate a value someone already holds" discipline, one layer up)</span>
+      <span>Day 81 — Wayfair Sub-Second SKU Propagation (today's companion Experience post — the same "newer must win consistently" problem, one layer up)</span>
     </a>
   </div>
 </div>
@@ -335,11 +406,14 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-problem">Three Axes, No Shared Unit</a></li>
-      <li><a href="#weights">Why Weights Are Per-Tenant</a></li>
-      <li><a href="#limitation">What Scalarization Can't Express</a></li>
-      <li><a href="#tie-break">Why the Tie-Break Exists</a></li>
+      <li><a href="#chain-schema">The Schema</a></li>
+      <li><a href="#cascade">The Widening Budget</a></li>
+      <li><a href="#breaker-states">Three Breaker States</a></li>
+      <li><a href="#probed-not-inferred">Probed, Not Inferred</a></li>
+      <li><a href="#streaming-proxy">Copy Bytes Through</a></li>
+      <li><a href="#backpressure">Backpressure</a></li>
       <li><a href="#todays-experience-post">Today's Experience Post</a></li>
+      <li><a href="#out-of-scope">Still Design, Not Code</a></li>
       <li><a href="#what-comes-next">What Comes Next</a></li>
     </ul>
   </div>
@@ -347,11 +421,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-80-multi-objective-routing-scalarization.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-81-fallback-chains-graceful-degradation.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Multi-Objective+Routing+%E2%80%94+Scalarization+and+Weights+%E2%80%94+AI+Learning+%C2%B7+Day+80+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-80-multi-objective-routing-scalarization.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Fallback+Chains+%E2%80%94+Graceful+Degradation+in+Inference+%E2%80%94+AI+Learning+%C2%B7+Day+81+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-81-fallback-chains-graceful-degradation.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -364,17 +438,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D79</span> AI Learning</div>
-          <a href="day-79-score-normalization-0-1-vs-likert.html" class="series-post-title">Score Normalization — Why 0-1 Beats Raw Likert</a>
+          <div class="series-post-kicker"><span class="series-post-num">D80</span> AI Learning</div>
+          <a href="day-80-multi-objective-routing-scalarization.html" class="series-post-title">Multi-Objective Routing — Scalarization and Weights</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D80</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Multi-Objective Routing — Scalarization and Weights</div>
-          <div class="series-post-desc">Quality, cost, and latency joined into one utility function via tenant-overridable weights.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D81</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Fallback Chains — Graceful Degradation in Inference</div>
+          <div class="series-post-desc">An ordered ModelRef chain, a widening 2s/5s/8s timeout budget, and a three-state circuit breaker for when the chosen model doesn't answer.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D81</span> AI Learning</div>
-          <a href="day-81-fallback-chains-graceful-degradation.html" class="series-post-title">Fallback Chains — Graceful Degradation in Inference</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D82</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
