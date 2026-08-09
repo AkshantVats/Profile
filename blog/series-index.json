@@ -852,6 +852,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-81-sub-second-sku-propagation-event-ordering.html",
+          "kicker": "Experience · Day 81 of 150",
+          "title": "Day 81 — Wayfair Sub-Second SKU Propagation — Event Ordering",
+          "subtitle": "Wayfair · pricing_refresh Kafka (40 partitions) · version stamped at computation time",
+          "date": "2026-08-09",
+          "slug": "day-81-sub-second-sku-propagation-event-ordering",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-81-sub-second-sku-propagation-event-ordering.html",
+          "coverImage": "blog/assets/covers/day-81-sub-second-sku-propagation-event-ordering.png",
+          "desc": "The pricing_refresh partition key already put every SKU's price changes in Kafka order, but shadow-mode testing found a retry path where a stale batch computation could still publish after a live correction. The fix: a version stamped at the moment Delphi starts computing, not at publish time — the same discipline today's fallback-chain config needs across proxy replicas."
+        },
+        {
           "href": "blog/series/experience/day-80-route-revisions-revisit-order-system.html",
           "kicker": "Experience · Day 80 of 150",
           "title": "Day 80 — Route Revisions and Revisit Order System — Compensating Bad Polylines",
