@@ -888,6 +888,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-84-browserstack-health-checks-that-lied.html",
+          "kicker": "Experience · Day 84 of 150",
+          "title": "Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied",
+          "subtitle": "BrowserStack device instrumentation · CI health checks · synthetic probes",
+          "date": "2026-08-10",
+          "slug": "day-84-browserstack-health-checks-that-lied",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html",
+          "coverImage": "blog/assets/covers/day-84-browserstack-health-checks-that-lied.png",
+          "desc": "A green /health endpoint kept passing while the CI device-instrumentation pipeline it guarded had quietly stopped serving — why a liveness check and a working dependency are two different claims, and the synthetic-probe fix that closed the gap."
+        },
+        {
           "href": "blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html",
           "kicker": "Experience · Day 83 of 150",
           "title": "Day 83 — Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold",
