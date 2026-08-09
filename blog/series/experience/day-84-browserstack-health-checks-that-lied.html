@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 83 &mdash; Agoda Cross-Tier Read Latency &mdash; Snappy Hot, Zstd Cold | Experience Series</title>
-<meta name="description" content="Migrating WhiteFalcon's cold-tier Parquet compression from Snappy to Zstd cut storage 18% &mdash; but 'under 1% average latency impact' is a claim about the mean, and the real diligence was checking whether the tail told the same story.">
-<meta property="og:title" content="Day 83 &mdash; Agoda Cross-Tier Read Latency &mdash; Snappy Hot, Zstd Cold">
-<meta property="og:description" content="An 18% storage win from a compression codec migration, and why 'under 1% average latency impact' isn't the same claim as 'under 1% at every percentile.'">
+<title>Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied | Experience Series</title>
+<meta name="description" content="A green /health endpoint kept passing while the one dependency a device-farm test suite actually needed had quietly stopped serving &mdash; why a liveness check and a working system are two different claims.">
+<meta property="og:title" content="Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied">
+<meta property="og:description" content="A process being up and a process doing its job are different claims &mdash; the CI flakiness that taught me to stop trusting the first one for the second.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-83-cold-tier-compression-snappy-to-zstd.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-browserstack-health-checks-that-lied.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-83-cold-tier-compression-snappy-to-zstd.png">
-<meta property="article:published_time" content="2026-08-09">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-browserstack-health-checks-that-lied.png">
+<meta property="article:published_time" content="2026-08-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,81 +185,69 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 83 of 150</span>
-    <span class="tag">Design</span>
-    <span class="tag">Parquet</span>
-    <span class="tag">Agoda</span>
+    <span class="tag accent">Experience &middot; Day 84 of 150</span>
+    <span class="tag">Testing</span>
+    <span class="tag">CI</span>
+    <span class="tag">BrowserStack</span>
   </div>
-  <h1 class="post-title">Day 83 &mdash; Agoda Cross-Tier Read Latency &mdash; Snappy Hot, Zstd Cold</h1>
-  <p class="post-subtitle">Migrating WhiteFalcon's cold-tier Parquet compression from Snappy to Zstd cut storage 18% &mdash; and the real work wasn't the config change, it was proving "under 1% average latency impact" meant the same thing at the tail as it did on average.</p>
+  <h1 class="post-title">Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied</h1>
+  <p class="post-subtitle">A green <code>/health</code> endpoint kept passing while the one dependency a device-farm test suite actually needed had quietly stopped serving &mdash; a process being up and a process doing its job turned out to be two different claims.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 83 of 150</span>
+    <span class="meta-item">Experience &middot; Day 84 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 9, 2026</span>
+    <span class="meta-item">August 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-83-cold-tier-compression-snappy-to-zstd.png" alt="Day 83 — Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-84-browserstack-health-checks-that-lied.png" alt="Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Agoda's WhiteFalcon time-series database keeps months of history in its cold tier &mdash; Parquet (a columnar file format built for scanning specific columns without reading a whole row) files sitting on S3, reached through a Ceph storage layer &mdash; long after the hot Redis tier has aged them out past its 3-to-7-day retention window. Every one of those files was compressed with Snappy, a codec chosen for one property above all others: it decompresses fast, which matters when a query has to unpack a block before it can answer anything.</p>
+<p>At BrowserStack I worked on device instrumentation &mdash; the layer that reverse-engineers native iOS and Android OS APIs so a test running against a remote physical device can trigger things a normal app can't: FaceID and TouchID prompts, answered automatically through a rig called Camera Image Injection, which feeds a synthetic face or fingerprint straight into a phone's camera and biometric sensor path instead of a real human touching real hardware.</p>
 
-<p>The question I picked up wasn't whether Snappy was wrong. It was whether a denser codec could shrink the cold tier's storage bill without quietly taxing every read that touched it.</p>
+<p>The CI suite that exercised this instrumentation layer had a health check in front of it, the way most services do. It reported green almost the entire time I was debugging a run of test flakiness that had nothing to do with the tests themselves.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; the compression codec migration and its read-latency verification</div>
-  I own this bullet end to end: choosing Zstd as the candidate, picking a compression level, and verifying the read-path impact before rolling it out. The Ceph/S3 storage layer, the Scala query engine that decompresses these blocks on every cross-tier read, and the histogram-based quantile merge those reads feed into &mdash; all Agoda team-built, covered in "When Percentiles Lie."
+  <div class="attr-label">Mine &mdash; diagnosing why the CI health check couldn't catch this failure mode</div>
+  I owned tracing the flakiness back to a health check that only confirmed a process was running, and building the replacement that checked the instrumentation path the tests actually depended on. The device farm and the CI orchestration around it were BrowserStack's existing platform &mdash; the diagnosis and the probe redesign are the part I'm describing here.
 </div>
 
-<h2 id="tradeoff">Compression Ratio Isn't the Only Number That Matters</h2>
+<h2 id="the-lie">The Health Check That Kept Saying Yes</h2>
 
-<p>Snappy trades compression ratio for decode speed. It doesn't squeeze a file as small as it could, but unpacking a block back into rows costs very little CPU.</p>
+<p>The instrumentation bridge &mdash; the process that translates a test's "trigger FaceID" call into the actual Camera Image Injection signal a physical device receives &mdash; had its own liveness check wired into the CI pipeline. Before any biometric test ran, the pipeline asked the bridge "are you up," and for most of the flaky stretch, the bridge answered yes.</p>
 
-<p>Zstd &mdash; Facebook's Zstandard codec &mdash; sits on the other side of that line. At a higher compression level it packs the same rows into noticeably fewer bytes, at the cost of more CPU spent unpacking them later.</p>
+<p>The tests still failed, intermittently, in a way that looked like device flakiness &mdash; the kind of noisy failure a device farm has plenty of by default, so nobody looked past that explanation for a while.</p>
 
-<p>For a background job that writes a file once and reads it rarely, that tradeoff is easy: take the smaller file every time, nobody's waiting on the read.</p>
+<p class="prose-so-what"><strong>So what:</strong> a health check that passes doesn't rule out the dependency it's supposedly protecting &mdash; it only rules out the one specific failure mode that check happens to test for, and every other failure mode is invisible to it by construction.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> WhiteFalcon's cold tier isn't write-once-read-never archival &mdash; it's read on every query whose time range reaches past the hot tier's retention window, so "smaller file" and "cheap to read" are competing goals here, not the same goal wearing two names.</p>
+<h2 id="two-kinds-of-up">Two Different Questions Called &ldquo;Is It Up&rdquo;</h2>
 
-<h2 id="options">Three Codecs Considered, One Level Chosen</h2>
+<p>A shop with its lights on and its door unlocked looks open from the street. Whether it actually has anything in stock is a different question, one you only get an answer to by walking up to the counter and asking for something specific.</p>
+
+<p>The instrumentation bridge's liveness check was the lights-and-door version: it confirmed the process had started and was listening on its port. It said nothing about whether the specific pipeline underneath &mdash; the one that takes a synthetic biometric image and actually pushes it through to a device's sensor input &mdash; was still wired up correctly on that run.</p>
 
 <table>
-<tr><th>Option</th><th>Storage impact</th><th>Why it loses (or wins)</th></tr>
-<tr><td><strong>A. Keep Snappy</strong></td><td>No change</td><td>Zero migration risk, zero storage savings &mdash; the status quo, kept only if Zstd's decode cost turned out to be unacceptable.</td></tr>
-<tr><td><strong>B. Zstd at max compression level</strong></td><td>Largest storage win available</td><td>Decode cost scales with compression level too &mdash; the densest setting also unpacks the slowest, and that cost lands on every cross-tier read, not just the migration job.</td></tr>
-<tr><td><strong>C. Zstd at a tuned mid-level (chosen)</strong></td><td>18% storage reduction</td><td>Gives up some of option B's storage win in exchange for a decode cost small enough that the read path barely notices &mdash; verified before rollout, not assumed.</td></tr>
+<tr><th>Option</th><th>What it actually confirms</th><th>Why it loses (or wins)</th></tr>
+<tr><td><strong>A. Process alive</strong></td><td>The bridge binary hasn't crashed</td><td>Cheapest possible check &mdash; and the one already in place, which is exactly why it kept reporting green through the outage.</td></tr>
+<tr><td><strong>B. Port open / TCP connect</strong></td><td>Something is listening on the expected port</td><td>Rules out "process died" a little more precisely than A, but a wedged internal pipeline behind an open socket looks identical to a healthy one from outside.</td></tr>
+<tr><td><strong>C. Synthetic transaction (chosen)</strong></td><td>The actual injection path completes end to end</td><td>Costs a real round trip through the pipeline on every check, but it's the only option that can't be fooled by a process that's technically running and functionally stuck.</td></tr>
 </table>
 
-<p>Option B was the tempting number on a slide: the biggest storage reduction, in one line. It was also the option most likely to turn a background cost-saving change into a customer-visible latency regression, because Zstd's decode cost isn't flat across compression levels &mdash; it climbs as the level does.</p>
+<p class="prose-so-what"><strong>So what:</strong> "is it up" collapses at least three different questions into one word &mdash; whether the process exists, whether it's reachable, and whether it can actually do the one thing it exists to do &mdash; and a check aimed at the first question will keep reporting success while the third one silently fails.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the codec with the best storage number in isolation isn't automatically the right choice once that codec sits directly in a live read path &mdash; the level that matters is the one where the storage win and the decode cost both stay acceptable together.</p>
-
-<h2 id="verification">Why "Under 1% on Average" Wasn't the Whole Answer</h2>
-
-<p>The headline number for this migration ended up under 1% average read-latency impact &mdash; a good number on its face, and the one that would go in a summary slide.</p>
-
-<p>An average only says that most requests barely noticed. It says nothing about whether a smaller set of requests absorbed a much larger hit that got smoothed out by everyone else's near-zero change.</p>
-
-<p>Verifying this migration meant checking the same query paths WhiteFalcon's cross-tier quantile merge already tracks by percentile, not inventing a new measurement just for this change &mdash; the histogram-bucket infrastructure that makes a correct P95/P99 merge possible across the hot/cold boundary was already there to answer whether the tail moved the same way the mean did.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a compression change that's "under 1% on average" and a compression change that's "under 1% at every percentile including p99" are different claims &mdash; only the second one is safe to ship without a caveat attached.</p>
-
-<div class="pullquote"><p>An average that stays flat can still be hiding a p99 that didn't.</p></div>
-
-<h2 id="decision">Where the Decompression Cost Actually Lands</h2>
+<h2 id="what-changed">What the Synthetic Probe Actually Exercised</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -279,57 +267,38 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  S3["S3 Parquet, Zstd"] --> Query["Scala query engine"]
-  Query --> Decode["Decompress block"]
-  Decode --> Hist["Histogram buckets"]
-  Hist --> Merge["Cross-tier merge"]
-  Merge --> P99["P95/P99 result"]
+  Old["Old check: port open?"] -->|"yes"| Green1["CI: green"]
+  New["New check: inject test image"] -->|"round trip completes"| Green2["CI: green"]
+  New -->|"pipeline wedged"| Red["CI: red, alert fires"]
 </pre>
 
-<p>Every cross-tier read that reaches into the cold tier now pays a decode cost before its bytes even become histogram buckets &mdash; the same buckets "When Percentiles Lie" already merges with the hot tier's own histogram to compute a correct P95 or P99 across a time range spanning both. That merge step doesn't know or care which codec produced the bucket counts it's adding together, which is exactly why it doubled as the verification tool: if Zstd's decode cost had shown up disproportionately at the tail, the merged percentile would have surfaced it directly, not required a separate benchmark harness built just to check.</p>
+<p>The replacement check didn't ask the bridge whether it was alive. It sent a known test image through the same Camera Image Injection path a real biometric test would use, and waited for that specific round trip to complete before calling the pipeline healthy.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> reusing an existing percentile pipeline as the verification instrument is both less work and more trustworthy than a purpose-built benchmark &mdash; it's the same measurement path production traffic actually travels, not a synthetic stand-in for it.</p>
+<p>That's a heavier check than a port probe &mdash; it exercises real work on every run instead of a socket handshake &mdash; and it was the only version that could actually distinguish "the pipeline works" from "the process is merely running."</p>
 
-<h2 id="cost">What the Fix Costs, What It Buys</h2>
+<p class="prose-so-what"><strong>So what:</strong> the fix wasn't a smarter way to interpret a cheap signal &mdash; it was accepting that a meaningfully more expensive check was the only one that measured the thing the pipeline actually needed to prove.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1.5T&ndash;1.8T</span><span class="stat-label">Events/day</span></div>
-  <div class="stat-cell"><span class="stat-num">18%</span><span class="stat-label">Cold-tier storage reduction</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;1%</span><span class="stat-label">Avg. read-latency impact</span></div>
-  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">Hot-tier retention window</span></div>
-</div>
+<div class="pullquote"><p>A process being up and a process doing its job are two different claims, and only one of them was ever being checked.</p></div>
 
-<p>The cost is a codec migration touching every cold-tier write path, plus the discipline to verify the read side before calling it done. What it buys is 18% less storage on a tier holding months of history across roughly 1.5 to 1.8 trillion daily events &mdash; a percentage that compounds every day the cold tier keeps growing.</p>
+<h2 id="todays-code">Today's fallback-chain Probe, Same Lesson One System Later</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> at this scale, a storage-percentage win is not a one-time number &mdash; it's a recurring saving on every future day's ingest, which is exactly why it was worth the extra step of proving the read-latency side of the tradeoff before shipping it.</p>
+<p>Today's <code>fallback-chain</code> code makes the same choice deliberately: its health prober sends <code>HEAD /v1/models</code> to each model endpoint, not a bare TCP connect. A model-serving process can accept a connection on its port while the actual inference path behind it is wedged, in exactly the shape the BrowserStack bridge could accept connections while its injection pipeline sat stuck.</p>
 
-<h2 id="today">Today's Proxy Overhead Metric, One Layer Down</h2>
+<p><code>HEAD /v1/models</code> is a lighter check than the synthetic biometric injection above &mdash; it doesn't run inference, the way the CI probe didn't run a full test &mdash; but it's still a request the serving stack has to actually route and answer, not just an open socket. That's the same "shallow probe, but on the real path" tradeoff, chosen for the same reason: a check cheap enough to run constantly, but pointed at something a truly broken dependency can't fake its way through.</p>
 
-<p>Today's <code>fallback-chain</code> streaming proxy applies the same lesson at a different layer: its overhead histogram is scoped to p99, not to a mean, for exactly the reason this migration's verification was.</p>
-
-<p>A proxy that reports "under 10ms on average" could still be stalling a slice of requests well past that budget, the same way an average latency number here could have hidden a codec-driven tail regression. Measuring and gating on the percentile instead of the mean is the same discipline, applied one system earlier in this arc than a codec choice &mdash; before the number ever gets written down as a summary at all.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> "check the tail, not just the average" isn't a one-off verification step for a compression migration &mdash; it's a default worth building into the metric itself, so the question doesn't have to be asked by hand every time.</p>
+<p class="prose-so-what"><strong>So what:</strong> the specific failure mode changes &mdash; a stuck injection pipeline five years ago, a wedged inference path today &mdash; but the design question a health check has to answer is the same one every time: what's the cheapest request that a dependency can't pass while actually broken?</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 83 of 150 &mdash; Agoda Cross-Tier Read Latency &mdash; Snappy Hot, Zstd Cold</p>
-  <p><em>Next up:</em> <a href="day-84-browserstack-health-checks-that-lied.html">Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied</a></p>
+  <p>Experience &middot; Day 84 of 150 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied</p>
+  <p><em>Next up:</em> Day 85 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Building a TSDB at Agoda (the full WhiteFalcon system tour this post's cold tier sits inside)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>When Percentiles Lie — Cross-Tier Queries (the histogram-merge machinery this post's verification step reused)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-82-osrm-pool-saturation-pdb-tradeoffs.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 82 — Delivery Hero OSRM Pool Saturation (yesterday's post, a different platform's version of a guardrail meeting a scenario it wasn't built for)</span>
+      <span>Day 83 — Agoda Cross-Tier Read Latency (yesterday's post — a different platform's guardrail meeting a claim that needed a closer check before trusting it)</span>
     </a>
   </div>
 </div>
@@ -340,23 +309,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#tradeoff">Compression Ratio Isn't Everything</a></li>
-      <li><a href="#options">Three Codecs, One Level Chosen</a></li>
-      <li><a href="#verification">Why "Average" Wasn't Enough</a></li>
-      <li><a href="#decision">Where the Cost Actually Lands</a></li>
-      <li><a href="#cost">What It Costs, What It Buys</a></li>
-      <li><a href="#today">Today's Proxy Overhead Metric</a></li>
+      <li><a href="#the-lie">The Health Check That Kept Saying Yes</a></li>
+      <li><a href="#two-kinds-of-up">Two Different Questions, One Word</a></li>
+      <li><a href="#what-changed">What the Synthetic Probe Exercised</a></li>
+      <li><a href="#todays-code">Today's fallback-chain Probe</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-83-cold-tier-compression-snappy-to-zstd.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-84-browserstack-health-checks-that-lied.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Agoda+Cross-Tier+Read+Latency+%E2%80%94+Snappy+Hot%2C+Zstd+Cold+%E2%80%94+Experience+%C2%B7+Day+83+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-83-cold-tier-compression-snappy-to-zstd.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=BrowserStack+Integration+Test+Flakiness+%E2%80%94+Health+Checks+That+Lied+%E2%80%94+Experience+%C2%B7+Day+84+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-84-browserstack-health-checks-that-lied.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -369,17 +336,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D82</span> Experience</div>
-          <a href="day-82-osrm-pool-saturation-pdb-tradeoffs.html" class="series-post-title">Delivery Hero OSRM Pool Saturation — PDBs vs. the Lunch Rush</a>
+          <div class="series-post-kicker"><span class="series-post-num">D83</span> Experience</div>
+          <a href="day-83-cold-tier-compression-snappy-to-zstd.html" class="series-post-title">Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D83</span> Experience &middot; now</div>
-          <div class="series-post-title">Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold</div>
-          <div class="series-post-desc">18% cold-tier storage savings from a compression codec migration, and why "under 1% average latency impact" needed a tail check before it was safe to ship.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D84</span> Experience &middot; now</div>
+          <div class="series-post-title">BrowserStack Integration Test Flakiness — Health Checks That Lied</div>
+          <div class="series-post-desc">A green /health endpoint kept passing while the real dependency it guarded had quietly stopped working.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D84</span> Experience</div>
-          <a href="day-84-browserstack-health-checks-that-lied.html" class="series-post-title">BrowserStack Integration Test Flakiness — Health Checks That Lied</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D85</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
