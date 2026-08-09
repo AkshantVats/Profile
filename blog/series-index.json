@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-84-active-health-probes-circuit-breaker.html",
+          "kicker": "AI Learning · Day 84 of 150",
+          "title": "Day 84 — Health Checks for Model Endpoints — Active Probes",
+          "subtitle": "Synthetic transactions vs passive metrics · Closed/Open/HalfOpen breaker",
+          "date": "2026-08-10",
+          "slug": "day-84-active-health-probes-circuit-breaker",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-84-active-health-probes-circuit-breaker.html",
+          "coverImage": "blog/assets/covers/day-84-active-health-probes-circuit-breaker.png",
+          "desc": "Active probes vs passive metrics, the three-state Closed/Open/HalfOpen circuit breaker, and why a Redis-backed unhealthy set needs TTL refresh so a crashed monitor fails open instead of blacklisting forever."
+        },
+        {
           "href": "blog/series/ai-learning/day-83-streaming-backpressure-buffer-size.html",
           "kicker": "AI Learning · Day 83 of 150",
           "title": "Day 83 — Streaming Token Delivery — Backpressure Basics",
