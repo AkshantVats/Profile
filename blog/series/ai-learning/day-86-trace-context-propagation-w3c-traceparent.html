@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design | AI Learning Series</title>
-<meta name="description" content="Why a routing_log event log, not a routing_state table, has to be the source of truth for FinOps — a bank ledger vs. a bank balance, applied to which model served which tenant and why.">
-<meta property="og:title" content="Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design">
-<meta property="og:description" content="Event sourcing for which model served whom — why fallback-chain's routing_decision events have to be an append-only log, not a queryable snapshot of the latest routing choice.">
+<title>Day 86 &mdash; Trace Context Propagation &mdash; W3C traceparent | AI Learning Series</title>
+<meta name="description" content="Injecting a traceparent header on a provider HTTP client sounds like one line of code. What makes it actually work is the difference between a trace ID that just tags every span the same and a parent/span ID pair that lets you rebuild the call tree.">
+<meta property="og:title" content="Day 86 &mdash; Trace Context Propagation &mdash; W3C traceparent">
+<meta property="og:description" content="A trace ID alone doesn't make a trace — why span_id/parent_span_id, not just a shared trace_id, is what turns three unrelated-looking HTTP calls into one reconstructable fallback decision.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-85-routing-decision-audit-trail.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-routing-decision-audit-trail.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-86-trace-context-propagation-w3c-traceparent.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-86-trace-context-propagation-w3c-traceparent.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-routing-decision-audit-trail.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-86-trace-context-propagation-w3c-traceparent.png">
 <meta property="article:published_time" content="2026-08-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 85 of 150</span>
-    <span class="tag">Distributed Systems</span>
-    <span class="tag">Event Sourcing</span>
-    <span class="tag">FinOps</span>
+    <span class="tag accent">AI Learning &middot; Day 86 of 150</span>
+    <span class="tag">Distributed Tracing</span>
+    <span class="tag">Observability</span>
+    <span class="tag">W3C traceparent</span>
   </div>
-  <h1 class="post-title">Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design</h1>
-  <p class="post-subtitle">Event sourcing for which model served whom &mdash; why <code>routing_log</code> has to be an append-only log of every decision, not a table that only remembers the latest one.</p>
+  <h1 class="post-title">Day 86 &mdash; Trace Context Propagation &mdash; W3C traceparent</h1>
+  <p class="post-subtitle">Injecting a <code>traceparent</code> header on a provider HTTP client sounds like a one-line change. What makes the resulting trace actually mean something is a detail that one line hides: a shared trace ID isn't the same thing as a reconstructable call tree.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 85 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 86 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 10, 2026</span>
     <div class="meta-divider"></div>
@@ -208,31 +208,44 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-85-routing-decision-audit-trail.png" alt="Day 85 — Routing Decision Logs — Audit Trail Design" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-86-trace-context-propagation-w3c-traceparent.png" alt="Day 86 — Trace Context Propagation — W3C traceparent" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p><code>routing_log</code> table is source of truth for FinOps &mdash; that's today's design commitment in one sentence, and the reason it needs a full post is that "source of truth" is a much stricter requirement than it sounds. A table finance can query without a caveat attached has to survive questions nobody asked when it was designed, including questions about last month, not just right now.</p>
+<p>Inject <code>traceparent</code> on the provider HTTP client &mdash; that's the whole implementation, described in seven words, and it undersells the design question sitting underneath it. A fallback chain that tries three models in sequence makes three outbound HTTP calls. The question <code>traceparent</code> has to answer isn't just "were these calls related" &mdash; it's "in what order, and did any of them run at the same time as another."</p>
 
-<h2 id="state-vs-log">Why "Currently Preferred Model" Isn't Enough for a Cost Question</h2>
+<h2 id="id-vs-tree">A Shared Trace ID Alone Doesn't Make a Trace</h2>
 
-<p>The obvious way to track routing is a table keyed by tenant, holding whatever model that tenant is routed to right now. It answers "who is <code>acme</code> routed to today" in one indexed lookup, and it's small &mdash; one row per tenant, updated in place every time a routing choice changes.</p>
+<p>The naive version of correlation is one ID, stamped on every span that belongs to the same logical operation. It answers "which spans belong together" in a single equality check, and for a lot of purposes that's actually enough &mdash; grep every log line for the same ID, and you have every event from one request in front of you.</p>
 
-<p>It cannot answer "how much did <code>acme</code> actually spend on model calls last Tuesday," because last Tuesday's routing choice was overwritten the moment a newer one replaced it. The row that could have answered that question existed once, briefly, and then it didn't.</p>
+<p>What a flat shared ID can't answer is shape. Three spans carrying the same ID could be three sequential attempts, each waiting for the last one to fail before starting &mdash; or three concurrent fan-out calls racing each other. The ID looks identical either way; only the order they actually ran in tells you which.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a table that only stores the latest state has already discarded the exact history a cost question needs &mdash; not lost it somewhere recoverable, discarded it, the moment the next update landed.</p>
+<p class="prose-so-what"><strong>So what:</strong> "these events are related" and "here is the tree those events form" are different claims, and a single flat ID only ever proves the first one &mdash; reconstructing the second requires each span to also know which span, if any, it's a child of.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a bank ledger vs. a bank balance</div>
-  A bank balance is one number: what you have right now. A bank ledger is every transaction that ever moved that number, in order, each one keeping its own timestamp and amount forever. You could reconstruct today's balance from the ledger by replaying it &mdash; you cannot reconstruct last month's balance from today's number alone, because the number itself has no memory of how it got here. <code>routing_log</code> is the ledger; a "current routing state" table is the balance. FinOps needs the ledger, because "how much did we spend and on what" is a question about transactions, not about the current number.
+  <div class="attr-label">DS analogy &mdash; a passport, not a wristband</div>
+  A festival wristband proves you're part of the same event as everyone else wearing one &mdash; useful, but it can't tell you which stage you visited first, or whether you saw two bands back to back or missed one entirely. A passport does something stricter: every border crossing adds a new stamp, and every stamp records which crossing came before it. Read the stamps in order and you've reconstructed the whole trip, not just "this person traveled." A W3C <code>traceparent</code> header is the passport, not the wristband &mdash; <code>trace_id</code> is the passport number, shared across the whole trip, and <code>span_id</code>/<code>parent_span_id</code> are this crossing's stamp and the stamp it followed.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> the choice isn't "log or state" as a matter of taste &mdash; it's that state is a derived, lossy summary of a log, and once a system has irreversibly kept only the summary, no later cleverness recovers the detail it threw away.</p>
+<h2 id="three-options">Three Ways to Correlate a Multi-Hop Call</h2>
 
-<h2 id="what-a-row-answers">What Each Row Has to Answer, Not Just Record</h2>
+<table>
+<tr><th>Option</th><th>What it gives you</th><th>Why it loses (or wins)</th></tr>
+<tr><td><strong>A. One flat correlation ID, no parent/child links</strong></td><td>"These spans belong together" &mdash; nothing about their order or nesting</td><td>Cheapest to add, but the moment two attempts overlap or one nests inside another, a flat ID can't tell you which.</td></tr>
+<tr><td><strong>B. Adopt the full OpenTelemetry SDK everywhere</strong></td><td>Standards-compliant tracing, auto-instrumented, vendor-agnostic exporters</td><td>The right long-run answer for a whole organization &mdash; too much surface area to bring in just to get one module's provider calls correlated this week.</td></tr>
+<tr><td><strong>C. A minimal W3C-shaped header, hand-rolled SDK (chosen)</strong></td><td><code>traceparent</code>'s wire format (<code>trace_id</code>/<code>span_id</code>/flags) without the OTel SDK's full API surface</td><td>Interoperable with real tracing tools later &mdash; the header format is the standard part &mdash; while today's <code>traceforge-go</code> SDK stays small enough to read start to finish in one sitting.</td></tr>
+</table>
+
+<p>Option C is a deliberate middle point, not a shortcut taken because the "real" option was too much work. The wire format &mdash; <code>traceparent: 00-&lt;trace-id&gt;-&lt;span-id&gt;-&lt;flags&gt;</code> &mdash; is the actual W3C Trace Context standard, the same header a real OTel Collector would recognize and pick up from.</p>
+
+<p>What's hand-rolled is everything on this side of the wire: a small <code>Span</code> struct, a context-carried "current span," and two functions to inject and extract the header. No exporters, no samplers, no SDK configuration surface to learn before writing the first span.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> standards compliance and implementation size are separable decisions &mdash; you can commit to the wire format a real tracing backend expects while keeping the code that produces it small enough that adding a first tracing hook to one module doesn't require adopting an entire observability platform first.</p>
+
+<h2 id="the-diagram">One Decision, Three Spans, One Parent Each</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,68 +265,64 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  D["Routing decision made"] --> E["routing.Event, Kafka"]
-  E --> C["Batch consumer"]
-  C --> T["routing_log, ClickHouse"]
-  T --> Q["FinOps query, any past date"]
+  D["Decision starts, decision_id"] --> H1["Hop 1, gpt-4o span"]
+  H1 -->|"timeout"| H2["Hop 2, claude span"]
+  H2 -->|"error"| H3["Hop 3, llama span"]
+  H1 -.traceparent header.-> P1["Provider 1"]
+  H2 -.traceparent header.-> P2["Provider 2"]
+  H3 -.traceparent header.-> P3["Provider 3"]
 </pre>
 
-<p>Today's <code>routing.Event</code> has five fields worth their place, each answering a question a thinner schema couldn't: <code>chosen_model</code> answers who served the request; <code>scores</code> answers why, carrying every candidate's score, not just the winner's, so a later question like "was the winner ever a close call" doesn't require re-running a scoring pass that already happened once; <code>cache_hit</code> answers whether a model was even involved, since a cache answering first is a real outcome worth a row of its own; <code>cost_estimate_usd</code> answers the dollar question directly, in the same row as the decision that caused it, rather than requiring a join against a separate pricing table that may have since changed its numbers.</p>
+<p>Each hop gets its own span, its own <code>span_id</code>, and its own outbound <code>traceparent</code> header carrying that span's ID &mdash; three separate provider requests, three separate stamps in the passport. What ties all three together for a collector rebuilding the tree isn't the header at all; it's the <code>routeiq.decision_id</code> tag every one of those three spans also carries, generated once before the first hop and shared across every attempt the same decision makes.</p>
 
-<p>A cache-hit row carries an empty <code>chosen_model</code> and a zero cost, and that's deliberate, not a gap to fill in later. A FinOps query computing "cost per request this month" needs the full request count in its denominator, cache hits included &mdash; leaving those requests out of <code>routing_log</code> entirely would make every request look more expensive than it actually was, on average, by simply hiding the free ones.</p>
+<p>That's a second ID doing a different job than <code>trace_id</code> does. <code>trace_id</code> says "these all belong to one distributed trace, possibly spanning many unrelated decisions across a long-running request." <code>routeiq.decision_id</code> says something narrower and more useful for this specific system: "these spans are the attempts one fallback walk made," which is exactly the question an on-call debugging a slow or failed request actually asks first.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a $0 row is still informative &mdash; the schema's job is to make every outcome representable, including the outcome where nothing was spent, because a query that can't see the free requests will always overstate the paid ones.</p>
+<p class="prose-so-what"><strong>So what:</strong> a general-purpose trace ID and an application-specific correlation ID aren't competing answers to the same question &mdash; they answer different, nested questions, and a system that needs both shouldn't try to collapse them into one field just because they're both, technically, IDs.</p>
 
-<h2 id="the-log-as-record">The Log Has to Be the System of Record, Not a Side Effect</h2>
-
-<p>The tempting shortcut is treating the audit log as a nice-to-have byproduct: serve the request first, and if there's time, emit an event about it afterward. That ordering quietly demotes the log to "best effort," which is the opposite of what "source of truth" is supposed to mean &mdash; a log FinOps can trust has to be as reliable as the thing it's recording, not a lower-priority afterthought bolted on next to it.</p>
-
-<p>Today's design keeps that discipline structural rather than aspirational: <code>Event.Validate</code> runs inside <code>Marshal</code> itself, so a caller cannot produce wire bytes for an event that wouldn't be a trustworthy row &mdash; the schema refuses to let a malformed record leave the process that created it, rather than hoping validation happens correctly downstream.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> "source of truth" is a property you have to design into where validation happens, not a label you can attach after the fact to whatever log already exists &mdash; a log that can silently accept bad rows was never really a source of truth, just a table that happened to be right most of the time.</p>
-
-<div class="pullquote"><p>A balance tells you where you are. A ledger tells you how you got there — and FinOps was always asking the second question.</p></div>
+<div class="pullquote"><p>A trace ID proves the spans are related. A parent/child link proves what shape that relationship actually has.</p></div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Fields per event</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Row per decision, cache hits included</span></div>
-  <div class="stat-cell"><span class="stat-num">$0</span><span class="stat-label">Still a recorded outcome</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Malformed events past Marshal</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Fields in traceparent</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Decision ID per fallback walk</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Functions: inject / extract</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">OTel SDK dependency added</span></div>
 </div>
 
-<h2 id="todays-experience-post">Today's Experience Post, Same Backpressure Discipline</h2>
+<h2 id="todays-experience-post">Today's Experience Post, Same Correlation Discipline</h2>
 
-<p>Today's companion Experience post covers a bounded, blocking channel inside WhiteFalcon's Rust consumer &mdash; sized at 10,000 events, chosen specifically so a slow Redis writer stalls the fetch loop instead of either dropping events or growing an unbounded buffer toward an OOM. The <code>routing_log</code> consumer landing today needs that same property for a different reason: an audit log that silently drops events under load stops being a source of truth exactly when load is high enough to make the cost data matter most.</p>
+<p>Today's companion Experience post covers a Delivery Hero on-call catching a duplicated OSRM call by adding a shared trace ID to the rider tracking pipeline &mdash; an ID minted once at ingress and carried as an SQS message attribute through every downstream hop. That system predates W3C Trace Context entirely; it solved the same problem by hand, with a plain string riding alongside a message instead of a standardized HTTP header.</p>
 
-<p>It gets that property for free rather than needing its own channel to size: the batch loop fetches one Kafka message at a time and only asks for the next once the current batch has been handed to the ClickHouse writer, so it never accepts more decisions than it can currently account for. Same rule, arrived at through a simpler mechanism because the scale is smaller.</p>
+<p>The lesson generalizes past the specific header format. Whether the ID rides an SQS attribute or an HTTP header, the mechanism that made it useful was identical: mint once, propagate everywhere downstream, read back at the point something needs explaining. <code>traceparent</code> is that same idea, standardized, so a tracing backend built for one system can also make sense of spans from a system it's never seen before.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> an audit trail's reliability and a hot ingestion path's reliability turn out to be the same engineering problem wearing different scale &mdash; both need "never accept more than you can durably keep," whether that's enforced by a sized channel or by a loop that simply never gets ahead of itself.</p>
+<p class="prose-so-what"><strong>So what:</strong> W3C Trace Context isn't a new idea about correlation &mdash; it's a shared vocabulary for an idea every distributed system eventually reinvents on its own, and adopting the standard mostly buys interoperability with tooling that was never told about your particular message bus.</p>
 
-<h2 id="what-comes-next">What Comes Next</h2>
+<h2 id="what-comes-next">What's Still Missing</h2>
 
-<p>Nothing calls <code>routing.Publisher.Publish</code> automatically yet. Today's schema is deliberately caller-supplied &mdash; <code>Scores</code> and <code>CostEstimateUSD</code> are inputs, not computations this package performs itself &mdash; so that wiring a real call site later, one combining <code>Executor.Execute</code>'s outcome with <code>pkg/decision</code>'s per-candidate utility scores, won't require touching this event's shape at all. The schema was the part that had to be right today; the call site that fills it in is deliberately tomorrow's problem.</p>
+<p>Today's SDK propagates <code>traceparent</code> but not <code>tracestate</code> &mdash; W3C's second Trace Context header, meant for vendor-specific key/value state riding alongside the standard trace/span IDs. <code>routeiq.decision_id</code> travels on its own dedicated header instead of inside <code>tracestate</code>, which works for one system reading its own header but wouldn't survive a hop through infrastructure that only understands the standard two fields.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> designing the record before the thing that produces it exists is the same ordering discipline the ledger analogy already argued for &mdash; get the shape of the source of truth right first, because it's much harder to fix a schema after real rows depending on it are already flowing through it.</p>
+<p>There's also no live collector to point a browser at. The spans this hook emits are real, W3C-shaped, and correctly parented &mdash; there's simply nothing running yet that renders them as a waterfall the way a production tracing UI would. That's a wiring gap, not a data gap: the spans are already shaped correctly for whenever that UI exists.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> getting the wire format and the parent/child shape right first means a future UI is a rendering problem, not a re-instrumentation problem &mdash; the hardest part of adding tracing to a system already happened today, even though nothing draws a picture of it yet.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 85 of 150 &mdash; Routing Decision Logs &mdash; Audit Trail Design</p>
-  <p><em>Next up:</em> <a href="day-86-trace-context-propagation-w3c-traceparent.html">Day 86 — Trace Context Propagation — W3C traceparent</a></p>
+  <p>AI Learning &middot; Day 86 of 150 &mdash; Trace Context Propagation &mdash; W3C traceparent</p>
+  <p><em>Next up:</em> Day 87 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-84-active-health-probes-circuit-breaker.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-85-routing-decision-audit-trail.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 84 — Health Checks for Model Endpoints (yesterday's post — active probes for the same fallback-chain module)</span>
+      <span>Day 85 — Routing Decision Logs (yesterday's post — the audit-log half of fallback-chain's observability; today's post is the live-debugging half)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-86-distributed-tracing-finding-the-slow-span.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 85 — Agoda Kafka Ingestion Backpressure (today's companion Experience post — the same never-accept-more-than-you-can-keep discipline, at Agoda's scale)</span>
+      <span>Day 86 — Delivery Hero Distributed Tracing (today's companion Experience post — the hand-rolled version of the same correlation idea)</span>
     </a>
   </div>
 </div>
@@ -324,22 +333,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#state-vs-log">Why "Current State" Isn't Enough</a></li>
-      <li><a href="#what-a-row-answers">What Each Row Has to Answer</a></li>
-      <li><a href="#the-log-as-record">The Log as System of Record</a></li>
+      <li><a href="#id-vs-tree">A Shared ID Isn't a Trace</a></li>
+      <li><a href="#three-options">Three Ways to Correlate</a></li>
+      <li><a href="#the-diagram">One Decision, Three Spans</a></li>
       <li><a href="#todays-experience-post">Today's Experience Post</a></li>
-      <li><a href="#what-comes-next">What Comes Next</a></li>
+      <li><a href="#what-comes-next">What's Still Missing</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-85-routing-decision-audit-trail.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-86-trace-context-propagation-w3c-traceparent.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Routing+Decision+Logs+%E2%80%94+Audit+Trail+Design+%E2%80%94+AI+Learning+%C2%B7+Day+85+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-85-routing-decision-audit-trail.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Trace+Context+Propagation+%E2%80%94+W3C+traceparent+%E2%80%94+AI+Learning+%C2%B7+Day+86+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-86-trace-context-propagation-w3c-traceparent.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -352,17 +361,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D84</span> AI Learning</div>
-          <a href="day-84-active-health-probes-circuit-breaker.html" class="series-post-title">Health Checks for Model Endpoints — Active Probes</a>
+          <div class="series-post-kicker"><span class="series-post-num">D85</span> AI Learning</div>
+          <a href="day-85-routing-decision-audit-trail.html" class="series-post-title">Routing Decision Logs — Audit Trail Design</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D85</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Routing Decision Logs — Audit Trail Design</div>
-          <div class="series-post-desc">Event sourcing for which model served whom — why routing_log has to be an append-only log, not a snapshot of the latest choice.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D86</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Trace Context Propagation — W3C traceparent</div>
+          <div class="series-post-desc">A shared trace ID isn't a reconstructable call tree — why span_id/parent_span_id, not just trace_id, is the part that actually matters.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D86</span> AI Learning</div>
-          <a href="day-86-trace-context-propagation-w3c-traceparent.html" class="series-post-title">Trace Context Propagation — W3C traceparent</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D87</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-86-trace-context-propagation-w3c-traceparent.html",
+          "kicker": "AI Learning · Day 86 of 150",
+          "title": "Day 86 — Trace Context Propagation — W3C traceparent",
+          "subtitle": "Span links across services like DH geo trace",
+          "date": "2026-08-10",
+          "slug": "day-86-trace-context-propagation-w3c-traceparent",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-86-trace-context-propagation-w3c-traceparent.html",
+          "coverImage": "blog/assets/covers/day-86-trace-context-propagation-w3c-traceparent.png",
+          "desc": "A shared trace ID alone only proves spans are related, not what shape that relationship has — why span_id/parent_span_id, not just trace_id, is what W3C traceparent actually adds, and why routeiq.decision_id is a second, narrower ID doing a different job."
+        },
+        {
           "href": "blog/series/ai-learning/day-85-routing-decision-audit-trail.html",
           "kicker": "Day 85 of 150",
           "title": "Day 85 — Routing Decision Logs — Audit Trail Design",
