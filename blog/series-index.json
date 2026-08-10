@@ -900,6 +900,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html",
+          "kicker": "Experience · Day 85 of 150",
+          "title": "Day 85 — Agoda Kafka Ingestion Backpressure — Channel Depth 10k",
+          "subtitle": "Rust producer shed load before OOM · bounded channel · consumer lag as the pressure gauge",
+          "date": "2026-08-10",
+          "slug": "day-85-kafka-ingestion-backpressure-channel-depth",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html",
+          "coverImage": "blog/assets/covers/day-85-kafka-ingestion-backpressure-channel-depth.png",
+          "desc": "A bounded, blocking channel between Kafka fetch and Redis write turned a would-be OOM into consumer lag the on-call already watches — why the safest place for an event to wait out a slow consumer is wherever it already durably lives."
+        },
+        {
           "href": "blog/series/experience/day-84-browserstack-health-checks-that-lied.html",
           "kicker": "Experience · Day 84 of 150",
           "title": "Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied",

@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied | Experience Series</title>
-<meta name="description" content="A green /health endpoint kept passing while the one dependency a device-farm test suite actually needed had quietly stopped serving &mdash; why a liveness check and a working system are two different claims.">
-<meta property="og:title" content="Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied">
-<meta property="og:description" content="A process being up and a process doing its job are different claims &mdash; the CI flakiness that taught me to stop trusting the first one for the second.">
+<title>Day 85 &mdash; Agoda Kafka Ingestion Backpressure &mdash; Channel Depth 10k | Experience Series</title>
+<meta name="description" content="A bounded, blocking channel between Kafka fetch and Redis write turned a would-be OOM into consumer lag the on-call could already see &mdash; why a full buffer that blocks its producer is safer than one that never fills.">
+<meta property="og:title" content="Day 85 &mdash; Agoda Kafka Ingestion Backpressure &mdash; Channel Depth 10k">
+<meta property="og:description" content="Rust producer shed load before OOM; metrics on lag saved us &mdash; why a bounded channel that blocks beats one that never fills.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-browserstack-health-checks-that-lied.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-kafka-ingestion-backpressure-channel-depth.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-browserstack-health-checks-that-lied.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-kafka-ingestion-backpressure-channel-depth.png">
 <meta property="article:published_time" content="2026-08-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 84 of 150</span>
-    <span class="tag">Testing</span>
-    <span class="tag">CI</span>
-    <span class="tag">BrowserStack</span>
+    <span class="tag accent">Experience &middot; Day 85 of 150</span>
+    <span class="tag">Kafka</span>
+    <span class="tag">Backpressure</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 84 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied</h1>
-  <p class="post-subtitle">A green <code>/health</code> endpoint kept passing while the one dependency a device-farm test suite actually needed had quietly stopped serving &mdash; a process being up and a process doing its job turned out to be two different claims.</p>
+  <h1 class="post-title">Day 85 &mdash; Agoda Kafka Ingestion Backpressure &mdash; Channel Depth 10k</h1>
+  <p class="post-subtitle">Between Kafka and Redis sat a bounded, blocking channel &mdash; not because it was the clever choice, but because the alternative that never blocks anything is the one that eventually kills the process it was protecting.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 84 of 150</span>
+    <span class="meta-item">Experience &middot; Day 85 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 10, 2026</span>
     <div class="meta-divider"></div>
@@ -208,46 +208,46 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-84-browserstack-health-checks-that-lied.png" alt="Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-85-kafka-ingestion-backpressure-channel-depth.png" alt="Day 85 — Agoda Kafka Ingestion Backpressure — Channel Depth 10k" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>At BrowserStack I worked on device instrumentation &mdash; the layer that reverse-engineers native iOS and Android OS APIs so a test running against a remote physical device can trigger things a normal app can't: FaceID and TouchID prompts, answered automatically through a rig called Camera Image Injection, which feeds a synthetic face or fingerprint straight into a phone's camera and biometric sensor path instead of a real human touching real hardware.</p>
+<p>WhiteFalcon's Rust consumers sit directly on Kafka's hot path: pull events off a topic carrying somewhere between 1.5 and 1.8 trillion events a day, and hand each one to Redis for the hot tier's per-hour buckets. Between those two steps &mdash; fetch and write &mdash; there has to be some kind of handoff, because a Kafka fetch loop and a Redis write loop don't run at exactly the same speed on every tick.</p>
 
-<p>The CI suite that exercised this instrumentation layer had a health check in front of it, the way most services do. It reported green almost the entire time I was debugging a run of test flakiness that had nothing to do with the tests themselves.</p>
+<p>The question I kept coming back to while working near this pipeline wasn't whether that handoff needed a buffer. It obviously did. It was what should happen the moment that buffer is full.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; diagnosing why the CI health check couldn't catch this failure mode</div>
-  I owned tracing the flakiness back to a health check that only confirmed a process was running, and building the replacement that checked the instrumentation path the tests actually depended on. The device farm and the CI orchestration around it were BrowserStack's existing platform &mdash; the diagnosis and the probe redesign are the part I'm describing here.
+<div class="attr-box team">
+  <div class="attr-label">Team &mdash; the Rust consumer and its Kafka-to-Redis handoff</div>
+  The consumer binary, its Kafka client wiring, and the bounded channel design between fetch and write are Agoda team-built &mdash; part of the same Rust ingestion layer "Building a TSDB at Agoda" already draws the line around. What follows is what I learned observing and working near that handoff while extending the cross-tier query engine, not a claim that I designed the pipeline.
 </div>
 
-<h2 id="the-lie">The Health Check That Kept Saying Yes</h2>
+<h2 id="the-buffer">Where an Unbounded Buffer Actually Goes</h2>
 
-<p>The instrumentation bridge &mdash; the process that translates a test's "trigger FaceID" call into the actual Camera Image Injection signal a physical device receives &mdash; had its own liveness check wired into the CI pipeline. Before any biometric test ran, the pipeline asked the bridge "are you up," and for most of the flaky stretch, the bridge answered yes.</p>
+<p>An unbounded in-memory queue between fetch and write is the tempting first design, because it never makes the Kafka consumer wait on anything. Redis running a little slow this second? Fine &mdash; keep pulling messages off the topic, stack them up in memory, write them out whenever Redis catches up.</p>
 
-<p>The tests still failed, intermittently, in a way that looked like device flakiness &mdash; the kind of noisy failure a device farm has plenty of by default, so nobody looked past that explanation for a while.</p>
+<p>A loading dock with no limit on how many pallets it can stage looks the same way from the truck's side: nothing ever has to wait to unload. The problem shows up on the warehouse floor, where the pallets that were supposed to move through keep accumulating until there's nowhere left to put the next one.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a health check that passes doesn't rule out the dependency it's supposedly protecting &mdash; it only rules out the one specific failure mode that check happens to test for, and every other failure mode is invisible to it by construction.</p>
+<p>For a Rust process, "nowhere left to put the next one" is the OS OOM killer. It doesn't shut the consumer down gracefully mid-buffer &mdash; it kills the process outright, taking every event that was sitting in that unbounded queue down with it, on top of whatever the consumer group now has to catch up on from a cold restart.</p>
 
-<h2 id="two-kinds-of-up">Two Different Questions Called &ldquo;Is It Up&rdquo;</h2>
+<p class="prose-so-what"><strong>So what:</strong> a buffer that never blocks its producer isn't actually removing backpressure from the system &mdash; it's just moving the point where that pressure becomes visible from "the fetch loop pauses for a moment" to "the OS kills the process," and the second version costs far more to recover from than the first.</p>
 
-<p>A shop with its lights on and its door unlocked looks open from the street. Whether it actually has anything in stock is a different question, one you only get an answer to by walking up to the counter and asking for something specific.</p>
-
-<p>The instrumentation bridge's liveness check was the lights-and-door version: it confirmed the process had started and was listening on its port. It said nothing about whether the specific pipeline underneath &mdash; the one that takes a synthetic biometric image and actually pushes it through to a device's sensor input &mdash; was still wired up correctly on that run.</p>
+<h2 id="three-ways">Three Ways to Handle a Slow Consumer</h2>
 
 <table>
-<tr><th>Option</th><th>What it actually confirms</th><th>Why it loses (or wins)</th></tr>
-<tr><td><strong>A. Process alive</strong></td><td>The bridge binary hasn't crashed</td><td>Cheapest possible check &mdash; and the one already in place, which is exactly why it kept reporting green through the outage.</td></tr>
-<tr><td><strong>B. Port open / TCP connect</strong></td><td>Something is listening on the expected port</td><td>Rules out "process died" a little more precisely than A, but a wedged internal pipeline behind an open socket looks identical to a healthy one from outside.</td></tr>
-<tr><td><strong>C. Synthetic transaction (chosen)</strong></td><td>The actual injection path completes end to end</td><td>Costs a real round trip through the pipeline on every check, but it's the only option that can't be fooled by a process that's technically running and functionally stuck.</td></tr>
+<tr><th>Option</th><th>What happens when Redis falls behind</th><th>Why it loses (or wins)</th></tr>
+<tr><td><strong>A. Unbounded channel</strong></td><td>Queue grows without limit</td><td>Never blocks the fetch loop &mdash; until the process runs out of memory and the OOM killer ends the discussion for it.</td></tr>
+<tr><td><strong>B. Bounded channel, drop when full</strong></td><td>Newest (or oldest) events silently discarded</td><td>Keeps the process alive, but a TSDB whose whole job is being a faithful record of what happened can't quietly drop the record and call it healthy.</td></tr>
+<tr><td><strong>C. Bounded channel, blocking send (chosen)</strong></td><td>Fetch loop pauses until the writer drains a slot</td><td>The only option where a slow Redis writer becomes a paused fetch loop instead of either lost events or a dead process.</td></tr>
 </table>
 
-<p class="prose-so-what"><strong>So what:</strong> "is it up" collapses at least three different questions into one word &mdash; whether the process exists, whether it's reachable, and whether it can actually do the one thing it exists to do &mdash; and a check aimed at the first question will keep reporting success while the third one silently fails.</p>
+<p>Option C means the channel has a fixed depth &mdash; sized at 10,000 events for this consumer &mdash; and once it's full, the send call on the producer side simply doesn't return until the writer has drained at least one slot. That's a deliberate stall, not a failure: the Kafka client underneath stops polling for new messages while its own send is blocked, which just means those not-yet-fetched events stay exactly where Kafka already keeps them &mdash; on the broker, safely, until the consumer is ready again.</p>
 
-<h2 id="what-changed">What the Synthetic Probe Actually Exercised</h2>
+<p class="prose-so-what"><strong>So what:</strong> the safest place for an event to wait out a slow consumer is wherever it already durably lives &mdash; Kafka's log, in this case &mdash; not a second, less durable copy of it sitting in the consumer's own memory.</p>
+
+<h2 id="the-metric">The Metric That Made This Safe to Trust</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -267,38 +267,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Old["Old check: port open?"] -->|"yes"| Green1["CI: green"]
-  New["New check: inject test image"] -->|"round trip completes"| Green2["CI: green"]
-  New -->|"pipeline wedged"| Red["CI: red, alert fires"]
+  K["Kafka topic"] --> F["Rust fetch loop"]
+  F --> C["Bounded channel, 10k"]
+  C --> W["Redis writer"]
+  C -->|"channel full"| B["Fetch loop blocks"]
+  B -->|"stops polling"| L["Consumer lag grows"]
+  L --> O["On-call already watches this"]
 </pre>
 
-<p>The replacement check didn't ask the bridge whether it was alive. It sent a known test image through the same Camera Image Injection path a real biometric test would use, and waited for that specific round trip to complete before calling the pipeline healthy.</p>
+<p>A channel's internal occupancy is easy to reason about but awkward to observe from outside the process &mdash; it would need its own dedicated metric, exported and wired into a dashboard nobody's built yet. Blocking the fetch loop instead of adding that instrumentation turns out to give the same visibility for free: once the loop stops polling, the consumer's offset stops advancing while the partition's high-water mark keeps moving, and that gap &mdash; consumer lag &mdash; is a number Kafka already tracks and this team already alerts on.</p>
 
-<p>That's a heavier check than a port probe &mdash; it exercises real work on every run instead of a socket handshake &mdash; and it was the only version that could actually distinguish "the pipeline works" from "the process is merely running."</p>
+<p>I traced a lag spike back to exactly this channel while chasing down a slow cross-tier query one afternoon, and the metric already existed to confirm it &mdash; no new dashboard, no new export, just a graph that was already on the board doing double duty as the backpressure signal nobody had labeled that way yet.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the fix wasn't a smarter way to interpret a cheap signal &mdash; it was accepting that a meaningfully more expensive check was the only one that measured the thing the pipeline actually needed to prove.</p>
+<p class="prose-so-what"><strong>So what:</strong> the cheapest observability win is often not a new metric &mdash; it's noticing that a metric you're already collecting for one reason is quietly answering a second question too, if you know to read it that way.</p>
 
-<div class="pullquote"><p>A process being up and a process doing its job are two different claims, and only one of them was ever being checked.</p></div>
+<div class="pullquote"><p>A full buffer that blocks its producer is a signal. A full buffer that never fills is a countdown.</p></div>
 
-<h2 id="todays-code">Today's fallback-chain Probe, Same Lesson One System Later</h2>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">1.5T&ndash;1.8T</span><span class="stat-label">Events/day</span></div>
+  <div class="stat-cell"><span class="stat-num">10k</span><span class="stat-label">Channel depth</span></div>
+  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">Hot-tier retention</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">New metrics needed</span></div>
+</div>
 
-<p>Today's <code>fallback-chain</code> code makes the same choice deliberately: its health prober sends <code>HEAD /v1/models</code> to each model endpoint, not a bare TCP connect. A model-serving process can accept a connection on its port while the actual inference path behind it is wedged, in exactly the shape the BrowserStack bridge could accept connections while its injection pipeline sat stuck.</p>
+<h2 id="todays-code">Today's routing_decision Consumer, Same Discipline</h2>
 
-<p><code>HEAD /v1/models</code> is a lighter check than the synthetic biometric injection above &mdash; it doesn't run inference, the way the CI probe didn't run a full test &mdash; but it's still a request the serving stack has to actually route and answer, not just an open socket. That's the same "shallow probe, but on the real path" tradeoff, chosen for the same reason: a check cheap enough to run constantly, but pointed at something a truly broken dependency can't fake its way through.</p>
+<p>Today's <code>fallback-chain</code> code carries the same idea into a much smaller pipeline. LensAI's new <code>routing_decision</code> consumer doesn't have an explicit channel to size at all &mdash; its batch loop fetches one Kafka message at a time and only asks for the next one once the current batch has either hit its size limit or its flush interval. There's no separate buffer in between to overflow, because the loop never accepts more work than it can immediately account for.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the specific failure mode changes &mdash; a stuck injection pipeline five years ago, a wedged inference path today &mdash; but the design question a health check has to answer is the same one every time: what's the cheapest request that a dependency can't pass while actually broken?</p>
+<p>That's the same backpressure discipline WhiteFalcon's bounded channel enforces explicitly, showing up here as something the consumer gets for free just from being written as a synchronous fetch-then-flush loop instead of a fetch loop racing ahead of a separate writer. Different scale, same rule: never let the thing accepting work outrun the thing that has to finish it.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> backpressure isn't a feature you bolt onto a pipeline after the fact &mdash; it's a property of how tightly the pipeline's own loop couples "accept the next item" to "finish the last one," and a bounded channel is just one of several shapes that coupling can take.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 84 of 150 &mdash; BrowserStack Integration Test Flakiness &mdash; Health Checks That Lied</p>
-  <p><em>Next up:</em> <a href="day-85-kafka-ingestion-backpressure-channel-depth.html">Day 85 &mdash; Agoda Kafka Ingestion Backpressure &mdash; Channel Depth 10k</a></p>
+  <p>Experience &middot; Day 85 of 150 &mdash; Agoda Kafka Ingestion Backpressure &mdash; Channel Depth 10k</p>
+  <p><em>Next up:</em> Day 86 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-83-cold-tier-compression-snappy-to-zstd.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 83 — Agoda Cross-Tier Read Latency (yesterday's post — a different platform's guardrail meeting a claim that needed a closer check before trusting it)</span>
+      <span>Day 84 — BrowserStack Integration Test Flakiness (yesterday's post — a different pipeline, the same lesson that a passing signal only rules out one specific failure mode)</span>
     </a>
   </div>
 </div>
@@ -309,21 +319,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-lie">The Health Check That Kept Saying Yes</a></li>
-      <li><a href="#two-kinds-of-up">Two Different Questions, One Word</a></li>
-      <li><a href="#what-changed">What the Synthetic Probe Exercised</a></li>
-      <li><a href="#todays-code">Today's fallback-chain Probe</a></li>
+      <li><a href="#the-buffer">Where an Unbounded Buffer Goes</a></li>
+      <li><a href="#three-ways">Three Ways to Handle a Slow Consumer</a></li>
+      <li><a href="#the-metric">The Metric That Made This Safe</a></li>
+      <li><a href="#todays-code">Today's routing_decision Consumer</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-84-browserstack-health-checks-that-lied.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-85-kafka-ingestion-backpressure-channel-depth.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=BrowserStack+Integration+Test+Flakiness+%E2%80%94+Health+Checks+That+Lied+%E2%80%94+Experience+%C2%B7+Day+84+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-84-browserstack-health-checks-that-lied.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Agoda+Kafka+Ingestion+Backpressure+%E2%80%94+Channel+Depth+10k+%E2%80%94+Experience+%C2%B7+Day+85+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-85-kafka-ingestion-backpressure-channel-depth.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -336,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D83</span> Experience</div>
-          <a href="day-83-cold-tier-compression-snappy-to-zstd.html" class="series-post-title">Agoda Cross-Tier Read Latency — Snappy Hot, Zstd Cold</a>
+          <div class="series-post-kicker"><span class="series-post-num">D84</span> Experience</div>
+          <a href="day-84-browserstack-health-checks-that-lied.html" class="series-post-title">BrowserStack Integration Test Flakiness — Health Checks That Lied</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D84</span> Experience &middot; now</div>
-          <div class="series-post-title">BrowserStack Integration Test Flakiness — Health Checks That Lied</div>
-          <div class="series-post-desc">A green /health endpoint kept passing while the real dependency it guarded had quietly stopped working.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D85</span> Experience &middot; now</div>
+          <div class="series-post-title">Agoda Kafka Ingestion Backpressure — Channel Depth 10k</div>
+          <div class="series-post-desc">A bounded, blocking channel turned a would-be OOM into consumer lag the on-call could already see.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D85</span> Experience</div>
-          <a href="day-85-kafka-ingestion-backpressure-channel-depth.html" class="series-post-title">Agoda Kafka Ingestion Backpressure — Channel Depth 10k</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D86</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
