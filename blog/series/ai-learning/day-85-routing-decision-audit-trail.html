@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 84 &mdash; Health Checks for Model Endpoints &mdash; Active Probes | AI Learning Series</title>
-<meta name="description" content="Unhealthy set in Redis with TTL refresh — synthetic transactions vs passive metrics, the three-state Closed/Open/HalfOpen breaker behind fallback-chain's health probes, and why a crashed monitor should fail open, not blacklist forever.">
-<meta property="og:title" content="Day 84 &mdash; Health Checks for Model Endpoints &mdash; Active Probes">
-<meta property="og:description" content="A dedicated probe asked on a fixed schedule versus inferring health from whatever traffic happens to arrive — why fallback-chain's breaker needs the first one, and what TTL refresh buys when the prober itself dies.">
+<title>Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design | AI Learning Series</title>
+<meta name="description" content="Why a routing_log event log, not a routing_state table, has to be the source of truth for FinOps — a bank ledger vs. a bank balance, applied to which model served which tenant and why.">
+<meta property="og:title" content="Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design">
+<meta property="og:description" content="Event sourcing for which model served whom — why fallback-chain's routing_decision events have to be an append-only log, not a queryable snapshot of the latest routing choice.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-84-active-health-probes-circuit-breaker.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-active-health-probes-circuit-breaker.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-85-routing-decision-audit-trail.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-routing-decision-audit-trail.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-84-active-health-probes-circuit-breaker.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-85-routing-decision-audit-trail.png">
 <meta property="article:published_time" content="2026-08-10">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,56 +185,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 84 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 85 of 150</span>
     <span class="tag">Distributed Systems</span>
-    <span class="tag">Reliability</span>
-    <span class="tag">Redis</span>
+    <span class="tag">Event Sourcing</span>
+    <span class="tag">FinOps</span>
   </div>
-  <h1 class="post-title">Day 84 &mdash; Health Checks for Model Endpoints &mdash; Active Probes</h1>
-  <p class="post-subtitle">Synthetic transactions vs passive metrics &mdash; why a chain that skips known-down model endpoints needs a dedicated question asked on a fixed schedule, not an inference drawn from whatever traffic happens to arrive.</p>
+  <h1 class="post-title">Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design</h1>
+  <p class="post-subtitle">Event sourcing for which model served whom &mdash; why <code>routing_log</code> has to be an append-only log of every decision, not a table that only remembers the latest one.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 84 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 85 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 10, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">9 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-84-active-health-probes-circuit-breaker.png" alt="Day 84 — Health Checks for Model Endpoints — Active Probes" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-85-routing-decision-audit-trail.png" alt="Day 85 — Routing Decision Logs — Audit Trail Design" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Unhealthy set in Redis with TTL refresh (time-to-live, the countdown after which a stored entry expires on its own). That's today's mechanism in one phrase &mdash; and the reason it needs a full post is that the more obvious design, blacklisting an endpoint the moment a request to it fails, turns out to answer a different and less trustworthy question than the one <code>fallback-chain</code>'s circuit breaker actually needs answered.</p>
+<p><code>routing_log</code> table is source of truth for FinOps &mdash; that's today's design commitment in one sentence, and the reason it needs a full post is that "source of truth" is a much stricter requirement than it sounds. A table finance can query without a caveat attached has to survive questions nobody asked when it was designed, including questions about last month, not just right now.</p>
 
-<p>Today's code gives the chain executor a way to skip a model endpoint it already knows is down, without spending any of a request's own timeout budget rediscovering that. Getting there means separating two things that sound like the same question: is this endpoint healthy, and did the last request to it happen to fail.</p>
+<h2 id="state-vs-log">Why "Currently Preferred Model" Isn't Enough for a Cost Question</h2>
 
-<h2 id="active-vs-passive">Active Probes vs. Passive Metrics &mdash; Two Ways to Learn &ldquo;Is It Healthy&rdquo;</h2>
+<p>The obvious way to track routing is a table keyed by tenant, holding whatever model that tenant is routed to right now. It answers "who is <code>acme</code> routed to today" in one indexed lookup, and it's small &mdash; one row per tenant, updated in place every time a routing choice changes.</p>
 
-<p>A <em>passive</em> signal infers health from whatever traffic already happened to arrive: if the last few requests to a model endpoint timed out or errored, assume it's down. It costs nothing extra to compute, since the data was going to exist anyway.</p>
+<p>It cannot answer "how much did <code>acme</code> actually spend on model calls last Tuesday," because last Tuesday's routing choice was overwritten the moment a newer one replaced it. The row that could have answered that question existed once, briefly, and then it didn't.</p>
 
-<p>The problem is that passive signals inherit whatever bias is in the traffic that generated them. One unlucky request during a real spike in load can look identical, from the breaker's point of view, to an endpoint that's actually gone &mdash; there's no way to tell "this endpoint is down" apart from "this one request happened to be slow" using only the request's own outcome.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a passive health signal is really measuring "how did the noisiest recent request go," not "is this endpoint reachable" &mdash; those two things usually agree, which is exactly what makes it easy to miss the cases where they don't.</p>
+<p class="prose-so-what"><strong>So what:</strong> a table that only stores the latest state has already discarded the exact history a cost question needs &mdash; not lost it somewhere recoverable, discarded it, the moment the next update landed.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; active health checks in a load balancer</div>
-  A load balancer's active health check works like a quality inspector who pulls one item off the line on a fixed schedule and tests it directly, rather than waiting for a customer complaint to find out something's wrong. The inspector's question is always the same and always asked the same way, independent of how busy the line is that hour. A load balancer's dedicated <code>GET /healthz</code> ping plays the identical role: a fixed, deliberate question asked on its own interval, decoupled from whatever real customer traffic happens to be flowing through at the same moment.
+  <div class="attr-label">DS analogy &mdash; a bank ledger vs. a bank balance</div>
+  A bank balance is one number: what you have right now. A bank ledger is every transaction that ever moved that number, in order, each one keeping its own timestamp and amount forever. You could reconstruct today's balance from the ledger by replaying it &mdash; you cannot reconstruct last month's balance from today's number alone, because the number itself has no memory of how it got here. <code>routing_log</code> is the ledger; a "current routing state" table is the balance. FinOps needs the ledger, because "how much did we spend and on what" is a question about transactions, not about the current number.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> an active probe trades a small, constant, predictable cost (the inspector's time, the health-check request) for an answer that doesn't depend on how much or how unlucky the surrounding traffic happened to be &mdash; which is precisely the property a circuit breaker needs to make a trustworthy call.</p>
+<p class="prose-so-what"><strong>So what:</strong> the choice isn't "log or state" as a matter of taste &mdash; it's that state is a derived, lossy summary of a log, and once a system has irreversibly kept only the summary, no later cleverness recovers the detail it threw away.</p>
 
-<h2 id="three-states">Three States, Not Two &mdash; Why HalfOpen Exists</h2>
+<h2 id="what-a-row-answers">What Each Row Has to Answer, Not Just Record</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -253,70 +251,69 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-stateDiagram-v2
-  [*] --> Closed
-  Closed --> Open: probe fails 3x
-  Open --> HalfOpen: cooldown elapsed
-  HalfOpen --> Closed: probe succeeds
-  HalfOpen --> Open: probe fails
+flowchart LR
+  D["Routing decision made"] --> E["routing.Event, Kafka"]
+  E --> C["Batch consumer"]
+  C --> T["routing_log, ClickHouse"]
+  T --> Q["FinOps query, any past date"]
 </pre>
 
-<p>A breaker with only "up" and "down" states has no safe way back to "up" &mdash; it either keeps assuming a recovered endpoint is still dead, or it removes the blacklist entirely and immediately trusts one unverified success. <code>HalfOpen</code> is the missing middle state: after a fixed cooldown, exactly one probe is allowed through to test recovery, and only that probe's own result decides what happens next.</p>
+<p>Today's <code>routing.Event</code> has five fields worth their place, each answering a question a thinner schema couldn't: <code>chosen_model</code> answers who served the request; <code>scores</code> answers why, carrying every candidate's score, not just the winner's, so a later question like "was the winner ever a close call" doesn't require re-running a scoring pass that already happened once; <code>cache_hit</code> answers whether a model was even involved, since a cache answering first is a real outcome worth a row of its own; <code>cost_estimate_usd</code> answers the dollar question directly, in the same row as the decision that caused it, rather than requiring a join against a separate pricing table that may have since changed its numbers.</p>
 
-<p>Three consecutive failures, not one, moves an endpoint from <code>Closed</code> to <code>Open</code> in today's code. A single flaky probe is exactly the kind of noise an active check is still subject to &mdash; the network hiccups, the probe times out once &mdash; and requiring a streak before tripping the breaker keeps that one bad sample from blacklisting an endpoint that's actually fine.</p>
+<p>A cache-hit row carries an empty <code>chosen_model</code> and a zero cost, and that's deliberate, not a gap to fill in later. A FinOps query computing "cost per request this month" needs the full request count in its denominator, cache hits included &mdash; leaving those requests out of <code>routing_log</code> entirely would make every request look more expensive than it actually was, on average, by simply hiding the free ones.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the three states exist because "healthy" and "unhealthy" aren't the only two conditions worth naming &mdash; "probably recovered, but not proven yet" needs its own state, with its own narrow rule (one probe, pass or fail) for what happens next.</p>
+<p class="prose-so-what"><strong>So what:</strong> a $0 row is still informative &mdash; the schema's job is to make every outcome representable, including the outcome where nothing was spent, because a query that can't see the free requests will always overstate the paid ones.</p>
 
-<h2 id="redis-ttl">Redis TTL Refresh &mdash; Failing Open When the Prober Itself Dies</h2>
+<h2 id="the-log-as-record">The Log Has to Be the System of Record, Not a Side Effect</h2>
 
-<p>The breaker's Open/Closed verdict has to reach every process serving a chain, not just the one that ran the probe &mdash; a pod on one node deciding an endpoint is down does nothing for a chain executor running on a different node unless that verdict is published somewhere shared. Today's code publishes it to Redis, as a key with a TTL, one per blacklisted model.</p>
+<p>The tempting shortcut is treating the audit log as a nice-to-have byproduct: serve the request first, and if there's time, emit an event about it afterward. That ordering quietly demotes the log to "best effort," which is the opposite of what "source of truth" is supposed to mean &mdash; a log FinOps can trust has to be as reliable as the thing it's recording, not a lower-priority afterthought bolted on next to it.</p>
 
-<p>The refresh part matters as much as the write: every consecutive failed probe re-sets that TTL forward, sliding the entry's expiry into the future for as long as the outage continues being observed. If the probe loop itself crashes, nothing refreshes the key anymore, and it simply expires on schedule &mdash; the blacklist entry disappears and the endpoint becomes eligible again, rather than staying blacklisted forever because the one process responsible for lifting the ban is gone.</p>
+<p>Today's design keeps that discipline structural rather than aspirational: <code>Event.Validate</code> runs inside <code>Marshal</code> itself, so a caller cannot produce wire bytes for an event that wouldn't be a trustworthy row &mdash; the schema refuses to let a malformed record leave the process that created it, rather than hoping validation happens correctly downstream.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> "source of truth" is a property you have to design into where validation happens, not a label you can attach after the fact to whatever log already exists &mdash; a log that can silently accept bad rows was never really a source of truth, just a table that happened to be right most of the time.</p>
+
+<div class="pullquote"><p>A balance tells you where you are. A ledger tells you how you got there — and FinOps was always asking the second question.</p></div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Consecutive fails to trip Open</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Probe allowed per HalfOpen cycle</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;3s</span><span class="stat-label">Chaos test's auto-skip budget</span></div>
-  <div class="stat-cell"><span class="stat-num">~570ms</span><span class="stat-label">Measured (killed pod to blacklisted)</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Fields per event</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Row per decision, cache hits included</span></div>
+  <div class="stat-cell"><span class="stat-num">$0</span><span class="stat-label">Still a recorded outcome</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Malformed events past Marshal</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a TTL isn't just an expiry mechanism here &mdash; it's the failure mode for the failure detector itself, the difference between "an outage that gets fixed eventually clears on its own" and "a crashed monitor permanently blacklists whatever it last saw as down."</p>
+<h2 id="todays-experience-post">Today's Experience Post, Same Backpressure Discipline</h2>
 
-<div class="pullquote"><p>The blacklist entry's expiry is also the monitor's own dead-man's switch.</p></div>
+<p>Today's companion Experience post covers a bounded, blocking channel inside WhiteFalcon's Rust consumer &mdash; sized at 10,000 events, chosen specifically so a slow Redis writer stalls the fetch loop instead of either dropping events or growing an unbounded buffer toward an OOM. The <code>routing_log</code> consumer landing today needs that same property for a different reason: an audit log that silently drops events under load stops being a source of truth exactly when load is high enough to make the cost data matter most.</p>
 
-<h2 id="todays-experience-post">Today's Experience Post, Same Shape</h2>
+<p>It gets that property for free rather than needing its own channel to size: the batch loop fetches one Kafka message at a time and only asks for the next once the current batch has been handed to the ClickHouse writer, so it never accepts more decisions than it can currently account for. Same rule, arrived at through a simpler mechanism because the scale is smaller.</p>
 
-<p>Today's companion Experience post covers a CI health check at BrowserStack that kept reporting green while the actual device-instrumentation pipeline behind it had stopped working &mdash; a shallow liveness check standing in for a question it couldn't actually answer. That's the same distinction this post just drew between passive and active health signals, five years earlier and one layer removed from model serving.</p>
-
-<p>The fix in both cases was the same shape: replace a check that only confirms "the process is up" with one that exercises something closer to the real capability, on its own dedicated schedule rather than folded into whatever else happened to be running.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> "does this system merely respond, or does it actually do its job" turned out to be the same question worth asking twice today &mdash; once about a biometric test rig in 2021, once about a model endpoint's serving path this week.</p>
+<p class="prose-so-what"><strong>So what:</strong> an audit trail's reliability and a hot ingestion path's reliability turn out to be the same engineering problem wearing different scale &mdash; both need "never accept more than you can durably keep," whether that's enforced by a sized channel or by a loop that simply never gets ahead of itself.</p>
 
 <h2 id="what-comes-next">What Comes Next</h2>
 
-<p>Today's breaker and probe loop aren't wired into Day 83's streaming proxy yet &mdash; <code>Executor.WithUnhealthySet</code> is ready for the proxy's own hop-selection logic to adopt, but that wiring is a follow-up, not part of today's ticket. And <code>RedisUnhealthySet</code> has only been verified against a hand-rolled fake Redis server in this sandbox, the same "stub the seam, no live network in-tree" approach this codebase already uses for model calls themselves &mdash; a real Redis instance hasn't exercised this code yet.</p>
+<p>Nothing calls <code>routing.Publisher.Publish</code> automatically yet. Today's schema is deliberately caller-supplied &mdash; <code>Scores</code> and <code>CostEstimateUSD</code> are inputs, not computations this package performs itself &mdash; so that wiring a real call site later, one combining <code>Executor.Execute</code>'s outcome with <code>pkg/decision</code>'s per-candidate utility scores, won't require touching this event's shape at all. The schema was the part that had to be right today; the call site that fills it in is deliberately tomorrow's problem.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the state machine and the failure-open TTL design are the parts worth trusting today &mdash; both are tested against real wall-clock time and a real killed server &mdash; while "does this behave the same against a real Redis, under real cross-pod traffic" stays an open question until that wiring lands.</p>
+<p class="prose-so-what"><strong>So what:</strong> designing the record before the thing that produces it exists is the same ordering discipline the ledger analogy already argued for &mdash; get the shape of the source of truth right first, because it's much harder to fix a schema after real rows depending on it are already flowing through it.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 84 of 150 &mdash; Health Checks for Model Endpoints &mdash; Active Probes</p>
-  <p><em>Next up:</em> <a href="day-85-routing-decision-audit-trail.html">Day 85 &mdash; Routing Decision Logs &mdash; Audit Trail Design</a></p>
+  <p>AI Learning &middot; Day 85 of 150 &mdash; Routing Decision Logs &mdash; Audit Trail Design</p>
+  <p><em>Next up:</em> Day 86 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-83-streaming-backpressure-buffer-size.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-84-active-health-probes-circuit-breaker.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 83 — Streaming Token Delivery (yesterday's post — the fallback-chain proxy this breaker will eventually wire into)</span>
+      <span>Day 84 — Health Checks for Model Endpoints (yesterday's post — active probes for the same fallback-chain module)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 84 — BrowserStack Integration Test Flakiness (today's companion Experience post — the same active-vs-passive health-check lesson, five years earlier)</span>
+      <span>Day 85 — Agoda Kafka Ingestion Backpressure (today's companion Experience post — the same never-accept-more-than-you-can-keep discipline, at Agoda's scale)</span>
     </a>
   </div>
 </div>
@@ -327,9 +324,9 @@ stateDiagram-v2
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#active-vs-passive">Active Probes vs. Passive Metrics</a></li>
-      <li><a href="#three-states">Three States: Why HalfOpen Exists</a></li>
-      <li><a href="#redis-ttl">Redis TTL Refresh — Failing Open</a></li>
+      <li><a href="#state-vs-log">Why "Current State" Isn't Enough</a></li>
+      <li><a href="#what-a-row-answers">What Each Row Has to Answer</a></li>
+      <li><a href="#the-log-as-record">The Log as System of Record</a></li>
       <li><a href="#todays-experience-post">Today's Experience Post</a></li>
       <li><a href="#what-comes-next">What Comes Next</a></li>
     </ul>
@@ -338,11 +335,11 @@ stateDiagram-v2
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-84-active-health-probes-circuit-breaker.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-85-routing-decision-audit-trail.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Health+Checks+for+Model+Endpoints+%E2%80%94+Active+Probes+%E2%80%94+AI+Learning+%C2%B7+Day+84+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-84-active-health-probes-circuit-breaker.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Routing+Decision+Logs+%E2%80%94+Audit+Trail+Design+%E2%80%94+AI+Learning+%C2%B7+Day+85+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-85-routing-decision-audit-trail.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +352,17 @@ stateDiagram-v2
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D83</span> AI Learning</div>
-          <a href="day-83-streaming-backpressure-buffer-size.html" class="series-post-title">Streaming Token Delivery — Backpressure Basics</a>
+          <div class="series-post-kicker"><span class="series-post-num">D84</span> AI Learning</div>
+          <a href="day-84-active-health-probes-circuit-breaker.html" class="series-post-title">Health Checks for Model Endpoints — Active Probes</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D84</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Health Checks for Model Endpoints — Active Probes</div>
-          <div class="series-post-desc">Synthetic transactions vs passive metrics — active probes, a three-state breaker, and Redis TTL refresh so a crashed monitor fails open.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D85</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Routing Decision Logs — Audit Trail Design</div>
+          <div class="series-post-desc">Event sourcing for which model served whom — why routing_log has to be an append-only log, not a snapshot of the latest choice.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D85</span> AI Learning</div>
-          <a href="day-85-routing-decision-audit-trail.html" class="series-post-title">Routing Decision Logs — Audit Trail Design</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D86</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
