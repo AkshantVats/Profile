@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-87-integration-topology-compose-platform-demos.html",
+          "kicker": "AI Learning · Day 87 of 150",
+          "title": "Day 87 — Integration Topology — Compose for Platform Demos",
+          "subtitle": "Same as docker-compose quickstart pattern from LensAI",
+          "date": "2026-08-10",
+          "slug": "day-87-integration-topology-compose-platform-demos",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-87-integration-topology-compose-platform-demos.html",
+          "coverImage": "blog/assets/covers/day-87-integration-topology-compose-platform-demos.png",
+          "desc": "Three products' schemas already agreed to share one Kafka broker and one ClickHouse database — Compose profiles finally make the demo topology match what the schemas assumed, instead of three isolated compose files each standing up their own infra."
+        },
+        {
           "href": "blog/series/ai-learning/day-86-trace-context-propagation-w3c-traceparent.html",
           "kicker": "AI Learning · Day 86 of 150",
           "title": "Day 86 — Trace Context Propagation — W3C traceparent",
