@@ -924,6 +924,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html",
+          "kicker": "Experience · Day 87 of 150",
+          "title": "Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code",
+          "subtitle": "First upstream PR taught me to match existing error wrapping style",
+          "date": "2026-08-10",
+          "slug": "day-87-victoriametrics-pr-matching-error-style",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html",
+          "coverImage": "blog/assets/covers/day-87-victoriametrics-pr-matching-error-style.png",
+          "desc": "A review comment wasn't about the fix — it was about matching an error-wrapping convention the diff never asked to be graded on, and why that's the real interview-relevant skill an OSS PR teaches."
+        },
+        {
           "href": "blog/series/experience/day-86-distributed-tracing-finding-the-slow-span.html",
           "kicker": "Experience · Day 86 of 150",
           "title": "Day 86 — Delivery Hero Distributed Tracing — Finding the Slow Span",
