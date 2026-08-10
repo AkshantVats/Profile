@@ -912,6 +912,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-86-distributed-tracing-finding-the-slow-span.html",
+          "kicker": "Experience · Day 86 of 150",
+          "title": "Day 86 — Delivery Hero Distributed Tracing — Finding the Slow Span",
+          "subtitle": "Geo pipeline debugging without trace IDs was blind",
+          "date": "2026-08-10",
+          "slug": "day-86-distributed-tracing-finding-the-slow-span",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-86-distributed-tracing-finding-the-slow-span.html",
+          "coverImage": "blog/assets/covers/day-86-distributed-tracing-finding-the-slow-span.png",
+          "desc": "A dashboard pointed at OSRM again, the same culprit as the last lunch-rush incident — but without a trace ID following one rider update across every hop, that was a guess. The trace showed the same update triggering two OSRM calls, not one slow call."
+        },
+        {
           "href": "blog/series/experience/day-85-kafka-ingestion-backpressure-channel-depth.html",
           "kicker": "Experience · Day 85 of 150",
           "title": "Day 85 — Agoda Kafka Ingestion Backpressure — Channel Depth 10k",
