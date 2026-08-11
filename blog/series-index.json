@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html",
+          "kicker": "AI Learning · Day 90 of 150",
+          "title": "Day 90 — Shadow Deployments for ML — Statistical Power",
+          "subtitle": "1% sample variance — need enough N",
+          "date": "2026-08-11",
+          "slug": "day-90-shadow-deployments-statistical-power",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html",
+          "coverImage": "blog/assets/covers/day-90-shadow-deployments-statistical-power.png",
+          "desc": "A flat 1% shadow sample sounds safe until a low-traffic tenant's daily volume makes that 1% a handful of requests -- DriftWatch's DESIGN.md pairs the rate with a minimum daily volume guard."
+        },
+        {
           "href": "blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html",
           "kicker": "AI Learning · Day 89 of 150",
           "title": "Day 89 — Product Thinking — Routers as Control Planes",
