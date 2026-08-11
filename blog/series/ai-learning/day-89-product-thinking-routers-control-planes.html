@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep | Experience Series</title>
-<meta name="description" content="The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.">
-<meta property="og:title" content="Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep">
-<meta property="og:description" content="Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add &mdash; and it's the same compression problem RouteIQ's landing page has.">
+<title>Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes | AI Learning Series</title>
+<meta name="description" content="RouteIQ's proxy never decides what a model says — it decides which model gets asked, under what budget, gated on what quality signal. That's a control plane, and the model calls are the data plane.">
+<meta property="og:title" content="Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes">
+<meta property="og:description" content="Five modules — cache, budget, fingerprint, quality, fallback — read like five separate systems until you name the split networking named decades ago: control plane decides, data plane carries.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-product-thinking-routers-control-planes.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-product-thinking-routers-control-planes.png">
 <meta property="article:published_time" content="2026-08-11">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,67 +185,71 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 88 of 150</span>
-    <span class="tag">Grafana</span>
-    <span class="tag">WhiteFalcon</span>
-    <span class="tag">Agoda</span>
+    <span class="tag accent">AI Learning &middot; Day 89 of 150</span>
+    <span class="tag">Control Plane</span>
+    <span class="tag">Routing</span>
+    <span class="tag">RouteIQ</span>
   </div>
-  <h1 class="post-title">Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</h1>
-  <p class="post-subtitle">The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.</p>
+  <h1 class="post-title">Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes</h1>
+  <p class="post-subtitle">RouteIQ is control plane; models are data plane. Naming the split is what turns five separate day-tickets into one product essay instead of five loosely related repo links.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 88 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 89 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 11, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">9 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png" alt="Day 88 — Launching WhiteFalcon Dashboards — Stakeholder Demo Prep" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-89-product-thinking-routers-control-planes.png" alt="Day 89 — Product Thinking — Routers as Control Planes" width="1200" height="630" loading="eager">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The cross-tier query engine work from the earlier WhiteFalcon post ended up surfaced through Grafana the same way every other query type on that dashboard was: wildcard tag matching, the merged hot/cold P95, the new Kubernetes cardinality dimension &mdash; a Grafana query type here is just a named request shape the dashboard knows how to send to the Scala query engine and render. All of it queryable side by side, all of it built for engineers who'd hit that dashboard every day. An exec stakeholder review of that same dashboard work needed something else entirely.</p>
+<p>Essay ties routing, cache, quality into one SKU.</p>
 
-<p>The ask wasn't a new feature. It was one screenshot that told the story in the time it takes to swipe past a slide &mdash; proof that the new cross-tier queries actually worked and actually mattered, not a guided tour of the query language behind them.</p>
+<p>That's the whole compression <code>docs/hn-launch-routeiq.md</code> had to perform today: five modules &mdash; <code>semantic-cache-engine</code>, <code>prompt-fingerprinter</code>, <code>cost-budget-enforcer</code>, <code>model-quality-scorer</code>, <code>fallback-chain</code> &mdash; each shipped on its own day-ticket over the last month, with no shared abstraction connecting them beyond a Go convention (per-tenant, `net/http` middleware) and a repo. Writing the essay forced the question a reader would ask first: why is this one product and not five?</p>
+
+<h2 id="control-plane-data-plane">The Split Networking Already Named</h2>
+
+<p>The answer was sitting in networking vocabulary the whole time. A router's control plane decides which path a packet takes &mdash; reading headers, consulting a routing table, applying policy. Its data plane is the fast path that actually moves the packet's bytes, and it never inspects what those bytes mean.</p>
+
+<p><code>fallback-chain</code>'s proxy is a control plane in that exact sense. <code>ServeHTTP</code> reads a tenant ID and a chain of candidate models, decides which model gets tried and in what order, and once a hop is selected, streams that hop's response through unmodified &mdash; DESIGN.md's own commitment is that the proxy never inspects, transforms, or re-buffers the winning bytes. The GPT-4o / Claude / Llama call itself, the part that actually produces the completion, is the data plane.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> once "control plane" and "data plane" are the labels, the question of which of RouteIQ's five modules belong together stops being a judgment call &mdash; every one of them either decides something about a request or carries something, and none of them do both.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; cross-tier query extension, k8s cardinality dimension, 2&ndash;3 new Grafana query types</div>
-  The WhiteFalcon dashboard work this post describes is scoped to what I actually built during roughly five months as a Senior Engineer at Agoda: extending the Scala query engine for cross-tier Redis/S3 requests, adding Kubernetes tags as a new indexing dimension, and the 2&ndash;3 new Grafana query types that exposed both. I did not design WhiteFalcon's RoaringBitmap index, its Kafka ingestion pipeline, the Rust consumers, or the Ceph/S3 tiering underneath it &mdash; that's Agoda-team-built infrastructure I extended, not architected.
+  <div class="attr-label">DS analogy &mdash; a router forwarding by header, never reading the payload</div>
+  A network router looks at a packet's destination address and a routing table, decides which interface to forward it out of, and does this without ever parsing what the packet's payload actually contains &mdash; an HTTP request and a video frame get the identical treatment at that layer. RouteIQ's control-plane modules work the same way: <code>cost-budget-enforcer</code> reads a tenant ID and a token estimate, <code>semantic-cache-engine</code> reads an embedding of the prompt, <code>model-quality-scorer</code> reads a rolled-up quality aggregate &mdash; none of them read or understand the model's actual completion text, the same way a router never reads a packet's application-layer payload. The completion itself only exists on the data-plane side, in the one hop <code>fallback-chain</code> actually calls.
 </div>
 
-<h2 id="dense-vs-glanceable">A Cockpit Panel Isn't a Passenger's Gauge</h2>
+<h2 id="five-modules-one-plane">Five Modules, Two Planes</h2>
 
-<p>The dashboard I'd built the new query types into was dense in a way that made sense for who used it: a series per storage tier, wildcard filters across k8s tag combinations, a legend row for every label the query touched, hover tooltips that surfaced raw histogram bucket counts on demand. Every one of those elements earned its place for an engineer debugging a cardinality question at 11pm.</p>
-
-<p>An exec review audience doesn't share that context and doesn't have hover access to a live dashboard mid-meeting &mdash; they see a static screenshot inside a slide for a few seconds, not a tool they can click around in. It's the difference between an aircraft cockpit's instrument panel, dozens of correct gauges meaningful to the pilot flying the plane, and the single altitude readout shown to a passenger who just wants to know the plane is climbing.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a dashboard that's correct for its primary audience can still fail a different audience completely, and the fix isn't making the dashboard smarter &mdash; it's recognizing that a screenshot for a five-second review is a different artifact with a different job.</p>
-
-<h2 id="deciding-what-to-cut">Deciding What to Cut, Not What to Add</h2>
+<p>Laid out against that split, RouteIQ's five modules sort into exactly two groups &mdash; and the group each one lands in explains why it was buildable independently in the first place.</p>
 
 <table>
-<tr><th>Option</th><th>What it does</th><th>Why it loses (or wins)</th></tr>
-<tr><td><strong>A. Annotate the existing dense dashboard in place</strong></td><td>Text callouts layered over the same multi-series, multi-legend panel</td><td>Loses because the underlying panel is still busy &mdash; a slide viewer given a few seconds still has to parse a legend before the annotations mean anything.</td></tr>
-<tr><td><strong>B. Build a brand-new "executive view" panel from scratch</strong></td><td>A custom layout designed only for this one review</td><td>Loses because it's net-new dashboard engineering for a five-minute meeting &mdash; real work that outlives the review it was built for by exactly zero days.</td></tr>
-<tr><td><strong>C. Take an existing cross-tier panel, strip it to one before/after pair (chosen)</strong></td><td>Same panel the query type already produces, two series left, one annotation instead of a legend</td><td>Wins because it reuses exactly the query type the extension already shipped &mdash; the only new work is deciding what to remove.</td></tr>
+<tr><th>Module</th><th>Plane</th><th>What it decides or carries</th></tr>
+<tr><td><code>prompt-fingerprinter</code></td><td>Control</td><td>Is this prompt an exact repeat? (L1, before anything else runs)</td></tr>
+<tr><td><code>semantic-cache-engine</code></td><td>Control</td><td>Is this prompt a near-repeat? (L2, cosine similarity ≥ 0.92)</td></tr>
+<tr><td><code>cost-budget-enforcer</code></td><td>Control</td><td>Can this tenant afford this request right now?</td></tr>
+<tr><td><code>model-quality-scorer</code></td><td>Control</td><td>Which candidate models are actually good at this task type?</td></tr>
+<tr><td><code>fallback-chain</code></td><td>Control + data plane boundary</td><td>Which hop wins, then streams that hop's bytes through untouched</td></tr>
 </table>
 
-<p>Option C worked because the panel already existed; the job was subtraction, not construction. It's the same move a real-estate listing photographer makes staging a room for one photo &mdash; nothing gets built, furniture that would clutter the frame gets carried out of it, and the room that's left reads correctly in a single glance.</p>
+<p>Every row above the last one is pure control plane: none of them touch a token of the actual model response. <code>fallback-chain</code> is the one module that straddles the line on purpose &mdash; it makes the last control-plane decision (which hop) and then, deliberately, gets out of the way for the data-plane part.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> compressing a correct dashboard into one glanceable screenshot is an editing decision, not a design project &mdash; and editing decisions are cheap compared to building a second dashboard nobody asked for.</p>
+<p class="prose-so-what"><strong>So what:</strong> a product isn't five modules that happen to share a repo &mdash; it's five modules that all resolve into the same boundary, and naming that boundary is what makes "one product" a claim you can defend instead of a marketing label.</p>
 
-<h2 id="the-diagram">One Query Type, One Panel, One Screenshot</h2>
+<h2 id="the-request-path">One Request, Four Control-Plane Checks, One Data-Plane Call</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -265,57 +269,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Q["Cross-tier query type"] --> P["Existing multi-series panel"]
-  P --> C["Strip to two series"]
-  C --> F["Before/after framing"]
-  F --> A["One annotation, no legend"]
-  A --> S["Exec-ready screenshot"]
+  subgraph CP["Control plane"]
+    F["Fingerprint check"]
+    S["Semantic cache check"]
+    B["Budget check"]
+    Q["Quality-weighted pick"]
+  end
+  R["Request"] --> F
+  F -->|"miss"| S
+  S -->|"miss"| B
+  B -->|"under budget"| Q
+  Q --> DP["Data plane: one model call"]
+  DP --> Resp["Response streamed back"]
 </pre>
 
-<p>Nothing upstream of that panel changed &mdash; the query type, the histogram merge, the Scala engine call all stayed exactly what they were before the review was scheduled. What changed was everything downstream of the panel: which of its series survived, and what one line of text replaced an entire legend.</p>
+<p>Every box in the control-plane subgraph can reject or short-circuit the request before a single token of the actual model call is spent &mdash; a fingerprint hit, a semantic cache hit, or a budget block all end the request without ever reaching the data plane. Only a request that clears all four control-plane checks pays for an actual inference.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the compression happens at the very end of the pipeline, closest to the viewer &mdash; which means it costs nothing to redo if the audience changes again next quarter.</p>
-
-<h2 id="one-screenshot">What the Screenshot Actually Showed</h2>
-
-<p>The "before" series was a hot-tier-only P95, the kind of query that existed before the cross-tier extension shipped &mdash; it showed a visible gap wherever the requested time range crossed past Redis's retention window into cold storage. The "after" series was the merged cross-tier P95 from the same panel, filling that exact gap using the histogram bucket merge the earlier post on this site walks through in full.</p>
-
-<p>One annotation pointed at the spot where the gap used to be and said, plainly, that it was closed. That's the entire cross-tier merge argument &mdash; correct percentile math across a storage boundary that used to force two separate manual queries &mdash; compressed into a shape nobody in that meeting needed to understand histogram buckets to read.</p>
-
-<div class="pullquote"><p>The screenshot wasn't a smaller version of the dashboard. It was the one claim the dashboard could prove, with everything else that was also true left out of frame.</p></div>
+<p>That ordering isn't arbitrary either: cheapest and most certain check first (exact-match fingerprint), then a more expensive but still-cheaper-than-inference check (semantic similarity), then budget, then the quality-weighted routing decision that picks which specific model gets the data-plane call. Each stage only runs if the cheaper stage ahead of it didn't already resolve the request.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2&ndash;3</span><span class="stat-label">New Grafana query types</span></div>
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">Events/day, WhiteFalcon</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Series left in the screenshot</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Annotation, no legend</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Modules, two planes</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Control-plane checks per request</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Data-plane call, at most</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Control-plane modules that read completion text</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a stakeholder screenshot earns its five seconds of attention by proving exactly one thing well, not by summarizing everything the underlying work made possible.</p>
+<p class="prose-so-what"><strong>So what:</strong> the request path itself is the essay's argument made executable &mdash; four independent control-plane decisions ordered cheapest-first, gating one data-plane call, is what "cache, budget, and quality as one product" actually compiles down to.</p>
 
-<h2 id="todays-routeiq">Today's routeiq-launch, Same Compression Problem</h2>
+<h2 id="why-it-generalizes">Why the Split Is the Reusable Part</h2>
 
-<p>Day 88's code work is the <code>routeiq-launch</code> landing page, and it has the identical compression problem in a different shape. A stakeholder or a curious visitor gets a few seconds on that page before they scroll past, not a product tour &mdash; so the hero has to lead with cost&darr; and latency&rarr; and nothing else competing for the same few seconds of attention.</p>
+<div class="pullquote"><p>The control plane doesn't need to know what a model said. It only ever needs to know whether this request should reach one.</p></div>
 
-<p>The lesson carries over directly, not by analogy but by the same move: don't add more to the page to explain the tradeoff, cut down to the one before/after comparison that makes cost dropping and latency holding steady legible without narration. The WhiteFalcon screenshot and the RouteIQ landing hero are solving the same problem for two different five-second audiences.</p>
+<p>The control/data-plane split is what makes adding a sixth signal &mdash; per-region latency, say, or a per-model incident flag &mdash; a small, well-scoped argument instead of an architecture change. A new signal is a new control-plane check with the same shape as the four that already exist: read something about the request, decide pass or reject, never touch the response bytes.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> audience-appropriate compression &mdash; knowing what a five-second viewer needs and cutting everything else &mdash; is a real engineering skill that shows up in a Grafana panel today and a landing page hero tomorrow, not an afterthought design chore bolted onto working systems.</p>
+<p>Today's companion Experience post makes the human-scale version of this same argument: a platform narrative connects separate pieces of work the same way a control plane connects separate decisions &mdash; not by merging them into one system, but by naming the one boundary all of them already respect. <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html">Read Day 89's Experience post &rarr;</a></p>
+
+<p class="prose-so-what"><strong>So what:</strong> the reason this framing is worth naming isn't elegance for its own sake &mdash; a control plane that's actually decoupled from its data plane is what lets RouteIQ's next module get built without anyone having to re-architect the four that already ship.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 88 of 150 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</p>
-  <p><em>Next up:</em> <a href="day-89-five-years-infra-interviews-staff-signals.html">Day 89 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like</a></p>
+  <p>AI Learning &middot; Day 89 of 150 &mdash; Product Thinking &mdash; Routers as Control Planes</p>
+  <p><em>Next up:</em> Day 90 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code (yesterday's post — a different codebase, the same discipline of matching what's already there instead of adding a new pattern)</span>
+      <span>Day 88 — Launch Readiness (yesterday's post — the sandbox tenant's budget config, one of the four control-plane checks this post names)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>When Percentiles Lie — Cross-Tier Queries (the earlier post on the histogram merge this screenshot's "after" series is built on)</span>
+      <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 89 — Five Years of Infra Interviews (today's companion Experience post — the human-scale version of today's control-plane argument)</span>
     </a>
   </div>
 </div>
@@ -326,22 +335,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#dense-vs-glanceable">A Cockpit Panel, a Passenger's Gauge</a></li>
-      <li><a href="#deciding-what-to-cut">Deciding What to Cut</a></li>
-      <li><a href="#the-diagram">One Query Type, One Screenshot</a></li>
-      <li><a href="#one-screenshot">What the Screenshot Showed</a></li>
-      <li><a href="#todays-routeiq">Today's routeiq-launch</a></li>
+      <li><a href="#control-plane-data-plane">The Split Networking Named</a></li>
+      <li><a href="#five-modules-one-plane">Five Modules, Two Planes</a></li>
+      <li><a href="#the-request-path">One Request, Four Checks</a></li>
+      <li><a href="#why-it-generalizes">Why the Split Generalizes</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-89-product-thinking-routers-control-planes.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Launching+WhiteFalcon+Dashboards+%E2%80%94+Stakeholder+Demo+Prep+%E2%80%94+Experience+%C2%B7+Day+88+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Product+Thinking+%E2%80%94+Routers+as+Control+Planes+%E2%80%94+AI+Learning+%C2%B7+Day+89+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-89-product-thinking-routers-control-planes.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -350,21 +358,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">Experience Series</div>
-      <div class="series-title">150 days of building in public</div>
+      <div class="series-label">AI Learning Series</div>
+      <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D87</span> Experience</div>
-          <a href="day-87-victoriametrics-pr-matching-error-style.html" class="series-post-title">OSS VictoriaMetrics PR — Reading Go Production Code</a>
+          <div class="series-post-kicker"><span class="series-post-num">D88</span> AI Learning</div>
+          <a href="day-88-launch-readiness-api-sandboxes-rate-limits.html" class="series-post-title">Launch Readiness — API Sandboxes and Rate Limits</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D88</span> Experience &middot; now</div>
-          <div class="series-post-title">Launching WhiteFalcon Dashboards — Stakeholder Demo Prep</div>
-          <div class="series-post-desc">Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D89</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Product Thinking — Routers as Control Planes</div>
+          <div class="series-post-desc">RouteIQ's five modules sort into exactly two planes — naming the split is what makes them one product instead of five.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D89</span> Experience</div>
-          <a href="day-89-five-years-infra-interviews-staff-signals.html" class="series-post-title">Five Years of Infra Interviews — What &ldquo;Staff&rdquo; Signals Look Like</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D90</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -377,7 +385,7 @@ flowchart LR
     <div class="author-card-avatar">AS</div>
     <div>
       <div class="author-card-name">Akshant Sharma</div>
-      <div class="author-card-bio">Sr. Software Engineer building LensAI &mdash; AI inference observability on top of Rust, Kafka, and ClickHouse. Writing daily about distributed systems and the experience behind the code.</div>
+      <div class="author-card-bio">Platform &amp; infrastructure engineer. 8+ years building distributed systems at Agoda, Delivery Hero, Wayfair, and Walmart. Writing 150 days of AI infra from first principles.</div>
       <div class="author-card-links">
         <a href="https://www.linkedin.com/in/akshantvats/" class="ff-in" target="_blank" rel="noopener">LinkedIn</a>
         <a href="mailto:akshant3@gmail.com" class="ff-em">Email</a>
