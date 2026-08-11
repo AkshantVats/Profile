@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 88 &mdash; Launch Readiness &mdash; API Sandboxes and Rate Limits | AI Learning Series</title>
-<meta name="description" content="Every cost-budget-enforcer tenant config so far assumed a paying, known tenant with generous budgets and fail-open outages. A public demo key inverts every one of those assumptions, and FailClosed: true is why.">
-<meta property="og:title" content="Day 88 &mdash; Launch Readiness &mdash; API Sandboxes and Rate Limits">
-<meta property="og:description" content="Public demo keys need hard spend caps. Why a sandbox tenant gets the exact opposite of every paying tenant's Redis-outage default, and what that says about rate limits as a trust spectrum, not a global constant.">
+<title>Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes | AI Learning Series</title>
+<meta name="description" content="RouteIQ's proxy never decides what a model says — it decides which model gets asked, under what budget, gated on what quality signal. That's a control plane, and the model calls are the data plane.">
+<meta property="og:title" content="Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes">
+<meta property="og:description" content="Five modules — cache, budget, fingerprint, quality, fallback — read like five separate systems until you name the split networking named decades ago: control plane decides, data plane carries.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-launch-readiness-api-sandboxes-rate-limits.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-product-thinking-routers-control-planes.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-launch-readiness-api-sandboxes-rate-limits.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-product-thinking-routers-control-planes.png">
 <meta property="article:published_time" content="2026-08-11">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 88 of 150</span>
-    <span class="tag">Rate Limiting</span>
-    <span class="tag">API Design</span>
-    <span class="tag">Launch Readiness</span>
+    <span class="tag accent">AI Learning &middot; Day 89 of 150</span>
+    <span class="tag">Control Plane</span>
+    <span class="tag">Routing</span>
+    <span class="tag">RouteIQ</span>
   </div>
-  <h1 class="post-title">Day 88 &mdash; Launch Readiness &mdash; API Sandboxes and Rate Limits</h1>
-  <p class="post-subtitle">Public demo keys need hard spend caps. Every tenant config cost-budget-enforcer has shipped so far assumed a paying, known tenant &mdash; a public demo key breaks that assumption in every direction at once.</p>
+  <h1 class="post-title">Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes</h1>
+  <p class="post-subtitle">RouteIQ is control plane; models are data plane. Naming the split is what turns five separate day-tickets into one product essay instead of five loosely related repo links.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 88 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 89 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 11, 2026</span>
     <div class="meta-divider"></div>
@@ -208,55 +208,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-88-launch-readiness-api-sandboxes-rate-limits.png" alt="Day 88 — Launch Readiness — API Sandboxes and Rate Limits" width="1200" height="630" loading="eager">
+    <img src="../../assets/covers/day-89-product-thinking-routers-control-planes.png" alt="Day 89 — Product Thinking — Routers as Control Planes" width="1200" height="630" loading="eager">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Sandbox tenant uses cost-budget-enforcer defaults.</p>
+<p>Essay ties routing, cache, quality into one SKU.</p>
 
-<p>That was the whole assumption quietly sitting inside today's <code>routeiq-launch</code> ticket: polish the README, ship a Helm umbrella chart, and put a live demo API key on the landing page so a visitor can hit RouteIQ's real routing pipeline without signing up for anything. The budget enforcement was already built &mdash; Days 65 through 69 shipped the thresholds, the Redis-backed counter, and the outage policy. Reusing it for the sandbox key looked like zero new work.</p>
+<p>That's the whole compression <code>docs/hn-launch-routeiq.md</code> had to perform today: five modules &mdash; <code>semantic-cache-engine</code>, <code>prompt-fingerprinter</code>, <code>cost-budget-enforcer</code>, <code>model-quality-scorer</code>, <code>fallback-chain</code> &mdash; each shipped on its own day-ticket over the last month, with no shared abstraction connecting them beyond a Go convention (per-tenant, `net/http` middleware) and a repo. Writing the essay forced the question a reader would ask first: why is this one product and not five?</p>
 
-<p>It's a reasonable assumption right up until you ask who the tenant actually is.</p>
+<h2 id="control-plane-data-plane">The Split Networking Already Named</h2>
 
-<h2 id="who-is-the-tenant">The Tenant With No Invoice</h2>
+<p>The answer was sitting in networking vocabulary the whole time. A router's control plane decides which path a packet takes &mdash; reading headers, consulting a routing table, applying policy. Its data plane is the fast path that actually moves the packet's bytes, and it never inspects what those bytes mean.</p>
 
-<p>Every <code>cost-budget-enforcer</code> config written so far describes a real company: a signed relationship, a monthly invoice, a person who reads an alert webhook and calls someone if the number looks wrong. Day 69's whole argument for defaulting to fail-open rests on that relationship &mdash; a missed budget check during a Redis blip is a bounded cost, because there's an invoice at the end of the month that reconciles it, and a human who can explain the spike if anyone asks.</p>
+<p><code>fallback-chain</code>'s proxy is a control plane in that exact sense. <code>ServeHTTP</code> reads a tenant ID and a chain of candidate models, decides which model gets tried and in what order, and once a hop is selected, streams that hop's response through unmodified &mdash; DESIGN.md's own commitment is that the proxy never inspects, transforms, or re-buffers the winning bytes. The GPT-4o / Claude / Llama call itself, the part that actually produces the completion, is the data plane.</p>
 
-<p>A public demo key has none of that. The "tenant" is anyone who lands on <code>routeiq-launch</code>'s page and clicks the sandbox button. There's no signature, no billing contact, no relationship to repair with an apologetic email if the number runs high.</p>
-
-<p>If the budget store goes down and the enforcer forwards every sandbox request unmetered rather than reject it, nobody is going to notice a large bill next month, because there is no bill. The cost lands directly on whoever pays the OpenAI invoice for the whole product, with no tenant on the other end to explain it or absorb it.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> fail-open's entire justification depends on someone downstream being able to make sense of the overage after the fact &mdash; a sandbox key has no such someone, so the same default that's safe for a paying tenant is unbounded risk for a demo key.</p>
+<p class="prose-so-what"><strong>So what:</strong> once "control plane" and "data plane" are the labels, the question of which of RouteIQ's five modules belong together stops being a judgment call &mdash; every one of them either decides something about a request or carries something, and none of them do both.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a prepaid gift card, not a credit card</div>
-  A credit card has a limit, but the limit can be raised with a phone call, and if the merchant's terminal can't reach the bank, most readers still let the swipe through and settle later &mdash; the bank trusts you to still be there next month. A prepaid gift card has no such trust to draw on: it has a fixed balance, no reload, and the card issued no promise about tomorrow. When a gift-card reader can't reach the bank to check the remaining balance, it doesn't wave the purchase through and bill someone later &mdash; there's no "someone" to bill &mdash; it declines the purchase outright. <code>FailClosed: true</code> is that reader. A sandbox demo key isn't a smaller credit line; it's a card with nobody's name on it, so an unreachable balance check has to mean "no," not "probably fine."
+  <div class="attr-label">DS analogy &mdash; a router forwarding by header, never reading the payload</div>
+  A network router looks at a packet's destination address and a routing table, decides which interface to forward it out of, and does this without ever parsing what the packet's payload actually contains &mdash; an HTTP request and a video frame get the identical treatment at that layer. RouteIQ's control-plane modules work the same way: <code>cost-budget-enforcer</code> reads a tenant ID and a token estimate, <code>semantic-cache-engine</code> reads an embedding of the prompt, <code>model-quality-scorer</code> reads a rolled-up quality aggregate &mdash; none of them read or understand the model's actual completion text, the same way a router never reads a packet's application-layer payload. The completion itself only exists on the data-plane side, in the one hop <code>fallback-chain</code> actually calls.
 </div>
 
-<h2 id="spectrum">Rate Limits Are a Spectrum, Not a Constant</h2>
+<h2 id="five-modules-one-plane">Five Modules, Two Planes</h2>
 
-<p>Once the sandbox tenant's config sits next to a real tenant's, the difference isn't a matter of degree &mdash; it's a different answer to almost every field <code>config.TenantConfig</code> exposes. A paying tenant like <code>acme</code> gets a budget sized to real usage, a daily window, and the Go zero-value default on <code>FailClosed</code>, which is <code>false</code>. The sandbox tenant gets the opposite on every axis that matters.</p>
+<p>Laid out against that split, RouteIQ's five modules sort into exactly two groups &mdash; and the group each one lands in explains why it was buildable independently in the first place.</p>
 
 <table>
-<tr><th>Field</th><th>Paying tenant (<code>acme</code>)</th><th>Sandbox tenant (<code>routeiq-launch-demo</code>)</th></tr>
-<tr><td><code>budget_tokens</code></td><td>5,000,000</td><td>20,000</td></tr>
-<tr><td><code>window_seconds</code></td><td>86,400 (daily)</td><td>3,600 (hourly)</td></tr>
-<tr><td><code>fallback_model</code></td><td>gpt-4o-mini</td><td>gpt-4o-mini</td></tr>
-<tr><td><code>fail_closed</code></td><td><em>omitted &mdash; defaults false</em></td><td><code>true</code></td></tr>
-<tr><td>Cost of a wrongful reject</td><td>A real customer's request fails</td><td>A visitor clicks the button again</td></tr>
-<tr><td>Cost of an unmetered outage hour</td><td>Bounded &mdash; one tenant's invoice, reconciled</td><td>Unbounded &mdash; nobody's invoice, nobody notices</td></tr>
+<tr><th>Module</th><th>Plane</th><th>What it decides or carries</th></tr>
+<tr><td><code>prompt-fingerprinter</code></td><td>Control</td><td>Is this prompt an exact repeat? (L1, before anything else runs)</td></tr>
+<tr><td><code>semantic-cache-engine</code></td><td>Control</td><td>Is this prompt a near-repeat? (L2, cosine similarity ≥ 0.92)</td></tr>
+<tr><td><code>cost-budget-enforcer</code></td><td>Control</td><td>Can this tenant afford this request right now?</td></tr>
+<tr><td><code>model-quality-scorer</code></td><td>Control</td><td>Which candidate models are actually good at this task type?</td></tr>
+<tr><td><code>fallback-chain</code></td><td>Control + data plane boundary</td><td>Which hop wins, then streams that hop's bytes through untouched</td></tr>
 </table>
 
-<p>Nothing about the enforcer's code changes between these two rows &mdash; <code>enforcer.Check</code> reads the same struct fields regardless of who's asking. The config file is the only place the decision lives, and reading a tenant's config is really reading a statement about how much the person who wrote it trusts that tenant to behave, and how much it costs to be wrong in either direction.</p>
+<p>Every row above the last one is pure control plane: none of them touch a token of the actual model response. <code>fallback-chain</code> is the one module that straddles the line on purpose &mdash; it makes the last control-plane decision (which hop) and then, deliberately, gets out of the way for the data-plane part.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a rate limit isn't a fixed policy the enforcer enforces uniformly &mdash; it's a spectrum of trust encoded per-tenant, and where a given tenant sits on it says more about the relationship than about the traffic.</p>
+<p class="prose-so-what"><strong>So what:</strong> a product isn't five modules that happen to share a repo &mdash; it's five modules that all resolve into the same boundary, and naming that boundary is what makes "one product" a claim you can defend instead of a marketing label.</p>
 
-<h2 id="two-paths">One Enforcer, Two Failure Philosophies</h2>
-
-<p>The same <code>enforcer.Check</code> function serves both tenants. What differs is which threshold each one is built to hit, and what happens when the store it depends on stops answering.</p>
+<h2 id="the-request-path">One Request, Four Control-Plane Checks, One Data-Plane Call</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -276,80 +269,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  subgraph Sandbox["Sandbox demo key"]
-    S1["Request hits enforcer"]
-    S2["Over hard cap always"]
+  subgraph CP["Control plane"]
+    F["Fingerprint check"]
+    S["Semantic cache check"]
+    B["Budget check"]
+    Q["Quality-weighted pick"]
   end
-  subgraph Paying["Paying tenant"]
-    P1["Request hits enforcer"]
-    P2["Soft alert thresholds first"]
-  end
-  S1 --> S2
-  S2 -->|"store unreachable"| SF["FailClosed: reject 503"]
-  P1 --> P2
-  P2 -->|"store unreachable"| PF["Fail open: forward unmetered"]
+  R["Request"] --> F
+  F -->|"miss"| S
+  S -->|"miss"| B
+  B -->|"under budget"| Q
+  Q --> DP["Data plane: one model call"]
+  DP --> Resp["Response streamed back"]
 </pre>
 
-<p>The sandbox key's budget is deliberately small enough that ordinary sandbox usage lives near the hard threshold already &mdash; the point isn't to let it run comfortably under budget the way <code>acme</code> does, it's to keep the ceiling low enough that abuse costs nothing worth abusing. A paying tenant's budget is sized the opposite way: generous enough that the alert and soft thresholds fire long before the hard one, giving a real customer room to be warned and degrade gracefully instead of getting cut off.</p>
+<p>Every box in the control-plane subgraph can reject or short-circuit the request before a single token of the actual model call is spent &mdash; a fingerprint hit, a semantic cache hit, or a budget block all end the request without ever reaching the data plane. Only a request that clears all four control-plane checks pays for an actual inference.</p>
 
-<p>The branch that matters most is the one on the right of each path: what happens when <code>store.CheckAndIncrement</code> can't reach Redis at all. <code>pkg/middleware.Wrap</code> and <code>pkg/gateway.Handle</code> both already had this branch from Day 66 onward; Day 69 just gave it a second outcome.</p>
-
-<p>For <code>acme</code>, that branch forwards the request unmetered. For the sandbox key, it returns <code>503</code> instead.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> the interesting design decision was never the happy-path threshold math &mdash; it's what a single dependency failure should mean for a request, and that answer inverts completely depending on who's making the request.</p>
-
-<h2 id="why-fail-closed">Why FailClosed Is the Cheap Path, Not Just the Safe One</h2>
-
-<p>The instinctive read on <code>FailClosed</code> is that it trades speed for safety &mdash; reject-and-let-them-retry sounds like the slower, more cautious option next to forward-and-move-on. <code>BENCHMARKS.md</code> measures the opposite on this repo's loopback Redis: a fail-closed <code>503</code> costs roughly 6 microseconds, because rejecting skips the Lua <code>EVAL</code> round trip to Redis entirely, while a successful fail-open check that actually runs the counter script costs roughly 250 microseconds. Fail-closed isn't the expensive, careful choice here &mdash; it's the fast one.</p>
+<p>That ordering isn't arbitrary either: cheapest and most certain check first (exact-match fingerprint), then a more expensive but still-cheaper-than-inference check (semantic similarity), then budget, then the quality-weighted routing decision that picks which specific model gets the data-plane call. Each stage only runs if the cheaper stage ahead of it didn't already resolve the request.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">~6&mu;s</span><span class="stat-label">FailClosed reject</span></div>
-  <div class="stat-cell"><span class="stat-num">~250&mu;s</span><span class="stat-label">Fail-open check</span></div>
-  <div class="stat-cell"><span class="stat-num">20K</span><span class="stat-label">Sandbox tokens/hr</span></div>
-  <div class="stat-cell"><span class="stat-num">5M</span><span class="stat-label">acme tokens/day</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Modules, two planes</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Control-plane checks per request</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Data-plane call, at most</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Control-plane modules that read completion text</span></div>
 </div>
 
-<p>What fail-closed actually costs is availability, not latency &mdash; and availability is worth a different amount to each tenant. A <code>503</code> during a Redis blip is a customer-visible outage for <code>acme</code>, the kind of thing that generates a support ticket. For the sandbox key, the same <code>503</code> is a visitor's demo button not working for a few seconds, with no support contract to violate and no invoice to protect.</p>
+<p class="prose-so-what"><strong>So what:</strong> the request path itself is the essay's argument made executable &mdash; four independent control-plane decisions ordered cheapest-first, gating one data-plane call, is what "cache, budget, and quality as one product" actually compiles down to.</p>
 
-<p>The asymmetry that makes fail-open the right default for a paying tenant &mdash; a missed check is bounded and self-correcting &mdash; simply doesn't hold for a tenant nobody is billing.</p>
+<h2 id="why-it-generalizes">Why the Split Is the Reusable Part</h2>
 
-<p class="prose-so-what"><strong>So what:</strong> the same one-line config change, <code>fail_closed: true</code>, means something completely different depending on who's on the other end of the request &mdash; for <code>acme</code> it would be an unnecessary outage risk, for the sandbox key it's the only default that doesn't leave the bill with nobody to send it to.</p>
+<div class="pullquote"><p>The control plane doesn't need to know what a model said. It only ever needs to know whether this request should reach one.</p></div>
 
-<h2 id="todays-experience-post">Today's Experience Post, Same Question</h2>
+<p>The control/data-plane split is what makes adding a sixth signal &mdash; per-region latency, say, or a per-model incident flag &mdash; a small, well-scoped argument instead of an architecture change. A new signal is a new control-plane check with the same shape as the four that already exist: read something about the request, decide pass or reject, never touch the response bytes.</p>
 
-<p>Today's companion Experience post covers preparing WhiteFalcon's dashboards for a stakeholder review &mdash; compressing a dense technical view down to the one screenshot an executive with five minutes of attention actually needs to see. That's a human-scale version of the same design question this post spends its whole length on: what should a limited-attention, limited-trust audience be allowed to see and touch, and what has to stay behind a harder boundary than a trusted audience would need.</p>
+<p>Today's companion Experience post makes the human-scale version of this same argument: a platform narrative connects separate pieces of work the same way a control plane connects separate decisions &mdash; not by merging them into one system, but by naming the one boundary all of them already respect. <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html">Read Day 89's Experience post &rarr;</a></p>
 
-<p>An exec reviewer isn't untrusted the way an anonymous demo key is, but the shape of the decision is identical &mdash; narrow the surface area on purpose, for the audience in front of you, instead of reusing the surface area built for someone else. <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">Read Day 88's Experience post &rarr;</a></p>
-
-<p class="prose-so-what"><strong>So what:</strong> the sandbox tenant's hard cap and the stakeholder dashboard's single screenshot are the same move at different scales &mdash; deciding what a limited audience gets to see is itself the design work, not a compromise on top of it.</p>
-
-<h2 id="whats-missing">What's Still Missing</h2>
-
-<p>This design reuses <code>cost-budget-enforcer</code>'s existing fields rather than inventing sandbox-specific ones, which means it also inherits that module's honest gaps. There's still no metrics counter for fail-closed rejections &mdash; no <code>budget_store_fail_closed_total</code>-shaped signal exists anywhere in this repo yet, so today there's no dashboard that would show the sandbox key rejecting requests during an outage versus simply having no traffic. <code>BENCHMARKS.md</code>'s 6&mu;s/250&mu;s numbers are also loopback <code>miniredis</code> only &mdash; there's no Docker daemon in this sandbox, so no number here has been measured against Redis over a real network.</p>
-
-<p>The landing page ticket itself is also broader than this post: key rotation, expiry, and abuse detection beyond the hard token cap aren't designed yet, only the budget-enforcement slice of "make a public demo key safe" is. That's a real gap, not a rounding error, and it's a fair thing for the launch checklist to flag before the demo key actually goes live.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> reusing a well-tested module for a new, riskier audience is the right instinct, but it only covers the part of the risk that module was built to cover &mdash; naming the rest honestly is what keeps "we reused the enforcer" from quietly becoming "we assumed the enforcer handled everything."</p>
+<p class="prose-so-what"><strong>So what:</strong> the reason this framing is worth naming isn't elegance for its own sake &mdash; a control plane that's actually decoupled from its data plane is what lets RouteIQ's next module get built without anyone having to re-architect the four that already ship.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 88 of 150 &mdash; Launch Readiness &mdash; API Sandboxes and Rate Limits</p>
-  <p><em>Next up:</em> <a href="day-89-product-thinking-routers-control-planes.html">Day 89 &mdash; Product Thinking &mdash; Routers as Control Planes</a></p>
+  <p>AI Learning &middot; Day 89 of 150 &mdash; Product Thinking &mdash; Routers as Control Planes</p>
+  <p><em>Next up:</em> Day 90 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-87-integration-topology-compose-platform-demos.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 87 — Integration Topology (yesterday's post — the demo-topology half of RouteIQ's launch prep; today's post is the demo-safety half)</span>
+      <span>Day 88 — Launch Readiness (yesterday's post — the sandbox tenant's budget config, one of the four control-plane checks this post names)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 88 — WhiteFalcon Dashboards (today's companion Experience post — the human-scale version of today's limited-audience design question)</span>
+      <span>Day 89 — Five Years of Infra Interviews (today's companion Experience post — the human-scale version of today's control-plane argument)</span>
     </a>
   </div>
 </div>
@@ -360,23 +335,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#who-is-the-tenant">The Tenant With No Invoice</a></li>
-      <li><a href="#spectrum">Rate Limits Are a Spectrum</a></li>
-      <li><a href="#two-paths">Two Failure Philosophies</a></li>
-      <li><a href="#why-fail-closed">Why FailClosed Is Cheap</a></li>
-      <li><a href="#todays-experience-post">Today's Experience Post</a></li>
-      <li><a href="#whats-missing">What's Still Missing</a></li>
+      <li><a href="#control-plane-data-plane">The Split Networking Named</a></li>
+      <li><a href="#five-modules-one-plane">Five Modules, Two Planes</a></li>
+      <li><a href="#the-request-path">One Request, Four Checks</a></li>
+      <li><a href="#why-it-generalizes">Why the Split Generalizes</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-88-launch-readiness-api-sandboxes-rate-limits.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-89-product-thinking-routers-control-planes.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Launch+Readiness+%E2%80%94+API+Sandboxes+and+Rate+Limits+%E2%80%94+AI+Learning+%C2%B7+Day+88+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-88-launch-readiness-api-sandboxes-rate-limits.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Product+Thinking+%E2%80%94+Routers+as+Control+Planes+%E2%80%94+AI+Learning+%C2%B7+Day+89+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-89-product-thinking-routers-control-planes.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -389,17 +362,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D87</span> AI Learning</div>
-          <a href="day-87-integration-topology-compose-platform-demos.html" class="series-post-title">Integration Topology — Compose for Platform Demos</a>
+          <div class="series-post-kicker"><span class="series-post-num">D88</span> AI Learning</div>
+          <a href="day-88-launch-readiness-api-sandboxes-rate-limits.html" class="series-post-title">Launch Readiness — API Sandboxes and Rate Limits</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D88</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Launch Readiness — API Sandboxes and Rate Limits</div>
-          <div class="series-post-desc">A public demo key inverts every tenant assumption cost-budget-enforcer shipped with — why FailClosed is right for a sandbox and wrong for everyone else.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D89</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Product Thinking — Routers as Control Planes</div>
+          <div class="series-post-desc">RouteIQ's five modules sort into exactly two planes — naming the split is what makes them one product instead of five.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D89</span> AI Learning</div>
-          <a href="day-89-product-thinking-routers-control-planes.html" class="series-post-title">Product Thinking — Routers as Control Planes</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D90</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
