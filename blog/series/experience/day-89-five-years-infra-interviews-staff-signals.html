@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep | Experience Series</title>
-<meta name="description" content="The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.">
-<meta property="og:title" content="Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep">
-<meta property="og:description" content="Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add &mdash; and it's the same compression problem RouteIQ's landing page has.">
+<title>Day 89 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like | Experience Series</title>
+<meta name="description" content="Repo count is legible on a resume. A platform narrative is what's legible to an interview panel — and 89 days of shipped tickets doesn't produce one automatically.">
+<meta property="og:title" content="Day 89 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like">
+<meta property="og:description" content="RouteIQ shipped as five separate day-tickets over three months. Today's product essay is the exercise of compressing them into one story — the same compression an interview answer has to do live, with no essay to lean on.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-five-years-infra-interviews-staff-signals.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-89-five-years-infra-interviews-staff-signals.png">
 <meta property="article:published_time" content="2026-08-11">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,67 +185,75 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 88 of 150</span>
-    <span class="tag">Grafana</span>
-    <span class="tag">WhiteFalcon</span>
-    <span class="tag">Agoda</span>
+    <span class="tag accent">Experience &middot; Day 89 of 150</span>
+    <span class="tag">Interviews</span>
+    <span class="tag">Career</span>
+    <span class="tag">RouteIQ</span>
   </div>
-  <h1 class="post-title">Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</h1>
-  <p class="post-subtitle">The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.</p>
+  <h1 class="post-title">Day 89 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like</h1>
+  <p class="post-subtitle">Repo count is legible on a resume. A platform narrative is what's legible to an interview panel &mdash; and 89 days of shipped tickets doesn't produce one automatically.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 88 of 150</span>
+    <span class="meta-item">Experience &middot; Day 89 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 11, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png" alt="Day 88 — Launching WhiteFalcon Dashboards — Stakeholder Demo Prep" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-89-five-years-infra-interviews-staff-signals.png" alt="Day 89 — Five Years of Infra Interviews — What &quot;Staff&quot; Signals Look Like" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The cross-tier query engine work from the earlier WhiteFalcon post ended up surfaced through Grafana the same way every other query type on that dashboard was: wildcard tag matching, the merged hot/cold P95, the new Kubernetes cardinality dimension &mdash; a Grafana query type here is just a named request shape the dashboard knows how to send to the Scala query engine and render. All of it queryable side by side, all of it built for engineers who'd hit that dashboard every day. An exec stakeholder review of that same dashboard work needed something else entirely.</p>
+<p>Today's code work is a product essay: <code>docs/hn-launch-routeiq.md</code> compresses five modules &mdash; a semantic cache, a budget enforcer, a fingerprint layer, a quality scorer, a fallback router &mdash; shipped across three months of separate day-tickets into one Show HN post. Writing it surfaced a question that outlasts RouteIQ specifically: an infra interview panel is asking for the exact same compression, live, with no essay to lean on.</p>
 
-<p>The ask wasn't a new feature. It was one screenshot that told the story in the time it takes to swipe past a slide &mdash; proof that the new cross-tier queries actually worked and actually mattered, not a guided tour of the query language behind them.</p>
+<p>Five years of sitting on both sides of infra interview loops &mdash; as a candidate walking a panel through a system, and later as an interviewer listening for the same thing in someone else's answer &mdash; points at one consistent tell. It isn't depth on a single system.</p>
+
+<p>Plenty of Senior-level answers have that depth. It's whether the depth connects to anything.</p>
+
+<h2 id="the-tell">The Tell Isn't Depth, It's Connection</h2>
+
+<p>A strong Senior-level answer to "tell me about a system you built" is usually excellent in isolation: clear problem statement, the tradeoffs that were actually weighed, honest scope about what was personally built versus what a team already had running. That answer can be completely correct and still read as one good story pulled out of a much longer list of tickets.</p>
+
+<p>The answer that reads differently is the one where the candidate, without being asked, connects that system to the one they described two questions earlier &mdash; not because the panel steered them there, but because the two systems actually share a design decision, and the candidate had already noticed.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a panel isn't grading whether one system was built well; they're checking whether the candidate's mental model of their own work is a list or a graph &mdash; and a graph is what "operates at the next level already" actually looks like from the outside.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; cross-tier query extension, k8s cardinality dimension, 2&ndash;3 new Grafana query types</div>
-  The WhiteFalcon dashboard work this post describes is scoped to what I actually built during roughly five months as a Senior Engineer at Agoda: extending the Scala query engine for cross-tier Redis/S3 requests, adding Kubernetes tags as a new indexing dimension, and the 2&ndash;3 new Grafana query types that exposed both. I did not design WhiteFalcon's RoaringBitmap index, its Kafka ingestion pipeline, the Rust consumers, or the Ceph/S3 tiering underneath it &mdash; that's Agoda-team-built infrastructure I extended, not architected.
+  <div class="attr-label">Scope &mdash; pattern observed across roles, not a single-company claim</div>
+  This post reflects on interview patterns across roughly five years and several infra-focused roles (per the resume: Walmart Labs, Delivery Hero, Agoda, Wayfair), not one specific company's loop or one specific interviewer's rubric. Where it draws on scope or tenure, it stays inside what's documented in this build's own resume context file &mdash; no invented interview transcripts, no claims about a particular employer's exact bar.
 </div>
 
-<h2 id="dense-vs-glanceable">A Cockpit Panel Isn't a Passenger's Gauge</h2>
+<h2 id="repo-count-vs-narrative">Repo Count Is a Resume Metric, Not an Interview One</h2>
 
-<p>The dashboard I'd built the new query types into was dense in a way that made sense for who used it: a series per storage tier, wildcard filters across k8s tag combinations, a legend row for every label the query touched, hover tooltips that surfaced raw histogram bucket counts on demand. Every one of those elements earned its place for an engineer debugging a cardinality question at 11pm.</p>
+<p>It's tempting to treat a body of work's legibility as a counting problem: how many repos, how many PRs, how many systems touched. That's the metric a resume optimizes for, because a resume is skimmed in seconds and a bullet count is fast to parse.</p>
 
-<p>An exec review audience doesn't share that context and doesn't have hover access to a live dashboard mid-meeting &mdash; they see a static screenshot inside a slide for a few seconds, not a tool they can click around in. It's the difference between an aircraft cockpit's instrument panel, dozens of correct gauges meaningful to the pilot flying the plane, and the single altitude readout shown to a passenger who just wants to know the plane is climbing.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> a dashboard that's correct for its primary audience can still fail a different audience completely, and the fix isn't making the dashboard smarter &mdash; it's recognizing that a screenshot for a five-second review is a different artifact with a different job.</p>
-
-<h2 id="deciding-what-to-cut">Deciding What to Cut, Not What to Add</h2>
+<p>An interview panel has forty-five minutes and isn't counting. What they're actually testing is whether a candidate can take that same bullet list and produce the argument for why it's one body of work with a point of view, not five unrelated line items that happen to share a GitHub org.</p>
 
 <table>
-<tr><th>Option</th><th>What it does</th><th>Why it loses (or wins)</th></tr>
-<tr><td><strong>A. Annotate the existing dense dashboard in place</strong></td><td>Text callouts layered over the same multi-series, multi-legend panel</td><td>Loses because the underlying panel is still busy &mdash; a slide viewer given a few seconds still has to parse a legend before the annotations mean anything.</td></tr>
-<tr><td><strong>B. Build a brand-new "executive view" panel from scratch</strong></td><td>A custom layout designed only for this one review</td><td>Loses because it's net-new dashboard engineering for a five-minute meeting &mdash; real work that outlives the review it was built for by exactly zero days.</td></tr>
-<tr><td><strong>C. Take an existing cross-tier panel, strip it to one before/after pair (chosen)</strong></td><td>Same panel the query type already produces, two series left, one annotation instead of a legend</td><td>Wins because it reuses exactly the query type the extension already shipped &mdash; the only new work is deciding what to remove.</td></tr>
+<tr><th>What gets shown</th><th>What a resume optimizes for</th><th>What an interview panel is actually listening for</th></tr>
+<tr><td>Five modules shipped over three months</td><td>Five bullet points, five repo links</td><td>One sentence explaining why they're the same product</td></tr>
+<tr><td>A budget enforcer and a routing proxy</td><td>Two separate "built X" lines</td><td>Whether the candidate notices they compose as one control plane</td></tr>
+<tr><td>A design decision made on day 65</td><td>Not mentioned again</td><td>Whether it's still load-bearing in the day 89 answer</td></tr>
 </table>
 
-<p>Option C worked because the panel already existed; the job was subtraction, not construction. It's the same move a real-estate listing photographer makes staging a room for one photo &mdash; nothing gets built, furniture that would clutter the frame gets carried out of it, and the room that's left reads correctly in a single glance.</p>
+<p>Nothing about the underlying work changes between those two columns. What changes is whether the connective tissue between tickets was ever made explicit, out loud, by the person who did the work &mdash; and a resume bullet has no room to do that, so the interview is the first and only place it can happen.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> compressing a correct dashboard into one glanceable screenshot is an editing decision, not a design project &mdash; and editing decisions are cheap compared to building a second dashboard nobody asked for.</p>
+<p class="prose-so-what"><strong>So what:</strong> optimizing a resume for repo count and optimizing an interview answer for narrative are two different skills, and only one of them is exercised by the act of shipping the work itself.</p>
 
-<h2 id="the-diagram">One Query Type, One Panel, One Screenshot</h2>
+<h2 id="the-essay-as-rehearsal">Writing the Essay Is the Rehearsal</h2>
+
+<p>Today's <code>docs/hn-launch-routeiq.md</code> forced exactly this compression on paper, ahead of any interview: five modules, one control-plane framing, four numbered design decisions that hold across all five, and an honest-limitations section that doesn't pretend the story is cleaner than it is. That's not a coincidence of format &mdash; a Show HN post and a Staff-level interview answer are solving the identical compression problem for two different five-minute audiences.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -265,57 +273,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  Q["Cross-tier query type"] --> P["Existing multi-series panel"]
-  P --> C["Strip to two series"]
-  C --> F["Before/after framing"]
-  F --> A["One annotation, no legend"]
-  A --> S["Exec-ready screenshot"]
+  T["Five separate tickets"] --> C["One connecting decision"]
+  C --> E["Product essay, written"]
+  E --> I["Interview answer, spoken"]
+  I --> P["Same narrative, two audiences"]
 </pre>
 
-<p>Nothing upstream of that panel changed &mdash; the query type, the histogram merge, the Scala engine call all stayed exactly what they were before the review was scheduled. What changed was everything downstream of the panel: which of its series survived, and what one line of text replaced an entire legend.</p>
+<p>The essay is the lower-stakes rehearsal: it can be redrafted, fact-checked against <code>docs/context/resume-extracted.md</code>-equivalent source material, and reviewed before anyone reads it. The interview answer is the same argument, live, with no second draft. Writing the essay first is what makes the live version fluent instead of improvised.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the compression happens at the very end of the pipeline, closest to the viewer &mdash; which means it costs nothing to redo if the audience changes again next quarter.</p>
+<p class="prose-so-what"><strong>So what:</strong> practicing the platform narrative in writing, where it can be checked and corrected, is what makes it available under interview pressure &mdash; waiting to construct it live is asking working memory to do drafting work it isn't built for.</p>
 
-<h2 id="one-screenshot">What the Screenshot Actually Showed</h2>
-
-<p>The "before" series was a hot-tier-only P95, the kind of query that existed before the cross-tier extension shipped &mdash; it showed a visible gap wherever the requested time range crossed past Redis's retention window into cold storage. The "after" series was the merged cross-tier P95 from the same panel, filling that exact gap using the histogram bucket merge the earlier post on this site walks through in full.</p>
-
-<p>One annotation pointed at the spot where the gap used to be and said, plainly, that it was closed. That's the entire cross-tier merge argument &mdash; correct percentile math across a storage boundary that used to force two separate manual queries &mdash; compressed into a shape nobody in that meeting needed to understand histogram buckets to read.</p>
-
-<div class="pullquote"><p>The screenshot wasn't a smaller version of the dashboard. It was the one claim the dashboard could prove, with everything else that was also true left out of frame.</p></div>
+<div class="pullquote"><p>Five tickets don't become one story by being shipped in the same repo. They become one story the first time someone says out loud why they're the same decision made five times.</p></div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2&ndash;3</span><span class="stat-label">New Grafana query types</span></div>
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">Events/day, WhiteFalcon</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Series left in the screenshot</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Annotation, no legend</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">RouteIQ modules, one essay</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Months, day-ticket by day-ticket</span></div>
+  <div class="stat-cell"><span class="stat-num">89</span><span class="stat-label">Days of shipped tickets so far</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Narrative, written before spoken</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a stakeholder screenshot earns its five seconds of attention by proving exactly one thing well, not by summarizing everything the underlying work made possible.</p>
+<h2 id="what-doesnt-transfer">What Doesn't Transfer From the Written Version</h2>
 
-<h2 id="todays-routeiq">Today's routeiq-launch, Same Compression Problem</h2>
+<p>The essay format has one advantage an interview answer never gets: nobody interrupts it mid-paragraph to ask why decision three didn't apply to module four. A live answer has to survive that question, and the honest response is sometimes "it didn't, and here's why that's fine" rather than a tidier story where every decision generalizes perfectly.</p>
 
-<p>Day 88's code work is the <code>routeiq-launch</code> landing page, and it has the identical compression problem in a different shape. A stakeholder or a curious visitor gets a few seconds on that page before they scroll past, not a product tour &mdash; so the hero has to lead with cost&darr; and latency&rarr; and nothing else competing for the same few seconds of attention.</p>
+<p><code>docs/hn-launch-routeiq.md</code>'s own honest-limitations section is the closest thing to rehearsing that answer in writing: naming what a design choice didn't cover, instead of letting the reader assume total coverage. An interview version of that same instinct is the difference between a candidate who oversells a pattern's generality under a pointed follow-up and one who already knows, and says, where it stops.</p>
 
-<p>The lesson carries over directly, not by analogy but by the same move: don't add more to the page to explain the tradeoff, cut down to the one before/after comparison that makes cost dropping and latency holding steady legible without narration. The WhiteFalcon screenshot and the RouteIQ landing hero are solving the same problem for two different five-second audiences.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> audience-appropriate compression &mdash; knowing what a five-second viewer needs and cutting everything else &mdash; is a real engineering skill that shows up in a Grafana panel today and a landing page hero tomorrow, not an afterthought design chore bolted onto working systems.</p>
+<p class="prose-so-what"><strong>So what:</strong> the platform narrative that reads as Staff-level isn't the one with no gaps &mdash; it's the one where the gaps were already found and named before anyone in the room had to find them first.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 88 of 150 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</p>
-  <p><em>Next up:</em> <a href="day-89-five-years-infra-interviews-staff-signals.html">Day 89 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like</a></p>
+  <p>Experience &middot; Day 89 of 150 &mdash; Five Years of Infra Interviews &mdash; What &ldquo;Staff&rdquo; Signals Look Like</p>
+  <p><em>Next up:</em> Day 90 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code (yesterday's post — a different codebase, the same discipline of matching what's already there instead of adding a new pattern)</span>
+      <span>Day 88 — Launching WhiteFalcon Dashboards (yesterday's post — the same audience-compression problem at a single-dashboard scale)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>When Percentiles Lie — Cross-Tier Queries (the earlier post on the histogram merge this screenshot's "after" series is built on)</span>
+      <span>Day 89 — Product Thinking — Routers as Control Planes (today's companion AI Learning post — the technical half of the same RouteIQ-as-one-product argument)</span>
     </a>
   </div>
 </div>
@@ -326,22 +325,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#dense-vs-glanceable">A Cockpit Panel, a Passenger's Gauge</a></li>
-      <li><a href="#deciding-what-to-cut">Deciding What to Cut</a></li>
-      <li><a href="#the-diagram">One Query Type, One Screenshot</a></li>
-      <li><a href="#one-screenshot">What the Screenshot Showed</a></li>
-      <li><a href="#todays-routeiq">Today's routeiq-launch</a></li>
+      <li><a href="#the-tell">The Tell Isn't Depth</a></li>
+      <li><a href="#repo-count-vs-narrative">Repo Count vs Narrative</a></li>
+      <li><a href="#the-essay-as-rehearsal">The Essay as Rehearsal</a></li>
+      <li><a href="#what-doesnt-transfer">What Doesn't Transfer</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-89-five-years-infra-interviews-staff-signals.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Launching+WhiteFalcon+Dashboards+%E2%80%94+Stakeholder+Demo+Prep+%E2%80%94+Experience+%C2%B7+Day+88+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Five+Years+of+Infra+Interviews+%E2%80%94+What+%E2%80%9CStaff%E2%80%9D+Signals+Look+Like+%E2%80%94+Experience+%C2%B7+Day+89+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-89-five-years-infra-interviews-staff-signals.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -354,17 +352,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D87</span> Experience</div>
-          <a href="day-87-victoriametrics-pr-matching-error-style.html" class="series-post-title">OSS VictoriaMetrics PR — Reading Go Production Code</a>
+          <div class="series-post-kicker"><span class="series-post-num">D88</span> Experience</div>
+          <a href="day-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="series-post-title">Launching WhiteFalcon Dashboards — Stakeholder Demo Prep</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D88</span> Experience &middot; now</div>
-          <div class="series-post-title">Launching WhiteFalcon Dashboards — Stakeholder Demo Prep</div>
-          <div class="series-post-desc">Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D89</span> Experience &middot; now</div>
+          <div class="series-post-title">Five Years of Infra Interviews — What &ldquo;Staff&rdquo; Signals Look Like</div>
+          <div class="series-post-desc">Repo count is legible on a resume. A platform narrative is what's legible to an interview panel.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D89</span> Experience</div>
-          <a href="day-89-five-years-infra-interviews-staff-signals.html" class="series-post-title">Five Years of Infra Interviews — What &ldquo;Staff&rdquo; Signals Look Like</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D90</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

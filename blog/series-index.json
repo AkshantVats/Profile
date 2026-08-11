@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html",
+          "kicker": "AI Learning · Day 89 of 150",
+          "title": "Day 89 — Product Thinking — Routers as Control Planes",
+          "subtitle": "RouteIQ is control plane; models are data plane",
+          "date": "2026-08-11",
+          "slug": "day-89-product-thinking-routers-control-planes",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html",
+          "coverImage": "blog/assets/covers/day-89-product-thinking-routers-control-planes.png",
+          "desc": "RouteIQ's five modules -- cache, budget, fingerprint, quality, fallback -- read like five separate systems until you name the control-plane/data-plane split networking already solved decades ago."
+        },
+        {
           "href": "blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html",
           "kicker": "AI Learning · Day 88 of 150",
           "title": "Day 88 — Launch Readiness — API Sandboxes and Rate Limits",
@@ -947,6 +959,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html",
+          "kicker": "Experience · Day 89 of 150",
+          "title": "Day 89 — Five Years of Infra Interviews — What “Staff” Signals Look Like",
+          "subtitle": "Platform narrative beats repo count when products connect",
+          "date": "2026-08-11",
+          "slug": "day-89-five-years-infra-interviews-staff-signals",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html",
+          "coverImage": "blog/assets/covers/day-89-five-years-infra-interviews-staff-signals.png",
+          "desc": "Repo count is legible on a resume. A platform narrative -- the same compression RouteIQ's product essay had to perform -- is what's legible to an interview panel."
+        },
         {
           "href": "blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html",
           "kicker": "Experience · Day 88 of 150",
