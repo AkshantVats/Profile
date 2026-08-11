@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 87 &mdash; OSS VictoriaMetrics PR &mdash; Reading Go Production Code | Experience Series</title>
-<meta name="description" content="Reading VictoriaMetrics' source was homework. Submitting a PR against it was a different test &mdash; the maintainers didn't push back on the logic, they pushed back on errors.New where the rest of the file used fmt.Errorf with %w.">
-<meta property="og:title" content="Day 87 &mdash; OSS VictoriaMetrics PR &mdash; Reading Go Production Code">
-<meta property="og:description" content="An upstream PR's review comment wasn't about the fix. It was about matching a convention the diff never asked to be graded on &mdash; and why that's the actual interview-relevant skill.">
+<title>Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep | Experience Series</title>
+<meta name="description" content="The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.">
+<meta property="og:title" content="Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep">
+<meta property="og:description" content="Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add &mdash; and it's the same compression problem RouteIQ's landing page has.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-87-victoriametrics-pr-matching-error-style.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-87-victoriametrics-pr-matching-error-style.png">
-<meta property="article:published_time" content="2026-08-10">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png">
+<meta property="article:published_time" content="2026-08-11">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 87 of 150</span>
-    <span class="tag">Open Source</span>
-    <span class="tag">Go</span>
-    <span class="tag">VictoriaMetrics</span>
+    <span class="tag accent">Experience &middot; Day 88 of 150</span>
+    <span class="tag">Grafana</span>
+    <span class="tag">WhiteFalcon</span>
+    <span class="tag">Agoda</span>
   </div>
-  <h1 class="post-title">Day 87 &mdash; OSS VictoriaMetrics PR &mdash; Reading Go Production Code</h1>
-  <p class="post-subtitle">Reading VictoriaMetrics' source, a few weeks back, was homework I graded myself. Submitting a PR against it was a test with an outside grader &mdash; and the first thing it graded wasn't my fix, it was whether I could read a convention the diff never mentioned.</p>
+  <h1 class="post-title">Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</h1>
+  <p class="post-subtitle">The Grafana query types I'd added to WhiteFalcon were built for engineers who'd query them daily &mdash; dense, multi-series, correct. An exec review needed one screenshot that told the whole story in the time it takes to swipe past a slide.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 87 of 150</span>
+    <span class="meta-item">Experience &middot; Day 88 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 10, 2026</span>
+    <span class="meta-item">August 11, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,42 +208,44 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-87-victoriametrics-pr-matching-error-style.png" alt="Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png" alt="Day 88 — Launching WhiteFalcon Dashboards — Stakeholder Demo Prep" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The earlier post on this site about reading VictoriaMetrics' source ended with a line I hadn't earned yet: "tomorrow's deliverable is a doc example, benchmark, or reproducible bug report." Tomorrow arrived a few weeks later than planned, in the form of an actual pull request against VictoriaMetrics &mdash; a small fix, nothing architectural. What I hadn't expected was that the fix itself wasn't what the review conversation was about.</p>
+<p>The cross-tier query engine work from the earlier WhiteFalcon post ended up surfaced through Grafana the same way every other query type on that dashboard was: wildcard tag matching, the merged hot/cold P95, the new Kubernetes cardinality dimension &mdash; a Grafana query type here is just a named request shape the dashboard knows how to send to the Scala query engine and render. All of it queryable side by side, all of it built for engineers who'd hit that dashboard every day. An exec stakeholder review of that same dashboard work needed something else entirely.</p>
+
+<p>The ask wasn't a new feature. It was one screenshot that told the story in the time it takes to swipe past a slide &mdash; proof that the new cross-tier queries actually worked and actually mattered, not a guided tour of the query language behind them.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Mine &mdash; personal OSS contribution, not employer work</div>
-  This is a personal open-source contribution made on my own time, unrelated to any employer's codebase or systems. No company scope, team, or internal architecture is described in this post &mdash; only what happened during one upstream PR's review.
+  <div class="attr-label">Mine &mdash; cross-tier query extension, k8s cardinality dimension, 2&ndash;3 new Grafana query types</div>
+  The WhiteFalcon dashboard work this post describes is scoped to what I actually built during roughly five months as a Senior Engineer at Agoda: extending the Scala query engine for cross-tier Redis/S3 requests, adding Kubernetes tags as a new indexing dimension, and the 2&ndash;3 new Grafana query types that exposed both. I did not design WhiteFalcon's RoaringBitmap index, its Kafka ingestion pipeline, the Rust consumers, or the Ceph/S3 tiering underneath it &mdash; that's Agoda-team-built infrastructure I extended, not architected.
 </div>
 
-<h2 id="not-the-fix">The Review Comment Wasn't About the Fix</h2>
+<h2 id="dense-vs-glanceable">A Cockpit Panel Isn't a Passenger's Gauge</h2>
 
-<p>The logic in the diff was small enough that there wasn't much to argue about: a config-parsing edge case, handled the way the rest of the function already handled similar cases. The maintainer's first comment didn't touch that logic at all. It pointed at one line &mdash; <code>errors.New("invalid config value")</code> &mdash; and asked why it wasn't <code>fmt.Errorf("config: invalid value %q: %w", raw, err)</code>, the pattern every other error path in that file used.</p>
+<p>The dashboard I'd built the new query types into was dense in a way that made sense for who used it: a series per storage tier, wildcard filters across k8s tag combinations, a legend row for every label the query touched, hover tooltips that surfaced raw histogram bucket counts on demand. Every one of those elements earned its place for an engineer debugging a cardinality question at 11pm.</p>
 
-<p>That's a one-line fix. It's also a comment that only makes sense if you already know the file's convention before you touch it &mdash; and I hadn't looked for one. I'd written an error the way I'd write an error in my own code, not the way this file already wrote errors.</p>
+<p>An exec review audience doesn't share that context and doesn't have hover access to a live dashboard mid-meeting &mdash; they see a static screenshot inside a slide for a few seconds, not a tool they can click around in. It's the difference between an aircraft cockpit's instrument panel, dozens of correct gauges meaningful to the pilot flying the plane, and the single altitude readout shown to a passenger who just wants to know the plane is climbing.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a maintainer reviewing an outside contributor's first PR isn't only checking whether the change works &mdash; they're checking whether the contributor read the file before writing in it, and an error-wrapping style is one of the cheapest, most visible signals of that.</p>
+<p class="prose-so-what"><strong>So what:</strong> a dashboard that's correct for its primary audience can still fail a different audience completely, and the fix isn't making the dashboard smarter &mdash; it's recognizing that a screenshot for a five-second review is a different artifact with a different job.</p>
 
-<h2 id="three-responses">Three Ways to Respond to "That's Not How We Do It Here"</h2>
+<h2 id="deciding-what-to-cut">Deciding What to Cut, Not What to Add</h2>
 
 <table>
 <tr><th>Option</th><th>What it does</th><th>Why it loses (or wins)</th></tr>
-<tr><td><strong>A. Defend the original style as equally valid</strong></td><td>A code-review debate about whether <code>errors.New</code> is "wrong"</td><td>Loses even when technically defensible &mdash; the question was never which style is objectively better, it was which style this specific file already committed to.</td></tr>
-<tr><td><strong>B. Rewrite the whole PR in every idiom I could find in the codebase, unprompted</strong></td><td>An attempt to look thorough</td><td>Widens the diff past what the maintainer asked to review and invites a second round of comments about changes nobody requested.</td></tr>
-<tr><td><strong>C. Fix exactly the flagged line, matching the file's existing pattern (chosen)</strong></td><td>A one-line diff, same shape as every other error in that file</td><td>Answers precisely the question the review asked &mdash; not a broader one nobody posed &mdash; and the PR merged on the next pass.</td></tr>
+<tr><td><strong>A. Annotate the existing dense dashboard in place</strong></td><td>Text callouts layered over the same multi-series, multi-legend panel</td><td>Loses because the underlying panel is still busy &mdash; a slide viewer given a few seconds still has to parse a legend before the annotations mean anything.</td></tr>
+<tr><td><strong>B. Build a brand-new "executive view" panel from scratch</strong></td><td>A custom layout designed only for this one review</td><td>Loses because it's net-new dashboard engineering for a five-minute meeting &mdash; real work that outlives the review it was built for by exactly zero days.</td></tr>
+<tr><td><strong>C. Take an existing cross-tier panel, strip it to one before/after pair (chosen)</strong></td><td>Same panel the query type already produces, two series left, one annotation instead of a legend</td><td>Wins because it reuses exactly the query type the extension already shipped &mdash; the only new work is deciding what to remove.</td></tr>
 </table>
 
-<p>Option C worked because the file had already made the decision; my job was to notice it, not to have an opinion about it. <code>grep -n "fmt.Errorf" file.go</code> would have shown me the pattern before I ever opened an editor, the same way checking a room's existing furniture arrangement before moving in a new couch beats rearranging everything to match a couch you already bought.</p>
+<p>Option C worked because the panel already existed; the job was subtraction, not construction. It's the same move a real-estate listing photographer makes staging a room for one photo &mdash; nothing gets built, furniture that would clutter the frame gets carried out of it, and the room that's left reads correctly in a single glance.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> matching an existing convention costs one grep command; getting it wrong costs a review round-trip and a maintainer's attention &mdash; the cheap step is almost always to look first.</p>
+<p class="prose-so-what"><strong>So what:</strong> compressing a correct dashboard into one glanceable screenshot is an editing decision, not a design project &mdash; and editing decisions are cheap compared to building a second dashboard nobody asked for.</p>
 
-<h2 id="the-diagram">One Round-Trip, Not Three</h2>
+<h2 id="the-diagram">One Query Type, One Panel, One Screenshot</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -263,46 +265,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  PR["PR opened, own error style"] --> R1["Review: match fmt.Errorf %w"]
-  R1 --> Fix["One-line fix, no scope creep"]
-  Fix --> Merge["Merged, next pass"]
+  Q["Cross-tier query type"] --> P["Existing multi-series panel"]
+  P --> C["Strip to two series"]
+  C --> F["Before/after framing"]
+  F --> A["One annotation, no legend"]
+  A --> S["Exec-ready screenshot"]
 </pre>
 
-<p>The whole exchange fit in one round-trip because the fix matched the ask exactly &mdash; nothing broader, nothing narrower. Every extra round a review takes is a maintainer's attention spent again on the same PR, which is the actual scarce resource in an OSS project staffed by volunteers.</p>
+<p>Nothing upstream of that panel changed &mdash; the query type, the histogram merge, the Scala engine call all stayed exactly what they were before the review was scheduled. What changed was everything downstream of the panel: which of its series survived, and what one line of text replaced an entire legend.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the fastest path through code review isn't writing a perfect first diff, it's writing a diff that's easy to correct in exactly one pass when it isn't perfect.</p>
+<p class="prose-so-what"><strong>So what:</strong> the compression happens at the very end of the pipeline, closest to the viewer &mdash; which means it costs nothing to redo if the audience changes again next quarter.</p>
 
-<div class="pullquote"><p>The review wasn't testing whether I could fix a bug. It was testing whether I'd read the file before I edited it.</p></div>
+<h2 id="one-screenshot">What the Screenshot Actually Showed</h2>
+
+<p>The "before" series was a hot-tier-only P95, the kind of query that existed before the cross-tier extension shipped &mdash; it showed a visible gap wherever the requested time range crossed past Redis's retention window into cold storage. The "after" series was the merged cross-tier P95 from the same panel, filling that exact gap using the histogram bucket merge the earlier post on this site walks through in full.</p>
+
+<p>One annotation pointed at the spot where the gap used to be and said, plainly, that it was closed. That's the entire cross-tier merge argument &mdash; correct percentile math across a storage boundary that used to force two separate manual queries &mdash; compressed into a shape nobody in that meeting needed to understand histogram buckets to read.</p>
+
+<div class="pullquote"><p>The screenshot wasn't a smaller version of the dashboard. It was the one claim the dashboard could prove, with everything else that was also true left out of frame.</p></div>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Line flagged in review</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Review round-trip</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Lines changed outside the flagged one</span></div>
+  <div class="stat-cell"><span class="stat-num">2&ndash;3</span><span class="stat-label">New Grafana query types</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">Events/day, WhiteFalcon</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Series left in the screenshot</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Annotation, no legend</span></div>
 </div>
 
-<h2 id="todays-integration-doc">Today's INTEGRATION.md, Same Discipline</h2>
+<p class="prose-so-what"><strong>So what:</strong> a stakeholder screenshot earns its five seconds of attention by proving exactly one thing well, not by summarizing everything the underlying work made possible.</p>
 
-<p>Today's code closes a gap across three products in this repo &mdash; LensAI, TraceForge, and RouteIQ &mdash; by putting them behind one shared <code>docker-compose.yml</code> instead of three separate ones, documented in a new <code>INTEGRATION.md</code>. That doc could have introduced its own structure. Instead it matches conventions this monorepo already committed to: the same Mermaid init block every other README here uses, and the same "what's not run here" honesty section Day 56's root compose file and Day 84's chaos test both already established for the "no Docker daemon in this sandbox" gap.</p>
+<h2 id="todays-routeiq">Today's routeiq-launch, Same Compression Problem</h2>
 
-<p>That's the VictoriaMetrics lesson, applied to my own repository instead of someone else's: a codebase's documentation conventions are as much a contract as its error-wrapping style. <code>INTEGRATION.md</code> earns its place next to the other docs by looking like it belongs there, not by being the one file that does things its own way.</p>
+<p>Day 88's code work is the <code>routeiq-launch</code> landing page, and it has the identical compression problem in a different shape. A stakeholder or a curious visitor gets a few seconds on that page before they scroll past, not a product tour &mdash; so the hero has to lead with cost&darr; and latency&rarr; and nothing else competing for the same few seconds of attention.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the discipline an outside reviewer enforces on a first OSS PR is the same discipline worth enforcing on yourself inside your own repo &mdash; matching what's already there is a habit, not a one-time correction you only apply when someone's watching.</p>
+<p>The lesson carries over directly, not by analogy but by the same move: don't add more to the page to explain the tradeoff, cut down to the one before/after comparison that makes cost dropping and latency holding steady legible without narration. The WhiteFalcon screenshot and the RouteIQ landing hero are solving the same problem for two different five-second audiences.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> audience-appropriate compression &mdash; knowing what a five-second viewer needs and cutting everything else &mdash; is a real engineering skill that shows up in a Grafana panel today and a landing page hero tomorrow, not an afterthought design chore bolted onto working systems.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 87 of 150 &mdash; OSS VictoriaMetrics PR &mdash; Reading Go Production Code</p>
-  <p><em>Next up:</em> <a href="day-88-whitefalcon-dashboards-stakeholder-demo-prep.html">Day 88 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</a></p>
+  <p>Experience &middot; Day 88 of 150 &mdash; Launching WhiteFalcon Dashboards &mdash; Stakeholder Demo Prep</p>
+  <p><em>Next up:</em> Day 89 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-86-distributed-tracing-finding-the-slow-span.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 86 — Delivery Hero Distributed Tracing (yesterday's post — a different pipeline, the same discipline of matching what a system already does instead of imposing a new pattern)</span>
+      <span>Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code (yesterday's post — a different codebase, the same discipline of matching what's already there instead of adding a new pattern)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/reading-victoriametrics-source-oss-interview-prep.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Reading VictoriaMetrics Source at 11pm (the earlier post this one follows up on — reading the source, before this post's actual PR)</span>
+      <span>When Percentiles Lie — Cross-Tier Queries (the earlier post on the histogram merge this screenshot's "after" series is built on)</span>
     </a>
   </div>
 </div>
@@ -313,21 +326,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#not-the-fix">The Comment Wasn't About the Fix</a></li>
-      <li><a href="#three-responses">Three Ways to Respond</a></li>
-      <li><a href="#the-diagram">One Round-Trip, Not Three</a></li>
-      <li><a href="#todays-integration-doc">Today's INTEGRATION.md</a></li>
+      <li><a href="#dense-vs-glanceable">A Cockpit Panel, a Passenger's Gauge</a></li>
+      <li><a href="#deciding-what-to-cut">Deciding What to Cut</a></li>
+      <li><a href="#the-diagram">One Query Type, One Screenshot</a></li>
+      <li><a href="#one-screenshot">What the Screenshot Showed</a></li>
+      <li><a href="#todays-routeiq">Today's routeiq-launch</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-87-victoriametrics-pr-matching-error-style.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=OSS+VictoriaMetrics+PR+%E2%80%94+Reading+Go+Production+Code+%E2%80%94+Experience+%C2%B7+Day+87+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-87-victoriametrics-pr-matching-error-style.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Launching+WhiteFalcon+Dashboards+%E2%80%94+Stakeholder+Demo+Prep+%E2%80%94+Experience+%C2%B7+Day+88+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -340,17 +354,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D86</span> Experience</div>
-          <a href="day-86-distributed-tracing-finding-the-slow-span.html" class="series-post-title">Delivery Hero Distributed Tracing — Finding the Slow Span</a>
+          <div class="series-post-kicker"><span class="series-post-num">D87</span> Experience</div>
+          <a href="day-87-victoriametrics-pr-matching-error-style.html" class="series-post-title">OSS VictoriaMetrics PR — Reading Go Production Code</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D87</span> Experience &middot; now</div>
-          <div class="series-post-title">OSS VictoriaMetrics PR — Reading Go Production Code</div>
-          <div class="series-post-desc">A review comment wasn't about the fix — it was about matching a convention the diff never asked to be graded on.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D88</span> Experience &middot; now</div>
+          <div class="series-post-title">Launching WhiteFalcon Dashboards — Stakeholder Demo Prep</div>
+          <div class="series-post-desc">Getting from a technically correct dashboard to the one screenshot that told the story meant deciding what to cut, not what to add.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D88</span> Experience</div>
-          <a href="day-88-whitefalcon-dashboards-stakeholder-demo-prep.html" class="series-post-title">Launching WhiteFalcon Dashboards — Stakeholder Demo Prep</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D89</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
