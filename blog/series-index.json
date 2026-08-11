@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html",
+          "kicker": "AI Learning · Day 88 of 150",
+          "title": "Day 88 — Launch Readiness — API Sandboxes and Rate Limits",
+          "subtitle": "Public demo keys need hard spend caps",
+          "date": "2026-08-11",
+          "slug": "day-88-launch-readiness-api-sandboxes-rate-limits",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-88-launch-readiness-api-sandboxes-rate-limits.html",
+          "coverImage": "blog/assets/covers/day-88-launch-readiness-api-sandboxes-rate-limits.png",
+          "desc": "Every cost-budget-enforcer tenant config so far assumed a paying, known tenant with a generous budget and fail-open outages — a public demo key inverts every one of those assumptions, and a prepaid-gift-card analogy explains why FailClosed: true is the right default only for the sandbox."
+        },
+        {
           "href": "blog/series/ai-learning/day-87-integration-topology-compose-platform-demos.html",
           "kicker": "AI Learning · Day 87 of 150",
           "title": "Day 87 — Integration Topology — Compose for Platform Demos",
