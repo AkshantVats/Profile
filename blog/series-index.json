@@ -960,6 +960,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-90-netflix-shadow-traffic-llm-eval.html",
+          "kicker": "Experience · Day 90 of 150",
+          "title": "Day 90 — Netflix Shadow Traffic Talk — Applying to LLM Eval",
+          "subtitle": "Mirroring without user impact is an old SRE pattern",
+          "date": "2026-08-11",
+          "slug": "day-90-netflix-shadow-traffic-llm-eval",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-90-netflix-shadow-traffic-llm-eval.html",
+          "coverImage": "blog/assets/covers/day-90-netflix-shadow-traffic-llm-eval.png",
+          "desc": "DriftWatch's first design doc borrows Netflix's public shadow-traffic playbook and Delivery Hero's own async SQS decoupling to mirror production traffic without ever costing the caller a millisecond."
+        },
+        {
           "href": "blog/series/experience/day-89-five-years-infra-interviews-staff-signals.html",
           "kicker": "Experience · Day 89 of 150",
           "title": "Day 89 — Five Years of Infra Interviews — What “Staff” Signals Look Like",
