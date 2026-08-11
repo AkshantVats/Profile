@@ -936,6 +936,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html",
+          "kicker": "Experience · Day 88 of 150",
+          "title": "Day 88 — Launching WhiteFalcon Dashboards — Stakeholder Demo Prep",
+          "subtitle": "Agoda: exec review needed one screenshot that told the story",
+          "date": "2026-08-11",
+          "slug": "day-88-whitefalcon-dashboards-stakeholder-demo-prep",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-88-whitefalcon-dashboards-stakeholder-demo-prep.html",
+          "coverImage": "blog/assets/covers/day-88-whitefalcon-dashboards-stakeholder-demo-prep.png",
+          "desc": "Getting from a technically correct, engineer-built WhiteFalcon dashboard to the one screenshot that told an exec review the story meant deciding what to cut, not what to add — and it's the same audience-compression problem RouteIQ's landing page hero has to solve."
+        },
+        {
           "href": "blog/series/experience/day-87-victoriametrics-pr-matching-error-style.html",
           "kicker": "Experience · Day 87 of 150",
           "title": "Day 87 — OSS VictoriaMetrics PR — Reading Go Production Code",
