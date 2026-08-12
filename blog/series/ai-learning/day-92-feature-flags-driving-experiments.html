@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss | AI Learning Series</title>
-<meta name="description" content="Bounded channel drop metric for shadow producer. Fire-and-forget is inherently at-most-once — the design choice that matters is what happens when the channel fills up.">
-<meta property="og:title" content="Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss">
-<meta property="og:description" content="Dropping shadow traffic under load is an acceptable tradeoff — not every pipeline needs the same delivery guarantee, and matching the guarantee to what the data is for is what keeps a bounded channel honest.">
+<title>Day 92 &mdash; Feature Flags Driving Experiments | AI Learning Series</title>
+<meta name="description" content="Shadow percent as flag variant. A sampling rate modeled as a live-updatable flag, with a documented fail-open default, is what turns 1% shadow sampling into an actual experiment.">
+<meta property="og:title" content="Day 92 &mdash; Feature Flags Driving Experiments">
+<meta property="og:description" content="% rollout connects to flagd from Month 1 — why shadow_percent is a distributed-flagd weighted variant instead of a config constant, and what that buys an operator that a redeploy can't.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-91-fire-and-forget-async-at-most-once-vs-loss.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-92-feature-flags-driving-experiments.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-92-feature-flags-driving-experiments.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-91-fire-and-forget-async-at-most-once-vs-loss.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-92-feature-flags-driving-experiments.png">
 <meta property="article:published_time" content="2026-08-12">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,66 +185,66 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 91 of 150</span>
-    <span class="tag">Delivery Semantics</span>
-    <span class="tag">Backpressure</span>
+    <span class="tag accent">AI Learning &middot; Day 92 of 150</span>
+    <span class="tag">Feature Flags</span>
+    <span class="tag">Experiment Design</span>
     <span class="tag">DriftWatch</span>
   </div>
-  <h1 class="post-title">Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss</h1>
-  <p class="post-subtitle">Dropping shadow traffic under load is an acceptable tradeoff. What decides that isn't the drop itself &mdash; it's whether the data was ever meant to be complete.</p>
+  <h1 class="post-title">Day 92 &mdash; Feature Flags Driving Experiments</h1>
+  <p class="post-subtitle">Shadow percent as flag variant. A sampling rate that only a redeploy can change is a design decision hiding as a constant &mdash; modeled as a flag, it becomes something an operator can actually run an experiment on.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 91 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 92 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 12, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">9 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-91-fire-and-forget-async-at-most-once-vs-loss.png" alt="Day 91 — Fire-and-Forget Async — At-Most-Once vs Loss" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-92-feature-flags-driving-experiments.png" alt="Day 92 — Feature Flags Driving Experiments" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Bounded channel drop metric for shadow producer. That's the one counter today's <code>shadow-traffic-router</code> code PR adds, and it's a strange thing to build a metric around until you sit with what it actually measures: not an error, not a bug, but a design decision working exactly as intended.</p>
+<p>Shadow percent as flag variant. That's the design choice underneath today's <code>shadow-traffic-router</code> code PR &mdash; the fraction of production traffic DriftWatch mirrors to a shadow model isn't a number baked into a deploy, it's a <code>distributed-flagd</code> flag with a name, a default, and a documented behavior for when the flag service itself goes quiet.</p>
 
-<p>Every fire-and-forget publish is, by construction, <strong>at-most-once</strong> delivery &mdash; a message either arrives once or it doesn't arrive at all, and nothing retries it if it doesn't. The interesting engineering question was never "should we accept that." It was "what happens, precisely, at the moment the local buffer can't hold one more event."</p>
+<p>That distinction sounds small until you ask what each option actually lets an operator do. A constant only changes on the next deploy. A flag can change while the system is running, per tenant, without anyone touching a build pipeline.</p>
 
-<h2 id="at-most-once-defined">At-Most-Once Is a Promise About the Ceiling, Not the Floor</h2>
+<h2 id="constant-hiding-as-decision">A Constant Is a Decision Hiding From the People Who'd Want to Change It</h2>
 
-<p>Delivery semantics come in three flavors an inference pipeline actually has to choose between. <strong>At-least-once</strong> retries until it gets an acknowledgment, which means a message might land twice but never zero times. <strong>Exactly-once</strong> adds deduplication on top of that so it lands precisely once, at the cost of extra coordination.</p>
+<p>Picture <code>shadow_percent</code> shipped as a plain environment variable, <code>SHADOW_PERCENT=0.01</code>, read once at process start. It works. It's also frozen the moment the process boots &mdash; widening the sample from 1% to 5% because a candidate model needs more statistical power means a config change, a build, and a redeploy, no matter how urgent the need.</p>
 
-<p><strong>At-most-once</strong> gives up the floor entirely: a message lands zero or one times, and the system never spends effort finding out which.</p>
+<p>Worse, a single env var can't vary by tenant. Every tenant gets the same sampling rate whether they're a high-volume account whose 1% is already thousands of requests a day, or a low-volume tenant whose 1% is a handful &mdash; the exact asymmetry yesterday's post on shadow sampling variance flagged as a statistical-power problem.</p>
 
-<p>Fire-and-forget mirroring is at-most-once by definition, not by accident. There's no retry loop, no acknowledgment tracked, no second attempt if the first one fails &mdash; DESIGN.md ruled retries out explicitly, because a retry is still bounded work sitting on request-adjacent resources, and "request-adjacent" is exactly what this middleware isn't allowed to be.</p>
+<p class="prose-so-what"><strong>So what:</strong> a config value that only a redeploy can change isn't neutral infrastructure &mdash; it's a decision about who gets to adjust the sampling rate and how fast, made implicitly by whoever chose to hardcode it.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> choosing at-most-once isn't choosing to be sloppy about delivery &mdash; it's choosing which of the three costs (latency, coordination, or occasional loss) a given pipeline can least afford to pay, and paying a different one instead.</p>
+<h2 id="three-ways-to-store-a-rate">Three Places a Sampling Rate Can Live</h2>
 
-<h2 id="three-choices">Three Choices When the Buffer Fills</h2>
-
-<p>Once a message is fire-and-forget, exactly one design question remains: what does the sender do when its local buffer between "accepted" and "actually sent" is full. There are only three shapes that question can resolve to.</p>
+<p>Once you accept that <code>shadow_percent</code> needs to be adjustable without a redeploy, there are really three places to put it, each with a different cost.</p>
 
 <table>
-<tr><th>Policy</th><th>What happens</th><th>Cost</th></tr>
-<tr><td>Block</td><td>Caller waits for buffer space</td><td>Steals latency from the real request &mdash; exactly what fire-and-forget exists to prevent</td></tr>
-<tr><td>Unbounded grow</td><td>Buffer expands to hold everything</td><td>No latency cost until the process runs out of memory, then every request pays for it at once</td></tr>
-<tr><td>Drop-and-count</td><td>Newest event discarded, counter incremented</td><td>Bounded memory, bounded latency, and a quantifiable, honestly-reported amount of loss</td></tr>
+<tr><th>Option</th><th>Changes without redeploy?</th><th>Per-tenant?</th><th>Cost</th></tr>
+<tr><td>Env var / static config</td><td>No</td><td>No</td><td>Simplest, but frozen at boot and fleet-wide only</td></tr>
+<tr><td>Database row, polled</td><td>Yes</td><td>Yes</td><td>Adds a datastore dependency and a staleness window equal to the poll interval</td></tr>
+<tr><td>Flag service (distributed-flagd)</td><td>Yes</td><td>Yes</td><td>Needs the flag service itself, but that infra already has to exist and be operated correctly for model-routing flags</td></tr>
 </table>
 
-<p>Drop-and-count is the only one of the three whose worst case is a number on a dashboard instead of an incident. That's why <code>shadow-traffic-router</code>'s <code>Mirror.Capture</code> uses a fixed-size buffered channel and a non-blocking send: room available, the event goes in; no room, the event is dropped and <code>shadow_mirror_dropped_total</code> increments.</p>
+<p>The database option looks reasonable until you notice it's really a bespoke, weaker version of the third option &mdash; a datastore, a polling loop, and a staleness window that a real flag service already had to solve once, correctly, for a different flag.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the choice isn't really "config vs. flag" &mdash; it's "build a second, smaller flag system" vs. "reuse the one that already exists and is already trusted for a harder problem."</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a mail slot, not a mail room</div>
-  Picture an apartment building's mail slot: a narrow opening in the door that holds maybe twenty letters before it's physically full. A mail carrier who arrives to a full slot doesn't force the door, and doesn't stand there waiting for someone to come empty it &mdash; the twenty-first letter goes back in the bag, and the carrier moves on to the next building on the route. The slot's fixed size is a feature, not an oversight: it guarantees the door frame never has to expand to fit an unbounded pile of mail, at the cost of an occasional letter that never gets delivered. A bounded channel with a drop policy is the same trade in software &mdash; a fixed opening, a hard stop instead of a bulging front door, and a countable number of letters that didn't make it in.
+  <div class="attr-label">DS analogy &mdash; a thermostat with a hard-coded safe position</div>
+  A smart thermostat normally takes its target temperature from a live setting an app controls over the network. Pull the network cable, though, and a well-designed thermostat doesn't freeze at whatever it last saw, and it doesn't shut the heating off entirely &mdash; it falls back to one fixed, pre-programmed safe temperature until the connection comes back. The live setting is the flag; the safe fallback temperature is the default a flag service's fail-open behavior has to guarantee. Neither piece works without the other: a live setting with no safe fallback bricks the house on a network blip, and a safe fallback with no live setting is just a constant again.
 </div>
 
 <pre class="mermaid">
@@ -265,67 +265,62 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  REQ["Request"] --> MID["Mirroring middleware"]
-  MID --> CH{"Channel has room?"}
-  CH -->|"yes"| BUF["Bounded channel"]
-  CH -->|"no"| DROP["Drop and count"]
-  BUF --> PUB["Kafka producer"]
-  PUB --> TOPIC["shadow-eval topic"]
+  REQ["Request"] --> TEN["Tenant lookup"]
+  TEN --> EVAL["flagd evaluate"]
+  EVAL -->|"sampled"| CAP["Mirror.Capture"]
+  EVAL -->|"not sampled"| SKIP["Skip"]
+  EVAL -->|"error or timeout"| DEF["Default 1%"]
+  DEF --> CAP
 </pre>
 
-<p>The branch matters more than either endpoint: the decision of yes-or-room happens once, synchronously, inside <code>Capture</code>, and it's the only thing standing between "the caller never notices" and "the caller waits on a queue." Everything downstream of that branch runs on its own schedule, on its own goroutine, with its own timeout.</p>
+<p>The fail-open branch is not an afterthought bolted onto the happy path &mdash; it's resolved by the same <code>select</code>-shaped decision the sampled/not-sampled branch already needs, just with one more outcome. A flag lookup that errors doesn't propagate an error to the caller; it resolves to the documented default and moves on.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the entire non-blocking guarantee lives in one <code>select</code> statement with a default case &mdash; the rest of the pipeline can be as slow as it wants, because the branch that protects the caller has already resolved before any of that slowness is visible.</p>
+<p class="prose-so-what"><strong>So what:</strong> the branch that matters most in this diagram isn't "sampled vs. not" &mdash; it's the one guaranteeing a flag-store outage degrades to a known, non-zero default instead of silently going dark.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">256</span><span class="stat-label">Default bounded channel capacity</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Retries on a failed mirror publish</span></div>
-  <div class="stat-cell"><span class="stat-num">2s</span><span class="stat-label">Per-event Kafka publish timeout</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Counters: captured, dropped, publish errors</span></div>
+  <div class="stat-cell"><span class="stat-num">1%</span><span class="stat-label">Default shadow_percent</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Redeploys needed to widen the rate</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Variants: mirror vs. skip</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Flag primitive reused, not duplicated</span></div>
 </div>
 
-<div class="pullquote"><p>A dropped shadow event isn't a bug report. It's the system telling you, honestly and by design, exactly how much of a best-effort sample it chose not to collect.</p></div>
+<div class="pullquote"><p>A sampling rate an operator can only change by redeploying isn't a tunable parameter &mdash; it's a constant wearing a config file's clothes.</p></div>
 
-<h2 id="why-shadow-can-afford-loss">Why Shadow Traffic Specifically Can Afford This</h2>
+<h2 id="reusing-the-weighted-variant">Why the Weighted-Variant Model Already Fits</h2>
 
-<p>Loss is only acceptable when the thing being sent doesn't need to be complete to be useful. Shadow-eval events feed a statistical comparison between a production model and a candidate &mdash; the evaluator needs a large-enough, reasonably unbiased sample of paired responses, not literally every request that ever passed through RouteIQ.</p>
+<p><code>distributed-flagd</code>'s <code>sdk</code> already models a percentage rollout as a set of weighted variants &mdash; the same shape earlier flags in this repo use to send a slice of traffic to a new model version. <code>shadow_percent</code> reuses that exact primitive: a <code>"mirror"</code> variant and a <code>"skip"</code> variant, weights summing to the configured split, resolved per tenant.</p>
 
-<p>A dropped event under load is equivalent to a slightly smaller sample that day, the same way yesterday's post on sampling volume treated a low-traffic tenant's thin sample as a statistical-power problem rather than a correctness bug. Neither case is data corruption; both are the sample size moving, which a large-enough remaining sample can usually absorb.</p>
+<p>Nothing about shadow sampling needed a new kind of flag. It needed the same kind of flag model-routing already trusted, pointed at a different decision.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> at-most-once is only "acceptable loss" when the consumer of the data is doing statistics on a population, not reconstructing a specific, individually-important record &mdash; the guarantee has to match the job, not just the pipeline's convenience.</p>
+<p class="prose-so-what"><strong>So what:</strong> reusing an existing weighted-variant primitive instead of inventing a bespoke percentage field means shadow sampling inherits a fail-open contract that was already battle-tested for a different, harder-to-get-wrong decision &mdash; which model a paying tenant's request actually reaches.</p>
 
-<h2 id="not-every-pipeline">Why the Same Codebase Chooses the Opposite Guarantee Elsewhere</h2>
+<h2 id="what-this-buys-an-operator">What a Flag Buys That a Constant Never Could</h2>
 
-<p>The same repository already makes the opposite choice for a different kind of event, which is what makes the contrast worth naming instead of assuming.</p>
+<p>Shadow sampling is exactly the kind of parameter that benefits from being tuned live. Widen it when a candidate model needs more statistical power to reach a confident verdict, per Day 90's variance discussion. Narrow it when the Kafka cost of the shadow-eval topic outgrows its budget.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">Project scope &mdash; infra-ai-streaming, primary ingestion path</div>
-  LensAI's primary Rust ingestion path &mdash; the one recording real inference events, not shadow samples &mdash; is built for the opposite guarantee: WAL durability, per-tenant rate limiting, a circuit breaker backed by a Redis overflow buffer, and Helm/HPA scaling keyed to Kafka consumer lag, targeting 1M events/min at under 100ms P99. Every one of those pieces exists to avoid losing a primary inference record, even under the same kind of load spike that <code>shadow-traffic-router</code> is explicitly allowed to shed.
-</div>
+<p>Both of those are operational decisions that show up in a dashboard, not in a design review three weeks earlier. A flag can respond to that signal the same day; a constant waits for the next release train.</p>
 
-<p>Primary inference telemetry is the record a billing or anomaly-detection system reconciles against later &mdash; losing one row there is a correctness bug, not a sampling footnote, so that path pays for a WAL and a Redis overflow buffer to avoid it. Shadow-eval traffic exists purely to estimate whether a candidate model's behavior differs from production's, and estimation tolerates gaps that a ledger cannot.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> not every pipeline in the same system needs the same delivery guarantee &mdash; matching at-most-once vs at-least-once to what the data is actually <em>for</em> is what keeps a bounded channel from becoming either an unnecessary latency tax or a silent correctness bug wearing a shadow-traffic disguise.</p>
+<p class="prose-so-what"><strong>So what:</strong> a config value modeled as a flag &mdash; with a name, an owner, a default, and a documented failure mode &mdash; is what actually lets an operator run a live experiment instead of guessing the right number at deploy time and hoping it still fits three weeks later.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 91 of 150 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss</p>
-  <p><em>Next up:</em> <a href="day-92-feature-flags-driving-experiments.html">Day 92 &mdash; Feature Flags Driving Experiments</a></p>
+  <p>AI Learning &middot; Day 92 of 150 &mdash; Feature Flags Driving Experiments</p>
+  <p><em>Next up:</em> Day 93 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 91 — Fire-and-Forget Async — At-Most-Once vs Loss (yesterday's post — the bounded-channel mechanism shadow_percent now gates)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 90 — Shadow Deployments for ML — Statistical Power (yesterday's post — why a thin sample is a statistical-power problem, not data corruption)</span>
+      <span>Day 90 — Shadow Deployments for ML — Statistical Power (why a thin sample is a statistical-power problem this flag's rate directly controls)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-91-delivery-hero-geocoding-retries.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 91 — Delivery Hero Fire-and-Forget Geocoding Retries (today's companion Experience post — the same fire-and-forget shape, years earlier, in a notification retry pipeline)</span>
+      <span>Day 92 — Walmart Feature Flags on Firmware Channels (today's companion Experience post — the same percentage-rollout-with-a-safe-default shape, years earlier, on device firmware)</span>
     </a>
   </div>
 </div>
@@ -336,21 +331,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#at-most-once-defined">At-Most-Once Defined</a></li>
-      <li><a href="#three-choices">Three Choices at the Buffer</a></li>
-      <li><a href="#why-shadow-can-afford-loss">Why Shadow Can Afford Loss</a></li>
-      <li><a href="#not-every-pipeline">The Opposite Guarantee Elsewhere</a></li>
+      <li><a href="#constant-hiding-as-decision">A Constant Hiding a Decision</a></li>
+      <li><a href="#three-ways-to-store-a-rate">Three Places to Store a Rate</a></li>
+      <li><a href="#reusing-the-weighted-variant">Reusing the Weighted Variant</a></li>
+      <li><a href="#what-this-buys-an-operator">What a Flag Buys an Operator</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-91-fire-and-forget-async-at-most-once-vs-loss.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-92-feature-flags-driving-experiments.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Fire-and-Forget+Async+%E2%80%94+At-Most-Once+vs+Loss+%E2%80%94+AI+Learning+%C2%B7+Day+91+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-91-fire-and-forget-async-at-most-once-vs-loss.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Feature+Flags+Driving+Experiments+%E2%80%94+AI+Learning+%C2%B7+Day+92+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-92-feature-flags-driving-experiments.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -363,17 +358,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D90</span> AI Learning</div>
-          <a href="day-90-shadow-deployments-statistical-power.html" class="series-post-title">Shadow Deployments for ML — Statistical Power</a>
+          <div class="series-post-kicker"><span class="series-post-num">D91</span> AI Learning</div>
+          <a href="day-91-fire-and-forget-async-at-most-once-vs-loss.html" class="series-post-title">Fire-and-Forget Async — At-Most-Once vs Loss</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D91</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Fire-and-Forget Async — At-Most-Once vs Loss</div>
-          <div class="series-post-desc">Dropping shadow under load is an acceptable tradeoff — for shadow traffic specifically.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D92</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Feature Flags Driving Experiments</div>
+          <div class="series-post-desc">% rollout connects to flagd from Month 1.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D92</span> AI Learning</div>
-          <a href="day-92-feature-flags-driving-experiments.html" class="series-post-title">Feature Flags Driving Experiments</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D93</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
