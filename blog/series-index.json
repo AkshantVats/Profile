@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html",
+          "kicker": "AI Learning · Day 91 of 150",
+          "title": "Day 91 — Fire-and-Forget Async — At-Most-Once vs Loss",
+          "subtitle": "Dropping shadow under load is acceptable tradeoff",
+          "date": "2026-08-12",
+          "slug": "day-91-fire-and-forget-async-at-most-once-vs-loss",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html",
+          "coverImage": "blog/assets/covers/day-91-fire-and-forget-async-at-most-once-vs-loss.png",
+          "desc": "Fire-and-forget delivery is inherently at-most-once -- the design choice that matters is what happens when the bounded channel fills up, and why shadow traffic specifically can afford to lose some."
+        },
+        {
           "href": "blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html",
           "kicker": "AI Learning · Day 90 of 150",
           "title": "Day 90 — Shadow Deployments for ML — Statistical Power",
