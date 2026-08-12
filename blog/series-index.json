@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-94-latency-slo-verification-ab-instrumentation.html",
+          "kicker": "AI Learning · Day 94 of 150",
+          "title": "Day 94 — Latency SLO Verification — A/B Instrumentation",
+          "subtitle": "Measure with identical load profiles",
+          "date": "2026-08-12",
+          "slug": "day-94-latency-slo-verification-ab-instrumentation",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-94-latency-slo-verification-ab-instrumentation.html",
+          "coverImage": "blog/assets/covers/day-94-latency-slo-verification-ab-instrumentation.png",
+          "desc": "k6 scenario tags shadow on/off runs -- why an A/B latency comparison only proves what it claims if the two runs differ in exactly one thing, and how a Go-level httptest loopback reproduces that discipline without a k6 binary."
+        },
+        {
           "href": "blog/series/ai-learning/day-93-paired-observability-prod-vs-shadow-storage.html",
           "kicker": "AI Learning · Day 93 of 150",
           "title": "Day 93 — Paired Observability — Prod vs Shadow Storage",
@@ -1007,6 +1019,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-94-wayfair-load-tests-before-cyber-5.html",
+          "kicker": "Experience · Day 94 of 150",
+          "title": "Day 94 — Wayfair Load Tests Before Cyber 5",
+          "subtitle": "\"We have headroom\" isn't proof",
+          "date": "2026-08-12",
+          "slug": "day-94-wayfair-load-tests-before-cyber-5",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-94-wayfair-load-tests-before-cyber-5.html",
+          "coverImage": "blog/assets/covers/day-94-wayfair-load-tests-before-cyber-5.png",
+          "desc": "PAS Core is proven at 30K RPS -- what 'proven' means at Wayfair's pricing org, the 2x headroom rule, and why a number from a load test run this week beats a number from a design doc's original sizing math."
+        },
         {
           "href": "blog/series/experience/day-93-agoda-exactly-once-illusion-idempotent-consumers.html",
           "kicker": "Experience · Day 93 of 150",
