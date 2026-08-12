@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-92-feature-flags-driving-experiments.html",
+          "kicker": "AI Learning · Day 92 of 150",
+          "title": "Day 92 — Feature Flags Driving Experiments",
+          "subtitle": "% rollout connects to flagd from Month 1",
+          "date": "2026-08-12",
+          "slug": "day-92-feature-flags-driving-experiments",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-92-feature-flags-driving-experiments.html",
+          "coverImage": "blog/assets/covers/day-92-feature-flags-driving-experiments.png",
+          "desc": "Shadow percent as flag variant -- why a sampling rate modeled as a distributed-flagd weighted variant, with a documented fail-open default, is what turns 1% shadow sampling into an actual experiment."
+        },
+        {
           "href": "blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html",
           "kicker": "AI Learning · Day 91 of 150",
           "title": "Day 91 — Fire-and-Forget Async — At-Most-Once vs Loss",
