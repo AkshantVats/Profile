@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 90 &mdash; Shadow Deployments for ML &mdash; Statistical Power | AI Learning Series</title>
-<meta name="description" content="A flat 1% shadow sample sounds safe until a low-traffic tenant's daily volume makes that 1% a handful of requests — not enough to say anything about drift.">
-<meta property="og:title" content="Day 90 &mdash; Shadow Deployments for ML &mdash; Statistical Power">
-<meta property="og:description" content="Configure shadow_percent with a minimum daily volume guard — a sampling rate without a floor isn't a sampling policy, it's a coin flip that stops meaning anything once traffic gets thin.">
+<title>Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss | AI Learning Series</title>
+<meta name="description" content="Bounded channel drop metric for shadow producer. Fire-and-forget is inherently at-most-once — the design choice that matters is what happens when the channel fills up.">
+<meta property="og:title" content="Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss">
+<meta property="og:description" content="Dropping shadow traffic under load is an acceptable tradeoff — not every pipeline needs the same delivery guarantee, and matching the guarantee to what the data is for is what keeps a bounded channel honest.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-90-shadow-deployments-statistical-power.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-91-fire-and-forget-async-at-most-once-vs-loss.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-91-fire-and-forget-async-at-most-once-vs-loss.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-90-shadow-deployments-statistical-power.png">
-<meta property="article:published_time" content="2026-08-11">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-91-fire-and-forget-async-at-most-once-vs-loss.png">
+<meta property="article:published_time" content="2026-08-12">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,64 +185,67 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 90 of 150</span>
-    <span class="tag">Statistics</span>
-    <span class="tag">Shadow Testing</span>
+    <span class="tag accent">AI Learning &middot; Day 91 of 150</span>
+    <span class="tag">Delivery Semantics</span>
+    <span class="tag">Backpressure</span>
     <span class="tag">DriftWatch</span>
   </div>
-  <h1 class="post-title">Day 90 &mdash; Shadow Deployments for ML &mdash; Statistical Power</h1>
-  <p class="post-subtitle">1% sample variance &mdash; need enough N. A sampling percentage without a volume floor isn't a sampling policy, it's a coin flip that stops meaning anything once traffic gets thin.</p>
+  <h1 class="post-title">Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss</h1>
+  <p class="post-subtitle">Dropping shadow traffic under load is an acceptable tradeoff. What decides that isn't the drop itself &mdash; it's whether the data was ever meant to be complete.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 90 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 91 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 11, 2026</span>
+    <span class="meta-item">August 12, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">8 min read</span>
+    <span class="meta-item">9 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-90-shadow-deployments-statistical-power.png" alt="Day 90 — Shadow Deployments for ML — Statistical Power" width="1200" height="630" loading="eager">
+    <img src="../../assets/covers/day-91-fire-and-forget-async-at-most-once-vs-loss.png" alt="Day 91 — Fire-and-Forget Async — At-Most-Once vs Loss" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Configure <code>shadow_percent</code> with a minimum daily volume guard.</p>
+<p>Bounded channel drop metric for shadow producer. That's the one counter today's <code>shadow-traffic-router</code> code PR adds, and it's a strange thing to build a metric around until you sit with what it actually measures: not an error, not a bug, but a design decision working exactly as intended.</p>
 
-<p>That's the one-line fix today's <code>shadow-traffic-router/DESIGN.md</code> commits to, and it only makes sense once you see the failure mode it's guarding against: a flat 1% shadow sample sounds conservative and safe, right up until you apply it to a tenant whose daily volume is small. 1% of 200 requests is two requests &mdash; and two requests can't tell you anything statistically real about whether a shadow model is drifting from production.</p>
+<p>Every fire-and-forget publish is, by construction, <strong>at-most-once</strong> delivery &mdash; a message either arrives once or it doesn't arrive at all, and nothing retries it if it doesn't. The interesting engineering question was never "should we accept that." It was "what happens, precisely, at the moment the local buffer can't hold one more event."</p>
 
-<h2 id="the-power-problem">A Sampling Rate Isn't a Sample Size</h2>
+<h2 id="at-most-once-defined">At-Most-Once Is a Promise About the Ceiling, Not the Floor</h2>
 
-<p>"1%" answers the question "what fraction of traffic gets mirrored." It says nothing about the question that actually matters for comparison: how many mirrored requests accumulate in a day, and is that number big enough for a difference between the production and shadow model's outputs to be real signal instead of noise.</p>
+<p>Delivery semantics come in three flavors an inference pipeline actually has to choose between. <strong>At-least-once</strong> retries until it gets an acknowledgment, which means a message might land twice but never zero times. <strong>Exactly-once</strong> adds deduplication on top of that so it lands precisely once, at the cost of extra coordination.</p>
 
-<p>A high-traffic tenant sending 500,000 requests a day gets 5,000 shadow samples at 1% &mdash; plenty to notice a real drift. A low-traffic tenant sending 150 requests a day gets one or two samples, and one or two samples can look identical to zero drift or wild drift purely by chance, regardless of what the shadow model is actually doing.</p>
+<p><strong>At-most-once</strong> gives up the floor entirely: a message lands zero or one times, and the system never spends effort finding out which.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> "1% of traffic" is a rate, not a guarantee of statistical power &mdash; and a design that only specifies the rate has silently assumed every tenant sends enough traffic for that rate to mean something.</p>
+<p>Fire-and-forget mirroring is at-most-once by definition, not by accident. There's no retry loop, no acknowledgment tracked, no second attempt if the first one fails &mdash; DESIGN.md ruled retries out explicitly, because a retry is still bounded work sitting on request-adjacent resources, and "request-adjacent" is exactly what this middleware isn't allowed to be.</p>
 
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the same failure as an underpowered A/B test</div>
-  A 1% experiment arm on a page with a million daily visitors reaches statistical significance in hours. The identical 1% arm on a page with two hundred daily visitors might never reach significance at all &mdash; not because the effect isn't real, but because the arm's absolute sample size never gets large enough to distinguish signal from noise, no matter how long the experiment runs. Shadow deployments inherit the exact same constraint: <code>shadow_percent</code> is an experiment arm size expressed as a percentage, and a percentage with no floor on the absolute count underneath it can quietly stop meaning anything the moment a tenant's traffic gets thin.
-</div>
+<p class="prose-so-what"><strong>So what:</strong> choosing at-most-once isn't choosing to be sloppy about delivery &mdash; it's choosing which of the three costs (latency, coordination, or occasional loss) a given pipeline can least afford to pay, and paying a different one instead.</p>
 
-<h2 id="two-policies-compared">A Rate Alone vs. a Rate With a Floor</h2>
+<h2 id="three-choices">Three Choices When the Buffer Fills</h2>
+
+<p>Once a message is fire-and-forget, exactly one design question remains: what does the sender do when its local buffer between "accepted" and "actually sent" is full. There are only three shapes that question can resolve to.</p>
 
 <table>
-<tr><th>Policy</th><th>High-traffic tenant</th><th>Low-traffic tenant</th></tr>
-<tr><td>Flat <code>shadow_percent = 1%</code></td><td>Thousands of samples/day &mdash; usable</td><td>0-2 samples/day &mdash; not usable, but nothing flags this</td></tr>
-<tr><td><code>shadow_percent</code> + minimum daily volume guard</td><td>Unaffected &mdash; 1% already clears the floor</td><td>Sampling rate clamps upward until the daily floor is met, or the tenant is flagged as too low-volume to shadow at all</td></tr>
+<tr><th>Policy</th><th>What happens</th><th>Cost</th></tr>
+<tr><td>Block</td><td>Caller waits for buffer space</td><td>Steals latency from the real request &mdash; exactly what fire-and-forget exists to prevent</td></tr>
+<tr><td>Unbounded grow</td><td>Buffer expands to hold everything</td><td>No latency cost until the process runs out of memory, then every request pays for it at once</td></tr>
+<tr><td>Drop-and-count</td><td>Newest event discarded, counter incremented</td><td>Bounded memory, bounded latency, and a quantifiable, honestly-reported amount of loss</td></tr>
 </table>
 
-<p>The guard doesn't change behavior for any tenant already sending enough traffic for 1% to be meaningful &mdash; it only does work at the tail, where the flat rate was silently failing. That asymmetry is exactly why the fix is cheap: it's a clamp on the sampler, not a redesign of the sampling mechanism itself.</p>
+<p>Drop-and-count is the only one of the three whose worst case is a number on a dashboard instead of an incident. That's why <code>shadow-traffic-router</code>'s <code>Mirror.Capture</code> uses a fixed-size buffered channel and a non-blocking send: room available, the event goes in; no room, the event is dropped and <code>shadow_mirror_dropped_total</code> increments.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the guard's entire value lives in the tenants a flat percentage was already failing silently &mdash; which is also exactly where a missing guard would never show up in a high-traffic tenant's dashboards to warn anyone.</p>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; a mail slot, not a mail room</div>
+  Picture an apartment building's mail slot: a narrow opening in the door that holds maybe twenty letters before it's physically full. A mail carrier who arrives to a full slot doesn't force the door, and doesn't stand there waiting for someone to come empty it &mdash; the twenty-first letter goes back in the bag, and the carrier moves on to the next building on the route. The slot's fixed size is a feature, not an oversight: it guarantees the door frame never has to expand to fit an unbounded pile of mail, at the cost of an occasional letter that never gets delivered. A bounded channel with a drop policy is the same trade in software &mdash; a fixed opening, a hard stop instead of a bulging front door, and a countable number of letters that didn't make it in.
+</div>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,51 +265,67 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  R["Request stream"] --> S["shadow_percent sampler"]
-  S --> G{"Below daily floor?"}
-  G -->|"yes"| C["Clamp rate up"]
-  G -->|"no"| T["shadow-eval topic"]
-  C --> T
+  REQ["Request"] --> MID["Mirroring middleware"]
+  MID --> CH{"Channel has room?"}
+  CH -->|"yes"| BUF["Bounded channel"]
+  CH -->|"no"| DROP["Drop and count"]
+  BUF --> PUB["Kafka producer"]
+  PUB --> TOPIC["shadow-eval topic"]
 </pre>
 
-<p>The guard sits after the sampling decision, not before it &mdash; it's a correction applied to the rate, not a gate that blocks requests. A tenant that's below the floor still gets mirrored; it just gets mirrored at a higher effective rate than 1%, until its accumulated daily sample count is large enough to be worth collecting at all.</p>
+<p>The branch matters more than either endpoint: the decision of yes-or-room happens once, synchronously, inside <code>Capture</code>, and it's the only thing standing between "the caller never notices" and "the caller waits on a queue." Everything downstream of that branch runs on its own schedule, on its own goroutine, with its own timeout.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> the entire non-blocking guarantee lives in one <code>select</code> statement with a default case &mdash; the rest of the pipeline can be as slow as it wants, because the branch that protects the caller has already resolved before any of that slowness is visible.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1%</span><span class="stat-label">Default shadow_percent</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Shadow samples/day at 1% for a 200-req tenant</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Clamp added, no redesign</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Behavior change for already-high-volume tenants</span></div>
+  <div class="stat-cell"><span class="stat-num">256</span><span class="stat-label">Default bounded channel capacity</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Retries on a failed mirror publish</span></div>
+  <div class="stat-cell"><span class="stat-num">2s</span><span class="stat-label">Per-event Kafka publish timeout</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Counters: captured, dropped, publish errors</span></div>
 </div>
 
-<div class="pullquote"><p>A sampling percentage without a volume floor isn't a sampling policy. It's a coin flip that quietly stops meaning anything once traffic gets thin enough.</p></div>
+<div class="pullquote"><p>A dropped shadow event isn't a bug report. It's the system telling you, honestly and by design, exactly how much of a best-effort sample it chose not to collect.</p></div>
 
-<h2 id="why-this-pairs-with-fire-and-forget">Why This Only Matters Because the Transport Is Free</h2>
+<h2 id="why-shadow-can-afford-loss">Why Shadow Traffic Specifically Can Afford This</h2>
 
-<p>The volume guard is only worth adding because today's companion Experience post's design choice &mdash; fire-and-forget mirroring, never awaited on the production path &mdash; made mirroring effectively free from the caller's point of view. If mirroring cost real latency, raising the effective sample rate for low-traffic tenants would trade user-facing speed for statistical usefulness, and that tradeoff would need its own justification. <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-90-netflix-shadow-traffic-llm-eval.html">Read Day 90's Experience post &rarr;</a></p>
+<p>Loss is only acceptable when the thing being sent doesn't need to be complete to be useful. Shadow-eval events feed a statistical comparison between a production model and a candidate &mdash; the evaluator needs a large-enough, reasonably unbiased sample of paired responses, not literally every request that ever passed through RouteIQ.</p>
 
-<p>Because the transport already costs the caller nothing, clamping the rate upward for thin-traffic tenants costs nothing new either &mdash; the only resource it spends more of is Kafka throughput and evaluator compute, both scoped to DriftWatch's own infrastructure, not the request path a real user is waiting on.</p>
+<p>A dropped event under load is equivalent to a slightly smaller sample that day, the same way yesterday's post on sampling volume treated a low-traffic tenant's thin sample as a statistical-power problem rather than a correctness bug. Neither case is data corruption; both are the sample size moving, which a large-enough remaining sample can usually absorb.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a statistically sound sampling policy and a zero-latency transport aren't two separate design wins &mdash; the second is what makes the first affordable to apply aggressively wherever it's actually needed.</p>
+<p class="prose-so-what"><strong>So what:</strong> at-most-once is only "acceptable loss" when the consumer of the data is doing statistics on a population, not reconstructing a specific, individually-important record &mdash; the guarantee has to match the job, not just the pipeline's convenience.</p>
+
+<h2 id="not-every-pipeline">Why the Same Codebase Chooses the Opposite Guarantee Elsewhere</h2>
+
+<p>The same repository already makes the opposite choice for a different kind of event, which is what makes the contrast worth naming instead of assuming.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Project scope &mdash; infra-ai-streaming, primary ingestion path</div>
+  LensAI's primary Rust ingestion path &mdash; the one recording real inference events, not shadow samples &mdash; is built for the opposite guarantee: WAL durability, per-tenant rate limiting, a circuit breaker backed by a Redis overflow buffer, and Helm/HPA scaling keyed to Kafka consumer lag, targeting 1M events/min at under 100ms P99. Every one of those pieces exists to avoid losing a primary inference record, even under the same kind of load spike that <code>shadow-traffic-router</code> is explicitly allowed to shed.
+</div>
+
+<p>Primary inference telemetry is the record a billing or anomaly-detection system reconciles against later &mdash; losing one row there is a correctness bug, not a sampling footnote, so that path pays for a WAL and a Redis overflow buffer to avoid it. Shadow-eval traffic exists purely to estimate whether a candidate model's behavior differs from production's, and estimation tolerates gaps that a ledger cannot.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> not every pipeline in the same system needs the same delivery guarantee &mdash; matching at-most-once vs at-least-once to what the data is actually <em>for</em> is what keeps a bounded channel from becoming either an unnecessary latency tax or a silent correctness bug wearing a shadow-traffic disguise.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 90 of 150 &mdash; Shadow Deployments for ML &mdash; Statistical Power</p>
-  <p><em>Next up:</em> <a href="day-91-fire-and-forget-async-at-most-once-vs-loss.html">Day 91 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss</a></p>
+  <p>AI Learning &middot; Day 91 of 150 &mdash; Fire-and-Forget Async &mdash; At-Most-Once vs Loss</p>
+  <p><em>Next up:</em> Day 92 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-89-product-thinking-routers-control-planes.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-90-shadow-deployments-statistical-power.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 89 — Product Thinking — Routers as Control Planes (yesterday's post — RouteIQ's control-plane framing, the arc this new DriftWatch module sits alongside)</span>
+      <span>Day 90 — Shadow Deployments for ML — Statistical Power (yesterday's post — why a thin sample is a statistical-power problem, not data corruption)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (the series' gold-standard mechanism deep-dive, for register)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-90-netflix-shadow-traffic-llm-eval.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-91-delivery-hero-geocoding-retries.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 90 — Netflix Shadow Traffic Talk (today's companion Experience post — the transport design that makes today's volume guard affordable)</span>
+      <span>Day 91 — Delivery Hero Fire-and-Forget Geocoding Retries (today's companion Experience post — the same fire-and-forget shape, years earlier, in a notification retry pipeline)</span>
     </a>
   </div>
 </div>
@@ -317,20 +336,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-power-problem">A Rate Isn't a Sample Size</a></li>
-      <li><a href="#two-policies-compared">Rate Alone vs. Rate + Floor</a></li>
-      <li><a href="#why-this-pairs-with-fire-and-forget">Why This Pairs With Fire-and-Forget</a></li>
+      <li><a href="#at-most-once-defined">At-Most-Once Defined</a></li>
+      <li><a href="#three-choices">Three Choices at the Buffer</a></li>
+      <li><a href="#why-shadow-can-afford-loss">Why Shadow Can Afford Loss</a></li>
+      <li><a href="#not-every-pipeline">The Opposite Guarantee Elsewhere</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-90-shadow-deployments-statistical-power.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-91-fire-and-forget-async-at-most-once-vs-loss.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Shadow+Deployments+for+ML+%E2%80%94+Statistical+Power+%E2%80%94+AI+Learning+%C2%B7+Day+90+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-90-shadow-deployments-statistical-power.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Fire-and-Forget+Async+%E2%80%94+At-Most-Once+vs+Loss+%E2%80%94+AI+Learning+%C2%B7+Day+91+of+150&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-91-fire-and-forget-async-at-most-once-vs-loss.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -343,17 +363,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D89</span> AI Learning</div>
-          <a href="day-89-product-thinking-routers-control-planes.html" class="series-post-title">Product Thinking — Routers as Control Planes</a>
+          <div class="series-post-kicker"><span class="series-post-num">D90</span> AI Learning</div>
+          <a href="day-90-shadow-deployments-statistical-power.html" class="series-post-title">Shadow Deployments for ML — Statistical Power</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D90</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Shadow Deployments for ML — Statistical Power</div>
-          <div class="series-post-desc">A sampling rate without a volume floor stops meaning anything once traffic gets thin enough.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D91</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Fire-and-Forget Async — At-Most-Once vs Loss</div>
+          <div class="series-post-desc">Dropping shadow under load is an acceptable tradeoff — for shadow traffic specifically.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D91</span> AI Learning</div>
-          <a href="day-91-fire-and-forget-async-at-most-once-vs-loss.html" class="series-post-title">Fire-and-Forget Async — At-Most-Once vs Loss</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D92</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
