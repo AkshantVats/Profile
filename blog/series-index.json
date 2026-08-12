@@ -996,6 +996,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html",
+          "kicker": "Experience · Day 92 of 150",
+          "title": "Day 92 — Walmart Feature Flags on Firmware Channels",
+          "subtitle": "OTA used % rollout by device cohort—same mental model as 1% shadow",
+          "date": "2026-08-12",
+          "slug": "day-92-walmart-feature-flags-firmware-channels",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html",
+          "coverImage": "blog/assets/covers/day-92-walmart-feature-flags-firmware-channels.png",
+          "desc": "A firmware rollout to millions of distributed devices was never a flip of a switch -- percentage-by-cohort staging and a documented fail-open default are the same shape as today's shadow_percent flag."
+        },
+        {
           "href": "blog/series/experience/day-91-delivery-hero-geocoding-retries.html",
           "kicker": "Experience · Day 91 of 150",
           "title": "Day 91 — Delivery Hero Fire-and-Forget Geocoding Retries",
