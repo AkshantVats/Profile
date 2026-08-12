@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-95-cold-storage-for-ml-artifacts-tiering.html",
+          "kicker": "AI Learning · Day 95 of 150",
+          "title": "Day 95 — Cold Storage for ML Artifacts — Tiering",
+          "subtitle": "Hot, warm, cold — and what decides which",
+          "date": "2026-08-13",
+          "slug": "day-95-cold-storage-for-ml-artifacts-tiering",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-95-cold-storage-for-ml-artifacts-tiering.html",
+          "coverImage": "blog/assets/covers/day-95-cold-storage-for-ml-artifacts-tiering.png",
+          "desc": "infra_ai.shadow_eval hashes a response at write time and the Kafka topic only holds the full pair for its retention window -- pkg/archive is the third tier, PII-scrubbed and dt=-partitioned on S3/MinIO, that closes the gap between them."
+        },
+        {
           "href": "blog/series/ai-learning/day-94-latency-slo-verification-ab-instrumentation.html",
           "kicker": "AI Learning · Day 94 of 150",
           "title": "Day 94 — Latency SLO Verification — A/B Instrumentation",
@@ -1019,6 +1031,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-95-scheduledreader-bigquery-slot-economics.html",
+          "kicker": "Experience · Day 95 of 150",
+          "title": "Day 95 — ScheduledReader at TB Scale — BigQuery Slot Economics",
+          "subtitle": "Cold data isn't free to ignore",
+          "date": "2026-08-13",
+          "slug": "day-95-scheduledreader-bigquery-slot-economics",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-95-scheduledreader-bigquery-slot-economics.html",
+          "coverImage": "blog/assets/covers/day-95-scheduledreader-bigquery-slot-economics.png",
+          "desc": "Day 24 covered the ingest-side streaming-vs-batch story; this is the retention side -- what a 65 TB table with no archival strategy actually costs to keep hot forever, and why Wayfair's fix is a partitioning rule, not a bigger BigQuery reservation."
+        },
         {
           "href": "blog/series/experience/day-94-wayfair-load-tests-before-cyber-5.html",
           "kicker": "Experience · Day 94 of 150",
