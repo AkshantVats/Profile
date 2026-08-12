@@ -972,6 +972,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-91-delivery-hero-geocoding-retries.html",
+          "kicker": "Experience · Day 91 of 150",
+          "title": "Day 91 — Delivery Hero Fire-and-Forget Geocoding Retries",
+          "subtitle": "Client timeout 200ms; server work continued—users never waited",
+          "date": "2026-08-12",
+          "slug": "day-91-delivery-hero-geocoding-retries",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-91-delivery-hero-geocoding-retries.html",
+          "coverImage": "blog/assets/covers/day-91-delivery-hero-geocoding-retries.png",
+          "desc": "A 200ms client timeout never meant the server's work stopped at 200ms -- Delivery Hero's async SQS + Kinesis decoupling kept notification retries going long after the customer already had an answer."
+        },
+        {
           "href": "blog/series/experience/day-90-netflix-shadow-traffic-llm-eval.html",
           "kicker": "Experience · Day 90 of 150",
           "title": "Day 90 — Netflix Shadow Traffic Talk — Applying to LLM Eval",
