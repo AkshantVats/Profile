@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-93-paired-observability-prod-vs-shadow-storage.html",
+          "kicker": "AI Learning · Day 93 of 150",
+          "title": "Day 93 — Paired Observability — Prod vs Shadow Storage",
+          "subtitle": "Diff storage like A/B event pairing",
+          "date": "2026-08-13",
+          "slug": "day-93-paired-observability-prod-vs-shadow-storage",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-93-paired-observability-prod-vs-shadow-storage.html",
+          "coverImage": "blog/assets/covers/day-93-paired-observability-prod-vs-shadow-storage.png",
+          "desc": "ClickHouse table keyed by request_id pair -- why infra_ai.shadow_eval is ordered by (tenant_id, captured_at) for reads but identified by request_id for correlation, and what MergeTree's lack of cheap UPDATE means for a row two writers have to share."
+        },
+        {
           "href": "blog/series/ai-learning/day-92-feature-flags-driving-experiments.html",
           "kicker": "AI Learning · Day 92 of 150",
           "title": "Day 92 — Feature Flags Driving Experiments",
@@ -995,6 +1007,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-93-agoda-exactly-once-illusion-idempotent-consumers.html",
+          "kicker": "Experience · Day 93 of 150",
+          "title": "Day 93 — Agoda Exactly-Once Illusion — Idempotent Consumers",
+          "subtitle": "At-least-once was never the failure. Believing it was exactly-once was.",
+          "date": "2026-08-13",
+          "slug": "day-93-agoda-exactly-once-illusion-idempotent-consumers",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-93-agoda-exactly-once-illusion-idempotent-consumers.html",
+          "coverImage": "blog/assets/covers/day-93-agoda-exactly-once-illusion-idempotent-consumers.png",
+          "desc": "Kafka's own guarantee is at-least-once -- exactly-once only exists downstream, at the consumer, if the write itself can survive being applied twice. Today's shadow-eval consumer hasn't fully closed that gap either, and says so."
+        },
         {
           "href": "blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html",
           "kicker": "Experience · Day 92 of 150",
