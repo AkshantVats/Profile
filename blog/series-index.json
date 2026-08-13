@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-96-shadow-traffic-ethics-and-sampling-bias.html",
+          "kicker": "AI Learning · Day 96 of 150",
+          "title": "Day 96 — Shadow Traffic — Ethics and Sampling Bias",
+          "subtitle": "Zero cost isn't zero bias",
+          "date": "2026-08-13",
+          "slug": "day-96-shadow-traffic-ethics-and-sampling-bias",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-96-shadow-traffic-ethics-and-sampling-bias.html",
+          "coverImage": "blog/assets/covers/day-96-shadow-traffic-ethics-and-sampling-bias.png",
+          "desc": "Project blog concept: when shadow misleads -- proving Capture adds zero latency (Day 94) says nothing about whether shadow-eval's sample is representative. Four documented gates -- chain-exhausted requests, backpressure drops, cold-cache sampling, and truncation -- quietly narrow the sample, and today's own demo caught the backpressure gate firing live."
+        },
+        {
           "href": "blog/series/ai-learning/day-95-cold-storage-for-ml-artifacts-tiering.html",
           "kicker": "AI Learning · Day 95 of 150",
           "title": "Day 95 — Cold Storage for ML Artifacts — Tiering",
@@ -1031,6 +1043,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-96-leading-pas-promotions-two-teams-one-platform.html",
+          "kicker": "Experience · Day 96 of 150",
+          "title": "Day 96 — Leading PAS and Promotions — Two Teams, One Pricing Platform",
+          "subtitle": "A shared leader isn't a shared system",
+          "date": "2026-08-13",
+          "slug": "day-96-leading-pas-promotions-two-teams-one-platform",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-96-leading-pas-promotions-two-teams-one-platform.html",
+          "coverImage": "blog/assets/covers/day-96-leading-pas-promotions-two-teams-one-platform.png",
+          "desc": "PAS Core moves 295M requests a day in Java; gst-acc-promotions moves 78K in Python. Leading both teams at Wayfair meant enforcing the one labeled Pub/Sub edge between them, never a shared database -- the same boundary shape as today's shadow-traffic-router demo and its Publisher interface."
+        },
         {
           "href": "blog/series/experience/day-95-scheduledreader-bigquery-slot-economics.html",
           "kicker": "Experience · Day 95 of 150",
