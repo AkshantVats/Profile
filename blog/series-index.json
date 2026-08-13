@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html",
+          "kicker": "AI Learning · Day 99 of 150",
+          "title": "Day 99 — LLM Eval Bias — Position and Length Effects",
+          "subtitle": "A confident score isn't proof of a correct one",
+          "date": "2026-08-13",
+          "slug": "day-99-llm-eval-bias-position-and-length-effects",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html",
+          "coverImage": "blog/assets/covers/day-99-llm-eval-bias-position-and-length-effects.png",
+          "desc": "A judge model's score can move for reasons that have nothing to do with response quality -- which candidate came first in the prompt, and how long the response ran. Today's batch judge worker sidesteps position bias by grading one sample at a time, but has no explicit instruction yet against treating length as thoroughness."
+        },
+        {
           "href": "blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html",
           "kicker": "AI Learning · Day 98 of 150",
           "title": "Day 98 — Judge Model Selection — Cost vs Capability",
