@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html",
+          "kicker": "AI Learning · Day 97 of 150",
+          "title": "Day 97 — Rubric Engineering — Criteria Weighting",
+          "subtitle": "Version rubrics -- breaking change = new id",
+          "date": "2026-08-13",
+          "slug": "day-97-rubric-engineering-criteria-weighting",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html",
+          "coverImage": "blog/assets/covers/day-97-rubric-engineering-criteria-weighting.png",
+          "desc": "A weighted JudgeRubric score behaves like a composite SLO -- it can cross a pass/fail threshold from a correlated wobble across several criteria, with no single one clearly failing. RubricID bumps on any breaking edit so a real quality shift and a rubric-author's opinion change never get confused for the same drift."
+        },
+        {
           "href": "blog/series/ai-learning/day-96-shadow-traffic-ethics-and-sampling-bias.html",
           "kicker": "AI Learning · Day 96 of 150",
           "title": "Day 96 — Shadow Traffic — Ethics and Sampling Bias",
@@ -1043,6 +1055,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html",
+          "kicker": "Experience · Day 97 of 150",
+          "title": "Day 97 — The Cardinality Guardrail — a Cap, Not a Convention",
+          "subtitle": "A number a tag has to fit under, not a suggestion",
+          "date": "2026-08-13",
+          "slug": "day-97-cardinality-guardrail-cap-not-convention",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html",
+          "coverImage": "blog/assets/covers/day-97-cardinality-guardrail-cap-not-convention.png",
+          "desc": "After Agoda's cardinality incident, the fix wasn't a checklist reminder -- it was a 10k-label hard budget every new tag has to clear before it merges. The same fail-closed shape shows up in today's llm-judge-eval DESIGN.md: a hard dollar cap per task_type, and a RubricID that has to change on any breaking edit."
+        },
         {
           "href": "blog/series/experience/day-96-leading-pas-promotions-two-teams-one-platform.html",
           "kicker": "Experience · Day 96 of 150",
