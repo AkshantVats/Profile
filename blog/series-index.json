@@ -1068,6 +1068,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html",
+          "kicker": "Experience · Day 99 of 150",
+          "title": "Day 99 — Using GPT to Grade GPT — BrowserStack Skepticism",
+          "subtitle": "A green checkmark isn't proof the verdict was correct",
+          "date": "2026-08-13",
+          "slug": "day-99-using-gpt-to-grade-gpt-browserstack-skepticism",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html",
+          "coverImage": "blog/assets/covers/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.png",
+          "desc": "Camera Image Injection replaced a human thumb on a biometric sensor, but something still had to decide whether the device's response counted as a pass. That verdict needed a recurring human-labeled gold set before anyone could trust it -- today's llm-judge-eval judge worker stores criteria_json, rationale, and confidence for exactly the same audit-sampling reason."
+        },
+        {
           "href": "blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html",
           "kicker": "Experience · Day 98 of 150",
           "title": "Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT",

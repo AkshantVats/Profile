@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT | Experience Series</title>
-<meta name="description" content="A single sensor crossing a line doesn't mean a facility's HVAC is broken. At 7M+ sensors across 50+ buildings, treating one reading as the whole answer was the fastest way to make an alert meaningless.">
-<meta property="og:title" content="Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT">
-<meta property="og:description" content="One number crossing a line and five weighted criteria producing a score are two different ways of answering the same question: is this actually a problem, or just one signal looking that way in isolation?">
+<title>Day 99 &mdash; Using GPT to Grade GPT &mdash; BrowserStack Skepticism | Experience Series</title>
+<meta name="description" content="Camera Image Injection replaced a human thumb on a biometric sensor, but something still had to decide whether the device's response counted as a pass. That verdict needed a human-labeled gold set before anyone could trust it — the same discipline today's LLM judge worker builds in from day one.">
+<meta property="og:title" content="Day 99 &mdash; Using GPT to Grade GPT &mdash; BrowserStack Skepticism">
+<meta property="og:description" content="An automated harness that reports its own verdict confidently and one that reports a verdict correctly are two different claims — only a human-labeled sample, checked on a recurring basis, can tell you which one you actually have.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.png">
 <meta property="article:published_time" content="2026-08-13">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 98 of 150</span>
-    <span class="tag">IoT</span>
-    <span class="tag">Alerting</span>
-    <span class="tag">Walmart</span>
+    <span class="tag accent">Experience &middot; Day 99 of 150</span>
+    <span class="tag">BrowserStack</span>
+    <span class="tag">Testing</span>
+    <span class="tag">LLM Eval</span>
   </div>
-  <h1 class="post-title">Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT</h1>
-  <p class="post-subtitle">One reading crossing a line doesn't mean a facility is unhealthy &mdash; it means one signal was just asked to answer a question no single signal was ever going to answer correctly on its own.</p>
+  <h1 class="post-title">Day 99 &mdash; Using GPT to Grade GPT &mdash; BrowserStack Skepticism</h1>
+  <p class="post-subtitle">We demanded a human-labeled gold set before trusting automation &mdash; because a harness that confidently reports the wrong verdict looks identical to one that's actually right, right up until someone checks.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 98 of 150</span>
+    <span class="meta-item">Experience &middot; Day 99 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 13, 2026</span>
     <div class="meta-divider"></div>
@@ -208,44 +208,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png" alt="Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.png" alt="Day 99 — Using GPT to Grade GPT — BrowserStack Skepticism" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>At Walmart Labs, the WeIoT SmartBuildings platform I helped build ran real-time HVAC control loops on Azure Stream Analytics across more than 7 million sensors spread over 50-plus facilities. Every one of those sensors could report a single number &mdash; a temperature, a humidity reading, a power draw. The first version of any monitoring layer over a fleet that size is tempting to build the same way: pick a metric, pick a line, alert when the reading crosses it.</p>
+<p>At BrowserStack I worked on device instrumentation &mdash; the layer that reverse-engineers native iOS and Android OS APIs so a test running against a remote physical device can trigger things a normal app can't: FaceID and TouchID prompts, answered automatically through Camera Image Injection, a rig that feeds a synthetic face or fingerprint straight into a phone's camera and biometric sensor path instead of a real human touching real hardware. Getting the injection to fire correctly was only half the problem. Something still had to decide whether the device's response to that injected biometric counted as a pass.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Scope note &mdash; Walmart Labs, WeIoT SmartBuildings</div>
-  My resume documents the scale directly: "7M+ sensors, tens of millions of telemetry points/min: Architected WeIoT SmartBuildings ingestion layer on Azure IoT Hub; engineered real-time HVAC control loops via Azure Stream Analytics automating energy optimisation across 50+ global facilities." What follows is the general shape of a problem that scale makes unavoidable &mdash; single-metric threshold alerting getting noisy fast &mdash; not a specific incident, a named fix, or a before/after percentage my resume doesn't itemize. I'm generalizing from documented, real work, not attaching invented numbers to it.
+  <div class="attr-label">Scope note &mdash; BrowserStack, Device Instrumentation</div>
+  My resume documents the role directly: "Reverse-engineered APKs/IPAs to hook into native iOS/Android OS APIs, enabling fully automated FaceID/TouchID testing on remote physical devices via Camera Image Injection and biometrics instrumentation" (BrowserStack, May&ndash;Dec 2021, Sr. Software Engineer). What follows is the general shape of a problem that kind of automation runs into as a matter of course &mdash; trusting an automated pass/fail verdict without checking it against a human's independent read of the same evidence &mdash; not a specific documented incident or a named fix with before/after numbers my resume doesn't itemize.
 </div>
 
-<h2 id="one-line-one-fleet-a-lot-of-false-alarms">One Line, One Fleet, a Lot of False Alarms</h2>
+<h2 id="a-green-checkmark-answers-the-wrong-question">A Green Checkmark Answers the Wrong Question</h2>
 
-<p>A single-metric threshold has one job: decide whether a number is too high or too low. At the scale of one sensor, that's a fine job. At the scale of a fleet spanning 50-plus facilities in different climates, on different schedules, with different occupancy patterns, that same threshold starts flagging things that were never actually wrong.</p>
+<p>A liveness check on the instrumentation bridge answers one question: is the process that translates "trigger FaceID" into an actual Camera Image Injection signal still running. That's a real question worth checking, but it's not the question a test result actually needs answered. Once the bridge is confirmed alive and the injected biometric fires, a harder question remains: did the device's response to that injected face or fingerprint match what a real user's successful &mdash; or failed &mdash; authentication would have produced.</p>
 
-<p>A zone reading warm at 2pm can mean the HVAC failed. It can also mean the sun is hitting that side of the building, or a loading-dock door got propped open for deliveries, or a conference room just filled up with people. A threshold tuned to catch the first case can't tell it apart from the other three &mdash; it only ever sees one number, and one number can't carry that much context.</p>
+<p>An automated harness can misread that outcome while reporting total confidence. A false accept can get logged as a false reject. A genuinely correct authentication can get flagged as broken because a screen transition landed one frame later than the parser expected.</p>
 
-<h2 id="why-tighter-thresholds-make-it-worse-not-better">Why a Tighter Threshold Makes It Worse, Not Better</h2>
+<p>None of that shows up as a crash or an error anyone gets paged for &mdash; the harness just confidently reports the wrong verdict, at whatever scale the device farm happens to be running that day.</p>
 
-<p>The instinct when a threshold is too noisy is to tighten it &mdash; narrow the acceptable range so fewer readings cross it. Across a fleet this size, that instinct backfires. A range narrow enough to stop flagging a sunny window in one facility is often already too narrow for a facility in a hotter climate operating completely normally.</p>
+<h2 id="why-we-needed-a-human-labeled-gold-set">Why We Needed a Human-Labeled Gold Set</h2>
 
-<p>There's no single number that's simultaneously loose enough for every facility's normal variation and tight enough to catch every facility's real failures. Tuning the threshold doesn't fix the underlying problem &mdash; it just trades one kind of wrong alert for another.</p>
+<p>The fix for a verdict that can be confidently wrong isn't a smarter harness. It's a small, deliberately hand-checked sample &mdash; a human watching the actual injected-biometric attempt and its on-screen result, next to what the harness reported, and confirming whether the two agree.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors on Azure IoT Hub</span></div>
-  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Metric a threshold alert sees</span></div>
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Criteria in today's rubric</span></div>
-</div>
+<p>Not a one-time calibration exercise run once before shipping. A recurring check, because a harness's read of "pass" can quietly drift: an OS update changes how a biometric prompt's screen transition renders, and a parsing assumption baked in months earlier stops matching reality without ever throwing an error.</p>
 
-<h2 id="what-a-control-loop-actually-needs">What a Control Loop Actually Needs Instead</h2>
-
-<p>A real-time HVAC control loop can't run on one metric anyway &mdash; making a correct control decision (run the compressor harder, ease off, hold steady) already requires reading temperature alongside setpoint, occupancy signal, time of day, and outdoor conditions together, not any one of them in isolation. Stream Analytics windows and joins across those signals were there because the control decision itself needed more than one number to be right.</p>
-
-<p>Alerting on top of the same telemetry inherits the same requirement. A warm reading that lines up with high occupancy and a hot outdoor temperature is a facility working as intended under load. The same warm reading with low occupancy and a mild outdoor temperature is a facility with a real problem &mdash; and the two cases are indistinguishable from the single number alone.</p>
+<p>Skip that recurring check and the automation earns trust once, on day one, and then keeps spending that same trust indefinitely &mdash; including on days after the thing underneath it has already changed.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -265,47 +256,41 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  TEMP["Temperature reading"] --> DECIDE{"Alert decision"}
-  OCC["Occupancy signal"] --> DECIDE
-  OUT["Outdoor conditions"] --> DECIDE
-  SET["Setpoint + schedule"] --> DECIDE
-  DECIDE -->|"signals agree: real"| PAGE["Page the team"]
-  DECIDE -->|"signals disagree: noise"| HOLD["Hold, keep watching"]
+  INJECT["Inject biometric"] --> DEVICE["Device responds"]
+  DEVICE --> HARNESS["Harness reads screen"]
+  HARNESS --> VERDICT["Reports pass or fail"]
+  VERDICT --> SAMPLE{"Human audit sample?"}
+  SAMPLE -->|"agrees"| TRUST["Verdict earns trust"]
+  SAMPLE -->|"disagrees"| FIX["Fix parser, re-audit"]
 </pre>
 
-<p>A single-metric threshold collapses that whole picture down to one line on one chart. It can't ask "do these signals agree" &mdash; it can only ask "is this one number too big," and at fleet scale, that's a question that stops being useful long before the fleet stops growing.</p>
+<p>The sample doesn't have to be large to do its job. It has to be recurring, and it has to compare the harness's stored verdict against a human's independent read of the same underlying evidence &mdash; not against the harness's own explanation of itself.</p>
 
-<div class="pullquote"><p>A threshold answers "is this number too big." A fleet at scale needs the answer to a different question: do enough independent signals agree that this is actually a problem.</p></div>
+<div class="pullquote"><p>An automated verdict earns trust once. Whether it still deserves that trust six months later is a question only a recurring human spot-check can actually answer.</p></div>
 
-<h2 id="the-same-shape-in-todays-rubric">The Same Shape in Today's Rubric</h2>
+<h2 id="the-same-discipline-a-different-verdict">The Same Discipline, a Different Automated Verdict</h2>
 
-<p>Phase 2A's <code>llm-judge-eval</code> rubric CRUD API is a structured version of exactly this fix, just applied to grading a model's response instead of grading a building's HVAC state. A single pass/fail check on one dimension &mdash; "did the response mention a refund" &mdash; has the same blind spot a single temperature threshold has: it can't tell a genuinely good response from one that happens to look right on that one axis.</p>
+<p>Today's <code>llm-judge-eval</code> async judge worker (Phase 2A) automates a structurally identical decision one arc later: a cheap model reads a response and reports a verdict &mdash; a <code>judge_score</code> &mdash; meant to feed DriftWatch's drift detection unattended, the same way BrowserStack's harness read a device screen and reported pass or fail unattended.</p>
 
-<p>The rubric's five weighted criteria &mdash; resolution correctness, policy adherence, tone, clarity, escalation appropriateness &mdash; exist for the same reason multiple correlated HVAC signals do. Each criterion alone can be misleading; a weighted sum across all five is much harder to fool with one metric that happens to look fine in isolation.</p>
+<p>The worker doesn't just emit <code>judge_score</code>. It stores <code>criteria_json</code> &mdash; the raw per-criterion breakdown behind that score &mdash; and a <code>rationale</code> and <code>confidence</code> right alongside it, specifically so a human reviewer can pull a sample of graded requests later and check the judge's reasoning against their own independent read of the same prompt and response, without re-running anything. That's the gold-set discipline translated directly into a storage decision: an automated grade that can't be spot-checked against a human's independent read is a number nobody should fully trust, whether the automation is a mobile test harness reading a screen in 2021 or an LLM judge reading a chat transcript today.</p>
 
-<p>And because <code>store.Create</code> refuses to silently overwrite a rubric version, a change to those weights can never quietly redefine what "good" means without leaving a trace &mdash; the same discipline a fleet-wide threshold never had, since nobody versions a magic number buried in an alert rule.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> any system that reduces a real decision to a single number at scale will eventually be wrong in both directions &mdash; too noisy on normal variation, too quiet on a real problem hiding behind a metric that happens to look fine. The fix isn't a better threshold. It's more signals, weighted and combined on purpose, with the weights themselves versioned instead of silently tuned.</p>
+<p class="prose-so-what"><strong>So what:</strong> an automation that reports its own verdict confidently and one that reports its verdict correctly are two different claims, and checking that the first one showed up &mdash; a green checkmark, a stored <code>judge_score</code> &mdash; never proves the second one is true. The fix isn't a smarter harness or a smarter judge model. It's keeping a human-labeled sample permanently in the loop, and storing enough of the automation's own reasoning that running that check is actually possible.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 98 of 150 &mdash; Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</p>
-  <p><em>Next up:</em> <a href="day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html">Day 99 &mdash; Using GPT to Grade GPT — BrowserStack Skepticism</a></p>
+  <p>Experience &middot; Day 99 of 150 &mdash; Using GPT to Grade GPT — BrowserStack Skepticism</p>
+  <p><em>Next up:</em> Day 100 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 92 — Walmart Feature Flags on Firmware Channels (same platform, a different lesson — staged rollout instead of alerting)</span>
+      <span>Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied (same rig, a different lesson — is the process alive, not is the verdict correct)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 97 — The Cardinality Guardrail — a Cap, Not a Convention (yesterday's post — a different employer, a hard cap instead of a weighted signal)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 98 — Judge Model Selection — Cost vs Capability (today's companion AI Learning post)</span>
+      <span>Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT (yesterday's post — trusting one signal vs. trusting an automated verdict)</span>
     </a>
   </div>
 </div>
@@ -316,21 +301,20 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#one-line-one-fleet-a-lot-of-false-alarms">One Line, One Fleet</a></li>
-      <li><a href="#why-tighter-thresholds-make-it-worse-not-better">Why Tighter Makes It Worse</a></li>
-      <li><a href="#what-a-control-loop-actually-needs">What a Control Loop Needs</a></li>
-      <li><a href="#the-same-shape-in-todays-rubric">The Same Shape Today</a></li>
+      <li><a href="#a-green-checkmark-answers-the-wrong-question">A Green Checkmark, Wrong Question</a></li>
+      <li><a href="#why-we-needed-a-human-labeled-gold-set">Why We Needed a Gold Set</a></li>
+      <li><a href="#the-same-discipline-a-different-verdict">The Same Discipline Today</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-99-using-gpt-to-grade-gpt-browserstack-skepticism.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Walmart+Rubric-Less+Alerts+%E2%80%94+Why+Thresholds+Failed+IoT+%C2%B7+Day+98&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Using+GPT+to+Grade+GPT+%E2%80%94+BrowserStack+Skepticism+%C2%B7+Day+99&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-99-using-gpt-to-grade-gpt-browserstack-skepticism.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -343,17 +327,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D97</span> Experience</div>
-          <a href="day-97-cardinality-guardrail-cap-not-convention.html" class="series-post-title">The Cardinality Guardrail — a Cap, Not a Convention</a>
+          <div class="series-post-kicker"><span class="series-post-num">D98</span> Experience</div>
+          <a href="day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="series-post-title">Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D98</span> Experience &middot; now</div>
-          <div class="series-post-title">Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</div>
-          <div class="series-post-desc">One number can't tell "sunny window" from "broken HVAC."</div>
+          <div class="series-post-kicker"><span class="series-post-num">D99</span> Experience &middot; now</div>
+          <div class="series-post-title">Using GPT to Grade GPT — BrowserStack Skepticism</div>
+          <div class="series-post-desc">A green checkmark isn't proof the verdict was correct.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D99</span> Experience</div>
-          <a href="day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html" class="series-post-title">Using GPT to Grade GPT — BrowserStack Skepticism</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D100</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
