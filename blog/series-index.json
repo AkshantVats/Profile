@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html",
+          "kicker": "AI Learning · Day 98 of 150",
+          "title": "Day 98 — Judge Model Selection — Cost vs Capability",
+          "subtitle": "Haiku judges Sonnet — an economic hierarchy",
+          "date": "2026-08-13",
+          "slug": "day-98-judge-model-selection-cost-vs-capability",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html",
+          "coverImage": "blog/assets/covers/day-98-judge-model-selection-cost-vs-capability.png",
+          "desc": "Grading a response against a fixed rubric is classification, not generation -- the cheapest model that scores consistently beats a larger model scored inconsistently. judge_model stays separate from prod_model so that routing decision is explicit, not an accident that quietly overpays on every graded response."
+        },
+        {
           "href": "blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html",
           "kicker": "AI Learning · Day 97 of 150",
           "title": "Day 97 — Rubric Engineering — Criteria Weighting",

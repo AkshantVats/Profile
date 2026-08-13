@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 97 &mdash; Rubric Engineering &mdash; Criteria Weighting | AI Learning Series</title>
-<meta name="description" content="A weighted rubric can fail a response without any single criterion clearly failing — the same shape as a composite SLO breaching without any one sub-metric crossing its own line. Version the rubric, or that failure becomes untraceable.">
-<meta property="og:title" content="Day 97 &mdash; Rubric Engineering &mdash; Criteria Weighting">
-<meta property="og:description" content="Version rubrics — breaking change = new id. The reasoning behind that one-line rule, and why a judge score without a rubric version attached is a number nobody can trust six months later.">
+<title>Day 98 &mdash; Judge Model Selection &mdash; Cost vs Capability | AI Learning Series</title>
+<meta name="description" content="Config judge_model is separate from the production model on purpose — grading a response against a fixed rubric is a classification problem, not a generation problem, and the cheapest model that grades consistently wins.">
+<meta property="og:title" content="Day 98 &mdash; Judge Model Selection &mdash; Cost vs Capability">
+<meta property="og:description" content="Haiku judges Sonnet. Not because Haiku is the better model — because judging isn't the same job as answering, and paying for the wrong skill on every graded response is the actual cost most rubric-judge pipelines never account for.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-97-rubric-engineering-criteria-weighting.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-judge-model-selection-cost-vs-capability.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-97-rubric-engineering-criteria-weighting.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-judge-model-selection-cost-vs-capability.png">
 <meta property="article:published_time" content="2026-08-13">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,54 +185,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 97 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 98 of 150</span>
     <span class="tag">Evaluation</span>
-    <span class="tag">Statistics</span>
+    <span class="tag">Cost</span>
     <span class="tag">DriftWatch</span>
   </div>
-  <h1 class="post-title">Day 97 &mdash; Rubric Engineering &mdash; Criteria Weighting</h1>
-  <p class="post-subtitle">Version rubrics — breaking change = new id. One line in today's design doc, and underneath it the same question a composite SLO already forces you to answer: what does it mean when the total crosses a line but no individual part clearly did?</p>
+  <h1 class="post-title">Day 98 &mdash; Judge Model Selection &mdash; Cost vs Capability</h1>
+  <p class="post-subtitle">Haiku judges Sonnet. Not because the judge is the better model at answering — because grading against a fixed rubric and generating a good response are different jobs, and paying generation prices for a grading job is the cost most rubric-judge pipelines never notice they're carrying.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 97 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 98 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 13, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">8 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-97-rubric-engineering-criteria-weighting.png" alt="Day 97 — Rubric Engineering — Criteria Weighting" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-98-judge-model-selection-cost-vs-capability.png" alt="Day 98 — Judge Model Selection — Cost vs Capability" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Version rubrics — breaking change = new id. That's the whole rule in five words, and it's easy to nod along with until you actually try to write a rubric with more than one criterion. The moment a score is a weighted sum instead of a single pass/fail check, "did the rubric change" stops being obvious from the score alone.</p>
+<p>Config <code>judge_model</code> is separate from the production model on purpose. It would be simpler to reuse whatever model is already generating responses to also grade them — one model, one config value, one thing to reason about. DESIGN.md rejects that simplicity for a reason worth sitting with: judging isn't the same job as answering, even when the same underlying technology could technically do both.</p>
 
-<h2 id="a-weighted-sum-hides-what-moved">A Weighted Sum Hides What Moved</h2>
+<h2 id="grading-is-classification-not-generation">Grading Is Classification, Not Generation</h2>
 
-<p><code>llm-judge-eval</code>'s <code>JudgeRubric</code> grades a response on several named criteria, each carrying a weight, summed into one number. A <code>support</code> response might score 9/10 on resolution correctness and 4/10 on tone, or 6/10 on both — different responses, potentially the same weighted total.</p>
+<p>Generating a good <code>support</code> response is open-ended: the model has to compose language, reason about policy, and produce something novel that fits the specific situation in front of it. Grading that same response against <code>llm-judge-eval</code>'s rubric is a much narrower task — given five weighted criteria and a response, output a score for each one, consistently, every time.</p>
 
-<p>The total is the number that gets stored, compared against a threshold, and fed into a drift check. The breakdown that produced it is not, unless something deliberately keeps it.</p>
+<p>That's structured classification wearing a chat-shaped interface. <code>model-quality-scorer</code> (RouteIQ, Day 77) already established this reasoning for its own grading pipeline, and DriftWatch's judge model reuses it rather than re-deriving it from scratch: the cheapest model that scores consistently against a fixed rubric beats a larger model scored inconsistently, because consistency is what a drift comparison actually depends on.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the report card average</div>
-  A student's report card GPA can hold steady at 3.4 for two straight semesters while their actual grades shift completely underneath it — math dropping from an A to a C, art climbing from a C to an A, the average landing in the same place both times. The GPA never signals that anything changed. Only the individual grades do, and only if someone keeps looking at them instead of just the average.
+  <div class="attr-label">DS analogy &mdash; the health inspector and the chef</div>
+  A restaurant health inspector doesn't need to be a better cook than the chef whose kitchen they're checking. Their job is narrower and different: walk a fixed checklist — food storage temperature, handwashing, expiration dates — and mark each item pass or fail, the same way on a good day and a bad one. A world-class chef inspecting their own kitchen isn't obviously better at that checklist; they're just more expensive per hour for a job that was never about cooking skill in the first place.
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a weighted score is engineered to compress several judgments into one number, which is exactly what makes it useful for a threshold check and exactly what makes it useless for explaining <em>why</em> a threshold check failed — the rationale field has to survive alongside the score, not just the score alone.</p>
+<p class="prose-so-what"><strong>So what:</strong> the inspector's value is a consistent checklist applied the same way every time, not culinary talent — and a judge model's value is the same thing, applied to a rubric instead of a kitchen.</p>
 
-<h2 id="the-composite-slo-parallel">The Composite SLO Parallel</h2>
+<h2 id="the-economic-hierarchy">The Economic Hierarchy This Creates</h2>
 
-<p>This is the same shape as a composite SLO breaching without any single sub-metric crossing its own line. An availability SLO built from <code>0.5*latency_score + 0.3*error_rate_score + 0.2*saturation_score</code> can dip below its threshold from a small simultaneous wobble in all three components, none of which individually would have paged anyone. The composite is more sensitive to correlated small shifts than any one of its inputs — that's the tradeoff a weighted composite always makes, on purpose, whether the inputs are latency and error rate or a judge's criteria scores.</p>
+<p>Once grading is understood as classification, a natural hierarchy falls out: an expensive, high-capability model generates the response, because generation is the hard, open-ended part. A cheap, fast model grades it, because grading against a fixed rubric doesn't need that same capability. Haiku judging Sonnet isn't a downgrade in the pipeline's quality bar — it's routing each half of the job to the tier of model actually built for it.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,57 +252,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  RESP["Response + task_type"] --> RUBRIC["Weighted JudgeRubric"]
-  RUBRIC --> SCORE["0-100 weighted score"]
-  SCORE --> PASS{"Score >= 70?"}
-  PASS -->|"yes"| OK["Counts toward pass rate"]
-  PASS -->|"no"| FAIL["Counts toward fail rate"]
+  REQ["Request"] --> PROD["prod_model generates"]
+  PROD --> RESP["Response"]
+  RESP --> JUDGE["judge_model grades"]
+  RUBRIC["Rubric criteria"] --> JUDGE
+  JUDGE --> SCORE["Weighted score"]
 </pre>
 
-<p>A judge score behaves exactly like that composite SLO once §4's drift test runs on it: what gets compared window-over-window is the pass rate, a single number built from the weighted sum, built from several criteria. A real drift in one criterion — <code>codegen</code> responses quietly losing spec adherence while compiling fine — can move the pass rate by exactly the same mechanism a correlated latency-plus-error wobble moves an SLO.</p>
-
-<h2 id="why-the-id-has-to-change-not-just-the-weights">Why the ID Has to Change, Not Just the Weights</h2>
-
-<p>Here's where rubric versioning earns its keep. If someone reweights <code>support</code>'s criteria next month — tone matters more, resolution correctness matters slightly less — every score computed after that change means something different than every score before it, even on an identical response.</p>
-
-<p>Comparing this week's pass rate against last month's baseline across that boundary isn't measuring drift in model quality. It's measuring a rubric author's opinion change, mislabeled as a shift in the thing being judged.</p>
+<p>Two separate config values, <code>prod_model</code> and <code>judge_model</code>, is what makes that routing an explicit decision instead of an accident. Collapsing them into one model would silently overpay for grading on every single response — a cost that compounds the moment sampling volume grows, and one that a shared-model config would make invisible until the bill arrived.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">task_type rubrics at launch</span></div>
-  <div class="stat-cell"><span class="stat-num">70</span><span class="stat-label">Pass-score threshold</span></div>
-  <div class="stat-cell"><span class="stat-num">1.96</span><span class="stat-label">z-score drift threshold</span></div>
-  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Min samples before a verdict</span></div>
+  <div class="stat-cell"><span class="stat-num">$50</span><span class="stat-label">Daily cost cap per task_type</span></div>
+  <div class="stat-cell"><span class="stat-num">16</span><span class="stat-label">Samples per judge batch</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Criteria in today's example rubric</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Model tiers — generate, grade</span></div>
 </div>
 
-<p><code>RubricID</code> bumping on any breaking edit is what keeps those two questions separable. A version boundary tells the significance test exactly where to stop trusting a baseline computed under the old contract and start accumulating a fresh one — the same way an SLO's own definition has to be versioned before its weights change, or a "the SLO got worse" claim and a "we changed what the SLO means" event become indistinguishable in the dashboard.</p>
+<h2 id="why-the-cap-is-hard-not-soft">Why the Cap Is Hard, Not a Degrade Path</h2>
 
-<div class="pullquote"><p>A number that can mean two different things depending on when it was computed isn't a metric yet. It's a metric plus an unwritten asterisk, and the asterisk is exactly what a version id makes explicit.</p></div>
+<p>DESIGN.md's $50/day/<code>task_type</code> cap is a hard stop, not a fallback to an even cheaper model once spend crosses the line. That choice only makes sense once judging is framed as classification: swapping to a cheaper judge mid-window would change what "consistent scoring" means partway through a comparison window, the same failure mode a breaking rubric edit causes if it doesn't bump <code>RubricID</code>.</p>
 
-<h2 id="the-non-breaking-line">Where the Non-Breaking Line Actually Sits</h2>
+<p>A capped <code>task_type</code> simply stops collecting new samples for the rest of the day instead. Losing coverage for a few hours is a recoverable gap; comparing scores computed under two different judge models inside the same baseline window is a silent, unrecoverable one.</p>
 
-<p>Not every rubric edit deserves a new id — DESIGN.md draws the line at whether a judge given the old and new criteria text would plausibly score the same response differently. Fixing a typo in a criterion's description doesn't cross that line. Reweighting, renaming a criterion, or changing what counts as a 10 versus a 7 does, every time, because each of those changes what the same response's score would have been under the old contract.</p>
+<div class="pullquote"><p>A judge model's job was never to be as good as the model it's grading. It was to be exactly as consistent, every time, for the smallest bill that guarantees it.</p></div>
 
-<p class="prose-so-what"><strong>So what:</strong> the discipline isn't "version everything" — it's drawing one honest line between edits that change a score's meaning and edits that don't, and refusing to let the second kind hide behind the first.</p>
+<h2 id="todays-code-makes-the-rubric-half-real">Today's Code Makes the Rubric Half Real</h2>
+
+<p>Phase 2A's <code>llm-judge-eval</code> rubric CRUD API doesn't touch the judge model itself yet — no Haiku call happens in this PR. What it does build is the other half the config-separation argument depends on: a <code>JudgeRubric</code> the judge model will eventually grade against, with <code>Validate</code> enforcing that its five criteria weights sum to 1.0 before any grading call could ever run on it.</p>
+
+<p><code>store.Create</code>'s refusal to overwrite an existing rubric version matters here for exactly the reason a shared <code>judge_model</code>/<code>prod_model</code> config would have mattered wrong: once a cheap judge model starts scoring against a rubric, that rubric's meaning has to stay fixed for the comparison to mean anything, the same way the judge model itself has to stay fixed within a window.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> separating <code>judge_model</code> from <code>prod_model</code> and versioning the rubric they grade against are the same underlying discipline applied twice — once to which model is allowed to change what "consistent" means, and once to which config values are allowed to change what "good" means, on purpose and only on purpose.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 97 of 150 &mdash; Rubric Engineering — Criteria Weighting</p>
-  <p><em>Next up:</em> <a href="day-98-judge-model-selection-cost-vs-capability.html">Day 98 &mdash; Judge Model Selection — Cost vs Capability</a></p>
+  <p>AI Learning &middot; Day 98 of 150 &mdash; Judge Model Selection — Cost vs Capability</p>
+  <p><em>Next up:</em> Day 99 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-96-shadow-traffic-ethics-and-sampling-bias.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 96 — Shadow Traffic — Ethics and Sampling Bias (yesterday's post — a different DriftWatch module, representativeness instead of versioning)</span>
+      <span>Day 97 — Rubric Engineering — Criteria Weighting (yesterday's post — same rubric, the versioning half of this argument)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (vLLM) — the series' GOLD post this one was drafted against for depth and structure</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 97 — The Cardinality Guardrail — a Cap, Not a Convention (today's companion Experience post)</span>
+      <span>Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT (today's companion Experience post)</span>
     </a>
   </div>
 </div>
@@ -313,21 +313,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-weighted-sum-hides-what-moved">A Weighted Sum Hides What Moved</a></li>
-      <li><a href="#the-composite-slo-parallel">The Composite SLO Parallel</a></li>
-      <li><a href="#why-the-id-has-to-change-not-just-the-weights">Why the ID Has to Change</a></li>
-      <li><a href="#the-non-breaking-line">Where the Non-Breaking Line Sits</a></li>
+      <li><a href="#grading-is-classification-not-generation">Grading Is Classification</a></li>
+      <li><a href="#the-economic-hierarchy">The Economic Hierarchy</a></li>
+      <li><a href="#why-the-cap-is-hard-not-soft">Why the Cap Is Hard</a></li>
+      <li><a href="#todays-code-makes-the-rubric-half-real">Today's Code, the Rubric Half</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-97-rubric-engineering-criteria-weighting.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-98-judge-model-selection-cost-vs-capability.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Rubric+Engineering+%E2%80%94+Criteria+Weighting+%C2%B7+AI+Learning+Day+97&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-97-rubric-engineering-criteria-weighting.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Judge+Model+Selection+%E2%80%94+Cost+vs+Capability+%C2%B7+AI+Learning+Day+98&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-98-judge-model-selection-cost-vs-capability.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -340,17 +340,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D96</span> AI Learning</div>
-          <a href="day-96-shadow-traffic-ethics-and-sampling-bias.html" class="series-post-title">Shadow Traffic — Ethics and Sampling Bias</a>
+          <div class="series-post-kicker"><span class="series-post-num">D97</span> AI Learning</div>
+          <a href="day-97-rubric-engineering-criteria-weighting.html" class="series-post-title">Rubric Engineering — Criteria Weighting</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D97</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Rubric Engineering — Criteria Weighting</div>
-          <div class="series-post-desc">A weighted sum hides what moved.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D98</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Judge Model Selection — Cost vs Capability</div>
+          <div class="series-post-desc">Haiku judges Sonnet — an economic hierarchy.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D98</span> AI Learning</div>
-          <a href="day-98-judge-model-selection-cost-vs-capability.html" class="series-post-title">Judge Model Selection — Cost vs Capability</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D99</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
