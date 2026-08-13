@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 97 &mdash; The Cardinality Guardrail &mdash; a Cap, Not a Convention | Experience Series</title>
-<meta name="description" content="After the incident, Agoda didn't add a checklist item asking engineers to please model cross-product before adding a tag. It added a number a tag had to fit under before it could ship.">
-<meta property="og:title" content="Day 97 &mdash; The Cardinality Guardrail &mdash; a Cap, Not a Convention">
-<meta property="og:description" content="A wiki page you can skip on a deadline. A hard budget you can't. The difference between the two is the whole lesson, and it's the same lesson today's DESIGN.md leans on for a judge model's cost cap and a rubric's version id.">
+<title>Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT | Experience Series</title>
+<meta name="description" content="A single sensor crossing a line doesn't mean a facility's HVAC is broken. At 7M+ sensors across 50+ buildings, treating one reading as the whole answer was the fastest way to make an alert meaningless.">
+<meta property="og:title" content="Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT">
+<meta property="og:description" content="One number crossing a line and five weighted criteria producing a score are two different ways of answering the same question: is this actually a problem, or just one signal looking that way in isolation?">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-97-cardinality-guardrail-cap-not-convention.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-97-cardinality-guardrail-cap-not-convention.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png">
 <meta property="article:published_time" content="2026-08-13">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,50 +185,67 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 97 of 150</span>
-    <span class="tag">Governance</span>
-    <span class="tag">Patterns</span>
-    <span class="tag">Agoda</span>
+    <span class="tag accent">Experience &middot; Day 98 of 150</span>
+    <span class="tag">IoT</span>
+    <span class="tag">Alerting</span>
+    <span class="tag">Walmart</span>
   </div>
-  <h1 class="post-title">Day 97 &mdash; The Cardinality Guardrail &mdash; a Cap, Not a Convention</h1>
-  <p class="post-subtitle">After the incident, nobody added a checklist item asking engineers to please model cross-product before shipping a new tag. They added a number a tag had to fit under before it could merge at all. Those two fixes look similar in a postmortem doc and behave completely differently six months later.</p>
+  <h1 class="post-title">Day 98 &mdash; Walmart Rubric-Less Alerts &mdash; Why Thresholds Failed IoT</h1>
+  <p class="post-subtitle">One reading crossing a line doesn't mean a facility is unhealthy &mdash; it means one signal was just asked to answer a question no single signal was ever going to answer correctly on its own.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 97 of 150</span>
+    <span class="meta-item">Experience &middot; Day 98 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 13, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-97-cardinality-guardrail-cap-not-convention.png" alt="Day 97 — The Cardinality Guardrail — a Cap, Not a Convention" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.png" alt="Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I've already written about the incident itself — Prometheus scrape duration creeping up while request rate stayed flat, a <code>pod</code> label quietly multiplying every existing series until the alert meant to catch stack degradation was the first thing to go dark. What I haven't written about is what WhiteFalcon's index looked like the week after, once the postmortem was closed and someone had to decide what actually changes so this doesn't happen again next quarter.</p>
+<p>At Walmart Labs, the WeIoT SmartBuildings platform I helped build ran real-time HVAC control loops on Azure Stream Analytics across more than 7 million sensors spread over 50-plus facilities. Every one of those sensors could report a single number &mdash; a temperature, a humidity reading, a power draw. The first version of any monitoring layer over a fleet that size is tempting to build the same way: pick a metric, pick a line, alert when the reading crosses it.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Attribution &mdash; Agoda WhiteFalcon</div>
-  The schema discipline described below — cross-product analysis required before any new tag, a 10k label budget hard cap per metric, extra justification required for high-cardinality labels like <code>pod</code> and <code>experiment_id</code> — was the Agoda team's platform-wide response to the cardinality incident, not something I designed. My own role was as a contributing engineer who had to operate under that discipline when adding a new indexing dimension, during my ~5 months as a Senior Engineer there. Scale figures (1.5–1.8T events/day) are from my resume and Agoda's own published WhiteFalcon posts.
+  <div class="attr-label">Scope note &mdash; Walmart Labs, WeIoT SmartBuildings</div>
+  My resume documents the scale directly: "7M+ sensors, tens of millions of telemetry points/min: Architected WeIoT SmartBuildings ingestion layer on Azure IoT Hub; engineered real-time HVAC control loops via Azure Stream Analytics automating energy optimisation across 50+ global facilities." What follows is the general shape of a problem that scale makes unavoidable &mdash; single-metric threshold alerting getting noisy fast &mdash; not a specific incident, a named fix, or a before/after percentage my resume doesn't itemize. I'm generalizing from documented, real work, not attaching invented numbers to it.
 </div>
 
-<h2 id="a-wiki-page-doesnt-stop-the-next-add">A Wiki Page Doesn't Stop the Next Add</h2>
+<h2 id="one-line-one-fleet-a-lot-of-false-alarms">One Line, One Fleet, a Lot of False Alarms</h2>
 
-<p>The easy version of "fix this so it doesn't happen again" is a paragraph in a runbook: before adding a tag to a fleet metric, please estimate its cardinality impact. It reads well in a postmortem. It changes nothing about what happens six months later when a different engineer, under a different deadline, adds a different label to a different metric and has never read that runbook.</p>
+<p>A single-metric threshold has one job: decide whether a number is too high or too low. At the scale of one sensor, that's a fine job. At the scale of a fleet spanning 50-plus facilities in different climates, on different schedules, with different occupancy patterns, that same threshold starts flagging things that were never actually wrong.</p>
 
-<p>WhiteFalcon's actual fix wasn't a paragraph. It was a number: <strong>10,000 labels</strong>, per metric, enforced as a hard cap — and cross-product modeling wasn't a suggestion, it was the thing you had to produce to prove your new tag stayed under that number before the change could ship.</p>
+<p>A zone reading warm at 2pm can mean the HVAC failed. It can also mean the sun is hitting that side of the building, or a loading-dock door got propped open for deliveries, or a conference room just filled up with people. A threshold tuned to catch the first case can't tell it apart from the other three &mdash; it only ever sees one number, and one number can't carry that much context.</p>
 
-<h2 id="the-gate-a-new-tag-actually-goes-through">The Gate a New Tag Actually Goes Through</h2>
+<h2 id="why-tighter-thresholds-make-it-worse-not-better">Why a Tighter Threshold Makes It Worse, Not Better</h2>
+
+<p>The instinct when a threshold is too noisy is to tighten it &mdash; narrow the acceptable range so fewer readings cross it. Across a fleet this size, that instinct backfires. A range narrow enough to stop flagging a sunny window in one facility is often already too narrow for a facility in a hotter climate operating completely normally.</p>
+
+<p>There's no single number that's simultaneously loose enough for every facility's normal variation and tight enough to catch every facility's real failures. Tuning the threshold doesn't fix the underlying problem &mdash; it just trades one kind of wrong alert for another.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors on Azure IoT Hub</span></div>
+  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Metric a threshold alert sees</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Criteria in today's rubric</span></div>
+</div>
+
+<h2 id="what-a-control-loop-actually-needs">What a Control Loop Actually Needs Instead</h2>
+
+<p>A real-time HVAC control loop can't run on one metric anyway &mdash; making a correct control decision (run the compressor harder, ease off, hold steady) already requires reading temperature alongside setpoint, occupancy signal, time of day, and outdoor conditions together, not any one of them in isolation. Stream Analytics windows and joins across those signals were there because the control decision itself needed more than one number to be right.</p>
+
+<p>Alerting on top of the same telemetry inherits the same requirement. A warm reading that lines up with high occupancy and a hot outdoor temperature is a facility working as intended under load. The same warm reading with low occupancy and a mild outdoor temperature is a facility with a real problem &mdash; and the two cases are indistinguishable from the single number alone.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -248,57 +265,43 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  PROP["Propose new tag"] --> MODEL["Model cross-product"]
-  MODEL --> BUDGET{"Under 10k labels?"}
-  BUDGET -->|"no"| REDESIGN["Redesign or reject"]
-  BUDGET -->|"yes, but high-cardinality"| JUSTIFY["Justify combinatorial cost"]
-  BUDGET -->|"yes"| MERGE["Ships"]
-  JUSTIFY --> MERGE
+  TEMP["Temperature reading"] --> DECIDE{"Alert decision"}
+  OCC["Occupancy signal"] --> DECIDE
+  OUT["Outdoor conditions"] --> DECIDE
+  SET["Setpoint + schedule"] --> DECIDE
+  DECIDE -->|"signals agree: real"| PAGE["Page the team"]
+  DECIDE -->|"signals disagree: noise"| HOLD["Hold, keep watching"]
 </pre>
 
-<p>A tag that clears the 10k budget outright can ship. A tag that's under budget but touches a known high-cardinality dimension — the doc names <code>pod</code> and <code>experiment_id</code> specifically — still has to be justified separately, because staying numerically under the cap doesn't mean the combinatorics are cheap to carry going forward. The gate isn't purely mechanical; it's a hard stop plus a judgment call for the cases the hard stop alone can't safely wave through.</p>
+<p>A single-metric threshold collapses that whole picture down to one line on one chart. It can't ask "do these signals agree" &mdash; it can only ask "is this one number too big," and at fleet scale, that's a question that stops being useful long before the fleet stops growing.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">10,000</span><span class="stat-label">Label budget per metric</span></div>
-  <div class="stat-cell"><span class="stat-num">60M</span><span class="stat-label">Combinations one bad add reached</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Named high-risk dimensions</span></div>
-</div>
+<div class="pullquote"><p>A threshold answers "is this number too big." A fleet at scale needs the answer to a different question: do enough independent signals agree that this is actually a problem.</p></div>
 
-<h2 id="what-the-cap-actually-forced-me-to-do">What the Cap Actually Forced Me to Do</h2>
+<h2 id="the-same-shape-in-todays-rubric">The Same Shape in Today's Rubric</h2>
 
-<p>When I proposed adding Kubernetes infrastructure tags — pod and service-level labels — to the indexing layer, I didn't get to skip this gate because I was extending an engine someone else built. The budget doesn't check who's asking. I had to produce the same cross-product model everyone else did, and the model is what caught that a naive add would have blown well past 10k before it ever reached a canary.</p>
+<p>Phase 2A's <code>llm-judge-eval</code> rubric CRUD API is a structured version of exactly this fix, just applied to grading a model's response instead of grading a building's HVAC state. A single pass/fail check on one dimension &mdash; "did the response mention a refund" &mdash; has the same blind spot a single temperature threshold has: it can't tell a genuinely good response from one that happens to look right on that one axis.</p>
 
-<p>That's the actual difference between a convention and a cap: a convention trusts the next engineer's judgment on a bad day. A cap doesn't need to.</p>
+<p>The rubric's five weighted criteria &mdash; resolution correctness, policy adherence, tone, clarity, escalation appropriateness &mdash; exist for the same reason multiple correlated HVAC signals do. Each criterion alone can be misleading; a weighted sum across all five is much harder to fool with one metric that happens to look fine in isolation.</p>
 
-<div class="pullquote"><p>The incident didn't get fixed by making engineers more careful. It got fixed by making carelessness fail closed instead of failing open.</p></div>
+<p>And because <code>store.Create</code> refuses to silently overwrite a rubric version, a change to those weights can never quietly redefine what "good" means without leaving a trace &mdash; the same discipline a fleet-wide threshold never had, since nobody versions a magic number buried in an alert rule.</p>
 
-<h2 id="same-shape-in-todays-design-doc">Same Shape in Today's Design Doc</h2>
-
-<p>Phase 2A's <code>llm-judge-eval</code> DESIGN.md commits to the identical pattern at a different layer: a $50/day hard cost cap per <code>task_type</code>, not a Grafana alert someone has to notice and act on before spend gets out of hand. When a <code>task_type</code> crosses its cap, the batch worker stops pulling new samples — the same fail-closed shape as a tag that can't merge past 10k, just moved from index memory to judge dollars.</p>
-
-<p>The rubric's own versioning does the same job for a different failure mode. A breaking edit to a rubric's criteria bumps its <code>RubricID</code> rather than silently changing what an existing score means — not a note in a changelog someone might skip, but a structural fact the significance test downstream is built to key off of.</p>
-
-<p class="prose-so-what"><strong>So what:</strong> the lesson generalizes past cardinality entirely — anywhere a system depends on every contributor remembering to check something before they ship, the fix worth building is the one that makes forgetting impossible, not the one that makes remembering easier.</p>
+<p class="prose-so-what"><strong>So what:</strong> any system that reduces a real decision to a single number at scale will eventually be wrong in both directions &mdash; too noisy on normal variation, too quiet on a real problem hiding behind a metric that happens to look fine. The fix isn't a better threshold. It's more signals, weighted and combined on purpose, with the weights themselves versioned instead of silently tuned.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 97 of 150 &mdash; The Cardinality Guardrail — a Cap, Not a Convention</p>
-  <p><em>Next up:</em> <a href="day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">Day 98 &mdash; Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</a></p>
+  <p>Experience &middot; Day 98 of 150 &mdash; Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</p>
+  <p><em>Next up:</em> Day 99 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-92-walmart-feature-flags-firmware-channels.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Cardinality Is the Silent Killer — RoaringBitmap Lessons (the incident and indexing mechanics this post's guardrail was built in response to)</span>
+      <span>Day 92 — Walmart Feature Flags on Firmware Channels (same platform, a different lesson — staged rollout instead of alerting)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-96-leading-pas-promotions-two-teams-one-platform.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-97-cardinality-guardrail-cap-not-convention.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 96 — Leading PAS and Promotions — Two Teams, One Pricing Platform (yesterday's post — a different employer, an interface boundary instead of a numeric cap)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-97-rubric-engineering-criteria-weighting.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 97 — Rubric Engineering — Criteria Weighting (today's companion AI Learning post)</span>
+      <span>Day 97 — The Cardinality Guardrail — a Cap, Not a Convention (yesterday's post — a different employer, a hard cap instead of a weighted signal)</span>
     </a>
   </div>
 </div>
@@ -309,21 +312,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-wiki-page-doesnt-stop-the-next-add">A Wiki Page Doesn't Stop It</a></li>
-      <li><a href="#the-gate-a-new-tag-actually-goes-through">The Gate a Tag Goes Through</a></li>
-      <li><a href="#what-the-cap-actually-forced-me-to-do">What the Cap Forced Me to Do</a></li>
-      <li><a href="#same-shape-in-todays-design-doc">Same Shape in Today's Design</a></li>
+      <li><a href="#one-line-one-fleet-a-lot-of-false-alarms">One Line, One Fleet</a></li>
+      <li><a href="#why-tighter-thresholds-make-it-worse-not-better">Why Tighter Makes It Worse</a></li>
+      <li><a href="#what-a-control-loop-actually-needs">What a Control Loop Needs</a></li>
+      <li><a href="#the-same-shape-in-todays-rubric">The Same Shape Today</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-97-cardinality-guardrail-cap-not-convention.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=The+Cardinality+Guardrail+%E2%80%94+a+Cap%2C+Not+a+Convention+%C2%B7+Day+97&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-97-cardinality-guardrail-cap-not-convention.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Walmart+Rubric-Less+Alerts+%E2%80%94+Why+Thresholds+Failed+IoT+%C2%B7+Day+98&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -336,17 +339,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D96</span> Experience</div>
-          <a href="day-96-leading-pas-promotions-two-teams-one-platform.html" class="series-post-title">Leading PAS and Promotions — Two Teams, One Pricing Platform</a>
+          <div class="series-post-kicker"><span class="series-post-num">D97</span> Experience</div>
+          <a href="day-97-cardinality-guardrail-cap-not-convention.html" class="series-post-title">The Cardinality Guardrail — a Cap, Not a Convention</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D97</span> Experience &middot; now</div>
-          <div class="series-post-title">The Cardinality Guardrail — a Cap, Not a Convention</div>
-          <div class="series-post-desc">A number a tag has to fit under, not a suggestion.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D98</span> Experience &middot; now</div>
+          <div class="series-post-title">Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</div>
+          <div class="series-post-desc">One number can't tell "sunny window" from "broken HVAC."</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D98</span> Experience</div>
-          <a href="day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html" class="series-post-title">Walmart Rubric-Less Alerts — Why Thresholds Failed IoT</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D99</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
