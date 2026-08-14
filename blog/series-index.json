@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-104-cusum-detecting-sustained-shifts.html",
+          "kicker": "AI Learning · Day 104 of 150",
+          "title": "Day 104 — CUSUM — Detecting Sustained Shifts",
+          "subtitle": "SPC from manufacturing applied to LLM scores",
+          "date": "2026-08-14",
+          "slug": "day-104-cusum-detecting-sustained-shifts",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-104-cusum-detecting-sustained-shifts.html",
+          "coverImage": "blog/assets/covers/day-104-cusum-detecting-sustained-shifts.png",
+          "desc": "A single bad window doesn't trip a drift alarm, and neither does the next one — until a cumulative sum control chart starts adding up how much they've all leaned the same direction. Today's drift-detector DESIGN.md brings CUSUM's k/h parameters to DriftWatch's judge scores."
+        },
+        {
           "href": "blog/series/ai-learning/day-103-eval-economics-when-judges-pay-off.html",
           "kicker": "AI Learning · Day 103 of 150",
           "title": "Day 103 — Eval Economics — When Judges Pay Off",
@@ -1127,6 +1139,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-104-cusum-control-charts-walmart-hvac-drift.html",
+          "kicker": "Experience · Day 104 of 150",
+          "title": "Day 104 — CUSUM in Manufacturing IoT — Walmart Inspiration",
+          "subtitle": "Control charts detected HVAC drift days before ticket",
+          "date": "2026-08-14",
+          "slug": "day-104-cusum-control-charts-walmart-hvac-drift",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-104-cusum-control-charts-walmart-hvac-drift.html",
+          "coverImage": "blog/assets/covers/day-104-cusum-control-charts-walmart-hvac-drift.png",
+          "desc": "A real-time HVAC control loop at Walmart Labs' WeIoT SmartBuildings platform reacted correctly to every single sensor reading and still couldn't see a slow equipment drift building across many of them. Today's CUSUM design brings the same running-sum fix DriftWatch needs for judge scores."
+        },
         {
           "href": "blog/series/experience/day-103-finops-at-scale-token-cost-visibility.html",
           "kicker": "Experience · Day 103 of 150",
