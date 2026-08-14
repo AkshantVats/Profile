@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 102 &mdash; Quality Time Series &mdash; Dashboard Design | AI Learning Series</title>
-<meta name="description" content="A quality dashboard built from a dozen per-segment gauges shows everything and answers nothing. GET /tenants/{id}/quality-trend pre-aggregates a single normalized hourly mean per tenant, so one Grafana panel can plot the line directly.">
-<meta property="og:title" content="Day 102 &mdash; Quality Time Series — Dashboard Design">
-<meta property="og:description" content="A normalized hourly mean, bucketed once server-side and cached, is what turns a Grafana panel from a client-side aggregation query into a single line plotted directly from the quality-trend API.">
+<title>Day 103 &mdash; Eval Economics &mdash; When Judges Pay Off | AI Learning Series</title>
+<meta name="description" content="A judge model costs money every time it runs. Today's cost dashboard for llm-judge-eval sets that spend against the cost of a bad deploy it prevented, so DriftWatch's ROI is a number instead of an assumption.">
+<meta property="og:title" content="Day 103 &mdash; Eval Economics — When Judges Pay Off">
+<meta property="og:description" content="ROI = prevented bad-deploy cost minus judge spend. Today's dashboard turns that formula from a slide into a per-tenant, per-rubric number DriftWatch can actually show.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-102-quality-time-series-dashboard-design.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-103-eval-economics-when-judges-pay-off.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-103-eval-economics-when-judges-pay-off.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-102-quality-time-series-dashboard-design.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-103-eval-economics-when-judges-pay-off.png">
 <meta property="article:published_time" content="2026-08-14">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 102 of 150</span>
-    <span class="tag">Dashboard Design</span>
-    <span class="tag">Time Series</span>
+    <span class="tag accent">AI Learning &middot; Day 103 of 150</span>
+    <span class="tag">Eval Economics</span>
+    <span class="tag">FinOps</span>
     <span class="tag">DriftWatch</span>
   </div>
-  <h1 class="post-title">Day 102 &mdash; Quality Time Series — Dashboard Design</h1>
-  <p class="post-subtitle">A dozen per-segment gauges show everything and answer nothing &mdash; a single normalized hourly mean, pre-aggregated server-side, is what lets one Grafana panel plot the trend line directly.</p>
+  <h1 class="post-title">Day 103 &mdash; Eval Economics — When Judges Pay Off</h1>
+  <p class="post-subtitle">A judge model costs real money every time it grades a response &mdash; today's cost dashboard sets that spend against the cost of the bad deploy it prevented, so ROI is a number instead of an assumption.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 102 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 103 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 14, 2026</span>
     <div class="meta-divider"></div>
@@ -208,41 +208,41 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-102-quality-time-series-dashboard-design.png" alt="Day 102 — Quality Time Series — Dashboard Design" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-103-eval-economics-when-judges-pay-off.png" alt="Day 103 — Eval Economics — When Judges Pay Off" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Grafana panel queries normalized hourly mean. That's the entire endpoint this post is about, and the rest of it is explaining why getting to that one query took a week's worth of normalization and significance work first. Today's <code>llm-judge-eval</code> work (Phase 2A) adds <code>GET /tenants/{id}/quality-trend</code> to DriftWatch: a historical-trends endpoint returning one normalized value per hour, per tenant, over a rolling window &mdash; the exact series a single Grafana time-series panel plots directly, no client-side aggregation required.</p>
+<p>Cost dashboard completes FinOps story. That's the whole arc this week has been building toward: normalize the scores (Day 100), test whether a drop is real (Day 101), plot the trend in one line (Day 102), and now put a dollar figure next to that trend so the question stops being "is the judge working" and starts being "is the judge worth what it costs." Today's <code>llm-judge-eval</code> work (Phase 2A) adds a cost dashboard to DriftWatch that sets per-tenant, per-rubric judge spend against the estimated cost of the bad deploys that spend caught.</p>
 
-<h2 id="twelve-gauges-dont-answer-is-the-model-still-good">Twelve Gauges Don't Answer "Is the Model Still Good"</h2>
+<h2 id="a-judge-call-is-not-free">A Judge Call Is Not Free</h2>
 
-<p>By today, DriftWatch already produces plenty of individual signals: a per-segment pass rate, a rolling 7-day baseline mean and standard deviation, a two-proportion z-score, and an <code>is_significant</code> verdict comparing any two windows. Each of those is a correct, useful number on its own.</p>
+<p>Every grading call DriftWatch's batch judge worker makes &mdash; the same worker Day 99 covered for its one-sample-at-a-time position-bias fix &mdash; is a real inference call to a real model, billed per token like any other LLM request. Day 98 already established that <code>judge_model</code> stays deliberately cheaper than <code>prod_model</code>, but "cheaper per call" and "cheap in aggregate" are different claims once a tenant is running thousands of graded samples a day.</p>
 
-<p>None of them is a chart. A dashboard built by wiring each one to its own Grafana gauge answers "what does signal 7 say right now" a dozen times over, and leaves the actual question &mdash; is this model still good, and is that changing &mdash; for a human to reconstruct by scanning all twelve.</p>
+<p>Nobody had put a number on that aggregate before today. The judge spend existed as a line item on an API bill, not as a figure anyone could set next to what the judge was actually buying.</p>
 
-<p>So what: a pile of correct numbers is not the same deliverable as a trend a reader can act on in one glance, and closing that gap is a design problem in its own right, not a side effect of already having the numbers.</p>
+<p>So what: a system can be provably cheap per unit and still be an open question in total &mdash; the aggregate is a different fact than the unit price, and only the aggregate answers whether the eval program is worth running at its current volume.</p>
 
-<h2 id="normalizing-the-hourly-mean-not-the-raw-score">Normalizing the Hourly Mean, Not the Raw Score</h2>
+<h2 id="roi-needs-a-cost-on-both-sides">ROI Needs a Cost on Both Sides</h2>
 
-<p>A raw judge score isn't directly comparable across tenants, because different tenants can run different rubrics with different pass thresholds. The quality-trend endpoint reuses the pass/fail bucketing DriftWatch's significance testing already established: each score becomes a 0 or a 1 relative to its own rubric's threshold, which puts every tenant's scores on the same scale before anything gets averaged.</p>
+<p>Judge spend is the easy half of the equation &mdash; it's a metered API cost, summed per tenant and per rubric over a billing window. The harder half is estimating what a bad deploy would have cost if nothing had caught it: a regression that ships to production, degrades output quality for some slice of traffic, and runs until a human notices or a rollback fires.</p>
 
-<p>Bucketing alone isn't enough to make a chart legible, though &mdash; a scatter of individual pass/fail points across a week is still too noisy to read a trend from. The endpoint rolls those bucketed values up into one mean per one-hour window per tenant, the same rolling-window discipline the 7-day baseline already applies, just at a finer, chart-ready granularity.</p>
+<p>DriftWatch already has the pieces this estimate needs, built across the last several days. Day 101's <code>is_significant</code> helper already distinguishes a real drop from noise; Day 100's rolling baseline already knows what "normal" looked like before a deploy; Day 97's rubric weighting already scores how far a regression falls from that baseline. Today's dashboard doesn't recompute any of that &mdash; it prices the drop <code>is_significant</code> already flagged, using the same severity signal the rubric already produces.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the fever chart at the foot of the bed</div>
-  A hospital patient's chart shows one continuous temperature line across days, not a wall of a dozen live vital-sign monitors each flashing an instantaneous reading. A nurse glancing at the fever chart spots a trend in one look &mdash; rising, falling, holding steady &mdash; that would take real effort to reconstruct by scanning twelve separate gauges, each showing a number with no visible history behind it.
+  <div class="attr-label">DS analogy &mdash; a smoke detector's battery versus a house fire</div>
+  A smoke detector's battery costs a few cents a day to keep charged, and most days it does nothing but sit there drawing that trickle of power. The number that actually justifies the battery isn't its daily cost in isolation &mdash; it's that cost set against the one day a fire starts and the detector catches it early enough that a small kitchen fire doesn't become a rebuilt kitchen. Judge spend is the battery's daily draw; a caught regression is the fire that didn't spread.
 </div>
 
-<p>So what: normalization and bucketing turn an incomparable pile of raw scores into one number per hour that's actually comparable across tenants and across time &mdash; the trend line, not the gauge wall, is what makes that comparison legible.</p>
+<p>So what: an ROI number only means something once both sides are priced in the same unit &mdash; a judge-spend total without a prevented-cost estimate next to it is half an equation dressed up as an answer.</p>
 
-<h2 id="why-the-api-pre-aggregates-instead-of-grafana">Why the API Pre-Aggregates Instead of Letting Grafana Do It</h2>
+<h2 id="pricing-the-drop-not-just-flagging-it">Pricing the Drop, Not Just Flagging It</h2>
 
-<p>The hourly bucketing could, in principle, happen inside Grafana itself: query the raw judge-score rows on every panel load and aggregate client-side. That approach repeats the same expensive scan on every dashboard refresh, for every viewer, against the full history of raw scores &mdash; work that produces the identical hourly mean every single time it runs.</p>
+<p>The dashboard's core move is turning <code>is_significant</code>'s binary flag into a dollar estimate. A statistically significant drop in pass rate, multiplied by the tenant's typical request volume for the affected window and a per-bad-response cost figure the tenant configures, produces an estimated cost of letting that regression ship uncaught.</p>
 
-<p><code>GET /tenants/{id}/quality-trend</code> computes that mean once per hour, per tenant, and serves the cached result, so a Grafana panel refreshing every thirty seconds is reading a small precomputed series instead of re-scanning raw rows on a timer.</p>
+<p>Subtract the judge spend that made the catch possible over the same window, and what's left is a single ROI number per tenant, per rubric, per time window &mdash; not a claim that the judge is universally worth it, but a specific, falsifiable answer for the exact traffic it's watching.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,51 +262,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  RAW["Raw judge scores"] --> BUCKET["Bucket pass/fail per rubric"]
-  BUCKET --> HOURLY["Roll up into hourly mean"]
-  HOURLY --> CACHE["Cache per tenant, per hour"]
-  CACHE --> API["quality-trend endpoint"]
-  API --> PANEL["Grafana panel plots line"]
+  DROP["Significant drop flagged"] --> PRICE["Price the prevented deploy"]
+  SPEND["Metered judge spend"] --> NET{"Subtract from prevented cost"}
+  PRICE --> NET
+  NET --> ROI["Per-tenant ROI number"]
+  ROI --> BOARD["Cost dashboard"]
 </pre>
 
-<div class="pullquote"><p>An aggregation that produces the same answer every time it runs shouldn't run every time it's asked &mdash; compute it once when the hour closes, and let every viewer read the same cached line.</p></div>
+<div class="pullquote"><p>A judge that never gets priced against what it prevents is a cost center by default &mdash; the dashboard is what lets it become a line item that pays for itself, provably, instead of one everyone just assumes is worth keeping.</p></div>
 
-<p>So what: pre-aggregation isn't just a performance optimization here, it's what makes the single-panel design actually cheap enough to be the default instead of a special case reserved for expensive dashboards.</p>
+<p>So what: pricing the drop instead of only flagging it is what turns a significance test into a business number a non-engineer can act on without re-deriving the statistics behind it.</p>
 
-<h2 id="one-line-is-the-interface-contract">One Line Is the Interface Contract</h2>
+<h2 id="what-the-dashboard-does-and-does-not-claim">What the Dashboard Does and Does Not Claim</h2>
 
-<p>The endpoint's response shape is deliberately narrow: one normalized value per hour, per tenant, nothing else. That narrowness is the point &mdash; it's what makes a single Grafana time-series panel the natural, almost the only, way to consume it, instead of leaving each dashboard to reinvent its own aggregation over a wider, rawer response.</p>
+<p>The per-bad-response cost figure behind the prevented-cost side of the equation is tenant-configured, not independently measured by DriftWatch &mdash; the dashboard prices a drop using whatever estimate the tenant supplies for what a bad response actually costs them. That makes the ROI number only as honest as the input it's given, which is a real limitation worth stating plainly rather than glossing over.</p>
 
-<p>Today's companion Experience post describes the identical shift from the infrastructure side: a WhiteFalcon Grafana folder built around dozens of tier-split panels needed exactly one combined range query, merging two tiers server-side, before a reviewer could read "are we slower than last week" off a single line instead of cross-referencing a wall of graphs.</p>
+<p>What the dashboard does provide, honestly, is the mechanism: a repeatable way to turn a statistically significant drop into a dollar estimate and net it against metered judge spend, on the same per-tenant, per-rubric grain the rest of DriftWatch already operates on.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Endpoint: GET /tenants/{id}/quality-trend</span></div>
-  <div class="stat-cell"><span class="stat-num">1h</span><span class="stat-label">Bucket granularity per tenant</span></div>
-  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Sample floor reused from Day 101</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Panel: quality trend, plotted directly</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Formula: prevented cost minus judge spend</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Inputs: significance flag, metered spend</span></div>
+  <div class="stat-cell"><span class="stat-num">Per-tenant</span><span class="stat-label">ROI grain, not a global average</span></div>
+  <div class="stat-cell"><span class="stat-num">Days 97&ndash;102</span><span class="stat-label">Signals this dashboard reuses, not recomputes</span></div>
 </div>
 
-<p class="prose-so-what"><strong>So what:</strong> a pile of correct per-signal numbers and a chart someone can act on are two different deliverables, and pre-aggregating a single normalized value server-side is what turns the first into the second without pushing that cost onto every dashboard viewer. Whether the merge is two Grafana tiers becoming one WhiteFalcon trend line, as today's companion Experience post covers, or a dozen judge-score signals becoming one quality-trend line, the same rule holds: push the aggregation into the API, and let the chart stay at one line, one question.</p>
+<p>Today's companion Experience post covers the same shape of problem from the infrastructure side: a shared Wayfair GCP bill that had to be split along the namespace boundary the system already drew, rather than divided evenly or re-tagged from scratch. The judge-spend side of today's ROI formula is the same discipline &mdash; attribute cost along the boundary DriftWatch already tracks (tenant, rubric) instead of reporting one undifferentiated total.</p>
+
+<p class="prose-so-what"><strong>So what:</strong> a cost dashboard completes the FinOps story only when both sides of the ledger are priced in the same terms &mdash; what the judge cost to run, and what it would have cost not to run it. Whether that ledger is a Kubernetes namespace splitting a shared GCP bill, as today's companion post covers, or a tenant's judge spend set against a prevented-deploy estimate, the same rule closes the loop: a number that isn't priced against its alternative isn't an ROI number yet, just a cost.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 102 of 150 &mdash; Quality Time Series — Dashboard Design</p>
-  <p><em>Next up:</em> <a href="day-103-eval-economics-when-judges-pay-off.html">Day 103 — Eval Economics — When Judges Pay Off</a></p>
+  <p>AI Learning &middot; Day 103 of 150 &mdash; Eval Economics — When Judges Pay Off</p>
+  <p><em>Next up:</em> Day 104 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 101 — Hypothesis Testing for Model Drops (yesterday's post — the pass/fail bucketing this endpoint reuses)</span>
+      <span>Day 102 — Quality Time Series — Dashboard Design (yesterday's post — the trend line this cost dashboard sits alongside)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching (vLLM) — the series' GOLD post this one was drafted against for depth and structure</span>
+      <span>Day 98 — Judge Model Selection — Cost vs Capability (the per-call cost discipline this post's aggregate builds on)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-102-executive-dashboards-one-chart-one-question.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-103-finops-at-scale-token-cost-visibility.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 102 — Executive Dashboards — One Chart, One Question (today's companion Experience post)</span>
+      <span>Day 103 — FinOps at Scale — Token Cost Visibility (today's companion Experience post)</span>
     </a>
   </div>
 </div>
@@ -317,21 +319,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#twelve-gauges-dont-answer-is-the-model-still-good">Twelve Gauges Aren't a Chart</a></li>
-      <li><a href="#normalizing-the-hourly-mean-not-the-raw-score">Normalizing the Hourly Mean</a></li>
-      <li><a href="#why-the-api-pre-aggregates-instead-of-grafana">Why the API Pre-Aggregates</a></li>
-      <li><a href="#one-line-is-the-interface-contract">One Line Is the Contract</a></li>
+      <li><a href="#a-judge-call-is-not-free">A Judge Call Is Not Free</a></li>
+      <li><a href="#roi-needs-a-cost-on-both-sides">ROI Needs Both Sides Priced</a></li>
+      <li><a href="#pricing-the-drop-not-just-flagging-it">Pricing the Drop</a></li>
+      <li><a href="#what-the-dashboard-does-and-does-not-claim">What the Dashboard Claims</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-102-quality-time-series-dashboard-design.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-103-eval-economics-when-judges-pay-off.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Quality+Time+Series+%E2%80%94+Dashboard+Design+%C2%B7+AI+Learning+Day+102&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-102-quality-time-series-dashboard-design.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Eval+Economics+%E2%80%94+When+Judges+Pay+Off+%C2%B7+AI+Learning+Day+103&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-103-eval-economics-when-judges-pay-off.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -344,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D101</span> AI Learning</div>
-          <a href="day-101-hypothesis-testing-for-model-drops.html" class="series-post-title">Hypothesis Testing for Model Drops</a>
+          <div class="series-post-kicker"><span class="series-post-num">D102</span> AI Learning</div>
+          <a href="day-102-quality-time-series-dashboard-design.html" class="series-post-title">Quality Time Series — Dashboard Design</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D102</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Quality Time Series — Dashboard Design</div>
-          <div class="series-post-desc">Twelve gauges show everything and answer nothing.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D103</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Eval Economics — When Judges Pay Off</div>
+          <div class="series-post-desc">ROI = prevented bad-deploy cost minus judge spend.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D103</span> AI Learning</div>
-          <a href="day-103-eval-economics-when-judges-pay-off.html" class="series-post-title">Eval Economics — When Judges Pay Off</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D104</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
