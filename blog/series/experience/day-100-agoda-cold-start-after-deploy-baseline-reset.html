@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 99 &mdash; LLM Eval Bias &mdash; Position and Length Effects | AI Learning Series</title>
-<meta name="description" content="A judge model's score can move for reasons that have nothing to do with response quality — which candidate came first in the prompt, and how long the response ran. Known biases require blind ordering and an explicit instruction against treating length as thoroughness.">
-<meta property="og:title" content="Day 99 &mdash; LLM Eval Bias &mdash; Position and Length Effects">
-<meta property="og:description" content="A rubric with well-chosen weighted criteria and a consistent cheap judge model are necessary but not sufficient — the judge can be scoring the presentation of an answer instead of its substance, and neither failure mode shows up as a crash.">
+<title>Day 100 &mdash; Agoda Cold Start After Deploy &mdash; Baseline Reset | Experience Series</title>
+<meta name="description" content="A cross-tier query engine extension adds a real histogram-fetch-and-merge cost to every query the moment it ships. A rolling baseline that blends pre-deploy and post-deploy readings can't tell that shift from a regression until the window ages past the deploy.">
+<meta property="og:title" content="Day 100 &mdash; Agoda Cold Start After Deploy &mdash; Baseline Reset">
+<meta property="og:description" content="A new binary changes what normal looks like the moment it ships. A baseline computed as a rolling average across the deploy boundary can't tell that on purpose — it just sees numbers that don't match what it remembers, until enough new numbers arrive to replace the memory.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-99-llm-eval-bias-position-and-length-effects.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-100-agoda-cold-start-after-deploy-baseline-reset.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-100-agoda-cold-start-after-deploy-baseline-reset.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-99-llm-eval-bias-position-and-length-effects.png">
-<meta property="article:published_time" content="2026-08-13">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-100-agoda-cold-start-after-deploy-baseline-reset.png">
+<meta property="article:published_time" content="2026-08-14">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,60 +185,64 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 99 of 150</span>
-    <span class="tag">Evaluation</span>
-    <span class="tag">Bias</span>
-    <span class="tag">DriftWatch</span>
+    <span class="tag accent">Experience &middot; Day 100 of 150</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Alerting</span>
+    <span class="tag">WhiteFalcon TSDB</span>
   </div>
-  <h1 class="post-title">Day 99 &mdash; LLM Eval Bias &mdash; Position and Length Effects</h1>
-  <p class="post-subtitle">A rubric with well-chosen criteria and a consistent cheap judge model are necessary but not sufficient — the judge can be scoring where an answer sat and how long it ran, instead of what it actually said.</p>
+  <h1 class="post-title">Day 100 &mdash; Agoda Cold Start After Deploy &mdash; Baseline Reset</h1>
+  <p class="post-subtitle">A new binary can shift query latency by tens of milliseconds the moment it ships — and an alert comparing today's numbers to a baseline that still remembers the old binary will keep firing until enough new data arrives to replace that memory.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 99 of 150</span>
+    <span class="meta-item">Experience &middot; Day 100 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 13, 2026</span>
+    <span class="meta-item">August 14, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-99-llm-eval-bias-position-and-length-effects.png" alt="Day 99 — LLM Eval Bias — Position and Length Effects" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-100-agoda-cold-start-after-deploy-baseline-reset.png" alt="Day 100 — Agoda Cold Start After Deploy — Baseline Reset" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Randomize A/B order in judge prompt. Day 97 and Day 98 built the machinery to grade a response cheaply and consistently: a versioned rubric with weighted criteria, and a cheap judge model chosen because grading is classification, not generation. Today's post is about a failure mode that machinery doesn't protect against on its own — a judge model's score can move for reasons that have nothing to do with the response's actual quality.</p>
+<p>At Agoda I spent about five months on WhiteFalcon, the in-house time-series database Agoda's team built on Kafka ingest, a RoaringBitmap inverted index, and a Scala query engine that Grafana talks to for dashboards and alerts. My own contribution was the cross-tier query engine extension: teaching that Scala layer to serve a single query across a time range spanning the Redis hot tier and the S3/Parquet cold tier, instead of forcing the caller to run two queries and merge the results by hand.</p>
 
-<h2 id="when-order-becomes-a-variable">When Order Becomes a Variable</h2>
+<p>Before that extension existed, a query touching only the hot tier fetched one histogram of bucket counts and computed a percentile once. After it shipped, a query crossing the hot/cold boundary fetched two histograms — one from Redis, one from S3 — merged the bucket counts together, then computed the percentile once on the combined distribution. That's a real, documented change to the query path the moment the new binary went live, not an incidental side effect.</p>
 
-<p>Position bias is well documented in LLM-as-judge research: when a judge is shown two candidate responses side by side and asked which is better, it measurably favors whichever candidate appears first in the prompt, independent of which one is actually better. The judge isn't malfunctioning in any way that shows up as an error — it answers confidently every time. It's just answering a question that includes "which slot did this response land in" as a hidden input alongside "how good is this response," without anyone asking it to.</p>
-
-<p><code>llm-judge-eval</code>'s async judge worker (Phase 2A) sidesteps this specific risk today by construction, not by defending against it directly. <code>BuildBatchPrompt</code> grades each sample independently inside a batch — one score per <code>request_id</code>, never a comparison between two candidates in the same call — so there is no "first" or "second" position for today's judge call to be biased by.</p>
-
-<h2 id="sidestepping-isnt-solving">Sidestepping Isn't the Same as Solving</h2>
-
-<p>That's a real property of today's design, but it's a property of scope, not a fix for the underlying mechanism. <code>Sample.ModelID</code> already carries the field that would identify which side of a comparison a response came from — production or shadow — because the worker is built to grade a shadow response the moment one exists (Day 93's still-open <code>shadow_model_id</code> gap notwithstanding).</p>
-
-<p>The moment a future day adds a true side-by-side comparison — production and shadow response judged together in one prompt, instead of independently as today's batches do — the ordering of the two inside that prompt becomes a variable the judge's score responds to. Randomizing which side appears first, per call, is what keeps that future comparison honest.</p>
-
-<h2 id="length-as-a-stand-in-for-quality">Length as a Stand-in for Quality</h2>
-
-<p>A second, equally well-documented effect: judges, cheap ones especially, measurably correlate "longer" with "more thorough," inflating scores for verbose responses independent of what a rubric's criteria actually weight. <code>rubric.Criterion.Description</code> names what should matter — resolution correctness, factual grounding, whatever the <code>task_type</code> calls for — but naming a criterion doesn't structurally stop length from leaking into how the judge reads it.</p>
-
-<p><code>BuildBatchPrompt</code> doesn't yet instruct the judge against treating length as a proxy for thoroughness. That's a real, current gap in today's prompt, worth naming plainly rather than fixing quietly off-page and letting the post imply otherwise.</p>
-
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the resume screener and the stack</div>
-  A hiring screener reading through a stack of ten resumes rates the first one they read slightly higher than an identical resume shown fifth, and mistakes a two-page resume for a stronger candidate than an equally qualified one-page resume. The screener isn't lying about the score they give — the score is responding to where the resume sat in the stack and how many pages it ran, as much as to what the resume actually said.
+<div class="attr-box team">
+  <div class="attr-label">Scope note &mdash; Agoda, WhiteFalcon TSDB</div>
+  My role is documented directly: Senior Engineer on WhiteFalcon for roughly five months (Apr&ndash;Sep 2024), where I extended the Scala query engine's cross-tier quantile merge &mdash; fetching histogram bucket counts from both Redis and S3/Parquet, merging them, then computing the percentile once on the combined distribution. What follows is the general shape of a problem that kind of deploy structurally creates for anything watching query latency: the extra histogram fetch and merge step is a real change to the code path, not a specific dated incident, page, or dollar figure my sources don't itemize.
 </div>
+
+<h2 id="a-deploy-changes-the-shape-of-the-signal">A Deploy Changes the Shape of the Signal</h2>
+
+<p>The Scala query engine reports its own latency continuously, and Grafana panels built on top of that signal don't know anything about what changed inside the binary between one deploy and the next. The moment the cross-tier merge logic went live, every query spanning the hot/cold boundary started paying for two fetches and a merge step that single-tier queries never paid for. That's not a bug — it's the new binary doing exactly what it was built to do — but the latency distribution it reports genuinely moved.</p>
+
+<p>Picture a bathroom scale that keeps a rolling seven-day average instead of showing one raw number, specifically so a single heavy dinner doesn't read as a real weight gain. The day you switch from weighing yourself right after waking up to weighing yourself after dinner, every number the scale reports afterward is honestly different from before — not because your weight changed, but because what's being measured changed, and the rolling average hasn't finished absorbing the new normal yet.</p>
+
+<p>So what: a deploy that changes a system's latency profile isn't automatically a regression, but a rolling average watching that latency has no way to know the difference between "this is worse" and "this is just what normal looks like now."</p>
+
+<h2 id="what-a-baseline-driven-alert-cant-tell">What a Baseline-Driven Alert Can't Tell</h2>
+
+<p>An alert built on top of that latency series has one job: decide whether today's reading is anomalous relative to what it has recently seen. Scoped honestly to what a Grafana-connected query-latency panel can actually see, that job doesn't include knowing a deploy happened at a specific timestamp — it only sees a stream of numbers before and after, blended together in whatever window the alert's baseline uses.</p>
+
+<p>The moment the underlying binary's latency profile takes a real, permanent step up — the two-fetch-merge cost is now just how cross-tier queries work — the alert can't distinguish "this is the new normal" from "this is degrading." Both look identical from inside a rolling window that spans the deploy boundary: a run of readings that don't match what the window remembers.</p>
+
+<p>So what: an alert that only ever sees a blended window has no structural way to separate a deploy-caused step change from an actual regression, no matter how well-tuned its threshold is.</p>
+
+<h2 id="the-root-cause-is-the-baselines-memory-not-the-deploy">The Root Cause Is the Baseline's Memory, Not the Deploy</h2>
+
+<p>The deploy itself isn't the root cause here — shipping code that changes a system's latency profile is expected and, in this case, was the entire point of the change. The root cause is a baseline computed as a rolling window that blends pre-deploy and post-deploy readings together without ever being told a step change happened at a specific point in that window.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -258,42 +262,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  PAIR["Paired responses"] --> PROMPT["Judge prompt"]
-  ORDER["Response order"] -.-> PROMPT
-  LEN["Response length"] -.-> PROMPT
-  RUBRIC["Rubric criteria"] --> PROMPT
-  PROMPT --> SCORE["Judge score"]
+  DEPLOY["New binary ships"] --> SHIFT["Latency profile shifts"]
+  SHIFT --> WINDOW["Rolling baseline mixes old and new"]
+  WINDOW --> DECIDE{"Alert compares to baseline"}
+  DECIDE -->|"window still mixed"| MISFIRE["Alert fires on stale baseline"]
+  DECIDE -->|"warmup window active"| HOLD["Hold, wait for baseline to age"]
 </pre>
 
-<p>Two of those four inputs are the ones the rubric was designed to be scored on. The other two were never supposed to matter, and nothing about a well-weighted rubric or a consistent judge model stops them from mattering anyway unless the prompt is built to rule them out on purpose.</p>
+<div class="pullquote"><p>A baseline that blends pre-deploy and post-deploy readings into one number isn't lying — it's answering a question ("is today's reading unusual") with an average that was never told the ground it's standing on just moved.</p></div>
 
-<div class="pullquote"><p>A judge that answers confidently every time and a judge that answers correctly every time are two different claims — and position bias, length bias, neither one ever shows up as an error that would tell you which claim you actually have.</p></div>
+<p>So what: fixing the wrong layer — tuning the threshold, or silencing the alert until it "settles" — treats the symptom, because the underlying window keeps mixing two different regimes of normal until enough time passes for the deploy-era readings to age out on their own.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> a rubric with well-chosen weighted criteria and a consistent cheap judge model are necessary but not sufficient — the judge can be scoring the presentation of an answer instead of its substance, and neither position bias nor length bias ever shows up as a crash or a parse error. The fix isn't a bigger judge model; it's structural, the same lesson Day 96's sampling-bias post already applied to a different pipeline: randomize any future pairwise ordering, and instruct explicitly against treating length as quality, rather than hoping the model corrects for either one on its own.</p>
+<h2 id="the-fix-is-a-warmup-window-not-a-quieter-alert">The Fix Is a Warmup Window, Not a Quieter Alert</h2>
+
+<p>The structural fix is telling the alerting layer, explicitly, not to trust comparisons against the baseline until enough post-deploy data exists for that baseline to honestly represent the new normal — a warmup window keyed to the deploy timestamp itself, not a vague "give it some time" instinct. Until that window closes, the alert holds; once it closes, the baseline it's comparing against was actually computed from the binary that's currently running.</p>
+
+<p>Today's <code>llm-judge-eval</code> rolling-baseline work (Phase 2A) builds exactly this discipline for a different signal: a per-segment 7-day rolling mean and standard deviation of judge scores, feeding a check that alerts when a 24-hour window's mean drops more than two standard deviations below that baseline. The same cold-start problem applies the moment the scoring pipeline's own model or prompt changes — a 7-day rolling baseline computed straight through that change quietly blends old-model and new-model scores into one number that describes neither regime honestly, and the alert either misfires on drift that never happened or, worse, goes quiet on real drift hiding inside a muddied average.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">1.5T+</span><span class="stat-label">Events/day into WhiteFalcon</span></div>
+  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">Hot-tier retention window</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Histogram fetches per cross-tier query</span></div>
+  <div class="stat-cell"><span class="stat-num">7d</span><span class="stat-label">Today's rolling baseline window</span></div>
+</div>
+
+<p class="prose-so-what"><strong>So what:</strong> a deploy that changes a system's real behavior isn't the problem — a baseline with no memory of when that change happened is. Whether the signal is WhiteFalcon query latency after a cross-tier merge extension ships, or a judge model's score after the scoring pipeline itself changes, the same guardrail applies: give the rolling window an explicit warmup period after a deploy before letting it arm alerts, instead of asking a threshold to somehow already know the difference between a regression and a new normal.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 99 of 150 &mdash; LLM Eval Bias — Position and Length Effects</p>
-  <p><em>Next up:</em> <a href="day-100-rolling-baselines-non-stationary-series.html">Day 100 &mdash; Rolling Baselines — Non-Stationary Series</a></p>
+  <p>Experience &middot; Day 100 of 150 &mdash; Agoda Cold Start After Deploy — Baseline Reset</p>
+  <p><em>Next up:</em> Day 101 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 98 — Judge Model Selection — Cost vs Capability (yesterday's post — the judge model this post's biases apply to)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-96-shadow-traffic-ethics-and-sampling-bias.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 96 — Shadow Traffic — Ethics and Sampling Bias (same "structural fix, not model self-correction" lesson, a different pipeline)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching (vLLM) — the series' GOLD post this one was drafted against for depth and structure</span>
+      <span>When Percentiles Lie — Cross-Tier Queries (the cross-tier merge extension this post's latency shift comes from)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 99 — Using GPT to Grade GPT — BrowserStack Skepticism (today's companion Experience post)</span>
+      <span>Day 99 — Using GPT to Grade GPT — BrowserStack Skepticism (yesterday's post — a different automated verdict, the same audit discipline)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 100 — Rolling Baselines — Non-Stationary Series (today's companion AI Learning post)</span>
     </a>
   </div>
 </div>
@@ -304,20 +317,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#when-order-becomes-a-variable">When Order Becomes a Variable</a></li>
-      <li><a href="#sidestepping-isnt-solving">Sidestepping Isn't Solving</a></li>
-      <li><a href="#length-as-a-stand-in-for-quality">Length as a Stand-in</a></li>
+      <li><a href="#a-deploy-changes-the-shape-of-the-signal">A Deploy Changes the Signal</a></li>
+      <li><a href="#what-a-baseline-driven-alert-cant-tell">What a Baseline Alert Can't Tell</a></li>
+      <li><a href="#the-root-cause-is-the-baselines-memory-not-the-deploy">The Baseline's Memory</a></li>
+      <li><a href="#the-fix-is-a-warmup-window-not-a-quieter-alert">The Fix Is a Warmup Window</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-99-llm-eval-bias-position-and-length-effects.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-100-agoda-cold-start-after-deploy-baseline-reset.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=LLM+Eval+Bias+%E2%80%94+Position+and+Length+Effects+%C2%B7+AI+Learning+Day+99&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-99-llm-eval-bias-position-and-length-effects.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Agoda+Cold+Start+After+Deploy+%E2%80%94+Baseline+Reset+%C2%B7+Day+100&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-100-agoda-cold-start-after-deploy-baseline-reset.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -326,21 +340,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D98</span> AI Learning</div>
-          <a href="day-98-judge-model-selection-cost-vs-capability.html" class="series-post-title">Judge Model Selection — Cost vs Capability</a>
+          <div class="series-post-kicker"><span class="series-post-num">D99</span> Experience</div>
+          <a href="day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html" class="series-post-title">Using GPT to Grade GPT — BrowserStack Skepticism</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D99</span> AI Learning &middot; now</div>
-          <div class="series-post-title">LLM Eval Bias — Position and Length Effects</div>
-          <div class="series-post-desc">A confident score isn't proof of a correct one.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D100</span> Experience &middot; now</div>
+          <div class="series-post-title">Agoda Cold Start After Deploy — Baseline Reset</div>
+          <div class="series-post-desc">A deploy changes what normal looks like before the baseline catches up.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D100</span> AI Learning</div>
-          <a href="day-100-rolling-baselines-non-stationary-series.html" class="series-post-title">Rolling Baselines — Non-Stationary Series</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D101</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
