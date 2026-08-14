@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 103 &mdash; Eval Economics &mdash; When Judges Pay Off | AI Learning Series</title>
-<meta name="description" content="A judge model costs money every time it runs. Today's cost dashboard for llm-judge-eval sets that spend against the cost of a bad deploy it prevented, so DriftWatch's ROI is a number instead of an assumption.">
-<meta property="og:title" content="Day 103 &mdash; Eval Economics — When Judges Pay Off">
-<meta property="og:description" content="ROI = prevented bad-deploy cost minus judge spend. Today's dashboard turns that formula from a slide into a per-tenant, per-rubric number DriftWatch can actually show.">
+<title>Day 104 &mdash; CUSUM in Manufacturing IoT &mdash; Walmart Inspiration | Experience Series</title>
+<meta name="description" content="At Walmart Labs' WeIoT SmartBuildings platform, a real-time HVAC control loop reacted correctly to every single reading and still missed slow equipment drift for days. The fix wasn't a better threshold — it was accumulating small deviations the way a control chart does.">
+<meta property="og:title" content="Day 104 &mdash; CUSUM in Manufacturing IoT &mdash; Walmart Inspiration">
+<meta property="og:description" content="A control loop asks whether right now is fine. A control chart asks whether the last several readings, taken together, stopped being fine days before any single one crossed a line.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-103-eval-economics-when-judges-pay-off.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-103-eval-economics-when-judges-pay-off.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-104-cusum-control-charts-walmart-hvac-drift.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-104-cusum-control-charts-walmart-hvac-drift.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-103-eval-economics-when-judges-pay-off.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-104-cusum-control-charts-walmart-hvac-drift.png">
 <meta property="article:published_time" content="2026-08-14">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,64 +185,61 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 103 of 150</span>
-    <span class="tag">Eval Economics</span>
-    <span class="tag">FinOps</span>
-    <span class="tag">DriftWatch</span>
+    <span class="tag accent">Experience &middot; Day 104 of 150</span>
+    <span class="tag">Walmart Labs</span>
+    <span class="tag">SPC</span>
+    <span class="tag">IoT</span>
   </div>
-  <h1 class="post-title">Day 103 &mdash; Eval Economics — When Judges Pay Off</h1>
-  <p class="post-subtitle">A judge model costs real money every time it grades a response &mdash; today's cost dashboard sets that spend against the cost of the bad deploy it prevented, so ROI is a number instead of an assumption.</p>
+  <h1 class="post-title">Day 104 &mdash; CUSUM in Manufacturing IoT &mdash; Walmart Inspiration</h1>
+  <p class="post-subtitle">A real-time HVAC control loop reacted correctly to every single sensor reading it ever saw &mdash; and still couldn't tell a slow equipment drift from ordinary noise until the drift was already severe.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 103 of 150</span>
+    <span class="meta-item">Experience &middot; Day 104 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 14, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-103-eval-economics-when-judges-pay-off.png" alt="Day 103 — Eval Economics — When Judges Pay Off" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-104-cusum-control-charts-walmart-hvac-drift.png" alt="Day 104 — CUSUM in Manufacturing IoT — Walmart Inspiration" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Cost dashboard completes FinOps story. That's the whole arc this week has been building toward: normalize the scores (Day 100), test whether a drop is real (Day 101), plot the trend in one line (Day 102), and now put a dollar figure next to that trend so the question stops being "is the judge working" and starts being "is the judge worth what it costs." Today's <code>llm-judge-eval</code> work (Phase 2A) adds a cost dashboard to DriftWatch that sets per-tenant, per-rubric judge spend against the estimated cost of the bad deploys that spend caught.</p>
+<p>At Walmart Labs, the WeIoT SmartBuildings platform I helped build ran real-time HVAC control loops on Azure Stream Analytics across more than 7 million sensors spread over 50-plus facilities, ingesting tens of millions of telemetry points a minute through Azure IoT Hub. The control loop's job was narrow and well-defined: given right now's readings, decide whether to run a compressor harder, ease off, or hold steady. That question only ever needed the current instant &mdash; and answering it correctly, every time, was still not the same job as noticing a compressor quietly losing efficiency over the following two weeks.</p>
 
-<h2 id="a-judge-call-is-not-free">A Judge Call Is Not Free</h2>
-
-<p>Every grading call DriftWatch's batch judge worker makes &mdash; the same worker Day 99 covered for its one-sample-at-a-time position-bias fix &mdash; is a real inference call to a real model, billed per token like any other LLM request. Day 98 already established that <code>judge_model</code> stays deliberately cheaper than <code>prod_model</code>, but "cheaper per call" and "cheap in aggregate" are different claims once a tenant is running thousands of graded samples a day.</p>
-
-<p>Nobody had put a number on that aggregate before today. The judge spend existed as a line item on an API bill, not as a figure anyone could set next to what the judge was actually buying.</p>
-
-<p>So what: a system can be provably cheap per unit and still be an open question in total &mdash; the aggregate is a different fact than the unit price, and only the aggregate answers whether the eval program is worth running at its current volume.</p>
-
-<h2 id="roi-needs-a-cost-on-both-sides">ROI Needs a Cost on Both Sides</h2>
-
-<p>Judge spend is the easy half of the equation &mdash; it's a metered API cost, summed per tenant and per rubric over a billing window. The harder half is estimating what a bad deploy would have cost if nothing had caught it: a regression that ships to production, degrades output quality for some slice of traffic, and runs until a human notices or a rollback fires.</p>
-
-<p>DriftWatch already has the pieces this estimate needs, built across the last several days. Day 101's <code>is_significant</code> helper already distinguishes a real drop from noise; Day 100's rolling baseline already knows what "normal" looked like before a deploy; Day 97's rubric weighting already scores how far a regression falls from that baseline. Today's dashboard doesn't recompute any of that &mdash; it prices the drop <code>is_significant</code> already flagged, using the same severity signal the rubric already produces.</p>
-
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a smoke detector's battery versus a house fire</div>
-  A smoke detector's battery costs a few cents a day to keep charged, and most days it does nothing but sit there drawing that trickle of power. The number that actually justifies the battery isn't its daily cost in isolation &mdash; it's that cost set against the one day a fire starts and the detector catches it early enough that a small kitchen fire doesn't become a rebuilt kitchen. Judge spend is the battery's daily draw; a caught regression is the fire that didn't spread.
+<div class="attr-box team">
+  <div class="attr-label">Scope note &mdash; Walmart Labs, WeIoT SmartBuildings</div>
+  My resume documents the platform and scale directly: "7M+ sensors, tens of millions of telemetry points/min: Architected WeIoT SmartBuildings ingestion layer on Azure IoT Hub; engineered real-time HVAC control loops via Azure Stream Analytics automating energy optimisation across 50+ global facilities." What follows is the general shape of a problem that architecture structurally invites &mdash; a control loop built to react to the current reading has no built-in way to notice a slow trend across many readings &mdash; not a specific dated incident or a named piece of equipment my resume doesn't itemize.
 </div>
 
-<p>So what: an ROI number only means something once both sides are priced in the same unit &mdash; a judge-spend total without a prevented-cost estimate next to it is half an equation dressed up as an answer.</p>
+<h2 id="a-control-loop-answers-is-now-fine">A Control Loop Answers "Is Now Fine," Not "Was the Trend Fine"</h2>
 
-<h2 id="pricing-the-drop-not-just-flagging-it">Pricing the Drop, Not Just Flagging It</h2>
+<p>A real-time control decision has to be made from the current window of readings, joined against setpoint, occupancy, and outdoor conditions &mdash; Day 98's post on this same platform already covers why that join across signals beats any single metric at one instant. That join answers "should the compressor run harder right now," and it answers it correctly using only what the sensors reported this minute.</p>
 
-<p>The dashboard's core move is turning <code>is_significant</code>'s binary flag into a dollar estimate. A statistically significant drop in pass rate, multiplied by the tenant's typical request volume for the affected window and a per-bad-response cost figure the tenant configures, produces an estimated cost of letting that regression ship uncaught.</p>
+<p>A slowly failing compressor, or a filter clogging over several weeks, rarely produces a single instant that looks wrong. Each individual reading still falls inside a normal-looking range for that time of day and that occupancy level; the control loop reacts correctly to every one of them and keeps the room comfortable the whole time it's happening.</p>
 
-<p>Subtract the judge spend that made the catch possible over the same window, and what's left is a single ROI number per tenant, per rubric, per time window &mdash; not a claim that the judge is universally worth it, but a specific, falsifiable answer for the exact traffic it's watching.</p>
+<p>So what: a system that is provably correct at answering "is this instant fine" can still be structurally blind to a question it was never asked &mdash; "has the last two weeks, taken together, stopped looking like the two weeks before it."</p>
+
+<h2 id="the-gap-between-two-fine-readings">The Gap Between Two Fine Readings</h2>
+
+<p>This is exactly the blind spot statistical process control was invented for, decades before it had anything to do with software: a manufacturing line where no single measured part is out of spec, but the measurements have been drifting in one direction for the last twenty parts in a row. A single-point check, run fresh on every new reading, throws away everything it learned from the readings before it &mdash; it has no memory, so a trend built from many small, individually-unremarkable deviations never trips it.</p>
+
+<p>A control chart fixes that by keeping a running sum instead of a fresh verdict each time: every new reading nudges an accumulated statistic up or down relative to what's expected, and the chart alarms when that accumulated statistic &mdash; not any single reading &mdash; crosses a threshold. A handful of readings a little warm, a little dim, a little slow, none of them alarming alone, becomes visible once their small deviations are added together instead of discarded after each check.</p>
+
+<div class="attr-box mine">
+  <div class="attr-label">Why "days before a ticket" is the honest framing</div>
+  A ticket typically gets filed once a reading is bad enough on its own to notice &mdash; by definition, the point where a single-instant check would finally catch it too. A control chart's whole value is in the days before that point, while every individual reading still looks fine in isolation and only the accumulated trend says otherwise.
+</div>
 
 <pre class="mermaid">
 %%{init: {
@@ -262,53 +259,52 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  DROP["Significant drop flagged"] --> PRICE["Price the prevented deploy"]
-  SPEND["Metered judge spend"] --> NET{"Subtract from prevented cost"}
-  PRICE --> NET
-  NET --> ROI["Per-tenant ROI number"]
-  ROI --> BOARD["Cost dashboard"]
+  R["New sensor reading"] --> CL["Control loop: react now"]
+  R --> CC["Control chart: accumulate"]
+  CL --> NOW["Compressor adjusted"]
+  CC --> SUM{"Running sum past threshold?"}
+  SUM -->|"not yet"| CC
+  SUM -->|"yes"| FLAG["Sustained drift flagged"]
 </pre>
 
-<div class="pullquote"><p>A judge that never gets priced against what it prevents is a cost center by default &mdash; the dashboard is what lets it become a line item that pays for itself, provably, instead of one everyone just assumes is worth keeping.</p></div>
+<p>So what: the control loop and the control chart are reading the exact same sensor stream and asking two genuinely different questions &mdash; one of them has no memory by design, and the other exists specifically to have one.</p>
 
-<p>So what: pricing the drop instead of only flagging it is what turns a significance test into a business number a non-engineer can act on without re-deriving the statistics behind it.</p>
+<h2 id="the-same-shape-in-todays-design">The Same Shape in Today's Design</h2>
 
-<h2 id="what-the-dashboard-does-and-does-not-claim">What the Dashboard Does and Does Not Claim</h2>
+<p>Today's <code>drift-detector</code> DESIGN.md (Phase 2A) designs the same accumulate-instead-of-check-once discipline for DriftWatch's judge scores instead of HVAC telemetry. <code>llm-judge-eval</code>'s existing z-test (Day 97) and mean-drop alert (Day 100) are both single-window checks &mdash; correct, but memoryless in exactly the way the HVAC control loop is: a shift too small to trip either one in any single window can still be real if it persists.</p>
 
-<p>The per-bad-response cost figure behind the prevented-cost side of the equation is tenant-configured, not independently measured by DriftWatch &mdash; the dashboard prices a drop using whatever estimate the tenant supplies for what a bad response actually costs them. That makes the ROI number only as honest as the input it's given, which is a real limitation worth stating plainly rather than glossing over.</p>
-
-<p>What the dashboard does provide, honestly, is the mechanism: a repeatable way to turn a statistically significant drop into a dollar estimate and net it against metered judge spend, on the same per-tenant, per-rubric grain the rest of DriftWatch already operates on.</p>
+<p>The CUSUM design brings the same running-sum idea into that pipeline: normalize each hourly window's score against its segment's rolling baseline, accumulate the deviation, and alarm only once the accumulated sum &mdash; not any one window &mdash; crosses a threshold. The segment here is a <code>(task_type, model_id)</code> pair instead of a facility's HVAC zone, but the underlying question is identical: did the last several readings, taken together, stop looking like normal.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Formula: prevented cost minus judge spend</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Inputs: significance flag, metered spend</span></div>
-  <div class="stat-cell"><span class="stat-num">Per-tenant</span><span class="stat-label">ROI grain, not a global average</span></div>
-  <div class="stat-cell"><span class="stat-num">Days 97&ndash;102</span><span class="stat-label">Signals this dashboard reuses, not recomputes</span></div>
+  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors on Azure IoT Hub</span></div>
+  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Instant a control loop reacts to</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Windows before today's CUSUM trusts an alarm</span></div>
 </div>
 
-<p>Today's companion Experience post covers the same shape of problem from the infrastructure side: a shared Wayfair GCP bill that had to be split along the namespace boundary the system already drew, rather than divided evenly or re-tagged from scratch. The judge-spend side of today's ROI formula is the same discipline &mdash; attribute cost along the boundary DriftWatch already tracks (tenant, rubric) instead of reporting one undifferentiated total.</p>
+<div class="pullquote"><p>A control loop with no memory isn't a design flaw &mdash; it's correct for the job of reacting to now. The flaw is expecting that same memoryless check to also notice a trend, which is a different job that needs a chart built to remember.</p></div>
 
-<p class="prose-so-what"><strong>So what:</strong> a cost dashboard completes the FinOps story only when both sides of the ledger are priced in the same terms &mdash; what the judge cost to run, and what it would have cost not to run it. Whether that ledger is a Kubernetes namespace splitting a shared GCP bill, as today's companion post covers, or a tenant's judge spend set against a prevented-deploy estimate, the same rule closes the loop: a number that isn't priced against its alternative isn't an ROI number yet, just a cost.</p>
+<p class="prose-so-what"><strong>So what:</strong> a real-time control loop and a drift detector can watch the exact same stream of readings and still need two different mechanisms, because "react correctly to this instant" and "notice a trend across many instants" are not the same question and a system built to answer one well has no reason to be good at the other. Whether the readings are HVAC sensors across 50-plus Walmart facilities or hourly judge-score windows across a DriftWatch segment, the fix is the same: keep a running sum, not just a fresh verdict, and let the accumulated evidence be what crosses the line.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 103 of 150 &mdash; Eval Economics — When Judges Pay Off</p>
-  <p><em>Next up:</em> <a href="day-104-cusum-detecting-sustained-shifts.html">Day 104 — CUSUM — Detecting Sustained Shifts</a></p>
+  <p>Experience &middot; Day 104 of 150 &mdash; CUSUM in Manufacturing IoT — Walmart Inspiration</p>
+  <p><em>Next up:</em> Day 105 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-98-walmart-rubric-less-alerts-why-thresholds-failed-iot.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 102 — Quality Time Series — Dashboard Design (yesterday's post — the trend line this cost dashboard sits alongside)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 98 — Judge Model Selection — Cost vs Capability (the per-call cost discipline this post's aggregate builds on)</span>
+      <span>Day 98 — Walmart Rubric-Less Alerts — Why Thresholds Failed IoT (same platform, a different lesson — combining signals instead of accumulating them over time)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-103-finops-at-scale-token-cost-visibility.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 103 — FinOps at Scale — Token Cost Visibility (today's companion Experience post)</span>
+      <span>Day 103 — FinOps at Scale — Token Cost Visibility (yesterday's post — a different employer, the same DriftWatch arc)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-104-cusum-detecting-sustained-shifts.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 104 — CUSUM — Detecting Sustained Shifts (today's companion AI Learning post)</span>
     </a>
   </div>
 </div>
@@ -319,21 +315,20 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-judge-call-is-not-free">A Judge Call Is Not Free</a></li>
-      <li><a href="#roi-needs-a-cost-on-both-sides">ROI Needs Both Sides Priced</a></li>
-      <li><a href="#pricing-the-drop-not-just-flagging-it">Pricing the Drop</a></li>
-      <li><a href="#what-the-dashboard-does-and-does-not-claim">What the Dashboard Claims</a></li>
+      <li><a href="#a-control-loop-answers-is-now-fine">A Control Loop Answers "Is Now Fine"</a></li>
+      <li><a href="#the-gap-between-two-fine-readings">The Gap Between Two Fine Readings</a></li>
+      <li><a href="#the-same-shape-in-todays-design">The Same Shape in Today's Design</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-103-eval-economics-when-judges-pay-off.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-104-cusum-control-charts-walmart-hvac-drift.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Eval+Economics+%E2%80%94+When+Judges+Pay+Off+%C2%B7+AI+Learning+Day+103&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-103-eval-economics-when-judges-pay-off.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=CUSUM+in+Manufacturing+IoT+%E2%80%94+Walmart+Inspiration+%C2%B7+Day+104&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-104-cusum-control-charts-walmart-hvac-drift.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -342,21 +337,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D102</span> AI Learning</div>
-          <a href="day-102-quality-time-series-dashboard-design.html" class="series-post-title">Quality Time Series — Dashboard Design</a>
+          <div class="series-post-kicker"><span class="series-post-num">D103</span> Experience</div>
+          <a href="day-103-finops-at-scale-token-cost-visibility.html" class="series-post-title">FinOps at Scale — Token Cost Visibility</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D103</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Eval Economics — When Judges Pay Off</div>
-          <div class="series-post-desc">ROI = prevented bad-deploy cost minus judge spend.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D104</span> Experience &middot; now</div>
+          <div class="series-post-title">CUSUM in Manufacturing IoT — Walmart Inspiration</div>
+          <div class="series-post-desc">Control charts detected HVAC drift days before ticket.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D104</span> AI Learning</div>
-          <a href="day-104-cusum-detecting-sustained-shifts.html" class="series-post-title">CUSUM — Detecting Sustained Shifts</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D105</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
