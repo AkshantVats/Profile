@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-103-eval-economics-when-judges-pay-off.html",
+          "kicker": "AI Learning · Day 103 of 150",
+          "title": "Day 103 — Eval Economics — When Judges Pay Off",
+          "subtitle": "ROI = prevented bad deploy cost − judge spend",
+          "date": "2026-08-14",
+          "slug": "day-103-eval-economics-when-judges-pay-off",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-103-eval-economics-when-judges-pay-off.html",
+          "coverImage": "blog/assets/covers/day-103-eval-economics-when-judges-pay-off.png",
+          "desc": "A judge model costs real money every time it grades a response. Today's cost dashboard for llm-judge-eval sets metered judge spend against a priced estimate of the bad deploy a significant drop would have let through, turning DriftWatch's eval ROI into a per-tenant number instead of an assumption."
+        },
+        {
           "href": "blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html",
           "kicker": "AI Learning · Day 102 of 150",
           "title": "Day 102 — Quality Time Series — Dashboard Design",
@@ -1115,6 +1127,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-103-finops-at-scale-token-cost-visibility.html",
+          "kicker": "Experience · Day 103 of 150",
+          "title": "Day 103 — FinOps at Scale — Token Cost Visibility",
+          "subtitle": "First time finance asked which team burned $50k/mo on inference",
+          "date": "2026-08-14",
+          "slug": "day-103-finops-at-scale-token-cost-visibility",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-103-finops-at-scale-token-cost-visibility.html",
+          "coverImage": "blog/assets/covers/day-103-finops-at-scale-token-cost-visibility.png",
+          "desc": "A shared Wayfair GCP bill for the promotions and PAS domains I led sat between $36,000 and $60,000 a month, split across CloudSQL, Bigtable, and GKE pods with no owner attached. The fix reused the same Kubernetes namespace boundary the HPA autoscaling policies already drew, turning one undifferentiated total into a per-team cost view without new tagging infrastructure."
+        },
         {
           "href": "blog/series/experience/day-102-executive-dashboards-one-chart-one-question.html",
           "kicker": "Experience · Day 102 of 150",
