@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html",
+          "kicker": "AI Learning · Day 101 of 150",
+          "title": "Day 101 — Hypothesis Testing for Model Drops",
+          "subtitle": "Two-proportion z-test for conversion-like metrics",
+          "date": "2026-08-14",
+          "slug": "day-101-hypothesis-testing-for-model-drops",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html",
+          "coverImage": "blog/assets/covers/day-101-hypothesis-testing-for-model-drops.png",
+          "desc": "A drop in judge-score pass rate can be real drift or ordinary noise from a small window. Today's is_significant(drop, n) helper runs a two-proportion z-test — p_pool, a z-score, a 1.96 threshold, and a 30-sample floor — and exposes the significance verdict directly in DriftWatch's drift API response."
+        },
+        {
           "href": "blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html",
           "kicker": "AI Learning · Day 100 of 150",
           "title": "Day 100 — Rolling Baselines — Non-Stationary Series",
@@ -1091,6 +1103,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-101-statistics-for-infra-engineers-ab-at-delivery-hero.html",
+          "kicker": "Experience · Day 101 of 150",
+          "title": "Day 101 — Statistics for Infra Engineers — A/B at Delivery Hero",
+          "subtitle": "We almost shipped a map change on a 200-sample \"win\"",
+          "date": "2026-08-14",
+          "slug": "day-101-statistics-for-infra-engineers-ab-at-delivery-hero",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-101-statistics-for-infra-engineers-ab-at-delivery-hero.html",
+          "coverImage": "blog/assets/covers/day-101-statistics-for-infra-engineers-ab-at-delivery-hero.png",
+          "desc": "A Route Service tuning change on Delivery Hero's OSRM rider-tracking stack looked like a clear win on 200 orders' worth of on-time delivery rate. Running a two-proportion z-test showed the gap was well inside the range noise produces at that sample size — the same discipline today's is_significant(drop, n) helper enforces automatically for judge-score drift."
+        },
         {
           "href": "blog/series/experience/day-100-agoda-cold-start-after-deploy-baseline-reset.html",
           "kicker": "Experience · Day 100 of 150",

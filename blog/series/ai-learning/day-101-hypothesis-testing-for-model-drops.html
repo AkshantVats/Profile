@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 100 &mdash; Rolling Baselines &mdash; Non-Stationary Series | AI Learning Series</title>
-<meta name="description" content="A rolling 7-day baseline assumes the score distribution underneath it stays put. A model or prompt deploy breaks that assumption instantly, and a warmup flag keyed to the deploy timestamp is what keeps the alert from firing on its own baseline's stale memory.">
-<meta property="og:title" content="Day 100 &mdash; Rolling Baselines &mdash; Non-Stationary Series">
-<meta property="og:description" content="A 7-day rolling mean and standard deviation only describe reality when the thing they're measuring holds still long enough to be described. A deploy breaks that holding-still assumption, and only a warmup flag keyed to the deploy timestamp can tell the alert not to trust the baseline yet.">
+<title>Day 101 &mdash; Hypothesis Testing for Model Drops | AI Learning Series</title>
+<meta name="description" content="A drop in judge-score pass rate can be a real drift or it can be noise from a small window. Today's is_significant(drop, n) helper runs the two-proportion z-test that tells the two apart, and exposes the verdict directly in the drift API response.">
+<meta property="og:title" content="Day 101 &mdash; Hypothesis Testing for Model Drops">
+<meta property="og:description" content="p_pool, a z-score, a 1.96 threshold, and a 30-sample floor — the same machinery a two-proportion z-test uses to tell a real conversion-rate drop from ordinary noise, now guarding DriftWatch's judge-score drift flag.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-100-rolling-baselines-non-stationary-series.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-101-hypothesis-testing-for-model-drops.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-100-rolling-baselines-non-stationary-series.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-101-hypothesis-testing-for-model-drops.png">
 <meta property="article:published_time" content="2026-08-14">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 100 of 150</span>
-    <span class="tag">Time Series</span>
-    <span class="tag">Alerting</span>
+    <span class="tag accent">AI Learning &middot; Day 101 of 150</span>
+    <span class="tag">Hypothesis Testing</span>
+    <span class="tag">Statistics</span>
     <span class="tag">DriftWatch</span>
   </div>
-  <h1 class="post-title">Day 100 &mdash; Rolling Baselines &mdash; Non-Stationary Series</h1>
-  <p class="post-subtitle">A 7-day rolling mean and standard deviation only describe reality when the thing they measure holds still long enough to be described &mdash; a deploy breaks that assumption instantly, and only a warmup flag keyed to the deploy timestamp can tell the alert not to trust the baseline yet.</p>
+  <h1 class="post-title">Day 101 &mdash; Hypothesis Testing for Model Drops</h1>
+  <p class="post-subtitle">A drop in judge-score pass rate can be real drift or it can be noise from a small window &mdash; the two-proportion z-test is what tells them apart, and today's helper exposes the verdict directly in the drift API response.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 100 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 101 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 14, 2026</span>
     <div class="meta-divider"></div>
@@ -208,39 +208,41 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-100-rolling-baselines-non-stationary-series.png" alt="Day 100 — Rolling Baselines — Non-Stationary Series" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-101-hypothesis-testing-for-model-drops.png" alt="Day 101 — Hypothesis Testing for Model Drops" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>7d rolling mean with warmup flag. That's the entire fix this post is about, and the rest of it is explaining why a number that simple took this long to earn its place in the design. Today's <code>llm-judge-eval</code> score normalization work (Phase 2A) computes a z-score for every judge score within a tenant — how many standard deviations a score sits from that tenant's recent average — then watches for a 24-hour window whose mean drops more than two standard deviations below a rolling 7-day baseline.</p>
+<p>Expose significance in drift API response. That's the entire fix this post is about, and the rest of it is explaining the test that has to run before that field can honestly say anything. Today's <code>llm-judge-eval</code> work (Phase 2A) implements <code>is_significant(drop, n)</code>: a Go helper wrapping the two-proportion z-test DESIGN.md &sect;4 already specifies, and wiring its verdict &mdash; not just the raw drop &mdash; into what DriftWatch's drift endpoint returns.</p>
 
-<h2 id="what-non-stationary-means-for-a-score-series">What Non-Stationary Means for a Score Series</h2>
+<h2 id="a-drop-in-pass-rate-isnt-automatically-drift">A Drop in Pass Rate Isn't Automatically Drift</h2>
 
-<p>A time series is <strong>non-stationary</strong> when its statistical properties — its mean, its variance — change over time instead of holding roughly constant. A rolling baseline implicitly assumes the opposite: that the 7 days of scores feeding its mean and standard deviation all came from the same underlying process, so averaging them together produces a number that actually describes "normal."</p>
+<p>DriftWatch buckets every judge score pass or fail at a threshold, then tracks what fraction of a segment's scores passed &mdash; a <strong>proportion</strong>, a value between 0 and 1 describing how often something happens out of how many chances it had to happen. A current window's pass rate sitting a few points below its baseline window's pass rate looks, on a raw dashboard number, exactly like drift.</p>
 
-<p>That assumption holds fine day-to-day, when nothing about the scoring pipeline itself has changed. It breaks the moment something structural does — a new judge model, a rewritten grading prompt, a rubric weight update — because the scores on either side of that change didn't come from the same process at all, even though the rolling window keeps averaging them as if they did.</p>
+<p>It can also just be noise: two independently drawn samples from the exact same underlying model will differ by a few points more often than intuition expects, especially when either window is small. A raw drop with no sample-size context can't tell you which one you're looking at, and treating every drop as drift means paging someone every time chance alone produces a below-average window.</p>
 
-<p>So what: a rolling baseline isn't wrong when it blends two different regimes together, it's just answering a question — "what's normal" — with an average that quietly assumes there was only ever one regime to describe.</p>
+<p>So what: "the pass rate dropped" is a fact about two numbers, and "the model is drifting" is a claim about why those numbers differ &mdash; conflating the two is exactly the gap a hypothesis test exists to close.</p>
 
-<h2 id="z-score-normalization-needs-a-baseline-it-can-trust">Z-Score Normalization Needs a Baseline It Can Trust</h2>
+<h2 id="the-two-proportion-z-test-in-plain-terms">The Two-Proportion z-Test, in Plain Terms</h2>
 
-<p>A <strong>z-score</strong> converts a raw score into "how many standard deviations from the mean," which is what makes scores from different tenants and different task types comparable on one scale instead of living in whatever raw range each rubric happens to produce. Computing that z-score requires a mean and a standard deviation per segment, and today's design gets both from a rolling 7-day window of that segment's own recent scores.</p>
+<p>A <strong>hypothesis test</strong> starts by assuming the boring explanation is true &mdash; here, that the current window and the baseline window are really the same underlying pass rate, and any gap between them is sampling noise &mdash; then asks how surprising the observed gap would be if that boring explanation held. A <strong>two-proportion z-test</strong> is the specific version of that question for two proportions measured on two different sample sizes.</p>
 
-<p>The alert built on top watches a 24-hour window's mean and fires when it drops more than two standard deviations below that 7-day baseline — a real, meaningful signal, as long as the baseline it's comparing against describes the process that's currently running. The moment a deploy changes that process mid-window, the baseline's mean and standard deviation get computed from a mix of pre-deploy and post-deploy scores, and neither number honestly describes either regime anymore.</p>
+<p>It starts by pooling both windows' pass counts into one combined rate: <code>p_pool = (x1 + x2) / (n1 + n2)</code>, where <code>x1</code> and <code>x2</code> are pass counts and <code>n1</code> and <code>n2</code> are sample sizes. It then measures how many standard deviations apart the two windows' individual pass rates are, using that pooled rate to estimate how much spread pure chance should produce: <code>z = (p1 &minus; p2) / sqrt(p_pool &middot; (1 &minus; p_pool) &middot; (1/n1 + 1/n2))</code>.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the thermostat right after recalibration</div>
-  A thermostat that just got recalibrated needs a few hours reading the room before its "this is unusually cold" alarm can be trusted. The sensor readings right after recalibration aren't wrong — they're just not comparable to the old baseline yet, because the thing doing the measuring changed, not the room.
+  <div class="attr-label">DS analogy &mdash; the orchard inspector's two crates</div>
+  A quality inspector checking two crates of apples for bruising doesn't panic because crate B has three more bruised apples than crate A &mdash; a crate of 20 apples can easily land three bruises apart from another crate of 20 pulled off the exact same healthy tree, just by which apples happened to get picked. The inspector only flags the orchard once the gap is bigger than two crates of the same apples would normally produce, and that judgment gets sharper, not fuzzier, the more apples are actually in each crate.
 </div>
 
-<p>So what: the fix isn't a smarter z-score formula, it's making sure the mean and standard deviation feeding that formula were computed from readings that actually came from the process currently being judged.</p>
+<p>So what: <code>z</code> isn't measuring the size of the gap in isolation, it's measuring the size of the gap relative to how much gap two identical distributions would produce by chance at that sample size &mdash; which is exactly why the same percentage-point drop can be meaningless at 40 samples and alarming at 4,000.</p>
 
-<h2 id="the-warmup-flag-turns-a-silent-assumption-into-an-explicit-one">The Warmup Flag Turns a Silent Assumption Into an Explicit One</h2>
+<h2 id="the-30-sample-floor-and-the-1-96-threshold">The 30-Sample Floor and the 1.96 Threshold</h2>
 
-<p>The structural fix is a warmup flag keyed to the deploy timestamp: once a judge model, prompt, or rubric version changes, the baseline computation is marked as warming up, and the 2σ alert holds — not because nothing might be wrong, but because there isn't yet enough post-deploy data to say so honestly. Once 7 days of post-deploy scores exist, the flag clears and the baseline it's now comparing against actually describes the process that's running.</p>
+<p><code>is_significant(drop, n)</code> flags real drift only when <code>|z| &gt; 1.96</code> &mdash; the standard two-tailed 95% cutoff, not a value tuned against this pipeline's own false-positive history, because DESIGN.md &sect;4 is explicit that there isn't real-world data yet to justify tuning it away from the default. Below that threshold, the gap is reported as ordinary variation, not drift.</p>
+
+<p>Below a 30-sample floor on either window, the helper doesn't compute a z-score at all &mdash; it reports <code>insufficient_data</code>. A z-score computed on 8 samples is technically a number, but it's not a trustworthy one, and reporting it next to a z-score computed on 8,000 samples with no distinction between the two would let a low-traffic segment's pure noise look exactly as authoritative as a high-traffic segment's real signal.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -260,40 +262,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  SCORES["Daily judge scores"] --> BASELINE["7d rolling mean and stddev"]
-  DEPLOY["Model or prompt change"] -.-> WARMUP["Warmup window opens"]
-  WARMUP -.-> BASELINE
-  BASELINE --> WINDOW["24h window compared"]
-  WINDOW --> DECIDE{"Mean drop over 2 sigma?"}
-  DECIDE -->|"yes, warmup closed"| ALERT["Alert fires"]
-  DECIDE -->|"warmup still open"| HOLD["Hold, no alert"]
+  BASE["Baseline window pass rate"] --> POOL["Pool into p_pool"]
+  CURR["Current window pass rate"] --> POOL
+  POOL --> FLOOR{"n1 and n2 above 30?"}
+  FLOOR -->|"no"| INSUFF["Report insufficient_data"]
+  FLOOR -->|"yes"| ZCALC["Compute z-score"]
+  ZCALC --> GATE{"|z| above 1.96?"}
+  GATE -->|"yes"| DRIFT["Flag significant drift"]
+  GATE -->|"no"| STABLE["Report not significant"]
 </pre>
 
-<div class="pullquote"><p>A 2σ threshold is only as honest as the mean and standard deviation feeding it — and neither one knows it's describing two different regimes unless something explicitly tells it a deploy happened in the middle of its window.</p></div>
+<div class="pullquote"><p>A dropped pass rate and a statistically significant dropped pass rate are two different claims &mdash; and the gap between them is exactly the gap a sample-size floor and a z-score threshold exist to close.</p></div>
 
-<p>Without the flag, the choice is between two bad defaults: alert immediately after every deploy and drown in false positives from a baseline that hasn't caught up, or silence alerts broadly and risk missing a real drift because nobody remembered to turn them back on. A warmup flag keyed to the deploy timestamp replaces both defaults with an explicit, self-clearing condition instead of a manual toggle someone has to remember.</p>
+<p>So what: an alert that can't distinguish "not enough data yet" from "confirmed stable" is one bug away from staying silent on a real drop simply because a segment hasn't accumulated traffic &mdash; keeping <code>insufficient_data</code> as its own explicit outcome, distinct from both a significant and a non-significant result, is what prevents that silent failure.</p>
 
-<p class="prose-so-what"><strong>So what:</strong> the same non-stationarity problem shows up anywhere a rolling baseline watches a signal that a deploy can change — WhiteFalcon query latency after a cross-tier merge extension ships, or judge scores after a model swap, as today's companion Experience post covers from the infrastructure side. The fix is structural in both cases: don't ask a fixed threshold to somehow already know the difference between drift and a new normal, give the baseline an explicit warmup window and let it earn the right to be trusted again on its own schedule.</p>
+<h2 id="exposing-the-verdict-not-just-the-drop">Exposing the Verdict, Not Just the Drop</h2>
+
+<p>The old version of DriftWatch's drift endpoint returned a raw drop number and left the reader to guess whether it mattered. Today's change adds the <code>is_significant(drop, n)</code> verdict &mdash; and the <code>insufficient_data</code> case &mdash; directly into that same API response, so any dashboard or alert consuming it inherits the sample-size discipline instead of having to reimplement it.</p>
+
+<p>That's the same shift today's companion Experience post describes from the infrastructure side: a Delivery Hero rollout that almost shipped an OSRM tuning change on a 200-order "win" needed the identical two-proportion z-test, on a different proportion, to tell a real lift from ordinary noise before calling it a result.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">1.96</span><span class="stat-label">|z| threshold for significance</span></div>
+  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Minimum samples per window</span></div>
+  <div class="stat-cell"><span class="stat-num">95%</span><span class="stat-label">Two-tailed confidence level</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Windows compared: baseline vs current</span></div>
+</div>
+
+<p class="prose-so-what"><strong>So what:</strong> a raw drop in pass rate and real drift are two different claims, and a two-proportion z-test with an explicit sample floor is what separates them &mdash; whether the proportion being watched is an LLM judge's pass rate across two windows, or an on-time delivery rate across two A/B groups, as today's companion Experience post covers. Exposing the significance verdict itself in the API response, not just the raw number, is what keeps that discipline from depending on every downstream consumer remembering to ask "was that enough samples" on their own.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 100 of 150 &mdash; Rolling Baselines — Non-Stationary Series</p>
-  <p><em>Next up:</em> <a href="day-101-hypothesis-testing-for-model-drops.html">Day 101 &mdash; Hypothesis Testing for Model Drops</a></p>
+  <p>AI Learning &middot; Day 101 of 150 &mdash; Hypothesis Testing for Model Drops</p>
+  <p><em>Next up:</em> Day 102 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 99 — LLM Eval Bias — Position and Length Effects (yesterday's post — the judge scores this baseline is built on)</span>
+      <span>Day 100 — Rolling Baselines — Non-Stationary Series (yesterday's post — the other DriftWatch drift mechanism, §5's per-tenant z-score)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching (vLLM) — the series' GOLD post this one was drafted against for depth and structure</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-100-agoda-cold-start-after-deploy-baseline-reset.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-101-statistics-for-infra-engineers-ab-at-delivery-hero.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 100 — Agoda Cold Start After Deploy — Baseline Reset (today's companion Experience post)</span>
+      <span>Day 101 — Statistics for Infra Engineers — A/B at Delivery Hero (today's companion Experience post)</span>
     </a>
   </div>
 </div>
@@ -304,20 +320,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-non-stationary-means-for-a-score-series">What Non-Stationary Means</a></li>
-      <li><a href="#z-score-normalization-needs-a-baseline-it-can-trust">Z-Score Needs a Trusted Baseline</a></li>
-      <li><a href="#the-warmup-flag-turns-a-silent-assumption-into-an-explicit-one">The Warmup Flag</a></li>
+      <li><a href="#a-drop-in-pass-rate-isnt-automatically-drift">A Drop Isn't Automatically Drift</a></li>
+      <li><a href="#the-two-proportion-z-test-in-plain-terms">The z-Test, in Plain Terms</a></li>
+      <li><a href="#the-30-sample-floor-and-the-1-96-threshold">The 30-Sample Floor</a></li>
+      <li><a href="#exposing-the-verdict-not-just-the-drop">Exposing the Verdict</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-100-rolling-baselines-non-stationary-series.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-101-hypothesis-testing-for-model-drops.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Rolling+Baselines+%E2%80%94+Non-Stationary+Series+%C2%B7+AI+Learning+Day+100&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-100-rolling-baselines-non-stationary-series.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Hypothesis+Testing+for+Model+Drops+%C2%B7+AI+Learning+Day+101&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-101-hypothesis-testing-for-model-drops.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -330,17 +347,17 @@ flowchart LR
       <div class="series-title">150 days of AI infrastructure</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D99</span> AI Learning</div>
-          <a href="day-99-llm-eval-bias-position-and-length-effects.html" class="series-post-title">LLM Eval Bias — Position and Length Effects</a>
+          <div class="series-post-kicker"><span class="series-post-num">D100</span> AI Learning</div>
+          <a href="day-100-rolling-baselines-non-stationary-series.html" class="series-post-title">Rolling Baselines — Non-Stationary Series</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D100</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Rolling Baselines — Non-Stationary Series</div>
-          <div class="series-post-desc">A baseline is only honest if the thing it measures held still.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D101</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Hypothesis Testing for Model Drops</div>
+          <div class="series-post-desc">A dropped pass rate and real drift are two different claims.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D101</span> AI Learning</div>
-          <a href="day-101-hypothesis-testing-for-model-drops.html" class="series-post-title">Hypothesis Testing for Model Drops</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D102</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
