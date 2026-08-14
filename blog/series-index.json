@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html",
+          "kicker": "AI Learning · Day 100 of 150",
+          "title": "Day 100 — Rolling Baselines — Non-Stationary Series",
+          "subtitle": "A baseline is only honest if the thing it measures held still",
+          "date": "2026-08-14",
+          "slug": "day-100-rolling-baselines-non-stationary-series",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-100-rolling-baselines-non-stationary-series.html",
+          "coverImage": "blog/assets/covers/day-100-rolling-baselines-non-stationary-series.png",
+          "desc": "A 7-day rolling mean and standard deviation assume the thing they measure held still long enough to be described. Today's score-normalization pipeline z-scores judge scores against a rolling per-tenant baseline, and a warmup flag keyed to the deploy timestamp is what keeps a model or prompt change from being misread as drift."
+        },
+        {
           "href": "blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html",
           "kicker": "AI Learning · Day 99 of 150",
           "title": "Day 99 — LLM Eval Bias — Position and Length Effects",
@@ -1079,6 +1091,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-100-agoda-cold-start-after-deploy-baseline-reset.html",
+          "kicker": "Experience · Day 100 of 150",
+          "title": "Day 100 — Agoda Cold Start After Deploy — Baseline Reset",
+          "subtitle": "A deploy changes what normal looks like before the baseline catches up",
+          "date": "2026-08-14",
+          "slug": "day-100-agoda-cold-start-after-deploy-baseline-reset",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-100-agoda-cold-start-after-deploy-baseline-reset.html",
+          "coverImage": "blog/assets/covers/day-100-agoda-cold-start-after-deploy-baseline-reset.png",
+          "desc": "Extending WhiteFalcon's Scala query engine to merge histogram bucket counts across the hot and cold tier added a real fetch-and-merge cost the moment that binary shipped. Today's llm-judge-eval rolling-baseline work needs the same discipline: a warmup window after a deploy before a 7-day baseline is trusted to arm a 2-sigma alert."
+        },
         {
           "href": "blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html",
           "kicker": "Experience · Day 99 of 150",
