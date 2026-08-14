@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html",
+          "kicker": "AI Learning · Day 102 of 150",
+          "title": "Day 102 — Quality Time Series — Dashboard Design",
+          "subtitle": "Single trend line beats 12 gauges",
+          "date": "2026-08-14",
+          "slug": "day-102-quality-time-series-dashboard-design",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-102-quality-time-series-dashboard-design.html",
+          "coverImage": "blog/assets/covers/day-102-quality-time-series-dashboard-design.png",
+          "desc": "A quality dashboard built from a dozen per-segment gauges shows every signal and answers nothing. GET /tenants/{id}/quality-trend pre-aggregates one normalized hourly mean per tenant, so a single Grafana time-series panel can plot the trend line directly instead of reconstructing it from twelve readouts."
+        },
+        {
           "href": "blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html",
           "kicker": "AI Learning · Day 101 of 150",
           "title": "Day 101 — Hypothesis Testing for Model Drops",
@@ -1103,6 +1115,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-102-executive-dashboards-one-chart-one-question.html",
+          "kicker": "Experience · Day 102 of 150",
+          "title": "Day 102 — Executive Dashboards — One Chart, One Question",
+          "subtitle": "Agoda VP wanted 'are we slower than last week' not 40 panels",
+          "date": "2026-08-14",
+          "slug": "day-102-executive-dashboards-one-chart-one-question",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-102-executive-dashboards-one-chart-one-question.html",
+          "coverImage": "blog/assets/covers/day-102-executive-dashboards-one-chart-one-question.png",
+          "desc": "A WhiteFalcon Grafana folder had accumulated dozens of panels split by tier, cluster, and metric — and none of them answered the one question a VP reviewing the dashboard actually asked. A combined range query that merges hot and cold tier histograms server-side is what turned that folder into one trend line, the same discipline today's quality-trend API applies to DriftWatch."
+        },
         {
           "href": "blog/series/experience/day-101-statistics-for-infra-engineers-ab-at-delivery-hero.html",
           "kicker": "Experience · Day 101 of 150",
