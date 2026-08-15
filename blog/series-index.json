@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-107-explainable-alerts-sampled-evidence.html",
+          "kicker": "AI Learning · Day 107 of 150",
+          "title": "Day 107 — Explainable Alerts — Sampled Evidence",
+          "subtitle": "Alerts need exemplars like trace exemplars",
+          "date": "2026-08-15",
+          "slug": "day-107-explainable-alerts-sampled-evidence",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-107-explainable-alerts-sampled-evidence.html",
+          "coverImage": "blog/assets/covers/day-107-explainable-alerts-sampled-evidence.png",
+          "desc": "A CUSUM status crossing h is a classifier saying ‘anomaly’ with no saliency map attached. BuildAlertPayload attaches the top-20 worst-scoring redacted samples, the suspected model version, and the alarmed window instead of leaving the threshold crossing to speak for itself."
+        },
+        {
           "href": "blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html",
           "kicker": "AI Learning · Day 106 of 150",
           "title": "Day 106 — Hierarchical Drift — Global vs Segment",
@@ -1163,6 +1175,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-107-postmortem-culture-wayfair-dead-letter-rows.html",
+          "kicker": "Experience · Day 107 of 150",
+          "title": "Day 107 — Postmortem Culture — Root Cause Samples Required",
+          "subtitle": "Blameless but must include exemplar traces",
+          "date": "2026-08-15",
+          "slug": "day-107-postmortem-culture-wayfair-dead-letter-rows",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-107-postmortem-culture-wayfair-dead-letter-rows.html",
+          "coverImage": "blog/assets/covers/day-107-postmortem-culture-wayfair-dead-letter-rows.png",
+          "desc": "A Wayfair pricing pipeline alert that only says 'row count mismatch' is nearly useless — what makes it actionable is a poison row waiting in a dead-letter output. Today's drift-detector alert payload applies the same discipline: worst-scoring samples attached, not just a threshold crossing."
+        },
         {
           "href": "blog/series/experience/day-106-segmented-slos-delivery-hero-peak-zones.html",
           "kicker": "Experience · Day 106 of 150",
