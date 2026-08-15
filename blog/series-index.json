@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html",
+          "kicker": "AI Learning · Day 106 of 150",
+          "title": "Day 106 — Hierarchical Drift — Global vs Segment",
+          "subtitle": "Multi-dimensional cardinality again",
+          "date": "2026-08-15",
+          "slug": "day-106-hierarchical-drift-global-vs-segment",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html",
+          "coverImage": "blog/assets/covers/day-106-hierarchical-drift-global-vs-segment.png",
+          "desc": "A single global CUSUM can miss exactly the kind of shift it exists to catch if that shift is confined to one segment and the other segments dilute it in the blended average. Today's fleet reuses evaluateOne unchanged, once per (task_type, model_id) segment, bounded to the top 10 by volume."
+        },
+        {
           "href": "blog/series/ai-learning/day-105-cusum-vs-simple-thresholds.html",
           "kicker": "AI Learning · Day 105 of 150",
           "title": "Day 105 — CUSUM vs Simple Thresholds",
@@ -1151,6 +1163,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-106-segmented-slos-delivery-hero-peak-zones.html",
+          "kicker": "Experience · Day 106 of 150",
+          "title": "Day 106 — Segmented SLOs — Delivery Hero Peak Zones",
+          "subtitle": "Bangkok lunch ≠ rural night—aggregates lied",
+          "date": "2026-08-15",
+          "slug": "day-106-segmented-slos-delivery-hero-peak-zones",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-106-segmented-slos-delivery-hero-peak-zones.html",
+          "coverImage": "blog/assets/covers/day-106-segmented-slos-delivery-hero-peak-zones.png",
+          "desc": "A platform-wide SLO on Delivery Hero's Global Logistics Platform is a weighted average across every region and every hour — and a weighted average can sit inside its target while individual segments sit far outside theirs, canceling out. Today's drift-detector fleet applies the same segmenting fix to judge scores blended across task types."
+        },
         {
           "href": "blog/series/experience/day-105-alert-fatigue-at-agoda-cooldown-lessons.html",
           "kicker": "Experience · Day 105 of 150",
