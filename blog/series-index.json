@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html",
+          "kicker": "AI Learning · Day 108 of 150",
+          "title": "Day 108 — Metrics vs Logs for Drift Events",
+          "subtitle": "Counter for fires, log for debug",
+          "date": "2026-08-15",
+          "slug": "day-108-metrics-vs-logs-drift-events",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html",
+          "coverImage": "blog/assets/covers/day-108-metrics-vs-logs-drift-events.png",
+          "desc": "A Prometheus label costs storage on every scrape for as long as retention runs, so drift_event_total carries only bounded labels while the structured log line carries the window, sample count and worst request_id. The counter's per-segment label is legal only because Day 106's fleet caps it at 20 series."
+        },
+        {
           "href": "blog/series/ai-learning/day-107-explainable-alerts-sampled-evidence.html",
           "kicker": "AI Learning · Day 107 of 150",
           "title": "Day 107 — Explainable Alerts — Sampled Evidence",
@@ -1175,6 +1187,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-108-grafana-as-communication-agoda-cross-tier-queries.html",
+          "kicker": "Experience · Day 108 of 150",
+          "title": "Day 108 — Grafana as Communication — LensAI Month Reflection",
+          "subtitle": "Dashboards aligned eng + PM on what is broken",
+          "date": "2026-08-15",
+          "slug": "day-108-grafana-as-communication-agoda-cross-tier-queries",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-108-grafana-as-communication-agoda-cross-tier-queries.html",
+          "coverImage": "blog/assets/covers/day-108-grafana-as-communication-agoda-cross-tier-queries.png",
+          "desc": "At Agoda, collapsing a hot/cold cross-tier question from two manual queries into one Grafana panel aligned two groups on the same vocabulary — as a side effect, not a goal. The counterweight: a shared dashboard aligns everyone just as effectively on ignoring what it doesn't measure."
+        },
         {
           "href": "blog/series/experience/day-107-postmortem-culture-wayfair-dead-letter-rows.html",
           "kicker": "Experience · Day 107 of 150",

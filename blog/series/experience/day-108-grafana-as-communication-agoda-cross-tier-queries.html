@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 107 &mdash; Explainable Alerts &mdash; Sampled Evidence | AI Learning Series</title>
-<meta name="description" content="A CUSUM status crossing h is a classifier saying 'anomaly' with no saliency map attached. Today's alert payload attaches the top-20 worst-scoring evidence instead of leaving the number to speak for itself.">
-<meta property="og:title" content="Day 107 of Learning LLM Inference — Explainable Alerts — Sampled Evidence">
-<meta property="og:description" content="Alerts need exemplars the same way a trace does. Attach top-k worst prompts to the payload instead of a bare threshold crossing.">
+<title>Day 108 &mdash; Grafana as Communication &mdash; LensAI Month Reflection | Experience Series</title>
+<meta name="description" content="Two groups described the same time-series system differently because the tool made one of them do arithmetic in their head. Collapsing a two-query question into one panel did more for alignment than any vocabulary document.">
+<meta property="og:title" content="Day 108 &mdash; Grafana as Communication &mdash; LensAI Month Reflection">
+<meta property="og:description" content="A dashboard aligns people on what it measures — and just as quietly aligns them on ignoring what it doesn't.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-107-explainable-alerts-sampled-evidence.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-107-explainable-alerts-sampled-evidence.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-108-grafana-as-communication-agoda-cross-tier-queries.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-108-grafana-as-communication-agoda-cross-tier-queries.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-107-explainable-alerts-sampled-evidence.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-108-grafana-as-communication-agoda-cross-tier-queries.png">
 <meta property="article:published_time" content="2026-08-15">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 107 of 150</span>
-    <span class="tag">Explainability</span>
-    <span class="tag">Top-K</span>
-    <span class="tag">Go</span>
+    <span class="tag accent">Experience &middot; Day 108 of 150</span>
+    <span class="tag">Agoda</span>
+    <span class="tag">Grafana</span>
+    <span class="tag">Time-Series</span>
   </div>
-  <h1 class="post-title">Day 107 &mdash; Explainable Alerts &mdash; Sampled Evidence</h1>
-  <p class="post-subtitle">Alerts need exemplars the same way a trace does. A CUSUM crossing <code>h</code> is a classifier saying "anomaly," full stop &mdash; today's payload attaches the evidence instead of leaving the number to speak for itself.</p>
+  <h1 class="post-title">Day 108 &mdash; Grafana as Communication &mdash; LensAI Month Reflection</h1>
+  <p class="post-subtitle">Two groups can describe the same system differently for a boring reason: the tool makes one of them do arithmetic in their head. Collapsing a two-query question into one panel did more for alignment than any vocabulary document would have.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 107 of 150</span>
+    <span class="meta-item">Experience &middot; Day 108 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 15, 2026</span>
     <div class="meta-divider"></div>
@@ -208,97 +208,103 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-107-explainable-alerts-sampled-evidence.png" alt="Day 107 — Explainable Alerts — Sampled Evidence" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-108-grafana-as-communication-agoda-cross-tier-queries.png" alt="Day 108 — Grafana as Communication — LensAI Month Reflection" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>"Attach top-k worst prompts to payload" was the whole ticket, one line in today's plan doc. It reads like a small ask &mdash; a cap and a sort &mdash; but it's actually the same question every explainability technique in ML answers for a classifier: a label alone is a claim with no evidence behind it, and "anomaly" or "alert" is exactly that kind of label.</p>
+<p>Most posts about dashboards are really about taste &mdash; which chart type, how many panels, what to cut. This one is about something duller and, I think, more useful. A dashboard is a piece of shared vocabulary, and the thing that most often breaks the vocabulary is not bad design but a question the tool cannot answer in one step.</p>
 
-<h2 id="a-label-with-no-evidence">A Label With No Evidence</h2>
+<p>At Agoda I worked on WhiteFalcon, the internal time-series database. The specific change I want to describe is small, and its second-order effect on how people talked to each other was much larger than the change itself.</p>
 
-<p>Through Day 106, a tracked segment's CUSUM chart crossing <code>h</code> produced a <code>Status</code> and two accumulated statistics &mdash; real, well-earned numbers, computed from real accumulated evidence. But handed to a human or a paging system on their own, they say only "this crossed a line," the same way a classifier's raw output layer says only "class: anomaly" without a saliency map, an attention weight, or a nearest neighbor showing which input pixels or tokens actually drove that call.</p>
+<div class="attr-box team">
+  <div class="attr-label">Scope note &mdash; Agoda, WhiteFalcon (Core Infrastructure)</div>
+  I was a Senior Engineer on WhiteFalcon for roughly five months in 2024. I did not design the core system. The Agoda team built the RoaringBitmap indexing engine, the Kafka pipeline, the Rust consumers, the Scala query engine, and the Ceph/S3 and Hadoop storage tiers &mdash; a platform handling on the order of 1.5 trillion events per day. My contributions were extensions on top of that: a cross-tier query engine extension, a new cardinality dimension for Kubernetes tags, and two to three new query types reachable from Grafana.
+</div>
 
-<p>So what: a threshold crossing is a valid statistical claim and an almost useless investigative starting point at the same time &mdash; both things are true, and today's ticket exists because of the gap between them.</p>
+<h2 id="a-question-the-tool-could-not-answer-in-one-step">A Question the Tool Could Not Answer in One Step</h2>
 
-<h2 id="top-k-not-full-sort">Top-K, Not a Full Sort</h2>
+<p>WhiteFalcon stores recent data hot and older data cold. The hot tier holds roughly the last three to seven days at per-hour granularity; older data compacts on a cadence &mdash; hourly, then three-hour, then daily &mdash; and settles into Parquet on S3. Grafana sat at the end of that chain, talking to a Scala query engine that fetched from whichever tier held the data.</p>
+
+<p>The catch was that a query hit one tier only. If you asked for a window that started before the hot/cold boundary and ended after it, you did not get an answer &mdash; you got two answers, from two manual queries, and a person in the middle reconciling them.</p>
+
+<p>That sounds like a mild inconvenience. In practice it decided which questions got asked. "How did this look in the last six hours" was a panel anyone could glance at, and "how did this look over the last month" was a small research task, so the second question got asked mostly when something was already on fire.</p>
+
+<p>So what: the boundary between hot and cold storage had quietly become a boundary between two kinds of conversation, and nobody had chosen that.</p>
+
+<h2 id="what-the-cross-tier-extension-actually-changed">What the Cross-Tier Extension Actually Changed</h2>
+
+<p>The extension let a single request span both tiers, with the merge handled inside the query engine instead of inside somebody's head. Before: time ranges crossing the boundary required two manual queries. After: one request, one result.</p>
+
+<p>The part that took the actual work was the merge, and specifically quantiles. You cannot average two tiers' P99s and get the combined P99 &mdash; a percentile is not a quantity that averages. The correct move is to merge the underlying histogram buckets first and compute the quantile on the merged result, which is why this was a query-engine change and not a dashboard change.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; finding the worst 20 without sorting the whole shelf</div>
-  Pulling the 20 worst-scoring samples out of an alarmed hour's judge scores is the textbook top-k selection problem: you don't need every item in sorted order, you need the k smallest, and a bounded max-heap of size k does that in O(n log k) instead of a full sort's O(n log n). Today's <code>BuildAlertPayload</code> doesn't reach for the heap &mdash; it calls <code>sort.Slice</code> on the whole window and re-slices to <code>AlertSampleCap</code>. That's the right call, not a missed optimization: the query feeding it is already capped upstream at 201 rows (<code>RootCauseCap</code>'s sibling limit), so "the whole shelf" here is at most 201 items, and a full sort of 201 items isn't a bottleneck worth a heap's extra bookkeeping. The heap becomes the right answer the moment that upstream cap goes away.
+  <div class="attr-label">What was mine, precisely</div>
+  Extending the Scala query engine so a single request could span the Redis-backed hot tier and Parquet/S3 cold tier with correct quantile merge logic, adding Kubernetes tag dimensions to the RoaringBitmap inverted index, and exposing two to three new query types through Grafana &mdash; wildcard tag matching and combined range queries. I did not build the index engine, the ingestion path, or the tiering itself. Separately, on storage: moving from Snappy to Zstd cut storage 15&ndash;20% at under 1% read-latency impact.
 </div>
 
-<p>So what: knowing the textbook-optimal data structure and knowing when your actual input size makes it premature are two different, both necessary, skills &mdash; today's code exercises the second one.</p>
+<p>So what: the feature was "one query instead of two," but what it actually removed was a manual reconciliation step that only some people knew how to do correctly.</p>
 
-<h2 id="the-schema-doesnt-have-what-the-ticket-asked-for">The Schema Doesn't Have What the Ticket Asked For</h2>
+<h2 id="the-alignment-was-a-side-effect-not-a-goal">The Alignment Was a Side Effect, Not a Goal</h2>
 
-<p>The ticket's literal wording is "prompt/response pairs," and the honest complication is that <code>infra_ai.judge_scores</code> has never stored either one &mdash; <code>RawSample</code>'s three fields are a request ID, a score, and the judge model's own rationale text. A request ID is a pointer to wherever the real prompt and response live, not a copy of them sitting in this schema. That gap is exactly the kind of thing a saliency map can also get wrong: an explanation method can point at the right general region of an input without literally reproducing the input itself, and today's payload is doing the pointer version of that &mdash; <code>RequestID</code> says where to look, <code>Rationale</code> says roughly why, and neither is the graded text itself.</p>
+<p>Once a month-long window was a single query, a Grafana panel could hold it. Once a panel held it, the panel became the thing people pointed at &mdash; in reviews, in planning, in the middle of an argument about whether a regression was real.</p>
 
-<p><code>Redact</code> still runs against <code>Rationale</code>, because a judge's free-text explanation routinely echoes back a fragment of what it graded &mdash; "the response includes the customer's email alice@example.com" is a real shape of sentence a judge model writes, even though the rationale itself is judge output, not user input. Masking email-shaped and long-digit-run text before <code>Rationale</code> leaves this package is a narrow, specific redaction, not a general PII scrubber &mdash; it targets exactly the two patterns a rationale is most likely to quote back.</p>
+<p>Nobody ran a workshop to align on terminology. The alignment came from deleting a step, and it arrived in the least glamorous way possible: the expensive question became cheap, so people started asking it casually, and once everyone was looking at the same panel they started using the same words for what they saw.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-  A["StatusAlert EvalResult"] --> B["SamplesInWindow query"]
-  B --> C["Sort worst-first"]
-  C --> D["Cap at 20"]
-  D --> E["Redact Rationale"]
-  E --> F["AlertPayload JSON"]
-</pre>
-
-<p>So what: "attach the evidence" and "attach the raw text" are different requirements, and a schema that never persisted the raw text in the first place forces the honest answer &mdash; point at it, don't fabricate a copy of it.</p>
-
-<h2 id="what-model-version-actually-means-here">What "Model Version" Actually Means Here</h2>
-
-<p><code>AlertPayload.ModelVersion</code> is just <code>Segment.ModelID</code> &mdash; the tag a graded response was stored under, not a runtime probe of which weights actually answered. This is the same honesty gap a saliency map has when the model being explained silently gets swapped for a same-named replacement between training and serving: the explanation is only as trustworthy as the label on the thing it's explaining. "Suspected model version" is the right phrase for that reason &mdash; it names what the alert is willing to claim, not more.</p>
+<p>I want to be careful not to oversell this as a communication strategy. It was a query-engine feature that happened to have a social consequence, and I only recognised the pattern in hindsight. But the pattern generalises better than most things I have shipped: if two groups describe a system differently, check whether the tool is charging one of them more than the other to look.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">20</span><span class="stat-label">AlertSampleCap, worst-first</span></div>
-  <div class="stat-cell"><span class="stat-num">200</span><span class="stat-label">RootCauseCap, for comparison</span></div>
-  <div class="stat-cell"><span class="stat-num">280</span><span class="stat-label">Chars, redacted rationale cap</span></div>
-  <div class="stat-cell"><span class="stat-num">9</span><span class="stat-label">New tests, alert.go</span></div>
+  <div class="stat-cell"><span class="stat-num">1.5T+</span><span class="stat-label">Events/day, WhiteFalcon</span></div>
+  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">Hot tier retention</span></div>
+  <div class="stat-cell"><span class="stat-num">15&ndash;20%</span><span class="stat-label">Storage cut, Zstd</span></div>
+  <div class="stat-cell"><span class="stat-num">2&ndash;3</span><span class="stat-label">Grafana query types added</span></div>
 </div>
 
-<div class="pullquote"><p>A threshold crossing is a claim. Twenty worst-scoring, redacted samples are the evidence for it &mdash; the same gap a saliency map closes for a classifier that only ever says one word.</p></div>
+<h2 id="what-a-shared-dashboard-quietly-hides">What a Shared Dashboard Quietly Hides</h2>
 
-<p><strong>So what:</strong> "attach top-k worst prompts to payload" reads like a formatting request, but it's the same move explainability tooling makes for any model that only ever emits a label: don't ship the verdict alone, ship enough of the evidence a human would need to check it themselves. A CUSUM's <code>alert</code> and a classifier's <code>anomaly</code> are both one word doing a lot of unearned work until something backs them up.</p>
+<p>Here is the counterweight, and it is the reason this is not a victory-lap post. A dashboard aligns everyone on what it measures, and it aligns them just as effectively on ignoring what it does not.</p>
+
+<p>The clearest example I saw was a cardinality problem. Prometheus scrape duration crept upward while request rate stayed flat &mdash; the cause was a <code>pod</code> label added to a fleet metric, where each new pod multiplied the existing series count. The arithmetic gets ugly fast: a metric already carrying model, tenant and status dimensions can sit at hundreds of thousands of series, and adding pod and zone pushes the possible combinations into the tens of millions.</p>
+
+<p>The detail worth keeping is what the monitoring did during all of this. No alert fired until scrape targets started failing outright. The alert designed to detect degradation of the metrics stack was itself among the first things to go dark, because it depended on the stack it was watching.</p>
+
+<p>The fix afterwards was schema discipline rather than a new dashboard: cross-product analysis before adding any new tag, and a hard budget of ten thousand labels per metric. High-cardinality dimensions like pod or experiment ID had to justify their combinatorial cost before they went in.</p>
+
+<div class="pullquote"><p>A dashboard is a shared vocabulary for what it measures, and a shared blind spot for what it doesn't. The second half is free and nobody signs off on it.</p></div>
+
+<p>So what: making a system legible to more people is genuinely valuable, and it raises the cost of anything the shared view happens to omit &mdash; because now everyone is confident, together, about a picture with the same hole in it.</p>
+
+<h2 id="the-same-bet-in-todays-code">The Same Bet in Today's Code</h2>
+
+<p>Today's <code>drift-detector</code> work is the month's LensAI arc arriving at exactly this point. Days 104 through 107 built the drift detection itself &mdash; the CUSUM statistics, the per-segment fleet, the alert payload with its worst-scoring samples attached. Every one of those alarms was computed correctly and visible to nobody, because the only place they went was a command-line tool's output.</p>
+
+<p>Day 108 puts them on the panel. Each surfaced alarm now increments a <code>drift_event_total</code> counter and writes a structured log line, and the counter feeds two new panels on the dashboard the fleet work already had, plus an alert rule shaped like the one this repo already uses for latency anomalies. That is the Agoda lesson applied deliberately rather than discovered by accident: put the expensive question on a panel and people will start asking it.</p>
+
+<p>And the counterweight applies to the new work too, so I wrote it into the module's own documentation rather than waiting to be surprised by it. <code>driftcheck</code> runs as a one-shot job, which means its counter sits flat at zero when nothing is drifting &mdash; and also when the job has stopped running entirely. A panel that looks calm for both reasons is exactly the Agoda failure mode in a new costume, and the honest fix is a staleness alert on the metrics file's own age, which is not wired yet.</p>
+
+<p><strong>So what:</strong> a month of building drift detection ended with the least mathematical commit in the arc &mdash; making the result visible &mdash; and that commit is the one that decides whether any of the previous four days matter to anyone. The statistics were the interesting part. The panel is the part that gets used.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 107 of 150 &mdash; Explainable Alerts — Sampled Evidence</p>
-  <p><em>Next up:</em> <a href="day-108-metrics-vs-logs-drift-events.html">Day 108 &mdash; Metrics vs Logs for Drift Events</a></p>
+  <p>Experience &middot; Day 108 of 150 &mdash; Grafana as Communication — LensAI Month Reflection</p>
+  <p><em>Next up:</em> Day 109 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 106 — Hierarchical Drift — Global vs Segment (yesterday's post — the fleet whose alarms this payload now explains)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-104-cusum-detecting-sustained-shifts.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 104 — CUSUM — Detecting Sustained Shifts (RootCauseSamples' 200-row cap, the sibling this post's AlertSampleCap narrows from)</span>
-    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-107-postmortem-culture-wayfair-dead-letter-rows.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 107 — Postmortem Culture — Root Cause Samples Required (today's companion Experience post)</span>
+      <span>Day 107 — Postmortem Culture — Root Cause Samples Required (yesterday's post — the evidence an alert must carry, before today's post makes it visible)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-102-executive-dashboards-one-chart-one-question.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 102 — Executive Dashboards — One Chart, One Question (the other Agoda dashboard post: audience and minimalism, where this one is about shared vocabulary)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 108 — Metrics vs Logs for Drift Events (today's companion AI Learning post — why the counter and the log line carry different things)</span>
     </a>
   </div>
 </div>
@@ -309,21 +315,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-label-with-no-evidence">A Label With No Evidence</a></li>
-      <li><a href="#top-k-not-full-sort">Top-K, Not a Full Sort</a></li>
-      <li><a href="#the-schema-doesnt-have-what-the-ticket-asked-for">The Schema Doesn't Have It</a></li>
-      <li><a href="#what-model-version-actually-means-here">What "Model Version" Means</a></li>
+      <li><a href="#a-question-the-tool-could-not-answer-in-one-step">A Question With No One-Step Answer</a></li>
+      <li><a href="#what-the-cross-tier-extension-actually-changed">What the Extension Changed</a></li>
+      <li><a href="#the-alignment-was-a-side-effect-not-a-goal">Alignment as a Side Effect</a></li>
+      <li><a href="#what-a-shared-dashboard-quietly-hides">What a Dashboard Hides</a></li>
+      <li><a href="#the-same-bet-in-todays-code">The Same Bet in Today's Code</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-107-explainable-alerts-sampled-evidence.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-108-grafana-as-communication-agoda-cross-tier-queries.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Explainable+Alerts+%E2%80%94+Sampled+Evidence+%C2%B7+AI+Learning+Day+107&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-107-explainable-alerts-sampled-evidence.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Grafana+as+Communication+%E2%80%94+LensAI+Month+Reflection+%C2%B7+Day+108&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-108-grafana-as-communication-agoda-cross-tier-queries.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -332,21 +339,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D106</span> AI Learning</div>
-          <a href="day-106-hierarchical-drift-global-vs-segment.html" class="series-post-title">Hierarchical Drift — Global vs Segment</a>
+          <div class="series-post-kicker"><span class="series-post-num">D107</span> Experience</div>
+          <a href="day-107-postmortem-culture-wayfair-dead-letter-rows.html" class="series-post-title">Postmortem Culture — Root Cause Samples Required</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D107</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Explainable Alerts — Sampled Evidence</div>
-          <div class="series-post-desc">Alerts need exemplars like trace exemplars.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D108</span> Experience &middot; now</div>
+          <div class="series-post-title">Grafana as Communication — LensAI Month Reflection</div>
+          <div class="series-post-desc">Dashboards aligned eng and PM on what is broken.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D108</span> AI Learning</div>
-          <a href="day-108-metrics-vs-logs-drift-events.html" class="series-post-title">Metrics vs Logs for Drift Events</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D109</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -383,7 +390,5 @@ flowchart LR
   }
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </body>
 </html>
