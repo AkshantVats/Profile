@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 105 &mdash; CUSUM vs Simple Thresholds | AI Learning Series</title>
-<meta name="description" content="A per-window threshold test can both cry wolf on one noisy hour and miss a real shift that never gets loud enough to trip it — implementing CUSUM in Go this week made clear why those are the same underlying weakness.">
-<meta property="og:title" content="Day 105 &mdash; CUSUM vs Simple Thresholds">
-<meta property="og:description" content="Thresholds cry wolf; CUSUM finds persistence. A per-window test has no memory of the window before it — that's the whole difference.">
+<title>Day 106 &mdash; Segmented SLOs &mdash; Delivery Hero Peak Zones | Experience Series</title>
+<meta name="description" content="A platform-wide SLO at Delivery Hero's Global Logistics Platform is a weighted average across every region and every hour — and a weighted average can sit inside its target while individual segments sit far outside theirs, canceling out.">
+<meta property="og:title" content="Day 106 &mdash; Segmented SLOs &mdash; Delivery Hero Peak Zones">
+<meta property="og:description" content="Bangkok lunch and a rural zone at 2am are different traffic regimes wearing the same aggregate number — an illustrative pairing for a pattern the architecture makes structurally real.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-105-cusum-vs-simple-thresholds.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-105-cusum-vs-simple-thresholds.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-106-segmented-slos-delivery-hero-peak-zones.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-106-segmented-slos-delivery-hero-peak-zones.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-105-cusum-vs-simple-thresholds.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-106-segmented-slos-delivery-hero-peak-zones.png">
 <meta property="article:published_time" content="2026-08-15">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,127 +185,102 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 105 of 150</span>
-    <span class="tag">CUSUM</span>
-    <span class="tag">Statistics</span>
-    <span class="tag">Go</span>
+    <span class="tag accent">Experience &middot; Day 106 of 150</span>
+    <span class="tag">Delivery Hero</span>
+    <span class="tag">SLOs</span>
+    <span class="tag">Monitoring</span>
   </div>
-  <h1 class="post-title">Day 105 &mdash; CUSUM vs Simple Thresholds</h1>
-  <p class="post-subtitle">Thresholds cry wolf; CUSUM finds persistence. Implementing the running sum in Go this week made the difference concrete instead of just conceptual.</p>
+  <h1 class="post-title">Day 106 &mdash; Segmented SLOs &mdash; Delivery Hero Peak Zones</h1>
+  <p class="post-subtitle">A platform-wide SLO is a weighted average across every region and every hour &mdash; and a weighted average can sit right inside its target while individual segments sit far outside theirs, canceling out.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 105 of 150</span>
+    <span class="meta-item">Experience &middot; Day 106 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 15, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-105-cusum-vs-simple-thresholds.png" alt="Day 105 — CUSUM vs Simple Thresholds" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-106-segmented-slos-delivery-hero-peak-zones.png" alt="Day 106 — Segmented SLOs — Delivery Hero Peak Zones" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Implement cumulative sum update in Go. That was today's ticket, and writing the update rule as actual code &mdash; not just DESIGN.md prose &mdash; made something clear that stayed abstract yesterday: a per-window threshold test and a CUSUM chart aren't a stricter version and a looser version of the same check. They fail in opposite directions, for the same underlying reason.</p>
+<p>Every engineer who has ever owned a platform-wide SLO has watched a green dashboard sit calmly on target while some corner of the fleet was quietly having a bad day. I want to be upfront about which parts of this post are grounded in Delivery Hero's documented architecture and which parts are an illustrative framing device I'm using to make a general pattern vivid, because they aren't the same thing.</p>
 
-<h2 id="what-a-per-window-test-actually-asks">What a Per-Window Test Actually Asks</h2>
+<div class="attr-box team">
+  <div class="attr-label">Scope note &mdash; Delivery Hero, Global Logistics Platform</div>
+  I was a Senior Software Engineer on Delivery Hero's Global Logistics Platform in Berlin from June 2022 to July 2023. My resume documents scaling that platform to 1M+ daily orders on AWS EKS (10k+ concurrent requests, zero downtime) and building end-to-end rider tracking on OSRM processing 5k+ real-time route updates per second, with a separate async SQS + Kinesis pipeline decoupling order processing from notifications to guarantee sub-second delivery status updates. "Bangkok lunch vs. rural night" is not a logged incident or a named dashboard from that record &mdash; it's this post's illustrative framing for a pattern the platform's own architecture makes structurally possible, not a claimed, measured degradation event.
+</div>
 
-<p><code>llm-judge-eval</code>'s existing z-test and mean-drop alert both ask the same shape of question every time they run: is <em>this</em> window bad enough on its own to flag? Each evaluation is independent &mdash; window <code>i</code> is judged with zero knowledge of what window <code>i-1</code> looked like.</p>
+<h2 id="a-platform-wide-number-is-a-weighted-average">A Platform-Wide Number Is a Weighted Average</h2>
 
-<p>That independence cuts both ways, and both cuts are real bugs, not just theoretical ones. A single noisy window can trip the threshold purely by chance, even when nothing is actually wrong &mdash; a false alarm. A shift that's real but never quite loud enough in any one window sails under the threshold forever, no matter how many consecutive windows it persists across &mdash; a miss the test will never catch, because it was never designed to remember.</p>
+<p>A single route-match latency P99, or a single SLA-compliance percentage, computed across every region and every hour of a logistics platform is not one measurement &mdash; it's a weighted average of thousands of very different local conditions. A dense city at its lunch peak and a low-volume rural zone at 2am are different traffic regimes entirely, and both of them feed into the exact same blended number. That number can sit comfortably inside its target even while one of those regimes is badly outside its own, because the other regime's slack is doing the covering.</p>
 
-<h2 id="a-smoke-detector-that-forgets-every-second">A Smoke Detector That Forgets Every Second</h2>
+<p>So what: a platform-wide SLO that only ever reports one number per metric can be technically "healthy" while telling you nothing true about any specific place or time it's supposed to represent.</p>
+
+<h2 id="the-illustrative-pairing-stated-plainly">The Illustrative Pairing, Stated Plainly</h2>
+
+<p>"Bangkok lunch ≠ rural night" is the pairing I'm using to make this vivid, and I want to name it as exactly that &mdash; an illustrative device, not a specific dated incident I can point to on the record. A platform running at Delivery Hero's documented "1M+ daily orders" system-wide has enormous headroom for precisely this kind of blending, whether or not any single blended failure was ever logged and filed as a ticket.</p>
+
+<p>The pattern doesn't need a named incident to be real, because it's a property of arithmetic, not of any one outage: average two numbers on opposite sides of a target and the average can land exactly on target. So what: the honest version of this post's claim is structural &mdash; the architecture makes the blending possible at this scale &mdash; not anecdotal, and I'd rather say that plainly than borrow the drama of a postmortem that never happened.</p>
+
+<h2 id="where-the-aggregation-actually-sits">Where the Aggregation Actually Sits</h2>
+
+<p>The documented architecture gives this pattern a real anchor. Order Service sits at the center of the platform &mdash; customer and rider ingress, persistence, and the one documented analytics aggregation point, an export to GBQ &mdash; while Route Service and Route Consumers on EKS handle the OSRM-backed routing work downstream of it. Any single global rollup computed off that GBQ export, or off Route Service's own metrics, is exactly the shape of number this post is critiquing: one figure standing in for every region, every hour, and every one of the 1M+ daily orders moving through it.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; two smoke detectors</div>
-  One smoke detector checks the air for smoke once a second and forgets what it saw the second before &mdash; a quick burst from a lit match trips it instantly, but a thin, steady haze that's never dense enough at any single instant never does, even after an hour of it building up in the room. A second detector also tracks a running total of how much haze it's measured recently, decaying that total back toward zero whenever the air is genuinely clear. The first detector is the per-window test; the second is CUSUM. Same air, same sensor, two different questions being asked of it.
+  <div class="attr-label">Why I'm not naming a specific SLO tool or dashboard</div>
+  Neither context doc I have for this system documents a named alerting product, a specific dashboard, or a masked-incident postmortem for this pattern &mdash; the real anchor is the architecture itself, not a tool built on top of it. What I can say honestly is the shape of the exposure: a single global rollup off Order Service's GBQ export, at this platform's documented scale, is structurally capable of hiding exactly the kind of segment-level failure this post describes.
 </div>
 
-<p>So what: "is the air bad right now" and "has the air been slightly bad for long enough to matter" are different claims, and a detector built to answer one well has no structural reason to be good at the other.</p>
+<p>So what: you don't need a specific outage on the record to know a blended metric can hide a real problem &mdash; you only need to know where the blending happens, and this platform's own architecture tells you that plainly.</p>
 
-<h2 id="the-decay-that-makes-it-work">The Decay That Makes It Work</h2>
+<h2 id="the-same-shape-in-todays-code">The Same Shape in Today's Code</h2>
 
-<p>Here's the mechanical detail that made this click while writing the actual Go: <code>k</code> isn't just "how big a shift to target." It's subtracted from every single window's z-score before that value ever gets added to the running sum:</p>
+<p>Today's <code>drift-detector</code> work (Phase 2A) is the same fix applied to a different blended metric. Instead of one CUSUM chart watching a single global z-score stream built from every judge score at once, the fleet trains one independent CUSUM per <code>(task_type, model_id)</code> segment &mdash; the top 10 by volume &mdash; so a shift confined to one segment can't hide behind nine other segments averaging it out. A Grafana heatmap then makes every tracked segment's status visible side by side instead of collapsing all ten into one number a reader has to trust blindly.</p>
 
-<pre><code>S+ = max(0, S+ + z - k)
-S- = max(0, S- - z - k)</code></pre>
-
-<p>That <code>max(0, ...)</code> floor is doing real work. On an ordinary, on-baseline window, <code>z</code> is small and <code>z - k</code> goes negative, so the statistic doesn't just fail to grow &mdash; it actively decays back toward zero. A single noisy window can nudge the sum up slightly, but it can't single-handedly cross <code>h</code>, because one window's worth of noise was never enough evidence on its own; only a real, sustained lean in one direction keeps outrunning that same decay window after window.</p>
-
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-  subgraph T["Per-window threshold"]
-    W1["This window's z"] --> C1{"Past h alone?"}
-    C1 --> F1["Forgotten either way"]
-  end
-  subgraph U["CUSUM"]
-    W2["This window's z"] --> A2["Add z minus k"]
-    A2 --> C2{"Sum past h?"}
-    C2 -->|"no"| A2
-  end
-</pre>
-
-<p>So what: the same subtraction that lets CUSUM absorb a single noisy window without false-alarming is exactly what lets it keep accumulating a real, persistent shift a threshold test would let slip through every single time it checked.</p>
-
-<h2 id="configurable-is-not-the-same-claim-as-tuned">Configurable Is Not the Same Claim as Tuned</h2>
-
-<p>Today's implementation makes <code>k</code> and <code>h</code> configurable via <code>DRIFT_CUSUM_K</code> and <code>DRIFT_CUSUM_H</code> &mdash; this ticket's explicit ask. But the values that actually ship as defaults today are the exact same <code>k = 0.5&sigma;</code>, <code>h = 5&sigma;</code> textbook Page/Montgomery pair yesterday's DESIGN.md already flagged as unmeasured against this system's own traffic. Making a number settable from an environment variable is a deployment convenience, not evidence anyone has tuned it against real judge-score data yet.</p>
+<p>The bridge here is direct, not metaphorical: segmenting a global aggregate into per-group signals is the same design move whether the aggregate is a route-match SLO blended across cities or a judge-quality metric blended across task types. Both fixes trade one comforting number for several honest ones.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Warm-up windows before an alarm counts</span></div>
-  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">Cooldown, one-sided reset</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Env vars: DRIFT_CUSUM_K / _H</span></div>
-  <div class="stat-cell"><span class="stat-num">14</span><span class="stat-label">Tests, all against fakes</span></div>
+  <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders, documented scale</span></div>
+  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">Route updates/sec via OSRM</span></div>
+  <div class="stat-cell"><span class="stat-num">10k+</span><span class="stat-label">Concurrent requests on EKS</span></div>
+  <div class="stat-cell"><span class="stat-num">10</span><span class="stat-label">Segments tracked, today's fleet</span></div>
 </div>
 
-<div class="pullquote"><p>A threshold test that only sometimes cries wolf and sometimes says nothing at all isn't two separate bugs &mdash; it's one detector with no memory, failing in whichever direction the noise happened to push it that day.</p></div>
+<div class="pullquote"><p>A weighted average can sit right on target while every one of its parts is wrong in a different direction. The fix was never a smarter blend &mdash; it was refusing to blend in the first place.</p></div>
 
-<p class="prose-so-what"><strong>So what:</strong> "thresholds cry wolf; CUSUM finds persistence" isn't a slogan about one technique being stricter than another &mdash; a per-window test and a running sum are answering genuinely different questions of the exact same data, and a system that only ever asks the first question will keep being surprised by shifts that were visible the whole time, just never all at once.</p>
+<p><strong>So what:</strong> a single global number and a set of segment-level numbers can be computed from the exact same underlying data, and only one of those two choices can actually tell you which region, which hour, or which task type needs attention right now. Delivery Hero's platform-wide SLOs and DriftWatch's global CUSUM are two names for the same exposure &mdash; a blended metric is comforting precisely because it's hiding the parts that would make you uncomfortable. Segmenting it is the only way to find out which parts those are before a customer, or a rider, tells you first.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 105 of 150 &mdash; CUSUM vs Simple Thresholds</p>
-  <p><em>Next up:</em> <a href="day-106-hierarchical-drift-global-vs-segment.html">Day 106 &mdash; Hierarchical Drift &mdash; Global vs Segment</a></p>
+  <p>Experience &middot; Day 106 of 150 &mdash; Segmented SLOs — Delivery Hero Peak Zones</p>
+  <p><em>Next up:</em> Day 107 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-104-cusum-detecting-sustained-shifts.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/five-thousand-geo-events-per-second.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 104 — CUSUM — Detecting Sustained Shifts (yesterday's post — the S+/S- mechanism and k/h parameters, taught from the design)</span>
+      <span>Five Thousand Geo-Events Per Second (the OSRM stream shape and partition skew behind this same rider-tracking system)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-101-hypothesis-testing-for-model-drops.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 101 — Hypothesis Testing for Model Drops (the single-window z-test this post contrasts CUSUM against)</span>
+      <span>Ten Thousand Concurrent Requests — EKS Patterns (Route Service and Route Consumers autoscaling at peak, on the same platform)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-105-alert-fatigue-at-agoda-cooldown-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 105 — Alert Fatigue at Agoda — 300 Pages in One Night (today's companion Experience post)</span>
+      <span>Day 106 — Hierarchical Drift — Global vs Segment (today's companion AI Learning post)</span>
     </a>
   </div>
 </div>
@@ -316,21 +291,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-per-window-test-actually-asks">What a Per-Window Test Asks</a></li>
-      <li><a href="#a-smoke-detector-that-forgets-every-second">A Smoke Detector That Forgets</a></li>
-      <li><a href="#the-decay-that-makes-it-work">The Decay That Makes It Work</a></li>
-      <li><a href="#configurable-is-not-the-same-claim-as-tuned">Configurable &ne; Tuned</a></li>
+      <li><a href="#a-platform-wide-number-is-a-weighted-average">A Weighted Average</a></li>
+      <li><a href="#the-illustrative-pairing-stated-plainly">The Illustrative Pairing</a></li>
+      <li><a href="#where-the-aggregation-actually-sits">Where the Aggregation Sits</a></li>
+      <li><a href="#the-same-shape-in-todays-code">The Same Shape in Today's Code</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-105-cusum-vs-simple-thresholds.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-106-segmented-slos-delivery-hero-peak-zones.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=CUSUM+vs+Simple+Thresholds+%C2%B7+AI+Learning+Day+105&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-105-cusum-vs-simple-thresholds.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Segmented+SLOs+%E2%80%94+Delivery+Hero+Peak+Zones+%C2%B7+Day+106&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-106-segmented-slos-delivery-hero-peak-zones.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -339,21 +314,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
-      <div class="series-title">150 days of AI infrastructure</div>
+      <div class="series-label">Experience Series</div>
+      <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D104</span> AI Learning</div>
-          <a href="day-104-cusum-detecting-sustained-shifts.html" class="series-post-title">CUSUM — Detecting Sustained Shifts</a>
+          <div class="series-post-kicker"><span class="series-post-num">D105</span> Experience</div>
+          <a href="day-105-alert-fatigue-at-agoda-cooldown-lessons.html" class="series-post-title">Alert Fatigue at Agoda — 300 Pages in One Night</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D105</span> AI Learning &middot; now</div>
-          <div class="series-post-title">CUSUM vs Simple Thresholds</div>
-          <div class="series-post-desc">Thresholds cry wolf; CUSUM finds persistence.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D106</span> Experience &middot; now</div>
+          <div class="series-post-title">Segmented SLOs — Delivery Hero Peak Zones</div>
+          <div class="series-post-desc">Bangkok lunch ≠ rural night—aggregates lied.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D106</span> AI Learning</div>
-          <a href="day-106-hierarchical-drift-global-vs-segment.html" class="series-post-title">Hierarchical Drift — Global vs Segment</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D107</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -390,7 +365,5 @@ flowchart LR
   }
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </body>
 </html>
