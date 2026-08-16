@@ -1178,6 +1178,18 @@
           "kicker": "Day 0 of N",
           "title": "Why I'm writing this series",
           "desc": "Preface: distributed-systems lens, public notes, scope."
+        },
+        {
+          "href": "blog/series/ai-learning/day-109-sensitivity-tuning-precision-recall-tradeoff.html",
+          "kicker": "AI Learning · Day 109 of 150",
+          "title": "Day 109 — Sensitivity Tuning — Precision/Recall Tradeoff",
+          "subtitle": "Strict vs noisy tenant personas",
+          "date": "2026-08-16",
+          "slug": "day-109-sensitivity-tuning-precision-recall-tradeoff",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-109-sensitivity-tuning-precision-recall-tradeoff.html",
+          "coverImage": "blog/assets/covers/day-109-sensitivity-tuning-precision-recall-tradeoff.png",
+          "desc": "A tenant sensitivity preset is one multiplier on the CUSUM chart's h threshold, not a smarter detector — strict, balanced, and noisy all run the identical accumulation math. The same 15% sustained drop, evaluated three ways, alarms under strict within six hours and doesn't under balanced or noisy."
         }
       ]
     },

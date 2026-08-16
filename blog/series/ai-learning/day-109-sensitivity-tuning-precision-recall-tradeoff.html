@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 108 &mdash; Metrics vs Logs for Drift Events | AI Learning Series</title>
-<meta name="description" content="One drift alarm produces a Prometheus counter and a structured log line. The split is not duplication — a counter label costs storage on every scrape forever, so unbounded fields can only ride the log.">
-<meta property="og:title" content="Day 108 &mdash; Metrics vs Logs for Drift Events">
-<meta property="og:description" content="The counter tells you a fire started. The log line tells you which room. Putting the room number in the counter burns down the metrics backend.">
+<title>Day 109 &mdash; Sensitivity Tuning &mdash; Precision/Recall Tradeoff | AI Learning Series</title>
+<meta name="description" content="A tenant preset (strict, balanced, noisy) is a proxy for a number nobody wants to pick directly. It scales one CUSUM parameter, h, and that choice alone decides how fast a real drift gets caught versus how often a false alarm fires.">
+<meta property="og:title" content="Day 109 &mdash; Sensitivity Tuning &mdash; Precision/Recall Tradeoff">
+<meta property="og:description" content="Same 15% drop, same six hours, three different verdicts — purely as a function of one multiplier on one threshold.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-108-metrics-vs-logs-drift-events.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-109-sensitivity-tuning-precision-recall-tradeoff.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-109-sensitivity-tuning-precision-recall-tradeoff.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-108-metrics-vs-logs-drift-events.png">
-<meta property="article:published_time" content="2026-08-15">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-109-sensitivity-tuning-precision-recall-tradeoff.png">
+<meta property="article:published_time" content="2026-08-16">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,76 +185,59 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 108 of 150</span>
-    <span class="tag">Prometheus</span>
-    <span class="tag">Cardinality</span>
+    <span class="tag accent">AI Learning &middot; Day 109 of 150</span>
+    <span class="tag">CUSUM</span>
+    <span class="tag">Statistics</span>
     <span class="tag">Go</span>
   </div>
-  <h1 class="post-title">Day 108 &mdash; Metrics vs Logs for Drift Events</h1>
-  <p class="post-subtitle">One alarm, two outputs: a counter that moved, and a log line that says which segment moved it. The temptation is to skip one &mdash; and the reason you can't is cardinality, not tidiness.</p>
+  <h1 class="post-title">Day 109 &mdash; Sensitivity Tuning &mdash; Precision/Recall Tradeoff</h1>
+  <p class="post-subtitle">Three preset names &mdash; strict, balanced, noisy &mdash; are a proxy for a number almost nobody wants to pick directly. Underneath, every one of them is the same multiplier on the same threshold.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 108 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 109 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 15, 2026</span>
+    <span class="meta-item">August 16, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-108-metrics-vs-logs-drift-events.png" alt="Day 108 — Metrics vs Logs for Drift Events" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-109-sensitivity-tuning-precision-recall-tradeoff.png" alt="Day 109 — Sensitivity Tuning — Precision/Recall Tradeoff" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's ticket was "emit <code>drift_event</code> metric and log line," and the word doing the most work in it is <em>and</em>. Two outputs for one event looks like indecision &mdash; pick a transport and use it. The reason it isn't indecision is that the two carry different things, and one of them has a hard ceiling on what it is allowed to carry at all.</p>
+<p>Today's ticket adds three named presets to a CUSUM chart, and each one turns out to be exactly one number: a multiplier on <code>h</code>. A reader's fair first question is why not let a tenant pick <code>h</code> directly &mdash; and the answer is that almost nobody wants to type "multiply the decision threshold by 1.8," even when that is precisely what they mean.</p>
 
-<h2 id="what-a-label-actually-costs">What a Label Actually Costs</h2>
+<h2 id="what-h-actually-controls">What <code>h</code> Actually Controls</h2>
 
-<p>A Prometheus counter is not one number. It is one number <em>per distinct combination of label values</em>, and each of those combinations is a separate time series with its own storage, its own index entry, and its own retention.</p>
+<p>A CUSUM chart accumulates evidence across consecutive windows into a running statistic, and <code>h</code> is the line that statistic has to cross before the chart pages anyone. It is not a threshold on one sample &mdash; it is a threshold on the <em>sum</em> of deviations the chart has seen since its last reset.</p>
 
-<p>So the cost of a label is not what it costs to write once. It is what it costs to store on every scrape for as long as retention runs &mdash; and that multiplies out across every value the label can take.</p>
+<p>Raise <code>h</code> and the chart demands more accumulated evidence before it acts. Fewer false alarms on ordinary noise, but a genuine sustained shift also takes longer to cross the line and get flagged.</p>
 
-<p>This is why the instinct to "just add the request ID as a label" is the single most expensive instinct in metrics design. A request ID is unique per request, so a label carrying it creates one time series per request. You have not added a dimension; you have converted your metrics backend into a very slow, very expensive log store.</p>
+<p>So what: <code>h</code> is not "how big a shift counts as drift" &mdash; that is a different parameter's job, and keeping the two separate is the whole design of today's fix.</p>
 
-<p>So what: labels are for things with few values, and "few" is a claim about the data that someone has to actually be able to defend.</p>
+<h2 id="precision-recall-made-concrete">Precision/Recall, Made Concrete</h2>
 
-<h2 id="the-bound-is-borrowed-not-natural">The Bound Is Borrowed, Not Natural</h2>
+<p>A <code>strict</code> tenant runs at <code>h &times; 0.6</code>: less accumulated evidence required, so a real shift gets caught sooner. The cost is a chart that also reacts sooner to ordinary noise &mdash; higher recall, lower precision.</p>
 
-<p>Today's counter is <code>drift_event_total{task_type, model_id, side}</code>, and the awkward fact is that <code>(task_type, model_id)</code> is <em>not</em> naturally bounded. Nothing in the <code>judge_scores</code> schema stops a hundred task types appearing next week.</p>
+<p>A <code>noisy</code> tenant runs at <code>h &times; 1.8</code>: more evidence required before paging, tuned for a segment whose own baseline naturally swings wider than most. The cost is a real shift sitting unflagged longer &mdash; higher precision, lower recall on a small shift.</p>
 
-<p>It is safe here for a reason that has nothing to do with today's code. Day 106 built the fleet, and the fleet only ever evaluates the top ten segments by volume. Ten tracked segments, times two non-zero <code>Side</code> values, is a ceiling of twenty series &mdash; fixed, regardless of what the schema does.</p>
+<p>Neither setting is more correct than the other. They are calibrated to what a false alarm costs a given tenant against what a missed drift costs the same tenant, and that cost ratio is not the same number for every tenant on the fleet.</p>
 
-<p>I wrote that reasoning into the doc comment rather than leaving it implied, because the bound is borrowed and borrowed things get taken back. If <code>FleetSize</code> ever becomes unbounded, these labels stop being legal that same day, and the segment identity has to move to the log line. A future reader deleting a cap two days upstream should be able to find out what else they just broke.</p>
+<h2 id="why-h-and-not-k">Why <code>h</code>, Not <code>k</code></h2>
 
-<p>So what: the safety of today's design came from a decision made two days earlier for a completely unrelated reason, and that dependency is invisible unless somebody writes it down.</p>
+<p><code>k</code> sets the size of shift the chart is tuned to catch &mdash; DESIGN.md frames it as "half the shift size" the design targets, a property of the underlying signal itself. <code>h</code> sets how much accumulated evidence is required before acting on a shift of that size.</p>
 
-<h2 id="the-index-and-the-row">The Index and the Row</h2>
-
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a covering index and the row it points at</div>
-  The split between the counter and the log line is the split between an index and a row store. An index is small, bounded, and answers aggregate questions &mdash; "how many," "does any exist" &mdash; without touching the underlying rows at all. The row holds the full detail and gets read only once you already know which one you want. Nobody puts a free-text column in an index, and nobody expects the index alone to tell them what happened; you use the index to find out <em>that</em> something happened and <em>roughly where</em>, then you go read the row. The counter is the index: bounded labels, aggregate answers, cheap to scan on every scrape. The log line is the row: <code>window_start</code>, <code>sample_count</code>, <code>worst_score</code>, <code>worst_request_id</code> &mdash; all unbounded, all useless as labels, all exactly what you want open in front of you once the alert has told you to look.
-</div>
-
-<p>The asymmetry in when you pay is the whole reason the split works. A log line is paid for once, at write time, and then sits in cheap storage until someone greps it. A label is paid for on every scrape, forever, whether anyone ever queries it or not.</p>
-
-<p>So what: "which transport should this field go on" has a mechanical answer &mdash; count the distinct values it can take, and ask whether you want to pay for that many, repeatedly.</p>
-
-<h2 id="a-counter-in-a-process-that-exits">A Counter in a Process That Exits</h2>
-
-<p>Here is the complication that makes this more than a textbook exercise. <code>driftcheck</code> is a one-shot binary: it runs, prints, and exits. Prometheus works by scraping long-lived targets on an interval.</p>
-
-<p>An in-process counter in a process that lives for two seconds is therefore correct and permanently invisible. It increments accurately and nothing ever reads it, which is arguably a worse failure than not having the metric &mdash; the code looks instrumented.</p>
-
-<p>The standard answer for batch jobs is the textfile collector: write the metrics in Prometheus exposition format to a file, and let a long-lived <code>node_exporter</code> on that host expose the file's contents on its own scrape endpoint. The batch job's lifetime stops mattering because something else is doing the waiting.</p>
+<p>Scaling <code>k</code> per tenant would quietly redefine what counts as drift, tenant by tenant &mdash; two segments could see the identical shift and disagree on whether it was even a shift worth counting. Scaling <code>h</code> only changes how cautious the chart is before acting; every tenant's chart still agrees on what a shift is.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -274,68 +257,107 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["StatusAlert result"] --> B["Emit"]
-  B --> C["drift_event_total counter"]
-  B --> D["drift_event log line"]
-  C --> E["Write temp, rename"]
-  E --> F["node_exporter scrape"]
-  D --> G["Log aggregator"]
+  P["Base Params h=5"] --> S["strict h x0.6"]
+  P --> B["balanced h x1.0"]
+  P --> N["noisy h x1.8"]
+  S --> A1["Pages sooner"]
+  B --> A2["DESIGN.md default"]
+  N --> A3["Tolerates own baseline"]
 </pre>
 
-<p>Two details in that diagram are load-bearing. The first is the rename: the collector scrapes on its own clock with no coordination with this process, so it <em>will</em> eventually read the file mid-write.</p>
+<p>So what: "which parameter should a preset touch" has a mechanical answer here &mdash; ask whether it changes what counts as a shift, or only how much patience the chart has once one is happening.</p>
 
-<p>Writing to a temp file and renaming it into place makes the swap atomic within a directory, so a scrape sees either the previous run's complete file or this one's, never a half-written one. It is the same reason you plate a dish in the kitchen and carry it out finished, rather than assembling it in front of the guest.</p>
+<h2 id="a-retry-policy-not-a-different-algorithm">A Retry Policy, Not a Different Algorithm</h2>
 
-<p>The second is that the file gets written even when nothing alarmed. That feels like a wasted write until you consider what the collector serves in between runs: whatever it last read. Skip the quiet write and the last alarming run's value sits there permanently, the alert rule never clears, and the panel shows a fire that went out hours ago.</p>
-
-<p>So what: making a batch job's metrics visible is less about the counter and more about handling the two clocks that were never synchronised in the first place.</p>
-
-<h2 id="flat-at-zero-means-two-things">Flat at Zero Means Two Things</h2>
-
-<p>The honest limitation, and the one I put in the module's Pitfalls rather than discovering later: a counter emitted by a cron job reads identically when everything is healthy and when the cron job is dead. Flat at zero, both cases.</p>
-
-<p>The alert rule only fires on the counter <em>rising</em>, so it stays silent for both too. Nothing about the metric distinguishes "no drift detected" from "no detection running."</p>
-
-<p>The fix is a staleness alert on the metrics file's own modification time &mdash; <code>node_exporter</code> exports exactly that for textfiles. It is not wired yet, so the honest statement is that a quiet DriftWatch panel is evidence only if you independently know the job is alive.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">20</span><span class="stat-label">Series ceiling, drift_event_total</span></div>
-  <div class="stat-cell"><span class="stat-num">10</span><span class="stat-label">FleetSize, the borrowed bound</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Outputs per alarm</span></div>
-  <div class="stat-cell"><span class="stat-num">8</span><span class="stat-label">New tests, pkg/lensai</span></div>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; a backoff multiplier, not a different retry loop</div>
+  A sensitivity preset is a retry policy's backoff multiplier, not a different retry algorithm. Every tenant runs the identical CUSUM math &mdash; the same accumulation rule, the same warm-up gate, the same post-alarm cooldown &mdash; and only the threshold that decides "enough evidence has accumulated" changes. An aggressive retry policy and a conservative one share one retry loop and differ only in how long they wait between attempts; neither one is running a smarter retry. A preset works the same way: it does not make the chart cleverer about any one tenant, it only changes how patient the identical chart is told to be.
 </div>
 
-<h2 id="what-redaction-does-not-cover">What Redaction Does Not Cover</h2>
+<p>So what: the presets are not three different drift detectors wearing different names &mdash; they are one detector, three settings on the same dial.</p>
 
-<p>One field is deliberately in neither output: the judge's rationale text. Day 107 built <code>Redact</code> for exactly that field, so leaving it out looks like distrust of yesterday's work.</p>
+<h2 id="the-same-drop-three-verdicts">The Same Drop, Three Verdicts</h2>
 
-<p>It isn't &mdash; it's a different threat model. <code>Redact</code> bounds a rationale for an alert payload's immediate consumer, something read once by a human deciding whether to investigate. A log aggregator retains and indexes for weeks, across a much wider audience, which is a materially different exposure for the same string.</p>
+<p>The ticket's integration test injects a 15% relative drop in judge score &mdash; a baseline mean of 80 falling to 68 &mdash; sustained across six consecutive hourly windows, and evaluates the identical sequence three times, once per preset.</p>
 
-<p>Judge rationales quote back what they graded. The shortest correct answer for a sink with that retention profile is not a better regex; it is not sending the field at all.</p>
+<p><code>strict</code> reaches an alarm inside that six-hour window. <code>balanced</code>, DESIGN.md's own default, does not &mdash; it is still accumulating evidence when the window ends. <code>noisy</code> is further still from its threshold.</p>
 
-<div class="pullquote"><p>The counter tells you a fire started. The log line tells you which room. Putting the room number in the counter is how you burn down the metrics backend instead.</p></div>
+<table>
+<tr><th>Preset</th><th>h</th><th>Alarmed within 6h?</th></tr>
+<tr><td>strict</td><td>3.0</td><td>yes</td></tr>
+<tr><td>balanced</td><td>5.0</td><td>no</td></tr>
+<tr><td>noisy</td><td>9.0</td><td>no</td></tr>
+</table>
 
-<p><strong>So what:</strong> "emit a metric and a log line" reads like belt-and-braces duplication, and it's the opposite &mdash; it's a deliberate split of one event across two transports with genuinely different cost models. The counter is bounded because something upstream bounded it, and it is worth knowing which upstream decision you are leaning on. The log line carries everything the counter can't afford, which turns out to be everything you actually want at three in the morning.</p>
+<p>So what: this is not a hypothetical tradeoff argued from first principles &mdash; it is the same drop, the same six hours, three genuinely different outcomes, purely as a function of one multiplier.</p>
+
+<h2 id="the-honest-limitation">The Honest Limitation</h2>
+
+<p>A preset is a static label someone assigned by hand. Nothing here measures a tenant's actual volatility and proposes a preset automatically, and nothing re-evaluates the choice once it is made.</p>
+
+<p>A tenant marked <code>noisy</code> whose traffic pattern quietly settles down keeps that same wide tolerance long after it stopped earning it &mdash; the chart is just as patient with a real shift from that tenant as it was on day one. Say this plainly, the same posture Day 108's flat-line-at-zero limitation took: a static default is a real gap, not a rounding error.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">0.6x</span><span class="stat-label">Strict multiplier</span></div>
+  <div class="stat-cell"><span class="stat-num">1.0x</span><span class="stat-label">Balanced (default)</span></div>
+  <div class="stat-cell"><span class="stat-num">1.8x</span><span class="stat-label">Noisy multiplier</span></div>
+  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">Injected test window</span></div>
+</div>
+
+<h2 id="the-experience-bridge">The Experience Bridge</h2>
+
+<p>Today's Experience post hits the identical shape as an operational incident before this post reaches it as a statistics problem: a restaurant partner's legitimate lunch rush that one fleet-wide volume threshold could not distinguish from a hostile burst.</p>
+
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  O["Order ingress alert"] --> F1["One threshold, all tenants"]
+  C["CUSUM h threshold"] --> F2["One threshold, all segments"]
+  F1 --> X["Cannot serve every baseline"]
+  F2 --> X
+  X --> Y["Fix: preset per segment"]
+</pre>
+
+<p>Same root cause, two vocabularies: a fleet built from segments with genuinely different baselines cannot be served honestly by one number. Solve it once, as a tunable multiplier chosen per segment, and the fix generalizes to a request-rate alert and a control chart alike.</p>
+
+<div class="pullquote"><p>A preset is not a smarter detector. It is an admission that one threshold was never going to be honest about every segment at once.</p></div>
+
+<p><strong>So what:</strong> today's actual contribution wasn't a new statistic &mdash; every tenant still runs the exact CUSUM math Day 105 wrote. It was recognizing that "one h for everyone" was a default that happened to be easiest to write down first, not a neutral one, and that fixing it costs exactly one multiplier.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 108 of 150 &mdash; Metrics vs Logs for Drift Events</p>
-  <p><em>Next up:</em> <a href="day-109-sensitivity-tuning-precision-recall-tradeoff.html">Day 109 &mdash; Sensitivity Tuning &mdash; Precision/Recall Tradeoff</a></p>
+  <p>AI Learning &middot; Day 109 of 150 &mdash; Sensitivity Tuning — Precision/Recall Tradeoff</p>
+  <p><em>Next up:</em> Day 110 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-107-explainable-alerts-sampled-evidence.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 107 — Explainable Alerts — Sampled Evidence (yesterday's post — the AlertPayload whose fields this one splits across two transports)</span>
+      <span>Day 108 — Metrics vs Logs for Drift Events (yesterday's post — the counter and log line this preset's alarms still flow through unchanged)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-106-hierarchical-drift-global-vs-segment.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-105-cusum-vs-simple-thresholds.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 106 — Hierarchical Drift — Global vs Segment (the fleet whose top-10 cap is the borrowed bound this post leans on)</span>
+      <span>Day 105 — CUSUM vs Simple Thresholds (the accumulation rule every preset in this post still runs unmodified)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-108-grafana-as-communication-agoda-cross-tier-queries.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 108 — Grafana as Communication — LensAI Month Reflection (today's companion Experience post — the same counter, seen from the panel)</span>
+      <span>Day 109 — Multi-Tenant Noisy Neighbor — Stealth Ordering Burst (today's companion Experience post — the same fix, in an ingress-alert's vocabulary)</span>
     </a>
   </div>
 </div>
@@ -346,23 +368,24 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-label-actually-costs">What a Label Costs</a></li>
-      <li><a href="#the-bound-is-borrowed-not-natural">The Bound Is Borrowed</a></li>
-      <li><a href="#the-index-and-the-row">The Index and the Row</a></li>
-      <li><a href="#a-counter-in-a-process-that-exits">A Counter in a Process That Exits</a></li>
-      <li><a href="#flat-at-zero-means-two-things">Flat at Zero Means Two Things</a></li>
-      <li><a href="#what-redaction-does-not-cover">What Redaction Misses</a></li>
+      <li><a href="#what-h-actually-controls">What h Controls</a></li>
+      <li><a href="#precision-recall-made-concrete">Precision/Recall, Concrete</a></li>
+      <li><a href="#why-h-and-not-k">Why h, Not k</a></li>
+      <li><a href="#a-retry-policy-not-a-different-algorithm">A Retry Policy, Not a New Algorithm</a></li>
+      <li><a href="#the-same-drop-three-verdicts">The Same Drop, Three Verdicts</a></li>
+      <li><a href="#the-honest-limitation">The Honest Limitation</a></li>
+      <li><a href="#the-experience-bridge">The Experience Bridge</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-108-metrics-vs-logs-drift-events.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-109-sensitivity-tuning-precision-recall-tradeoff.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Metrics+vs+Logs+for+Drift+Events+%C2%B7+Day+108&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-108-metrics-vs-logs-drift-events.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Sensitivity+Tuning+%E2%80%94+Precision%2FRecall+Tradeoff+%C2%B7+Day+109&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-109-sensitivity-tuning-precision-recall-tradeoff.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -375,17 +398,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D107</span> AI Learning</div>
-          <a href="day-107-explainable-alerts-sampled-evidence.html" class="series-post-title">Explainable Alerts — Sampled Evidence</a>
+          <div class="series-post-kicker"><span class="series-post-num">D108</span> AI Learning</div>
+          <a href="day-108-metrics-vs-logs-drift-events.html" class="series-post-title">Metrics vs Logs for Drift Events</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D108</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Metrics vs Logs for Drift Events</div>
-          <div class="series-post-desc">Counter for fires, log for debug.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D109</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Sensitivity Tuning — Precision/Recall Tradeoff</div>
+          <div class="series-post-desc">Preset maps to CUSUM h multiplier.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D109</span> AI Learning</div>
-          <a href="day-109-sensitivity-tuning-precision-recall-tradeoff.html" class="series-post-title">Sensitivity Tuning — Precision/Recall Tradeoff</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D110</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
