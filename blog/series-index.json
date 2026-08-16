@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html",
+          "kicker": "AI Learning · Day 110 of 150",
+          "title": "Day 110 — Chaos for ML Systems — Injected Degradation",
+          "subtitle": "Replay JSON defines expected alert latency",
+          "date": "2026-08-16",
+          "slug": "day-110-chaos-for-ml-systems-injected-degradation",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html",
+          "coverImage": "blog/assets/covers/day-110-chaos-for-ml-systems-injected-degradation.png",
+          "desc": "A broker-failure drill is a binary kill switch at a known instant; a model quality regression is a gradual shape with no clean start time, so a replayable ML incident fixture has to capture a baseline window, an hourly incident sequence, and ground truth instead. Replaying it through the real EvaluateRange path measured three concrete latencies — 6h, 8h, 14h — across the three sensitivity presets."
+        },
+        {
           "href": "blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html",
           "kicker": "AI Learning · Day 108 of 150",
           "title": "Day 108 — Metrics vs Logs for Drift Events",
@@ -1199,6 +1211,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-110-game-day-replay-production-incident-json.html",
+          "kicker": "Experience · Day 110 of 150",
+          "title": "Day 110 — Game Day: Replay Production Incident JSON",
+          "subtitle": "A rehearsal only earns trust for what it tested",
+          "date": "2026-08-16",
+          "slug": "day-110-game-day-replay-production-incident-json",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-110-game-day-replay-production-incident-json.html",
+          "coverImage": "blog/assets/covers/day-110-game-day-replay-production-incident-json.png",
+          "desc": "A detector that passes its unit tests hasn't earned anyone's trust to page them at 3am — that trust gets built by rehearsing the exact failure shape it's supposed to catch, the same discipline broker failure drills bring to a Kafka-fed pipeline. DriftWatch's new chaos-replay tool does the automated version: replay a captured incident fixture through the real detector and measure how fast it catches it."
+        },
         {
           "href": "blog/series/experience/day-108-grafana-as-communication-agoda-cross-tier-queries.html",
           "kicker": "Experience · Day 108 of 150",
