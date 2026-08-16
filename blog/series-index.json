@@ -2302,6 +2302,18 @@
           "kicker": "Experience 1 of N",
           "title": "1.5T events/day — what I worked on at Agoda",
           "desc": "WhiteFalcon context, team vs contribution boundaries."
+        },
+        {
+          "href": "blog/series/experience/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html",
+          "kicker": "Experience · Day 109 of 150",
+          "title": "Day 109 — Multi-Tenant Noisy Neighbor — Stealth Ordering Burst",
+          "subtitle": "One franchise DDoS'd our API via legitimate lunch rush",
+          "date": "2026-08-16",
+          "slug": "day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html",
+          "coverImage": "blog/assets/covers/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.png",
+          "desc": "A volume spike against Order Service looked exactly like a DDoS and turned out to be one franchise's legitimate lunch rush. The fix wasn't a smarter detector — it was admitting one fleet-wide threshold can't serve every tenant's very different baseline honestly."
         }
       ]
     },
