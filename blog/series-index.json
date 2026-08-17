@@ -1236,6 +1236,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html",
+          "kicker": "Experience · Day 113 of 150",
+          "title": "Day 113 — Webhook Retries — Stripe-Style at Stealth Payments",
+          "subtitle": "Exponential backoff + idempotency keys mandatory",
+          "date": "2026-08-17",
+          "slug": "day-113-webhook-retries-stripe-style-stealth-payments",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html",
+          "coverImage": "blog/assets/covers/day-113-webhook-retries-stripe-style-stealth-payments.png",
+          "desc": "A pre-launch payments company's webhook consumer retried every failed delivery immediately, with no backoff and no idempotency key. Retrying looked like resilience; without a key to tell 'already processed' from 'never arrived,' it produced duplicate transaction records and a self-inflicted load spike — the same sender/receiver split DriftWatch's new FineForge retrain client has to be honest about."
+        },
+        {
           "href": "blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html",
           "kicker": "Experience · Day 112 of 150",
           "title": "Day 112 — Debounce Duplicate Alerts — Agoda Kafka Consumer Bug",
