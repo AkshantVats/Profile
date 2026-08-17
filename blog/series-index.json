@@ -1248,6 +1248,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html",
+          "kicker": "Experience · Day 114 of 150",
+          "title": "Day 114 — Wayfair A/B Price Tests — Ethical Holdouts",
+          "subtitle": "Holdout group size ethics translated to model experiments",
+          "date": "2026-08-17",
+          "slug": "day-114-wayfair-ab-price-tests-ethical-holdouts",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html",
+          "coverImage": "blog/assets/covers/day-114-wayfair-ab-price-tests-ethical-holdouts.png",
+          "desc": "Wayfair's PAS Experiments adjustment type holds most SKUs out of a price test on purpose, deterministically, and only for a bounded time — the same holdout-sizing reasoning that decides how much live traffic a candidate model gets to see before DriftWatch's new paired-score collector trusts it."
+        },
+        {
           "href": "blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html",
           "kicker": "Experience · Day 113 of 150",
           "title": "Day 113 — Webhook Retries — Stripe-Style at Stealth Payments",
