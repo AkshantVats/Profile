@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 112 &mdash; Alert Deduplication &mdash; State Machines | AI Learning Series</title>
-<meta name="description" content="State keyed by rule_id+tenant. A condition being true right now and a segment deserving a fresh notification are two different questions, and only a small per-segment state machine can answer both correctly.">
-<meta property="og:title" content="Day 112 &mdash; Alert Deduplication &mdash; State Machines">
-<meta property="og:description" content="A flapping metric can re-enter 'firing' hundreds of times an hour. Without a debounce clock that survives the resolve/re-fire cycle, every one of those re-entries re-sends the same notification.">
+<title>Day 113 &mdash; Webhooks &mdash; Contract for Auto-Retrain | AI Learning Series</title>
+<meta name="description" content="OpenAPI spec for /hooks/retrain. A retry client and a receiver that doesn't exist yet can both be built today, independently, as long as both sides commit to the same schema first.">
+<meta property="og:title" content="Day 113 &mdash; Webhooks &mdash; Contract for Auto-Retrain">
+<meta property="og:description" content="FineForge doesn't have a repo yet, but its retrain webhook client shipped today anyway — because a fixed request schema plus a clear retryable/terminal split means the sender doesn't need the receiver to exist to be correct.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-112-alert-deduplication-state-machines.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-112-alert-deduplication-state-machines.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-113-webhooks-contract-for-auto-retrain.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-112-alert-deduplication-state-machines.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-113-webhooks-contract-for-auto-retrain.png">
 <meta property="article:published_time" content="2026-08-17">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 112 of 150</span>
-    <span class="tag">Alerting</span>
-    <span class="tag">State Machines</span>
+    <span class="tag accent">AI Learning &middot; Day 113 of 150</span>
+    <span class="tag">Webhooks</span>
+    <span class="tag">Retries</span>
     <span class="tag">Go</span>
   </div>
-  <h1 class="post-title">Day 112 &mdash; Alert Deduplication &mdash; State Machines</h1>
-  <p class="post-subtitle">State keyed by <code>rule_id+tenant</code>. Yesterday's escalation list said what should happen once a rule fires; today's evaluator is the state machine that decides whether "firing" is even the right word for this tick, and whether anyone still needs to hear about it.</p>
+  <h1 class="post-title">Day 113 &mdash; Webhooks &mdash; Contract for Auto-Retrain</h1>
+  <p class="post-subtitle">OpenAPI spec for <code>/hooks/retrain</code>. Yesterday's evaluator decided when a rule should escalate; today's client is what happens when escalation says "call FineForge" &mdash; against a service that doesn't have a repo yet.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 112 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 113 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 17, 2026</span>
     <div class="meta-divider"></div>
@@ -208,28 +208,28 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-112-alert-deduplication-state-machines.png" alt="Day 112 — Alert Deduplication — State Machines" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-113-webhooks-contract-for-auto-retrain.png" alt="Day 113 — Webhooks — Contract for Auto-Retrain" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>State keyed by <code>rule_id+tenant</code>. Not global, and not per-rule either &mdash; a noisy tenant flapping a shared rule has to be silenceable without silencing a different tenant's genuine first alarm on that exact same rule, which means the debounce clock has to live one level more specific than the rule itself.</p>
+<p>OpenAPI spec for <code>/hooks/retrain</code>. Not a webhook fired and hoped for &mdash; a schema fixed in writing before a single line of client code existed, precisely so the sender could be built and tested today against a receiver that has no repo, no server, and no scheduled ship date yet.</p>
 
-<h2 id="two-questions-a-threshold-cant-tell-apart">Two Questions a Threshold Can't Tell Apart</h2>
+<h2 id="building-a-client-for-a-service-that-doesnt-exist">Building a Client for a Service That Doesn't Exist</h2>
 
-<p>Yesterday's <code>CompiledRule</code> gave a rule an ordered escalation list &mdash; step 0 at zero delay, step 1 at thirty minutes, and so on. A naive evaluator would walk that list by asking one question every tick: is the condition true right now? If yes, notify.</p>
+<p>FineForge &mdash; the auto-retrain pipeline a firing rule's <code>action: fineforge_retrain</code> step is supposed to call &mdash; is a Day 120-149 product this plan hasn't started building. Day 111's <code>DESIGN.md</code> could have left that as a TODO and moved on; instead it fixed the request schema FineForge's real endpoint will accept, in writing, three days before this client existed.</p>
 
-<p>That's not enough, and the gap isn't obvious until a metric flaps. A condition that goes true, false, true, false dozens of times a minute re-enters "true" every single time it flips back &mdash; and a one-question evaluator re-notifies on every re-entry, because "is it true" and "have I already told someone about this" are different questions with different answers.</p>
+<p>That's what makes today's <code>HTTPRetrainClient</code> possible at all: a request body shaped like <code>{rule_id, segment, window, triggered_at}</code>, POSTed to <code>/hooks/retrain</code>, acked with a bare <code>202 Accepted</code>. No FineForge server is running anywhere to test this against for real &mdash; every test in today's code drives the client against an <code>httptest.Server</code> standing in for a contract, not a fake FineForge.</p>
 
-<p>So what: an evaluator that only tracks the condition's current value has no way to distinguish a brand-new alarm from the fortieth re-appearance of the same one in the last two minutes &mdash; it needs a second axis, time since last notification, that the condition's boolean value alone can never supply.</p>
+<p>So what: a schema written down and agreed to in advance turns "the other side doesn't exist yet" from a blocker into a non-issue &mdash; the sender only needs to be correct against the contract, not against a running instance of whatever eventually implements it.</p>
 
-<h2 id="the-mechanism-two-stages">The Mechanism, Two Stages</h2>
+<h2 id="retryable-vs-terminal-the-split-that-matters">Retryable vs. Terminal &mdash; the Split That Matters</h2>
 
-<p>Stage one is the familiar half: a condition has to hold continuously for a configured duration &mdash; the rule's <code>for</code> field &mdash; before it's trusted enough to fire at all. This is pending-before-firing, the same sustained-true idea a Prometheus <code>for</code> field already captures, and it throws out a single noisy sample on its own.</p>
+<p>"Retry on failure" undersells what the client actually has to decide, which is a three-way split, not a binary one. A network error or a FineForge 5xx means the request may not have been processed at all &mdash; worth another attempt. A 4xx means FineForge looked at this exact request and rejected it &mdash; retrying the identical bytes cannot produce a different verdict.</p>
 
-<p>Stage two is the one yesterday's design didn't build: once firing, each escalation step is only allowed to notify if the segment hasn't notified more recently than a configured debounce window &mdash; thirty minutes, per today's ticket. And critically, when the condition clears, the pending/firing progress resets, but the debounce clock does not &mdash; it has to survive exactly the resolve-then-refire cycle a flapping signal creates, or the clock is worthless the moment traffic gets noisy.</p>
+<p>Today's code marks that distinction with a small wrapper type, <code>retryableError</code>, rather than a status-code check scattered across the retry loop. An attempt either returns <code>nil</code> (success), a plain <code>error</code> (terminal &mdash; stop now), or a <code>*retryableError</code> (transient &mdash; back off and try again), and <code>errors.As</code> is what the loop uses to tell the last two apart.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -249,45 +249,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  B["Idle, condition false"] -- "condition true" --> C["Pending, for timer"]
-  C -- "for elapses" --> D["Firing, walk escalation"]
-  D -- "step due, not deduped" --> E["Notify sent"]
-  D -- "step due, deduped" --> F["Suppressed, clock unchanged"]
-  D -- "condition clears" --> B
+  A["Build request body"] --> B["POST /hooks/retrain"]
+  B -- "202 Accepted" --> C["Done, no retry"]
+  B -- "5xx or network error" --> D["Retryable, backoff then retry"]
+  B -- "4xx response" --> E["Terminal, fail fast"]
+  D -- "attempts exhausted" --> F["Give up, return error"]
 </pre>
 
+<p>So what: treating every failure as equally retryable wastes the retry budget on requests that were never going to succeed, and treating every failure as terminal drops a retrain trigger the moment FineForge has one bad second &mdash; the wrapper type is what lets one loop handle both cases correctly without a status-code check leaking into three different places.</p>
+
+<h2 id="why-jitter-not-just-doubling">Why Jitter, Not Just Doubling</h2>
+
+<p>Doubling the delay after each failure &mdash; 500ms, 1s, 2s, 4s &mdash; is the easy half of backoff, and it's not the half that matters most here. If every rule evaluating against a struggling FineForge computes that exact same schedule, every one of them retries at the exact same moments, and the struggling service gets hit by a synchronized wave instead of a spread-out trickle.</p>
+
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a crosswalk push-button</div>
-  Pressing a crosswalk button fifty times doesn't summon fifty walk signals &mdash; the first press arms the request, and every press after that until the signal actually cycles is a no-op, because the intersection already knows a pedestrian is waiting. Each intersection has its own independent button state; mashing the button at Main &amp; 1st does nothing to whether Main &amp; 2nd's signal is armed. A segment's debounce clock is that button: one press (notification) arms it, and further presses (re-triggers) do nothing until the cooldown actually elapses.
+  <div class="attr-label">DS analogy &mdash; a fire drill exit</div>
+  Fifty people evacuating a building at the exact same instant jam the doorway &mdash; even though the door is wide enough for all fifty to get through, eventually, if they don't all arrive at once. Stagger everyone's exit by a few random seconds and the same fifty people clear the same door faster, because the door was never the bottleneck &mdash; synchronized arrival was. Full jitter does the same thing to a retry schedule: instead of every caller retrying at exactly 500ms, 1s, 2s, each caller picks a random point inside that window, so a recovering FineForge sees a spread-out trickle of retries instead of a synchronized wave arriving the instant its capacity comes back.
 </div>
 
-<p>So what: debounce isn't "ignore the condition for a while" &mdash; it's a clock that tracks when a segment last spoke, kept deliberately separate from how many times the underlying condition flickers past its threshold in the meantime.</p>
+<p>Today's <code>fullJitter</code> picks a uniformly random delay inside <code>[0, cap]</code> rather than using the cap itself &mdash; the same "Exponential Backoff And Jitter" shape Stripe's own webhook retry guidance recommends, and the direct code-side echo of today's Experience post's payments-webhook lesson.</p>
+
+<p>So what: the exponential part controls how much load a struggling FineForge sees over time; the jitter part controls whether that load arrives as a wave or a trickle &mdash; and only one of those two actually determines whether a recovering service gets a fair chance to stay recovered.</p>
 
 <h2 id="the-concrete-result">The Concrete Result</h2>
 
-<p>Modeled as a test: a metric flapping true/false across a threshold roughly every 1.5 seconds for ten minutes &mdash; 400 potential re-triggers, the exact shape today's Experience post reports from a real Kafka consumer-lag alert. Run through the evaluator with the thirty-minute debounce window in place, and the segment notifies exactly once.</p>
+<p>Table-driven tests pin down both halves of the retryable/terminal split against a real <code>httptest.Server</code>, not just against the backoff math in isolation. A server that 500s twice then 202s takes exactly three requests to succeed; a server that always 500s gets hit exactly <code>MaxAttempts</code> times before the client gives up; a server that 400s once sees exactly one request, full stop.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">400</span><span class="stat-label">Potential re-triggers, ~10 minutes</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Notifications, dedupe on</span></div>
-  <div class="stat-cell"><span class="stat-num">200+</span><span class="stat-label">Notifications, dedupe window = 0</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Requests sent on a 400 (fail-fast)</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Requests to recover from 2 timeouts</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Default max attempts before giving up</span></div>
 </div>
 
-<p>Disable the debounce window entirely (a test written specifically to prove the first result isn't passing by accident) and the same 400-tick sequence produces well over a hundred notifications &mdash; every true-tick that follows a false-tick re-enters "firing" and re-sends. The difference between those two numbers is the entire value of stage two.</p>
+<p>A separate test cancels its context before calling <code>TriggerRetrain</code> at all, against a server configured to fail every request for 100 attempts, and asserts the call returns in well under a second &mdash; proving the retry loop actually checks context cancellation between attempts rather than blindly working through its full schedule regardless of whether anyone is still waiting on the result.</p>
 
-<p>So what: this isn't an abstract claim about a debounce window being "a good idea" &mdash; it's a specific, re-runnable before/after count, and the fact that the without-dedupe test exists at all is what makes the with-dedupe result trustworthy rather than assumed.</p>
+<p>So what: "it retries with backoff" is a claim a reviewer has to take on faith unless the fail-fast case, the recovery case, and the give-up case are each pinned down by a test that would fail if any one of those three behaviors regressed &mdash; which is what today's suite actually does.</p>
 
 <h2 id="the-honest-limitation">The Honest Limitation</h2>
 
-<p>A thirty-minute window is a chosen tradeoff, not a provably optimal one. Set it too wide and a second, genuinely distinct alarm that happens to land inside that window gets silently absorbed along with the duplicate noise it exists to suppress &mdash; from outside the system, a correctly-debounced storm and a wrongly-swallowed second incident look identical: quiet.</p>
+<p>Five attempts with a thirty-second cap is generous, but it is still a bounded budget, not a queue. If FineForge is down longer than that &mdash; a deploy, an incident, anything past a couple of minutes &mdash; today's client simply drops the retrain trigger and returns an error; nothing persists it for a later replay.</p>
 
-<p>Nothing about this state machine tunes that number for a given rule automatically. Thirty minutes came from the ticket, not from a measured distribution of how long a real rebalance-shaped flap actually lasts, and a rule with a much noisier or much quieter failure mode than this one would reasonably want a different window.</p>
+<p>The idempotency half of this contract is the other honest gap, and it's the one today's Experience post names directly: DESIGN.md's request body (<code>rule_id</code> + segment + window) is the natural dedupe key a real FineForge would check before queuing a second retrain job for the same drift episode, but nothing on the sending side can enforce that a receiver that doesn't exist yet will actually do so.</p>
 
-<p>So what: dedupe trades a small, real risk of swallowing an early second alarm for a much larger reduction in duplicate noise, and that tradeoff has a dial, not a single correct setting.</p>
+<p>So what: today's client is a well-behaved sender against a contract, not a guarantee that a retrain trigger always lands exactly once &mdash; that guarantee needs a receiver, a persistent queue, or both, and neither is in scope until FineForge is a real service to build against.</p>
 
 <h2 id="the-experience-bridge">The Experience Bridge</h2>
 
-<p>Today's Experience post reaches this from the operations side: a real consumer-lag alert on Agoda's Kafka pipeline fired 400 times in about ten minutes during a routine rebalance, fixed by adding exactly this shape of debounce to the alert's config. Same underlying gap, two different vocabularies for closing it.</p>
+<p>Today's Experience post reaches the same contract from the other direction: a pre-launch payments company's webhook consumer retried with no backoff and no idempotency key, producing duplicate transaction records and a self-inflicted load spike. Same two-part fix, same order of operations &mdash; pace the sender first, then close the idempotency gap on the receiver.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -307,35 +315,35 @@ flowchart LR
   }
 }}%%
 flowchart LR
-  K["Kafka lag alert, Grafana"] --> P1["Debounce as config"]
-  R["alert-rule-engine Evaluate"] --> P2["Debounce as Go state"]
-  P1 --> X["Same fix, two systems"]
+  S["Stealth Payments webhook"] --> P1["Backoff + idempotency key"]
+  R["FineForge retrain webhook"] --> P2["Backoff today, idempotency later"]
+  P1 --> X["Same contract, two systems"]
   P2 --> X
 </pre>
 
-<div class="pullquote"><p>An alert that can tell "still true" from "still the same episode" is the difference between a routine, self-healing operational event and a paging incident of its own making.</p></div>
+<div class="pullquote"><p>A retry client can be provably well-paced and still not be provably safe to receive twice &mdash; those are two different contracts, and only one of them lives in the code that ships today.</p></div>
 
-<p><strong>So what:</strong> the fix in both systems wasn't a bigger alert budget or a quieter Slack channel &mdash; it was giving the alerting layer a notion of identity and time it didn't have before, and that notion is exactly what a small per-segment state machine is for.</p>
+<p><strong>So what:</strong> a webhook contract fixed in writing is what let today's sender ship correct against a receiver that doesn't exist yet &mdash; and naming exactly which half of "safe retries" that contract still leaves undone is what keeps this client honest instead of just looking finished.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 112 of 150 &mdash; Alert Deduplication — State Machines</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html">Day 113 &mdash; Webhooks &mdash; Contract for Auto-Retrain</a></p>
+  <p>AI Learning &middot; Day 113 of 150 &mdash; Webhooks — Contract for Auto-Retrain</p>
+  <p><em>Next up:</em> Day 114 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-112-alert-deduplication-state-machines.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 112 — Alert Deduplication — State Machines (yesterday's post — the evaluator whose escalation step calls this client)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 111 — Alert DSL — Rules as Data (yesterday's post — the CompiledRule and escalation list this evaluator walks)</span>
+      <span>Day 111 — Alert DSL — Rules as Data (the DESIGN.md that fixed this webhook's request schema three days early)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 110 — Chaos for ML Systems — Injected Degradation (a different kind of replay-driven confidence in a detector, same "prove it, don't assume it" spirit)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 112 — Debounce Duplicate Alerts — Agoda Kafka Consumer Bug (today's companion Experience post — this exact mechanism, from the operations side)</span>
+      <span>Day 113 — Webhook Retries — Stripe-Style at Stealth Payments (today's companion Experience post — the same contract, from the receiver side)</span>
     </a>
   </div>
 </div>
@@ -346,8 +354,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#two-questions-a-threshold-cant-tell-apart">Two Questions, One Threshold</a></li>
-      <li><a href="#the-mechanism-two-stages">The Mechanism, Two Stages</a></li>
+      <li><a href="#building-a-client-for-a-service-that-doesnt-exist">A Client for a Service That Doesn't Exist</a></li>
+      <li><a href="#retryable-vs-terminal-the-split-that-matters">Retryable vs. Terminal</a></li>
+      <li><a href="#why-jitter-not-just-doubling">Why Jitter, Not Just Doubling</a></li>
       <li><a href="#the-concrete-result">The Concrete Result</a></li>
       <li><a href="#the-honest-limitation">The Honest Limitation</a></li>
       <li><a href="#the-experience-bridge">The Experience Bridge</a></li>
@@ -357,11 +366,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-112-alert-deduplication-state-machines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-113-webhooks-contract-for-auto-retrain.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Alert+Deduplication+%E2%80%94+State+Machines+%C2%B7+Day+112&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-112-alert-deduplication-state-machines.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Webhooks+%E2%80%94+Contract+for+Auto-Retrain+%C2%B7+Day+113&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-113-webhooks-contract-for-auto-retrain.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -374,17 +383,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D111</span> AI Learning</div>
-          <a href="day-111-alert-dsl-rules-as-data.html" class="series-post-title">Alert DSL — Rules as Data</a>
+          <div class="series-post-kicker"><span class="series-post-num">D112</span> AI Learning</div>
+          <a href="day-112-alert-deduplication-state-machines.html" class="series-post-title">Alert Deduplication — State Machines</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D112</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Alert Deduplication — State Machines</div>
-          <div class="series-post-desc">A segment's debounce clock survives the resolve/re-fire cycle.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D113</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Webhooks — Contract for Auto-Retrain</div>
+          <div class="series-post-desc">A retry client that ships correct against a receiver that doesn't exist yet.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D113</span> AI Learning</div>
-          <a href="day-113-webhooks-contract-for-auto-retrain.html" class="series-post-title">Webhooks — Contract for Auto-Retrain</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D114</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
