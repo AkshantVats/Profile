@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 110 &mdash; Game Day: Replay Production Incident JSON | Experience Series</title>
-<meta name="description" content="A detector that passes its unit tests hasn't earned anyone's trust to page them at 3am yet. That trust gets built by rehearsing the exact failure shape it's supposed to catch, before a real one is the first test.">
-<meta property="og:title" content="Day 110 &mdash; Game Day: Replay Production Incident JSON">
-<meta property="og:description" content="Broker failure drills prove a pipeline survives the failure it's built for. A chaos-replayed judge-score fixture does the same thing for a detector — before you trust it to page you.">
+<title>Day 111 &mdash; PagerDuty Routing Trees &mdash; Wayfair On-Call | Experience Series</title>
+<meta name="description" content="A supplier's failed submission gets a retry, then an email. The same failure inside the platform's own database gets a page within the hour. One event shape, two audiences, and no single alert threshold that captures both.">
+<meta property="og:title" content="Day 111 &mdash; PagerDuty Routing Trees &mdash; Wayfair On-Call">
+<meta property="og:description" content="Wayfair's alert routing sends a supplier an email and pages an engineer for the same class of failure, at different urgencies, on purpose. That difference is escalation, and a single threshold can't express it.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-110-game-day-replay-production-incident-json.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-110-game-day-replay-production-incident-json.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-111-pagerduty-routing-trees-wayfair-on-call.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-110-game-day-replay-production-incident-json.png">
-<meta property="article:published_time" content="2026-08-16">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-111-pagerduty-routing-trees-wayfair-on-call.png">
+<meta property="article:published_time" content="2026-08-17">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 110 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">Chaos Engineering</span>
-    <span class="tag">WhiteFalcon</span>
+    <span class="tag accent">Experience &middot; Day 111 of 150</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">On-Call</span>
+    <span class="tag">PAS &amp; Pricing</span>
   </div>
-  <h1 class="post-title">Day 110 &mdash; Game Day: Replay Production Incident JSON</h1>
-  <p class="post-subtitle">A detector that passes its unit tests hasn't earned anyone's trust to page them at 3am yet. That trust gets built the same way a pipeline's failover earns it &mdash; by rehearsing the exact failure shape it exists to catch, on purpose, before a real one is the first test.</p>
+  <h1 class="post-title">Day 111 &mdash; PagerDuty Routing Trees &mdash; Wayfair On-Call</h1>
+  <p class="post-subtitle">A supplier's failed submission gets three retries, then an email. The platform's own database going unreachable gets a page inside the hour. Same shape of failure, two different audiences &mdash; and that difference is a routing decision no single alert threshold can make on its own.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 110 of 150</span>
+    <span class="meta-item">Experience &middot; Day 111 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 16, 2026</span>
+    <span class="meta-item">August 17, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,87 +208,88 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-110-game-day-replay-production-incident-json.png" alt="Day 110 — Game Day: Replay Production Incident JSON" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-111-pagerduty-routing-trees-wayfair-on-call.png" alt="Day 111 — PagerDuty Routing Trees — Wayfair On-Call" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Every detector I've shipped has, at some point, had a clean test suite and zero track record of catching a real failure. Those are not the same claim, and the gap between them is exactly where an on-call engineer's trust in a safety system either gets earned or doesn't.</p>
+<p>A supplier's promotion submission fails and, three retries later, a system I helped architect sends them an email telling them to try again. A pricing engineer's database connection fails and, twenty errors later, the same system pages someone at any hour. Both are the platform refusing to accept a write it can't process &mdash; and the platform treats them as opposite-urgency events on purpose.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Scope note &mdash; Agoda, WhiteFalcon TSDB</div>
-  I was a Senior Software Engineer contributing to Agoda's WhiteFalcon TSDB in Bangkok from April to September 2024 &mdash; about five months. WhiteFalcon is a Kafka-fed, Rust-and-Scala time-series database built and owned by the Agoda team; my own contributions were the cross-tier query engine extension and a new Kubernetes cardinality dimension on the RoaringBitmap index (a compressed bitmap structure that maps each tag value to the set of series carrying it), plus, per my own record only, contributing to Kafka pipeline components and participating in compaction job design discussions. I did not design the pipeline or the storage tiers.
+  <div class="attr-label">Scope note &mdash; Wayfair, PAS &amp; Pricing/Promotions</div>
+  I've been a Sr. Software Engineer III at Wayfair since November 2024, leading the PAS and Pricing, Promotions &amp; Discounts teams. My resume documents architecting a GCP event-driven Global Pricing &amp; Promotion Engine that reduced price propagation from hours to sub-seconds across 20k+ suppliers, and a high-throughput bulk processing framework handling 250k+ SKU updates per supplier at 99.99% availability. The alert-routing table and failure-handling mechanics below are documented architecture from that system, not a single dated incident I'm narrating &mdash; I'm describing how the platform is built to decide who gets told what, not one specific night it told someone.
 </div>
 
-<h2 id="the-gap-between-passing-tests-and-earned-trust">The Gap Between Passing Tests and Earned Trust</h2>
+<h2 id="one-failure-shape-two-audiences">One Failure Shape, Two Audiences</h2>
 
-<p>A detector's unit test suite answers one question: does the code do what the code was written to do. That is a claim about the code, checked against inputs someone wrote by hand to exercise it.</p>
+<p>Zoom out far enough and a failed promotion submission and a failed database connection look like the same event: something downstream rejected a write. Zoom in and they're not the same event at all &mdash; one is a supplier's input the platform can't yet accept, the other is the platform's own infrastructure being unavailable to anyone.</p>
 
-<p>Whether that same code would have caught the actual, messy shape of a real production failure is a different and harder claim &mdash; and no unit test answers it, because a unit test's inputs were chosen by the same person who wrote the detection logic.</p>
+<p>A single "did this fail" boolean can't tell those two apart. Answering "who needs to know, and how urgently" requires knowing <em>whose</em> resource failed, not just <em>that</em> something did.</p>
 
-<p>So what: the two claims get conflated constantly, and conflating them is exactly how a team ends up trusting a detector at 3am that has never once been tested against anything resembling the failure it exists to catch.</p>
+<p>So what: the routing decision has to happen before the alert fires, not after &mdash; which means it has to live in the alert's definition, not in whoever happens to be reading a dashboard when it goes red.</p>
 
-<h2 id="breaking-it-on-purpose-before-it-breaks-on-its-own">Breaking It on Purpose, Before It Breaks on Its Own</h2>
+<h2 id="the-routing-table-underneath">The Routing Table Underneath</h2>
 
-<p>Chaos engineering and game-day drills exist to close exactly that gap for infrastructure: deliberately kill a broker, fail over a node, or drop a replica in a controlled window, and watch whether the alerting and failover that are supposed to catch it actually do. The point is never the outage itself &mdash; it's the rehearsal.</p>
-
-<p>That discipline is standard practice around the kind of Kafka-fed pipeline WhiteFalcon runs on: a Rust consumer layer, a RoaringBitmap index, and storage tiers moving data from Redis through Ceph to S3 and Hadoop are exactly the components a broker-failure or consumer-lag drill is built to exercise. I didn't own or witness a specific documented drill on that system during my five months there, and I'm not claiming one &mdash; only that rehearsing a pipeline's failure modes on a schedule, rather than waiting for the real thing, is well-established practice around infrastructure shaped like it.</p>
-
-<p>So what: the rehearsal, not the outage, is the actual engineering artifact worth building &mdash; a scheduled, controlled, repeatable way to ask "does our safety net actually catch what we built it to catch."</p>
-
-<h2 id="driftwatchs-own-rehearsal-a-replay-not-a-drill">DriftWatch's Own Rehearsal: a Replay, Not a Drill</h2>
-
-<p>A broker-failure drill needs a live cluster to break. DriftWatch's <code>drift-detector</code> doesn't get that luxury on this sandbox, and it doesn't need one &mdash; the thing being rehearsed isn't a piece of infrastructure, it's a statistical judgment against a time series, and a time series can be captured once and replayed as many times as needed.</p>
-
-<p>Today's code turns that idea into a small, reusable tool: an <code>IncidentFixture</code> &mdash; a baseline window plus an hourly sequence during a modeled incident &mdash; replayed through the detector's real, production evaluation path, not a simplified stand-in for it. It answers the same question a broker drill answers, in a different vocabulary: does the thing that's supposed to catch this actually catch it, and how long does that take.</p>
-
-<div class="attr-box mine">
-  <div class="attr-label">Why "replay the real path" is the whole point</div>
-  The replay tool doesn't reimplement CUSUM's evaluation logic in a second, simplified copy for testing purposes &mdash; it feeds a captured fixture through the identical reader interfaces the live ClickHouse-backed path uses. A rehearsal that exercises a simplified stand-in for the real system proves something about the stand-in, not about the system anyone is actually going to trust. The replay is only as convincing as its distance from the real evaluation path is small, and here that distance is zero.
-</div>
-
-<p>So what: a fixture that never touches the real evaluation code is a rehearsal of the wrong thing &mdash; the entire value of today's tool is that it isn't one.</p>
-
-<h2 id="what-todays-replay-proved-and-what-it-didnt">What Today's Replay Proved &mdash; and What It Didn't</h2>
-
-<p>The fixture models a sustained 15% drop in judge score, and replaying it against all three sensitivity presets produced a real, re-runnable number for each: how many hourly windows before an alarm fires.</p>
+<p>Wayfair's pricing platform encodes that decision as a severity ladder, and every monitor is tagged onto a rung of it before it ever fires:</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">Strict, time to alarm</span></div>
-  <div class="stat-cell"><span class="stat-num">8h</span><span class="stat-label">Balanced, time to alarm</span></div>
-  <div class="stat-cell"><span class="stat-num">14h</span><span class="stat-label">Noisy, time to alarm</span></div>
-  <div class="stat-cell"><span class="stat-num">15%</span><span class="stat-label">Injected score drop</span></div>
+  <div class="stat-cell"><span class="stat-num">P1</span><span class="stat-label">Service down &rarr; immediate page</span></div>
+  <div class="stat-cell"><span class="stat-num">P2</span><span class="stat-label">Degraded &rarr; Slack, page on escalation</span></div>
+  <div class="stat-cell"><span class="stat-num">P3</span><span class="stat-label">Warning &rarr; Slack, monitor only</span></div>
+  <div class="stat-cell"><span class="stat-num">P4</span><span class="stat-label">Info &rarr; Slack, no escalation</span></div>
 </div>
 
-<p>That's a genuine result: proof the detector catches this specific shift, and a concrete latency cost for choosing the more patient presets over the sensitive one. It is not proof the detector stays quiet on an ordinary day with no real incident in it &mdash; no quiet-traffic fixture exists yet to test that, so today's rehearsal only earns trust for the one failure shape it actually tested.</p>
+<p>A database connection failure past its threshold is tagged straight onto the on-call rotation's PagerDuty service &mdash; it's the platform's own resource, unreachable for anyone, so it starts at the top rung immediately. A throughput anomaly or an elevated-but-not-critical error rate lands in a team Slack channel first, with PagerDuty only reachable if someone escalates it by hand.</p>
 
-<p>A human-run broker drill has the identical honesty problem. Rehearsing a clean failover under a controlled kill doesn't prove the same failover survives two simultaneous failures, or a slow degradation instead of a hard stop &mdash; it proves exactly the scenario that was rehearsed, nothing broader.</p>
+<p>So what: severity isn't a property of the metric that crossed a threshold, it's a property of who owns the thing that broke and how many people it's currently blocking &mdash; and that has to be decided per rule, not inferred from the number alone.</p>
 
-<div class="pullquote"><p>A rehearsal only earns trust for the specific failure shape it tested. Neither a quarterly drill nor an automated replay gets to claim more than that.</p></div>
+<h2 id="why-a-supplier-gets-an-email-not-a-page">Why a Supplier Gets an Email, Not a Page</h2>
 
-<p><strong>So what:</strong> the useful mental model isn't "we rehearsed it, so it's safe" &mdash; it's "we rehearsed this specific shape, and it held." Both a human-run game day and today's chaos-replay tool need to be re-run as the system and its traffic change, because neither one is a permanent proof; it's a snapshot of one scenario, dated the day it ran.</p>
+<p>A promotion submission that fails validation against the downstream pricing service gets retried three times with a fixed delay. If it's still failing after that, the project is marked failed and an email goes out to the supplier who submitted it &mdash; they retry manually, or an internal admin bulk-resubmits later. Nobody on the on-call rotation is paged for this by itself.</p>
+
+<p>That's not the platform being careless about a real failure. It's closer to a courier who, after three missed-delivery attempts, leaves a note on the door instead of calling the recipient at midnight &mdash; the failure is real and the recipient needs to know, but nothing about it requires waking someone up right now, because the fix is on the supplier's side and it can wait for business hours.</p>
+
+<p>So what: an async, non-paging notification isn't a lesser response to the same failure &mdash; it's the correct response to a failure whose remedy doesn't depend on an engineer doing anything at all.</p>
+
+<h2 id="why-the-same-shape-of-failure-pages-an-engineer">Why the Same Shape of Failure Pages an Engineer</h2>
+
+<p>Contrast that with the database connection failure threshold &mdash; more than twenty connection errors in an hour trips a monitor that goes straight to PagerDuty, on the weekly on-call rotation, no Slack-first grace period. The submission pipeline in front of it is the same code path a supplier's failed promotion travels through; what differs is which side of the request broke.</p>
+
+<p>A database being unreachable isn't one supplier's problem to retry around &mdash; it's blocking every supplier's traffic simultaneously, and no amount of manual resubmission from any of them fixes it. Only an engineer with access to the database can, so an engineer is who gets paged, immediately, regardless of the hour.</p>
+
+<div class="pullquote"><p>The same submission pipeline, failing two different ways, produces an email in one case and a page in the other &mdash; because urgency tracks who can fix it, not how the failure looks on a graph.</p></div>
+
+<p>So what: two failures that are statistically identical &mdash; a spike in rejected requests &mdash; get routed to completely different audiences, and a rule that only asks "did the count cross a threshold" has already lost the information needed to make that call.</p>
+
+<h2 id="what-a-threshold-alone-cant-say">What a Threshold Alone Can't Say</h2>
+
+<p>DriftWatch's own alerting, before today, is a single-severity threshold: <code>driftwatch-drift-events.yaml</code> fires <code>severity: warning</code> to one Slack channel every time a drift event is recorded, with no escalation step and no distinction between a segment's first alarm this week and its fifth unacknowledged one today. That's the same gap a bare <code>gt 0</code> condition leaves in any alerting system &mdash; it can say <em>that</em> something crossed a line, never <em>who should hear about it, how loudly, and what happens if the first notification is ignored</em>.</p>
+
+<p>Wayfair's routing table answers that with people and Slack channels, hand-configured per monitor. Today's code asks the same question for DriftWatch's alerts, but wants the answer to be data a rule can carry, not a wiki page an engineer maintains by hand: a rule's <code>escalation</code> field is an ordered list of steps, each with its own delay and its own audience, so "notify Slack now, then page if nobody's acted in thirty minutes" is one YAML document instead of institutional memory.</p>
+
+<p><strong>So what:</strong> a routing tree like Wayfair's on-call ladder isn't extra polish on top of a working alert &mdash; it's the part of the alert that decides whether the right person finds out in time, and it's exactly the part a rule DSL (a small, purpose-built configuration language, here for defining alert rules) has to model as a first-class field, not bolt on after the threshold already fired.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 110 of 150 &mdash; Game Day: Replay Production Incident JSON</p>
-  <p><em>Next up:</em> <a href="day-111-pagerduty-routing-trees-wayfair-on-call.html">Day 111 &mdash; PagerDuty Routing Trees &mdash; Wayfair On-Call</a></p>
+  <p>Experience &middot; Day 111 of 150 &mdash; PagerDuty Routing Trees &mdash; Wayfair On-Call</p>
+  <p><em>Next up:</em> Day 112 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-110-game-day-replay-production-incident-json.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 109 — Multi-Tenant Noisy Neighbor — Stealth Ordering Burst (yesterday's post — the presets this rehearsal replays against)</span>
+      <span>Day 110 — Game Day: Replay Production Incident JSON (yesterday's post — the detector this routing tree will eventually page on)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-105-alert-fatigue-at-agoda-cooldown-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-107-postmortem-culture-wayfair-dead-letter-rows.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 105 — Alert Fatigue at Agoda — 300 Pages in One Night (a different Agoda angle: what happens after a detector is trusted, not before)</span>
+      <span>Day 107 — Postmortem Culture — Root Cause Samples Required (a different Wayfair angle: what a paging engineer needs once they're already on the call)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 110 — Chaos for ML Systems — Injected Degradation (today's companion AI Learning post — the same rehearsal, in the fixture's own mechanics)</span>
+      <span>Day 111 — Alert DSL — Rules as Data (today's companion AI Learning post — the escalation ladder, in the rule's own mechanics)</span>
     </a>
   </div>
 </div>
@@ -299,21 +300,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-gap-between-passing-tests-and-earned-trust">The Gap: Tests vs. Trust</a></li>
-      <li><a href="#breaking-it-on-purpose-before-it-breaks-on-its-own">Breaking It on Purpose</a></li>
-      <li><a href="#driftwatchs-own-rehearsal-a-replay-not-a-drill">DriftWatch's Own Rehearsal</a></li>
-      <li><a href="#what-todays-replay-proved-and-what-it-didnt">What the Replay Proved</a></li>
+      <li><a href="#one-failure-shape-two-audiences">One Failure, Two Audiences</a></li>
+      <li><a href="#the-routing-table-underneath">The Routing Table Underneath</a></li>
+      <li><a href="#why-a-supplier-gets-an-email-not-a-page">Why Suppliers Get an Email</a></li>
+      <li><a href="#why-the-same-shape-of-failure-pages-an-engineer">Why Engineers Get Paged</a></li>
+      <li><a href="#what-a-threshold-alone-cant-say">What a Threshold Can't Say</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-110-game-day-replay-production-incident-json.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-111-pagerduty-routing-trees-wayfair-on-call.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Game+Day%3A+Replay+Production+Incident+JSON+%C2%B7+Day+110&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-110-game-day-replay-production-incident-json.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=PagerDuty+Routing+Trees+%E2%80%94+Wayfair+On-Call+%C2%B7+Day+111&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-111-pagerduty-routing-trees-wayfair-on-call.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -326,17 +328,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D109</span> Experience</div>
-          <a href="day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html" class="series-post-title">Multi-Tenant Noisy Neighbor — Stealth Ordering Burst</a>
+          <div class="series-post-kicker"><span class="series-post-num">D110</span> Experience</div>
+          <a href="day-110-game-day-replay-production-incident-json.html" class="series-post-title">Game Day: Replay Production Incident JSON</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D110</span> Experience &middot; now</div>
-          <div class="series-post-title">Game Day: Replay Production Incident JSON</div>
-          <div class="series-post-desc">A rehearsal only proves what it tested.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D111</span> Experience &middot; now</div>
+          <div class="series-post-title">PagerDuty Routing Trees — Wayfair On-Call</div>
+          <div class="series-post-desc">Urgency tracks who can fix it, not how the failure looks on a graph.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D111</span> Experience</div>
-          <a href="day-111-pagerduty-routing-trees-wayfair-on-call.html" class="series-post-title">PagerDuty Routing Trees — Wayfair On-Call</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D112</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
