@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 112 &mdash; Debounce Duplicate Alerts &mdash; Agoda Kafka Consumer Bug | Experience Series</title>
-<meta name="description" content="A consumer-lag alert fired 400 times in ten minutes during a routine Kafka rebalance. The fix wasn't a bigger alert budget — it was giving the alert a notion of identity and time it didn't have before.">
-<meta property="og:title" content="Day 112 &mdash; Debounce Duplicate Alerts &mdash; Agoda Kafka Consumer Bug">
-<meta property="og:description" content="Same lag alert, 400 times in ten minutes. A routine consumer-group rebalance made a threshold flap, and a rule with no notion of an ongoing episode re-paged on every flap. Here's the debounce window that fixed it.">
+<title>Day 113 &mdash; Webhook Retries &mdash; Stripe-Style at Stealth Payments | Experience Series</title>
+<meta name="description" content="A pre-launch payments company's webhook consumer retried on every failure with no backoff and no idempotency key. The result wasn't resilience — it was duplicate charges and a retry storm that made the outage worse.">
+<meta property="og:title" content="Day 113 &mdash; Webhook Retries &mdash; Stripe-Style at Stealth Payments">
+<meta property="og:description" content="Retrying a failed webhook delivery sounds like resilience. Without an idempotency key and a backoff schedule, it's how one outage becomes a duplicate-charge incident and a self-inflicted retry storm.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-113-webhook-retries-stripe-style-stealth-payments.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-113-webhook-retries-stripe-style-stealth-payments.png">
 <meta property="article:published_time" content="2026-08-17">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 112 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">Kafka</span>
-    <span class="tag">Alerting</span>
+    <span class="tag accent">Experience &middot; Day 113 of 150</span>
+    <span class="tag">Payments</span>
+    <span class="tag">Webhooks</span>
+    <span class="tag">Reliability</span>
   </div>
-  <h1 class="post-title">Day 112 &mdash; Debounce Duplicate Alerts &mdash; Agoda Kafka Consumer Bug</h1>
-  <p class="post-subtitle">A consumer-lag alert on Agoda's Kafka pipeline fired the same warning 400 times in about ten minutes during a routine consumer-group rebalance. The fix wasn't a bigger alert budget &mdash; it was giving the alert a notion of "is this still the same episode" it never had.</p>
+  <h1 class="post-title">Day 113 &mdash; Webhook Retries &mdash; Stripe-Style at Stealth Payments</h1>
+  <p class="post-subtitle">A pre-launch payments company's webhook consumer retried every failed delivery immediately, with no backoff and no way to tell "already processed" from "never arrived." Retrying looked like resilience. It was actually how one blip turned into duplicate charges and a self-inflicted traffic spike.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 112 of 150</span>
+    <span class="meta-item">Experience &middot; Day 113 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 17, 2026</span>
     <div class="meta-divider"></div>
@@ -208,79 +208,77 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.png" alt="Day 112 — Debounce Duplicate Alerts — Agoda Kafka Consumer Bug" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-113-webhook-retries-stripe-style-stealth-payments.png" alt="Day 113 — Webhook Retries — Stripe-Style at Stealth Payments" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<div class="attr-box team">
-  <div class="attr-label">Scope note &mdash; Agoda, WhiteFalcon TSDB</div>
-  I contributed to Agoda's WhiteFalcon TSDB pipeline for about five months as a Senior Engineer &mdash; the cross-tier query engine extension, a new Kubernetes cardinality dimension in the index, and, per my own resume, some work on the Kafka pipeline components feeding it. I did not design the Rust consumers, the Kafka topic layout, or the consumer-group rebalance strategy &mdash; those are the Agoda team's system. What follows is a bug in how an alert on that pipeline's own lag metric behaved, not a change to the pipeline it was watching.
+<div class="attr-box mine">
+  <div class="attr-label">Scope note &mdash; pre-launch payments consulting, name withheld</div>
+  I spent a short stretch consulting for a pre-launch payments startup on infrastructure hardening before their public launch &mdash; I'm not naming them, since they were pre-launch and it isn't my story to tell publicly. What follows is one specific webhook bug I found and the general pattern it taught me, not a description of their architecture, their volume, or their team. No system names, no numbers beyond what's necessary to explain the bug.
 </div>
 
-<h2 id="a-routine-rebalance-four-hundred-pages">A Routine Rebalance, Four Hundred Pages</h2>
+<h2 id="a-retry-loop-that-looked-like-resilience">A Retry Loop That Looked Like Resilience</h2>
 
-<p>WhiteFalcon's Rust consumers read from Kafka and write into the hot-tier Redis buckets, and a Grafana rule watches their consumer-group lag the way <code>consumer-latency-zscore-anomalies.yaml</code> watches query latency elsewhere in the stack. During a consumer-group rebalance &mdash; a normal, self-healing Kafka event where partitions get reassigned across consumers &mdash; lag briefly spikes as the reassigned partitions catch back up.</p>
+<p>Their payment processor sent a webhook on every transaction event, and their consumer's job was simple: receive it, update the transaction record, return 200. When that consumer's database connection pool briefly saturated during a load test, some webhook deliveries started timing out on the receiving end.</p>
 
-<p>That spike oscillated a few hundred milliseconds either side of the alert's threshold for close to ten minutes. Every time it crossed back over, the rule fired again: roughly 400 identical warnings in that window, the same rebalance producing what looked, from the paging channel, like 400 separate incidents.</p>
+<p>The processor's client library did exactly what a retry-on-failure client is supposed to do: it retried. Immediately, with no delay, on every single timeout, for every webhook still in flight.</p>
 
-<p>So what: nothing about the underlying system was actually unhealthy for those ten minutes &mdash; the alert was the thing behaving badly, not the pipeline it was watching.</p>
+<p>So what: a retry that fires the instant it fails isn't hardening a system under load &mdash; it's adding more load to the exact thing that's already struggling, at the worst possible moment to do it.</p>
 
 <h2 id="two-different-gaps-one-bug-report">Two Different Gaps, One Bug Report</h2>
 
-<p>The instinct is to call this "add a debounce" and move on, but that undersells what was actually missing, which is two separate things a single fix has to cover. The first gap: the rule had a threshold, but nothing like Grafana's own <code>for</code> field &mdash; no requirement that the condition hold continuously before it counts as real, so a single noisy sample could fire it.</p>
+<p>Same shape of mistake I'd later see in a Kafka consumer-lag alert at Agoda <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html">(Day 112)</a>: one incident, two separate gaps, and fixing only one of them still leaves the other one live. The first gap here was pacing &mdash; no backoff schedule, so a struggling consumer got hit hardest exactly when it was least able to absorb it.</p>
 
-<p>The second gap is the one that actually produced 400 pages: even a rule with a proper sustained-true check has no memory of whether it already told someone about this exact episode five seconds ago. Each time lag dipped back under the threshold and rose again, the rule treated it as a brand-new alarm, because nothing in its state distinguished "still the same rebalance" from "a fresh problem."</p>
+<p>The second gap was worse: some of those "failed" deliveries had actually succeeded on the receiving end before the response timed out. The connection pool update landed; only the 200 never made it back to the processor in time. Every retry against a request that had already succeeded created a second transaction record for the same event.</p>
 
-<p>So what: a threshold answers "is the condition true right now," and that is a materially different question from "have I already told someone about this," and conflating the two is exactly what turns one rebalance into 400 pages.</p>
+<p>So what: a timeout tells you the response didn't arrive, not that the work didn't happen &mdash; and a consumer with no way to tell those two apart will treat "I already did this" identically to "I never got the chance."</p>
 
-<h2 id="the-debounce-window-taught-properly">The Debounce Window, Taught Properly</h2>
+<h2 id="idempotency-keys-taught-properly">Idempotency Keys, Taught Properly</h2>
 
-<p>The actual fix has two parts, one for each gap above. Part one is unremarkable: require the lag to stay over threshold for a fixed window &mdash; five minutes, say &mdash; before the rule is allowed to fire at all, which throws out a single-sample blip the same way Grafana's <code>for</code> field already does for any provisioned alert.</p>
+<p>The fix Stripe's own API popularized, and the one this company adopted, has two parts matching the two gaps above. Part one: back off between retries &mdash; a short delay after the first failure, doubling after each subsequent one, so a struggling consumer gets breathing room instead of a hammering.</p>
 
-<p>Part two is the one that actually stops the storm: once the rule does fire, it remembers when it last notified anyone, and it refuses to notify again for the same alerting segment until a fixed window &mdash; thirty minutes, in this case &mdash; has passed since that last notification. Crucially, that memory has to survive the condition clearing and re-triggering, or a flapping metric defeats it by resetting the clock on every flap.</p>
+<p>Part two is the one that actually stops duplicate charges: every webhook carries a unique idempotency key, and the receiver keeps a short-lived record of every key it has already processed. A redelivered webhook with a key already on that list gets acknowledged immediately without repeating the side effect &mdash; the record update, the charge, whatever the webhook was supposed to trigger.</p>
 
-<p>A doorbell with a proper debounce circuit is the same idea in hardware: press it fifty times in a row and it rings once, then goes quiet for a fixed cooldown no matter how many more times a finger taps the button, because the circuit already knows someone is waiting at the door. The rule needed exactly that cooldown, keyed to "this alert, this segment," not to the raw count of times the doorbell got pressed.</p>
+<p>A courier delivering a certified letter is the same idea outside software: the letter carries a tracking number, and the courier's log records which tracking numbers already got a signature. Redeliver the same letter because the first signature confirmation got lost in transit, and the courier's log stops it from being logged as two separate deliveries &mdash; the tracking number is what makes "already delivered" a fact the system can check, not something it has to guess at from timing alone.</p>
 
-<p>So what: debounce isn't "ignore the alert for a while" &mdash; it's giving the alert a clock that tracks when it last spoke, independent of how many times the underlying condition flickers past its threshold in the meantime.</p>
+<p>So what: a backoff schedule protects the receiver from load; an idempotency key protects the data from a retry that arrives after the original request already succeeded &mdash; and a system with only the first one is still one lost response away from a duplicate.</p>
 
-<h2 id="what-this-buys-driftwatchs-alert-rules">What This Buys DriftWatch's Alert Rules</h2>
+<h2 id="what-this-buys-driftwatchs-retrain-webhook">What This Buys DriftWatch's Retrain Webhook</h2>
 
-<p>This is the identical shape of problem DriftWatch's own <code>alert-rule-engine</code> needed to solve for its escalation rules, and today's code builds exactly that: a per-<code>(rule_id, tenant)</code> state machine that requires a condition to hold for a configured duration before it fires, then debounces further notifications within a thirty-minute window that survives a resolve-and-refire cycle the same way the doorbell's cooldown does.</p>
+<p>Today's code builds the sender's half of this exact contract: `alert-rule-engine`'s new `HTTPRetrainClient` retries FineForge's <code>/hooks/retrain</code> webhook with full-jitter exponential backoff on network errors and 5xx responses, and fails fast on a 4xx instead of hammering a request that's already been rejected. That's the pacing half of what Stealth Payments got wrong on day one.</p>
 
-<p>A flapping drift signal without that debounce would hammer DriftWatch's FineForge retrain webhook (the endpoint an escalated rule calls to trigger a model retrain) the same way the Agoda lag alert hammered its paging channel &mdash; the failure mode transfers cleanly from a Grafana-provisioned threshold to a YAML-defined rule DSL, because the underlying gap (no notion of "still the same episode") is the same gap either way.</p>
+<p>The idempotency half is honestly the receiver's job, not this client's, and it's worth naming rather than glossing over: FineForge doesn't exist as a real service yet, so nothing on the sending side of today's code can guarantee it. What today's request body already carries &mdash; <code>rule_id</code>, the alarmed segment, and the exact time window &mdash; is the natural key a real FineForge dedupe table would check before queuing a second retrain job for the same drift episode, the same way a payments webhook's idempotency key is checked before a second charge.</p>
 
-<p>So what: this bug wasn't really about Kafka, or Grafana, or lag specifically &mdash; it was about any alerting system that can say a condition is true right now but can't say whether it already told someone, and that gap shows up wherever a threshold gets automated.</p>
+<p>So what: a retry client can only ever fix half of this problem &mdash; it can be a well-behaved sender, but whether a redelivered request is safe to receive twice is a decision that has to live on the other side of the wire.</p>
 
-<h2 id="what-a-debounce-window-doesnt-fix">What a Debounce Window Doesn't Fix</h2>
+<h2 id="what-a-backoff-schedule-doesnt-fix">What a Backoff Schedule Doesn't Fix</h2>
 
-<p>A thirty-minute debounce window stops the storm, but it isn't free. Tune it too wide and a second, genuinely distinct alarm that happens to fall inside that window gets silently swallowed along with the duplicate noise it was designed to suppress &mdash; a real problem twenty minutes after the first one can look, from the paging channel, exactly like the debounce doing its job correctly.</p>
+<p>Exponential backoff makes a retry storm less likely, but it doesn't make retries safe by itself &mdash; that's still the idempotency key's job, and a client that only ships backoff can feel done while still being able to double-charge someone. Today's <code>HTTPRetrainClient</code> is honest about this: it's a well-paced sender against a contract whose receiving half doesn't exist yet to verify against.</p>
 
-<p>Thirty minutes is a chosen tradeoff point for this rule, not a provably optimal one, and it doesn't fix the rebalance's brief lag spike either &mdash; that's still Kafka behaving normally under a routine operational event, not a bug to be engineered away.</p>
-
-<p><strong>So what:</strong> the debounce window fixes who gets paged and how often, not what actually happened on the pipeline &mdash; and mistaking a quiet alerting channel for a healthy system is its own kind of trap, just a quieter one than 400 pages in ten minutes.</p>
+<p><strong>So what:</strong> "we added retries" and "we added safe retries" are different claims, and the gap between them is exactly the idempotency key a backoff schedule alone will never give you &mdash; pacing and correctness are two different problems wearing the same name.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 112 of 150 &mdash; Debounce Duplicate Alerts &mdash; Agoda Kafka Consumer Bug</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html">Day 113 &mdash; Webhook Retries &mdash; Stripe-Style at Stealth Payments</a></p>
+  <p>Experience &middot; Day 113 of 150 &mdash; Webhook Retries &mdash; Stripe-Style at Stealth Payments</p>
+  <p><em>Next up:</em> Day 114 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 112 — Debounce Duplicate Alerts — Agoda Kafka Consumer Bug (yesterday's post — the same one-incident-two-gaps shape, on a different failure)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 111 — PagerDuty Routing Trees — Wayfair On-Call (yesterday's post — the escalation ladder a debounced alert eventually walks)</span>
+      <span>Day 111 — PagerDuty Routing Trees — Wayfair On-Call (the escalation ladder a fired rule eventually walks)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-105-alert-fatigue-at-agoda-cooldown-lessons.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 105 — Alert Fatigue at Agoda — 300 Pages in One Night (a different angle on the same underlying WhiteFalcon alerting surface)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-112-alert-deduplication-state-machines.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 112 — Alert Deduplication — State Machines (today's companion AI Learning post — the debounce window, as a typed Go state machine)</span>
+      <span>Day 113 — Webhooks — Contract for Auto-Retrain (today's companion AI Learning post — the retry client itself, as code)</span>
     </a>
   </div>
 </div>
@@ -291,22 +289,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-routine-rebalance-four-hundred-pages">A Routine Rebalance, 400 Pages</a></li>
+      <li><a href="#a-retry-loop-that-looked-like-resilience">A Retry Loop That Looked Like Resilience</a></li>
       <li><a href="#two-different-gaps-one-bug-report">Two Different Gaps</a></li>
-      <li><a href="#the-debounce-window-taught-properly">The Debounce Window</a></li>
-      <li><a href="#what-this-buys-driftwatchs-alert-rules">What This Buys DriftWatch</a></li>
-      <li><a href="#what-a-debounce-window-doesnt-fix">What It Doesn't Fix</a></li>
+      <li><a href="#idempotency-keys-taught-properly">Idempotency Keys, Taught Properly</a></li>
+      <li><a href="#what-this-buys-driftwatchs-retrain-webhook">What This Buys DriftWatch</a></li>
+      <li><a href="#what-a-backoff-schedule-doesnt-fix">What It Doesn't Fix</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-113-webhook-retries-stripe-style-stealth-payments.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Debounce+Duplicate+Alerts+%E2%80%94+Agoda+Kafka+Consumer+Bug+%C2%B7+Day+112&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Webhook+Retries+%E2%80%94+Stripe-Style+at+Stealth+Payments+%C2%B7+Day+113&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-113-webhook-retries-stripe-style-stealth-payments.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -319,17 +317,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D111</span> Experience</div>
-          <a href="day-111-pagerduty-routing-trees-wayfair-on-call.html" class="series-post-title">PagerDuty Routing Trees — Wayfair On-Call</a>
+          <div class="series-post-kicker"><span class="series-post-num">D112</span> Experience</div>
+          <a href="day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html" class="series-post-title">Debounce Duplicate Alerts — Agoda Kafka Consumer Bug</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D112</span> Experience &middot; now</div>
-          <div class="series-post-title">Debounce Duplicate Alerts — Agoda Kafka Consumer Bug</div>
-          <div class="series-post-desc">The fix wasn't a bigger alert budget — it was giving the alert a clock.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D113</span> Experience &middot; now</div>
+          <div class="series-post-title">Webhook Retries — Stripe-Style at Stealth Payments</div>
+          <div class="series-post-desc">Retrying looked like resilience. It was duplicate charges waiting to happen.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D113</span> Experience</div>
-          <a href="day-113-webhook-retries-stripe-style-stealth-payments.html" class="series-post-title">Webhook Retries — Stripe-Style at Stealth Payments</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D114</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
