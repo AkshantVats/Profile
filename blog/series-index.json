@@ -1224,6 +1224,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html",
+          "kicker": "Experience · Day 112 of 150",
+          "title": "Day 112 — Debounce Duplicate Alerts — Agoda Kafka Consumer Bug",
+          "subtitle": "Same lag alert 400x in 10m — added silencing window",
+          "date": "2026-08-17",
+          "slug": "day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.html",
+          "coverImage": "blog/assets/covers/day-112-debounce-duplicate-alerts-agoda-kafka-consumer-bug.png",
+          "desc": "A consumer-lag alert on Agoda's Kafka pipeline fired the same warning 400 times in about ten minutes during a routine consumer-group rebalance, because nothing in the rule distinguished a fresh alarm from the same ongoing episode. The fix was a debounce window keyed to the alerting segment's identity — the same shape DriftWatch's own alert-rule-engine needed for its escalation rules."
+        },
+        {
           "href": "blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html",
           "kicker": "Experience · Day 111 of 150",
           "title": "Day 111 — PagerDuty Routing Trees — Wayfair On-Call",
