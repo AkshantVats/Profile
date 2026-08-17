@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html",
+          "kicker": "AI Learning · Day 111 of 150",
+          "title": "Day 111 — Alert DSL — Rules as Data",
+          "subtitle": "PromQL-style expressiveness for quality",
+          "date": "2026-08-17",
+          "slug": "day-111-alert-dsl-rules-as-data",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html",
+          "coverImage": "blog/assets/covers/day-111-alert-dsl-rules-as-data.png",
+          "desc": "A bare Prometheus threshold can say a counter crossed a line; it has no field for who should be told or what happens if they're ignored. Today's rule DSL fixes an escalation field as ordered data compiled once into typed Go values, plus the FineForge retrain webhook contract and stub interface a real client will eventually satisfy."
+        },
+        {
           "href": "blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html",
           "kicker": "AI Learning · Day 110 of 150",
           "title": "Day 110 — Chaos for ML Systems — Injected Degradation",
