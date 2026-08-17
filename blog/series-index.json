@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html",
+          "kicker": "AI Learning · Day 114 of 150",
+          "title": "Day 114 — Live A/B — Traffic Splitting for Models",
+          "subtitle": "5% canary like feature flags",
+          "date": "2026-08-17",
+          "slug": "day-114-live-a-b-traffic-splitting-for-models",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html",
+          "coverImage": "blog/assets/covers/day-114-live-a-b-traffic-splitting-for-models.png",
+          "desc": "A firing rule's ab_test_candidate step names a candidate model and a percentage — no new deploy, just a stable-key FNV hash deciding per request whether it mirrors to the candidate, and a paired collector making sure that mirrored traffic actually gets compared against the baseline it ran beside."
+        },
+        {
           "href": "blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html",
           "kicker": "AI Learning · Day 113 of 150",
           "title": "Day 113 — Webhooks — Contract for Auto-Retrain",
