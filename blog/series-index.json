@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html",
+          "kicker": "AI Learning · Day 113 of 150",
+          "title": "Day 113 — Webhooks — Contract for Auto-Retrain",
+          "subtitle": "POST body schema triggers FineForge pipeline",
+          "date": "2026-08-17",
+          "slug": "day-113-webhooks-contract-for-auto-retrain",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html",
+          "coverImage": "blog/assets/covers/day-113-webhooks-contract-for-auto-retrain.png",
+          "desc": "FineForge doesn't have a repo yet, but its retrain webhook client shipped today anyway — a fixed request schema plus a retryable/terminal error split means the sender only has to be correct against the contract, not against a receiver that exists. Full-jitter exponential backoff on network errors and 5xx, fail-fast on 4xx."
+        },
+        {
           "href": "blog/series/ai-learning/day-112-alert-deduplication-state-machines.html",
           "kicker": "AI Learning · Day 112 of 150",
           "title": "Day 112 — Alert Deduplication — State Machines",
