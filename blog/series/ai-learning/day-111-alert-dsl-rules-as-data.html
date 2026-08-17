@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 110 &mdash; Chaos for ML Systems &mdash; Injected Degradation | AI Learning Series</title>
-<meta name="description" content="A chaos drill's real output isn't whether it alarmed — it's a number: how long. Replaying a captured judge-score fixture through a CUSUM detector's real evaluation path turns that number into re-runnable evidence.">
-<meta property="og:title" content="Day 110 &mdash; Chaos for ML Systems &mdash; Injected Degradation">
-<meta property="og:description" content="Killing a broker is a binary event at a known instant. A model quality regression is a gradual shape with no clean start time — replaying it as data requires a different kind of fixture entirely.">
+<title>Day 111 &mdash; Alert DSL &mdash; Rules as Data | AI Learning Series</title>
+<meta name="description" content="YAML compiled to evaluator bytecode. A rule's threshold, duration, and escalation steps become typed Go values once at load, so a firing condition is checked without re-parsing a config file on every tick.">
+<meta property="og:title" content="Day 111 &mdash; Alert DSL &mdash; Rules as Data">
+<meta property="og:description" content="A single gt-0 threshold can say something crossed a line. It can't say who should hear about it, how loudly, or what happens if the first notification is ignored — that has to be data, not a wiki page.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-110-chaos-for-ml-systems-injected-degradation.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-111-alert-dsl-rules-as-data.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-110-chaos-for-ml-systems-injected-degradation.png">
-<meta property="article:published_time" content="2026-08-16">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-111-alert-dsl-rules-as-data.png">
+<meta property="article:published_time" content="2026-08-17">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 110 of 150</span>
-    <span class="tag">Chaos Engineering</span>
-    <span class="tag">CUSUM</span>
+    <span class="tag accent">AI Learning &middot; Day 111 of 150</span>
+    <span class="tag">Alerting</span>
+    <span class="tag">DSL</span>
     <span class="tag">Go</span>
   </div>
-  <h1 class="post-title">Day 110 &mdash; Chaos for ML Systems &mdash; Injected Degradation</h1>
-  <p class="post-subtitle">Replay JSON defines expected alert latency. A chaos drill's real output was never just "did it alarm" &mdash; it's a number, and that number is what turns "we have a detector" into "we know what it actually buys us."</p>
+  <h1 class="post-title">Day 111 &mdash; Alert DSL &mdash; Rules as Data</h1>
+  <p class="post-subtitle">YAML compiled to evaluator bytecode. Not a VM, not a stack machine &mdash; a config file walked once into typed Go values, so a rule's threshold and its escalation ladder both stop being strings by the time anything is checking a live metric against them.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 110 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 111 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 16, 2026</span>
+    <span class="meta-item">August 17, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">7 min read</span>
   </div>
@@ -208,36 +208,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-110-chaos-for-ml-systems-injected-degradation.png" alt="Day 110 — Chaos for ML Systems — Injected Degradation" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-111-alert-dsl-rules-as-data.png" alt="Day 111 — Alert DSL — Rules as Data" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Replay JSON defines expected alert latency. That's the whole idea in one sentence: a chaos drill's real output was never just a yes/no on whether the alarm fired &mdash; it's a number, how long, and that number is the difference between "we built a detector" and "we know what our detector actually buys us."</p>
+<p>YAML compiled to evaluator bytecode. That's a provocative way to describe something modest: a rule's <code>threshold</code>, <code>for</code> duration, and escalation steps get walked once, at load time, into typed Go values &mdash; not re-parsed as strings on every tick a live metric is checked against them.</p>
 
-<h2 id="why-infra-chaos-drills-dont-translate-directly">Why Infra Chaos Drills Don't Translate Directly</h2>
+<h2 id="what-a-bare-threshold-cant-say">What a Bare Threshold Can't Say</h2>
 
-<p>Kill a Kafka broker and the signal is unambiguous: up, then down, at a timestamp you chose yourself. Replaying that as a test fixture is almost trivial &mdash; record the instant, assert the alert fired within some window of it.</p>
+<p>DriftWatch's existing Prometheus rule, <code>driftwatch-drift-events.yaml</code>, is one condition and one severity: <code>increase(drift_event_total[5m]) &gt; 0</code>, tagged <code>severity: warning</code>, sent to one Slack channel, every single time. It can say a counter moved. It cannot say who should be told, how urgently, or what happens if the first notification goes unread.</p>
 
-<p>A model quality regression offers none of that. <code>judge_score</code> &mdash; an automated quality rating an LLM-as-judge assigns to a model's output &mdash; drifts gradually and noisily across many hours, and "the incident" is a shape, a sustained shift in the mean, not a single event with a clean start time.</p>
+<p>That gap isn't a missing feature so much as a missing dimension &mdash; the rule has no field for "notify Slack now, then page if this is still true in thirty minutes." Today's design gives it one: an ordered <code>escalation</code> list is now part of what a rule <em>is</em>, not something bolted onto a threshold after it fires.</p>
 
-<p>So what: a broker drill's fixture is a light switch; an ML quality fixture has to capture a shape instead, which is a genuinely different, harder engineering problem than it first looks.</p>
+<p>So what: severity used to be a label on a metric; now it's the outcome of a small state machine over time, and that state machine needs somewhere to live &mdash; the rule's own definition.</p>
 
-<h2 id="what-a-replayable-ml-incident-fixture-has-to-capture">What a Replayable ML Incident Fixture Has to Capture</h2>
+<h2 id="why-compile-a-config-file-at-all">Why Compile a Config File at All</h2>
 
-<p>Not a kill switch &mdash; a captured or realistically modeled time series. Today's fixture format needs a baseline window's worth of scores, enough to compute a mean and standard deviation against, plus an hourly sequence of scores spanning the modeled incident itself.</p>
+<p>Nothing here is a bytecode interpreter in the traditional sense &mdash; no instruction set, no stack, no arbitrary expressions. It's the same move <code>cost-budget-enforcer/pkg/config.Load</code> already makes for tenant budgets, pushed one step further: parse the YAML once, validate it completely at that moment, and hand every future evaluation a struct instead of a string.</p>
 
-<p>It also has to encode ground truth, the same way a broker drill's ground truth is simply "the broker is down now": which side should alarm, and within how many windows counts as success. Without that, replaying the fixture produces a number with nothing to check it against.</p>
+<p>A loaded <code>Rule</code>'s <code>op</code> field is the string <code>"gt"</code>; a <code>CompiledRule</code>'s is a <code>Comparator</code> enum. A loaded rule's <code>for: "5m"</code> is a string that needs parsing every time; compiled, it's a <code>time.Duration</code>, already an int64 nanosecond count sitting in memory. The escalation list gets sorted by its <code>after</code> delay once, at compile time, instead of on every tick that needs to know which step comes next.</p>
 
-<p>So what: a broker drill only needs to record one instant; an ML incident fixture has to record an entire baseline, an entire incident window, and the answer key for both &mdash; three things, not one.</p>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; a memorized phrase, not a dictionary lookup</div>
+  The first time you need a phrase in an unfamiliar language, you flip through a phrasebook, word by word, matching sounds to meaning &mdash; slow, and the same lookup work repeats next time you need that exact phrase. Memorize it once and every later use is instant recall, not a fresh page-flip through the dictionary it came from. A <code>CompiledRule</code> is the memorized phrase; the YAML file on disk is the phrasebook it was learned from, consulted once and then set aside.
+</div>
 
-<h2 id="the-mechanism-running-the-real-evaluation-path">The Mechanism: Running the Real Evaluation Path</h2>
-
-<p>A CUSUM chart &mdash; the statistic <code>pkg/cusum</code> has run since Day 105 &mdash; accumulates z-scored evidence window over window instead of judging each window in isolation, which is what lets it catch a shift too small for any single window to trip a simple threshold.</p>
-
-<p>Replaying a fixture means running that identical accumulation logic against captured data instead of a live ClickHouse query, through two new adapters &mdash; <code>fixtureBaselineReader</code> and <code>fixtureHourlyReader</code> &mdash; that implement the exact same <code>baseline.Reader</code>/<code>trend.Reader</code> interfaces the live path already used. The evaluation function, <code>EvaluateRange</code>, never knows or cares whether its input came from ClickHouse or a JSON file on disk.</p>
+<p>So what: "compiled" here just means the expensive, error-prone part &mdash; parsing and validating &mdash; happens exactly once, at a moment when failing loudly is cheap, instead of on a hot path where a malformed string would rather surface as a missed page than a load-time error.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -257,44 +256,36 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  F["Incident fixture JSON"] --> BR["fixtureBaselineReader"]
-  F --> HR["fixtureHourlyReader"]
-  BR --> EV["EvaluateRange, real path"]
-  HR --> EV
-  EV --> REP["alarmed + windows to alert"]
+  Y["Rule YAML on disk"] --> P["Parse + validate, once"]
+  P --> C["CompiledRule struct"]
+  C --> E1["Tick 1: check Condition"]
+  C --> E2["Tick 2: check Condition"]
+  C --> E3["Tick N: check Condition"]
 </pre>
 
-<p>So what: the replay is only as trustworthy as its distance from the real evaluation path, and here that distance is exactly zero &mdash; a fixture that ran through a simplified re-implementation instead would be a rehearsal of the wrong thing.</p>
+<h2 id="escalation-as-an-ordered-list-not-a-single-field">Escalation as an Ordered List, Not a Single Field</h2>
 
-<div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a flight recorder replay, not a flight simulator</div>
-  A chaos replay fixture is a flight recorder's black-box replay, not a flight simulator. A simulator generates plausible-looking data from a model of how a plane behaves, and testing against it only proves the system handles the model's idea of a failure. A black-box replay instead feeds a system the actual recorded sequence of a real, or realistically reconstructed, event and checks what the system does with it &mdash; the detector under replay never knows the difference between that tape and a live feed, which is exactly what makes its verdict trustworthy.
-</div>
-
-<p>So what: the fixture here is the black-box tape, not a simulation of one, and that distinction is the entire reason a passing replay means something.</p>
-
-<h2 id="the-concrete-result-three-verdicts-one-fixture">The Concrete Result: Three Verdicts, One Fixture</h2>
-
-<p>The fixture models a sustained 15% <code>judge_score</code> drop &mdash; a baseline mean of 80 falling to 68 and staying there. Replaying it once per sensitivity preset produced three genuinely different, measured latencies, not an abstract precision/recall argument.</p>
+<p>The part with no precedent anywhere else in this codebase is the escalation list itself. Each step names a delay relative to when the rule first fired, a severity, a notification channel, and optionally an action &mdash; so a rule that should page only after being ignored can say exactly that, in the rule, not in a runbook an on-call engineer has to remember exists.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">6h</span><span class="stat-label">strict windows to alert</span></div>
-  <div class="stat-cell"><span class="stat-num">8h</span><span class="stat-label">balanced windows to alert</span></div>
-  <div class="stat-cell"><span class="stat-num">14h</span><span class="stat-label">noisy windows to alert</span></div>
-  <div class="stat-cell"><span class="stat-num">15%</span><span class="stat-label">injected score drop</span></div>
+  <div class="stat-cell"><span class="stat-num">0m</span><span class="stat-label">Step 1: Slack, severity warning</span></div>
+  <div class="stat-cell"><span class="stat-num">30m</span><span class="stat-label">Step 2: PagerDuty, severity critical</span></div>
+  <div class="stat-cell"><span class="stat-num">2h</span><span class="stat-label">Step 3: trigger retrain action</span></div>
 </div>
 
-<p>So what: this isn't a hypothetical tradeoff argued from first principles &mdash; it's the same shift, the same fixture, replayed three times, producing three re-runnable numbers instead of three guesses.</p>
+<p>So what: a threshold answers "is this true right now"; an escalation list answers "who needs to know, and does the answer change if nobody's acted yet" &mdash; a second question no amount of tuning the first one can substitute for.</p>
 
-<h2 id="the-honest-limitation">The Honest Limitation</h2>
+<h2 id="webhook-contracts-are-data-too">Webhook Contracts Are Data, Too</h2>
 
-<p>Today's replay proves exactly one thing: the detector catches a shift it should catch, and how fast, per preset. It says nothing about false positives &mdash; whether any of these presets would also alarm on a quiet, ordinary day with no real incident hiding in it.</p>
+<p>An escalation step's <code>action</code> field &mdash; today, just <code>fineforge_retrain</code> &mdash; needs somewhere to send its request, and that somewhere doesn't exist as a real service yet. FineForge is a fine-tuning pipeline this 150-day plan hasn't built; it's Day 120 and later. So today fixes the contract a real client will eventually satisfy: a JSON schema for <code>POST /hooks/retrain</code>, and a <code>RetrainClient</code> Go interface with exactly one method, <code>TriggerRetrain</code>.</p>
 
-<p>That requires a second fixture, one that captures ordinary noise and asserts nothing should fire, and it doesn't exist yet. Say this plainly rather than let the passing test imply more than it proved: one rehearsal proves one thing, and this rehearsal proved only the true-positive side.</p>
+<p>The only implementation shipped today is a fake that records what it was called with, in-process, no network involved &mdash; the same shape <code>cost-budget-enforcer</code>'s Day 68 stub gateway already used for a cache and model client that didn't exist yet either. When a real FineForge endpoint exists, a second implementation of the same interface is a serialization detail, not a rewrite of anything that calls it.</p>
+
+<p>So what: naming the contract before the service exists means Day 112's rule evaluator and Day 113's webhook sender can both be built and tested today, against a fake that behaves exactly like the interface promises &mdash; neither has to wait on FineForge, and neither has to guess at a shape that might change.</p>
 
 <h2 id="the-experience-bridge">The Experience Bridge</h2>
 
-<p>Today's Experience post reaches this identical idea from the operations side, a step ahead of where this post lands on it: a rehearsal &mdash; whether a human-run broker-failure drill or an automated replay of a JSON fixture &mdash; only earns trust for the specific failure shape it tested.</p>
+<p>Today's Experience post reaches this from the people side: Wayfair's alert routing sends a supplier an email after a failed submission retries out, and pages an on-call engineer immediately for the identical failure shape when it's the platform's own database that's unreachable. Same event, two audiences, decided in advance by who owns the fix.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -314,35 +305,35 @@ flowchart LR
   }
 }}%%
 flowchart LR
-  D["Broker failure drill"] --> P1["Proves this shape only"]
-  R["Chaos-replayed fixture"] --> P2["Proves this shape only"]
-  P1 --> X["Untested shapes stay unproven"]
-  P2 --> X
+  W["Wayfair's routing table"] --> A1["People decide, per monitor"]
+  R["This rule's escalation field"] --> A2["A rule decides, as data"]
+  A1 --> X["Same question, urgency + audience"]
+  A2 --> X
 </pre>
 
-<div class="pullquote"><p>The chart's math didn't change today. What changed is that "it should catch this" became "it caught this, in six hours" — a measured claim instead of an assumed one.</p></div>
+<div class="pullquote"><p>PromQL can tell you a number crossed a line. It has no vocabulary at all for who should be told, or what happens if they don't answer &mdash; that's a different language, and today's escalation field is this system's first attempt at speaking it.</p></div>
 
-<p><strong>So what:</strong> two systems, two vocabularies, the identical discipline &mdash; a broker-failure drill and a chaos-replayed judge-score fixture both trade an assumption for a measurement, and neither one gets to claim more than the specific shape it actually rehearsed.</p>
+<p><strong>So what:</strong> Wayfair's routing table is the same decision as this rule's <code>escalation</code> field, made by people instead of YAML &mdash; and the point of today's design isn't to replace that judgment, it's to make the judgment a rule can carry, so it survives past whichever engineer configured the monitor by hand.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 110 of 150 &mdash; Chaos for ML Systems — Injected Degradation</p>
-  <p><em>Next up:</em> <a href="day-111-alert-dsl-rules-as-data.html">Day 111 &mdash; Alert DSL — Rules as Data</a></p>
+  <p>AI Learning &middot; Day 111 of 150 &mdash; Alert DSL — Rules as Data</p>
+  <p><em>Next up:</em> Day 112 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-109-sensitivity-tuning-precision-recall-tradeoff.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-110-chaos-for-ml-systems-injected-degradation.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 109 — Sensitivity Tuning — Precision/Recall Tradeoff (yesterday's post — the three presets this replay measures against)</span>
+      <span>Day 110 — Chaos for ML Systems — Injected Degradation (yesterday's post — the detector this rule's threshold will eventually watch)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-105-cusum-vs-simple-thresholds.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-108-metrics-vs-logs-drift-events.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 105 — CUSUM vs Simple Thresholds (the accumulation rule the replay exercises unmodified)</span>
+      <span>Day 108 — Metrics vs Logs for Drift Events (the drift_event_total counter this rule's threshold field would watch)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-110-game-day-replay-production-incident-json.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 110 — Game Day: Replay Production Incident JSON (today's companion Experience post — the same rehearsal, from the operations side)</span>
+      <span>Day 111 — PagerDuty Routing Trees — Wayfair On-Call (today's companion Experience post — the same escalation ladder, decided by people instead of a rule)</span>
     </a>
   </div>
 </div>
@@ -353,11 +344,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#why-infra-chaos-drills-dont-translate-directly">Why Infra Drills Don't Translate</a></li>
-      <li><a href="#what-a-replayable-ml-incident-fixture-has-to-capture">What a Fixture Has to Capture</a></li>
-      <li><a href="#the-mechanism-running-the-real-evaluation-path">The Mechanism</a></li>
-      <li><a href="#the-concrete-result-three-verdicts-one-fixture">Three Verdicts, One Fixture</a></li>
-      <li><a href="#the-honest-limitation">The Honest Limitation</a></li>
+      <li><a href="#what-a-bare-threshold-cant-say">What a Threshold Can't Say</a></li>
+      <li><a href="#why-compile-a-config-file-at-all">Why Compile a Config File</a></li>
+      <li><a href="#escalation-as-an-ordered-list-not-a-single-field">Escalation as an Ordered List</a></li>
+      <li><a href="#webhook-contracts-are-data-too">Webhook Contracts Are Data</a></li>
       <li><a href="#the-experience-bridge">The Experience Bridge</a></li>
     </ul>
   </div>
@@ -365,11 +355,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-110-chaos-for-ml-systems-injected-degradation.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-111-alert-dsl-rules-as-data.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Chaos+for+ML+Systems+%E2%80%94+Injected+Degradation+%C2%B7+Day+110&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-110-chaos-for-ml-systems-injected-degradation.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Alert+DSL+%E2%80%94+Rules+as+Data+%C2%B7+Day+111&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-111-alert-dsl-rules-as-data.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -382,17 +372,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D109</span> AI Learning</div>
-          <a href="day-109-sensitivity-tuning-precision-recall-tradeoff.html" class="series-post-title">Sensitivity Tuning — Precision/Recall Tradeoff</a>
+          <div class="series-post-kicker"><span class="series-post-num">D110</span> AI Learning</div>
+          <a href="day-110-chaos-for-ml-systems-injected-degradation.html" class="series-post-title">Chaos for ML Systems — Injected Degradation</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D110</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Chaos for ML Systems — Injected Degradation</div>
-          <div class="series-post-desc">Replay proves one shape at a time.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D111</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Alert DSL — Rules as Data</div>
+          <div class="series-post-desc">A rule's escalation ladder, compiled once.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D111</span> AI Learning</div>
-          <a href="day-111-alert-dsl-rules-as-data.html" class="series-post-title">Alert DSL — Rules as Data</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D112</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
