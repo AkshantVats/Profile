@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-112-alert-deduplication-state-machines.html",
+          "kicker": "AI Learning · Day 112 of 150",
+          "title": "Day 112 — Alert Deduplication — State Machines",
+          "subtitle": "Debounce windows like rate limiters",
+          "date": "2026-08-17",
+          "slug": "day-112-alert-deduplication-state-machines",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-112-alert-deduplication-state-machines.html",
+          "coverImage": "blog/assets/covers/day-112-alert-deduplication-state-machines.png",
+          "desc": "A condition being true right now and a segment deserving a fresh notification are two different questions. Today's evaluator is the per-(rule_id,tenant) state machine that answers both: sustained-true before firing, then a debounce clock that survives the resolve/re-fire cycle a flapping metric creates."
+        },
+        {
           "href": "blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html",
           "kicker": "AI Learning · Day 111 of 150",
           "title": "Day 111 — Alert DSL — Rules as Data",
