@@ -1212,6 +1212,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html",
+          "kicker": "Experience · Day 111 of 150",
+          "title": "Day 111 — PagerDuty Routing Trees — Wayfair On-Call",
+          "subtitle": "Escalation paths differed supplier vs internal",
+          "date": "2026-08-17",
+          "slug": "day-111-pagerduty-routing-trees-wayfair-on-call",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html",
+          "coverImage": "blog/assets/covers/day-111-pagerduty-routing-trees-wayfair-on-call.png",
+          "desc": "A supplier's failed promotion submission gets three retries, then an email; the platform's own database failing the same way gets an engineer paged within the hour. Wayfair's P1-P4 alert routing table encodes that split on purpose — and it's the same escalation gap a bare threshold-only rule leaves for DriftWatch's own alerts."
+        },
+        {
           "href": "blog/series/experience/day-110-game-day-replay-production-incident-json.html",
           "kicker": "Experience · Day 110 of 150",
           "title": "Day 110 — Game Day: Replay Production Incident JSON",
