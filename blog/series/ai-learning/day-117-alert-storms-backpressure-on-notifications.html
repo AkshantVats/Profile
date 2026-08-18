@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 116 &mdash; On-Call Interfaces &mdash; Slack vs PagerDuty | AI Learning Series</title>
-<meta name="description" content="One Envelope, two channel adapters. SlackNotifier and PagerDutyNotifier both consume the same rule_id/severity/summary/escalation_step/runbook_url struct — the adapter pattern applied to an on-call interface, and why severity routing is a product decision, not a code path.">
-<meta property="og:title" content="Day 116 &mdash; On-Call Interfaces &mdash; Slack vs PagerDuty">
-<meta property="og:description" content="A Dispatcher no fancier than a map[string]Notifier is what lets one internal event shape reach two very different external APIs without either adapter knowing the other exists.">
+<title>Day 117 &mdash; Alert Storms &mdash; Backpressure on Notifications | AI Learning Series</title>
+<meta name="description" content="A 30-minute dedupe window is backpressure by another name: it caps the rate a human and a webhook receive, not the rate a condition actually fires. Today's 100-rule storm test proves that cap holds under concurrent load — 24,000 evaluations in, 800 notifications out.">
+<meta property="og:title" content="Day 117 &mdash; Alert Storms &mdash; Backpressure on Notifications">
+<meta property="og:description" content="Dedupe isn't just don't-repeat-yourself — it's flow control protecting two downstream consumers with very different capacity: a human on-call engineer, and a webhook with its own rate limits. Today's storm test proves that cap holds at 100-rule concurrent scale.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-116-on-call-interfaces-slack-vs-pagerduty.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-116-on-call-interfaces-slack-vs-pagerduty.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-117-alert-storms-backpressure-on-notifications.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-117-alert-storms-backpressure-on-notifications.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-116-on-call-interfaces-slack-vs-pagerduty.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-117-alert-storms-backpressure-on-notifications.png">
 <meta property="article:published_time" content="2026-08-18">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 116 of 150</span>
-    <span class="tag">Adapter Pattern</span>
-    <span class="tag">On-Call</span>
+    <span class="tag accent">AI Learning &middot; Day 117 of 150</span>
+    <span class="tag">Backpressure</span>
+    <span class="tag">Load Testing</span>
     <span class="tag">Go</span>
   </div>
-  <h1 class="post-title">Day 116 &mdash; On-Call Interfaces &mdash; Slack vs PagerDuty</h1>
-  <p class="post-subtitle">Severity routing is product design, not a code path: today's <code>pkg/notify</code> ships one <code>Envelope</code> struct and two adapters that translate it into a Slack message and a PagerDuty event, and neither adapter needs to know the other exists.</p>
+  <h1 class="post-title">Day 117 &mdash; Alert Storms &mdash; Backpressure on Notifications</h1>
+  <p class="post-subtitle">Protect humans and downstream webhooks: a dedupe window isn't just deduplication, it's flow control, and today's 100-rule storm test proves the cap holds even when 100 rules go noisy at once, concurrently, against shared state.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 116 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 117 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 18, 2026</span>
     <div class="meta-divider"></div>
@@ -208,33 +208,33 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-116-on-call-interfaces-slack-vs-pagerduty.png" alt="Day 116 — On-Call Interfaces — Slack vs PagerDuty" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-117-alert-storms-backpressure-on-notifications.png" alt="Day 117 — Alert Storms — Backpressure on Notifications" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Adapter interface in alert engine. That's the whole ticket in four words, and it undersells what actually shipped today: <code>alert-rule-engine/pkg/notify</code> is the first code in this module that talks to the outside world at all. Days 111 through 115 built a rule DSL, an evaluator, a webhook client, and an integration test — four packages that decide <em>whether</em> to fire and prove they fire correctly, none of which ever sent a human being anything they could actually read on their phone.</p>
+<p>Load test validates dedupe under storm. That's today's hook in five words, and the interesting part is what "validates" has to mean once you scale past one rule: today's <code>storm_test.go</code> doesn't just check that dedupe suppresses one flapping segment &mdash; Day 112 already proved that in isolation &mdash; it checks that the same suppression holds when 100 rules flap concurrently against one shared evaluator and one shared dispatcher, the exact shape a real deployment actually runs.</p>
 
-<h2 id="one-envelope-two-channels">One Envelope, Two Channels</h2>
+<h2 id="two-consumers-very-different-capacity">Two Consumers, Very Different Capacity</h2>
 
-<p><code>Envelope</code> is deliberately small: <code>RuleID</code>, <code>Severity</code>, <code>Summary</code>, <code>EscalationStep</code>, <code>Tenant</code>, and <code>RunbookURL</code> — six fields, no channel-specific data anywhere in the struct. <code>SlackNotifier</code> and <code>PagerDutyNotifier</code> each take the identical <code>Envelope</code> and produce a completely different wire request: Slack gets a plain-text message where a bare URL auto-unfurls into a preview card; PagerDuty gets a structured <code>trigger</code> event on its Events API v2, with the same fields folded into a <code>custom_details</code> map its incident view renders inline.</p>
+<p>A firing rule has two downstream consumers once it escalates: a human on-call engineer, who can absorb maybe a handful of pages in a shift before every page starts feeling equally ignorable, and a webhook &mdash; Slack's API, PagerDuty's Events API &mdash; which has its own rate limits and its own cost per event delivered. Neither consumer wants the true rate of "how often is this condition becoming true," they want a rate their own capacity can actually absorb.</p>
 
-<p>Neither adapter imports the other, and neither knows the other exists. That's not an accident of file layout — it's the entire point of writing <code>Notifier</code> as a one-method interface in the first place.</p>
+<p>That gap &mdash; between how often something is really happening and how often a downstream consumer should hear about it &mdash; is precisely what backpressure means in any streaming or serving system: a model-serving queue applying admission control so GPU-bound inference doesn't fall over when request volume spikes, a KV-cache eviction policy protecting memory under load, an ingestion pipeline's overflow buffer smoothing a burst before it reaches a database. The alert-rule-engine's 30-minute dedupe window is the same mechanism, aimed at a different pair of consumers.</p>
 
-<p>So what: an escalation step's <code>notify</code> field can name a channel this module has never heard of yet, and adding support for it means writing one new struct that satisfies one interface method — not touching the evaluator, the dispatcher, or either existing adapter.</p>
+<p>So what: once you notice dedupe is backpressure, the design question changes from "how do we deduplicate alerts" to "what rate can each downstream consumer actually absorb, and how do we cap at that rate without dropping the signal entirely" &mdash; a strictly larger question, with a well-understood family of answers.</p>
 
-<h2 id="the-universal-travel-plug">The Universal Travel Plug</h2>
+<h2 id="the-pressure-relief-valve">The Pressure Relief Valve</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a universal travel adapter</div>
-  A universal travel plug has exactly one socket on the inside — the shape every laptop charger and phone cable already expects — and a different set of prongs on the outside for every country's wall socket. Nobody rewires the wall for a trip to a new country; the adapter absorbs that difference so the device on the inside never has to change. <code>Envelope</code> is the inside socket here: <code>SlackNotifier</code> and <code>PagerDutyNotifier</code> are two different prong shapes for two very different "wall sockets" — a JSON webhook that wants plain text and unfurls URLs for free, versus a structured Events API that wants a severity enum and a nested payload — and the rule evaluator producing the <code>Envelope</code> never has to know which wall it's plugging into.
+  <div class="attr-label">DS analogy &mdash; a boiler's pressure relief valve</div>
+  A boiler's internal pressure can spike well above what the pipe downstream is rated for, and the relief valve's whole job is to cap what actually vents through to a rate that piping can handle &mdash; not to lower the boiler's true internal pressure, which the valve has no way to touch. Internal pressure and vented flow are deliberately different numbers, read at different points in the system, for different audiences. Today's storm test's own numbers are the same two-number split: 24,000 evaluations is the true rate the condition fired (the boiler's internal pressure), 800 notifications dispatched is what the dispatcher actually vented downstream (the rate the pipe was rated for) &mdash; and the valve, here, is <code>lastNotifyAt</code> plus a 30-minute window.
 </div>
 
-<p>So what: the moment a system has more than one external consumer of the same internal fact, the choice isn't "webhook or API" — it's whether every future consumer gets its own adapter or the internal fact gets reshaped every time a new one shows up.</p>
+<p>So what: a relief valve that vented every pressure spike wouldn't be a relief valve, it would just be a pipe &mdash; the entire value of the mechanism is in the gap it deliberately creates between the two numbers, and that gap is exactly what a load test needs to measure, not treat as a bug.</p>
 
-<h2 id="what-the-dispatcher-actually-is">What the Dispatcher Actually Is</h2>
+<h2 id="what-the-storm-test-actually-drove">What the Storm Test Actually Drove</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -254,62 +254,60 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Escalation step fires"] --> B["Dispatcher.Dispatch(channel)"]
-  B --> C["SlackNotifier"]
-  B --> D["PagerDutyNotifier"]
-  C --> E["Runbook link unfurls"]
-  D --> F["Runbook in custom_details"]
+  A["100 rules flapping"] --> B["Shared Evaluator"]
+  B --> C["30m dedupe window"]
+  C --> D["Shared Dispatcher"]
+  D --> E["800 notifications"]
+  A -.24000 raw ticks.-> F["Undeduped: 12000"]
 </pre>
 
-<p><code>Dispatcher</code> is a <code>map[string]Notifier</code> with a <code>Register</code> method and a <code>Dispatch</code> method — nothing resembling a plugin loader, a service registry, or anything that discovers adapters at runtime. A rule's escalation step names a channel string, <code>Dispatch</code> looks it up in the map, and calls <code>Notify</code> on whatever's registered there. That's the entire routing layer.</p>
-
-<p>The one deliberate choice worth naming: an unregistered channel returns an error instead of silently doing nothing. A rule author who typos <code>slak</code> instead of <code>slack</code>, or a deployment that never wired up a <code>pagerduty</code> adapter, gets a loud failure in the process's own logs — not a page that silently never arrives while every other signal says the system is healthy.</p>
-
-<p>So what: the simplest possible routing table (a map and two methods) is also the one that fails loud instead of quiet, and those two properties aren't in tension — the map is simple enough that "no entry for this key" is the only failure mode there is to handle.</p>
+<p>100 goroutines, one shared <code>*rule.Evaluator</code>, one shared <code>*notify.Dispatcher</code> &mdash; each rule its own tenant, so its own independent dedupe segment, but all 100 hammering the same two Go objects at once. That concurrency is the actual thing under test: the evaluator's per-segment map and mutex, and the dispatcher's channel-routing map, both had to stay correct under simultaneous access from every rule's goroutine, not just correct in a single-threaded unit test.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Shared envelope struct</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Channel adapters shipped today</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">New CI wiring required</span></div>
+  <div class="stat-cell"><span class="stat-num">100</span><span class="stat-label">Rules, concurrent</span></div>
+  <div class="stat-cell"><span class="stat-num">~307k</span><span class="stat-label">Evaluations/sec</span></div>
+  <div class="stat-cell"><span class="stat-num">~3.2ms</span><span class="stat-label">P99 latency (-race)</span></div>
 </div>
 
-<h2 id="severity-routing-is-product-not-code">Severity Routing Is Product, Not Code</h2>
+<p>So what: a dedupe algorithm that's correct on paper still has to prove it stays correct once 100 goroutines share the state it depends on &mdash; today's numbers are that proof, not just a performance benchmark.</p>
 
-<p>Nothing in <code>pkg/notify</code> decides that a step 0 escalation should go to Slack and a step 2 escalation should page. That decision lives entirely in a rule's YAML — <code>escalation[i].notify</code> names the channel, full stop — which means changing who gets woken up for what is a config edit to a rule file, not a pull request against this package.</p>
+<h2 id="not-a-token-bucket">This Is Debounce, Not a Token Bucket</h2>
 
-<p>That's the sense in which severity routing is product design: the interesting decision — how loud is too loud, how many minutes of silence justifies escalating from a chat message to a phone call — belongs to whoever authors the rule, informed by what the on-call rotation actually needs. The code's job is narrower and more boring: guarantee that whichever channel a rule names, the same six fields arrive there intact.</p>
+<p>It's worth being precise about which backpressure mechanism this actually is, because "backpressure" covers a family, not one technique. A token bucket or leaky-bucket rate limiter caps a rate over a rolling window regardless of pattern &mdash; ten requests per second, spread however they land. <code>Evaluator</code>'s dedupe window is narrower: it caps re-notification specifically after a prior notification, keyed by <code>lastNotifyAt</code>, which means a rule that fires once and stays quiet for 40 minutes pays no penalty at all, while a rule flapping every two minutes gets suppressed hard.</p>
 
-<p>So what: a bug in <em>which</em> channel gets notified is almost always a rule-authoring mistake, while a bug in <em>what</em> the notification says is a code bug in one specific adapter — two different failure classes that this split keeps from ever looking like the same problem.</p>
+<p>That's debounce, the same shape a UI text field's keystroke handler or a button's double-click guard uses: suppress repeats close together in time, not repeats in general. The distinction matters operationally &mdash; a token bucket would cap a rule's total lifetime notification count on a schedule unrelated to whether the condition is still true; debounce caps only the specific pattern (rapid re-firing) that makes a human stop trusting the channel.</p>
 
-<h2 id="the-piece-day-112-already-solved">The Piece Day 112 Already Solved</h2>
+<p>So what: picking the wrong backpressure primitive for the actual failure mode either under-suppresses (a token bucket sized for average load still lets a tight burst through) or over-suppresses (debouncing a genuinely steady, slow drip of distinct problems as if they were one flapping problem) &mdash; the storm test's flapping pattern was chosen specifically because it's the shape debounce, not a token bucket, is built to catch.</p>
 
-<p>It's worth being precise about what's new today and what isn't. Day 112's evaluator already decided <em>when</em> a step becomes due — sustained-true for the rule's <code>for</code> duration, then gated by a 30-minute dedupe window that survives a resolve-then-refire cycle without resetting. Today's adapters never re-litigate any of that; by the time <code>Dispatcher.Dispatch</code> runs, the "should this fire right now" question is already closed. <code>pkg/notify</code> only answers "given that it's firing, what does channel X actually receive."</p>
+<h2 id="what-day-112-and-116-already-built">What Day 112 and 116 Already Built, Now Under Load</h2>
 
-<p>So what: keeping the dedupe state machine and the wire-format translation in separate packages means a bug in one can't masquerade as a bug in the other — a duplicate page is an evaluator problem, a malformed PagerDuty payload is an adapter problem, and nothing about today's code makes that boundary blurrier.</p>
+<p>Today's test doesn't touch <code>pkg/rule.Evaluator</code>'s internal state machine (Day 112 built and unit-tested <code>segmentState</code>, <code>nextStep</code>, <code>lastNotifyAt</code> in isolation) or <code>pkg/notify.Dispatcher</code>'s routing (Day 116 built the channel-to-adapter map). It drives both, unmodified, at 100-rule concurrent scale, and lets the numbers say whether the design holds up rather than re-deriving either mechanism from scratch.</p>
 
-<div class="pullquote"><p>The interface has one method. The interesting decisions all happen on the other side of it.</p></div>
+<p>That's a deliberate methodological choice worth naming on its own: a load test that also changes the code under test proves nothing about the original design, only about whatever new thing replaced it. Today's storm test is valuable specifically because it changes zero lines in <code>pkg/rule</code> or <code>pkg/notify</code>.</p>
 
-<p><strong>So what:</strong> a one-method <code>Notifier</code> interface looks almost too simple to be worth naming — until the alternative is remembered: a rule evaluator that has to know Slack's JSON shape and PagerDuty's Events API in the same function, growing a new <code>if channel == "..."</code> branch every time this platform adds a third way to get someone's attention.</p>
+<div class="pullquote"><p>The valve doesn't lower the pressure. It just decides what gets through, and at what rate — which is a different, and cheaper, problem to solve.</p></div>
+
+<p><strong>So what:</strong> the next time a system needs to protect a downstream consumer from an upstream burst, the question worth asking first isn't "how do we build a rate limiter" &mdash; it's "which shape of backpressure actually matches this failure mode," because debounce, token buckets, and admission control all cap a rate, but they cap different rates, for different reasons, and picking the wrong one is its own kind of storm.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 116 of 150 &mdash; On-Call Interfaces — Slack vs PagerDuty</p>
-  <p><em>Next up:</em> <a href="day-117-alert-storms-backpressure-on-notifications.html">Day 117 — Alert Storms — Backpressure on Notifications</a></p>
+  <p>AI Learning &middot; Day 117 of 150 &mdash; Alert Storms — Backpressure on Notifications</p>
+  <p><em>Next up:</em> Day 118 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-115-closing-the-loop-platform-integration-test.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-116-on-call-interfaces-slack-vs-pagerduty.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 115 — Closing the Loop — One Integration Test, Four Products (yesterday's post — the evaluator whose fired steps today's adapters now carry onward)</span>
+      <span>Day 116 — On-Call Interfaces — Slack vs PagerDuty (yesterday's post — the Dispatcher today's storm test drives at 100-rule concurrent scale)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-112-alert-deduplication-state-machines.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 111 — Alert DSL — Rules as Data (DESIGN.md §3's Contract 2 fixed the Envelope shape this post's adapters consume, five days early)</span>
+      <span>Day 112 — Alert Deduplication — State Machines (the dedupe internals this post deliberately doesn't re-teach — segmentState, nextStep, lastNotifyAt)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-116-runbooks-that-get-used-slack-link-previews.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-117-load-test-alert-storm-agoda-black-friday-prep.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 116 — Runbooks That Get Used — Slack Link Previews (today's companion Experience post — why RunbookURL is on the Envelope at all)</span>
+      <span>Day 117 — Load Test Alert Storm — Agoda Black Friday Prep (today's companion Experience post — the WhiteFalcon cardinality incident this pattern traces back to)</span>
     </a>
   </div>
 </div>
@@ -320,22 +318,22 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#one-envelope-two-channels">One Envelope, Two Channels</a></li>
-      <li><a href="#the-universal-travel-plug">The Universal Travel Plug</a></li>
-      <li><a href="#what-the-dispatcher-actually-is">What the Dispatcher Is</a></li>
-      <li><a href="#severity-routing-is-product-not-code">Severity Routing</a></li>
-      <li><a href="#the-piece-day-112-already-solved">What Day 112 Solved</a></li>
+      <li><a href="#two-consumers-very-different-capacity">Two Consumers, Different Capacity</a></li>
+      <li><a href="#the-pressure-relief-valve">The Pressure Relief Valve</a></li>
+      <li><a href="#what-the-storm-test-actually-drove">What the Storm Test Drove</a></li>
+      <li><a href="#not-a-token-bucket">Debounce, Not a Token Bucket</a></li>
+      <li><a href="#what-day-112-and-116-already-built">What 112 and 116 Already Built</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-116-on-call-interfaces-slack-vs-pagerduty.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-117-alert-storms-backpressure-on-notifications.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=On-Call+Interfaces+%E2%80%94+Slack+vs+PagerDuty+%C2%B7+Day+116&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-116-on-call-interfaces-slack-vs-pagerduty.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Alert+Storms+%E2%80%94+Backpressure+on+Notifications+%C2%B7+Day+117&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-117-alert-storms-backpressure-on-notifications.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -348,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D115</span> AI Learning</div>
-          <a href="day-115-closing-the-loop-platform-integration-test.html" class="series-post-title">Closing the Loop — One Integration Test, Four Products</a>
+          <div class="series-post-kicker"><span class="series-post-num">D116</span> AI Learning</div>
+          <a href="day-116-on-call-interfaces-slack-vs-pagerduty.html" class="series-post-title">On-Call Interfaces — Slack vs PagerDuty</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D116</span> AI Learning &middot; now</div>
-          <div class="series-post-title">On-Call Interfaces — Slack vs PagerDuty</div>
-          <div class="series-post-desc">One Envelope, two adapters, zero shared knowledge between them.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D117</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Alert Storms — Backpressure on Notifications</div>
+          <div class="series-post-desc">Dedupe as flow control: 24,000 evaluations, 800 notifications.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D117</span> AI Learning</div>
-          <a href="day-117-alert-storms-backpressure-on-notifications.html" class="series-post-title">Alert Storms — Backpressure on Notifications</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D118</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
