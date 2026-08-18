@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 114 &mdash; Live A/B &mdash; Traffic Splitting for Models | AI Learning Series</title>
-<meta name="description" content="Candidate model ID in an escalation step's routing config. A deterministic hash and a paired-score collector are what turn 'route 5% of traffic somewhere else' into an actual experiment instead of a coin flip nobody can audit.">
-<meta property="og:title" content="Day 114 &mdash; Live A/B &mdash; Traffic Splitting for Models">
-<meta property="og:description" content="No new deploy, no new binary — just a hashed request key deciding whether this one mirrors to a candidate model, and a collector pairing its score against the baseline that ran anyway.">
+<title>Day 115 &mdash; Closing the Loop &mdash; One Integration Test, Four Products | AI Learning Series</title>
+<meta name="description" content="A synthetic quality-score drop walks unmodified from a LensAI-shaped event through a real CUSUM detector, a real rule evaluator, and a real retrying HTTP client, and lands as one deduplicated 202 at a webhook receiver. Four packages, unit-tested separately since Day 111, run the same relay for the first time.">
+<meta property="og:title" content="Day 115 &mdash; Closing the Loop &mdash; One Integration Test, Four Products">
+<meta property="og:description" content="Days 111-114 each unit-tested one package against fakes. Day 115 is the first test that drives all of them together, in-process, and proves the drift signal survives every handoff intact.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-114-live-a-b-traffic-splitting-for-models.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-115-closing-the-loop-platform-integration-test.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-115-closing-the-loop-platform-integration-test.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-114-live-a-b-traffic-splitting-for-models.png">
-<meta property="article:published_time" content="2026-08-17">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-115-closing-the-loop-platform-integration-test.png">
+<meta property="article:published_time" content="2026-08-18">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,49 +185,51 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 114 of 150</span>
-    <span class="tag">A/B Testing</span>
-    <span class="tag">Routing</span>
+    <span class="tag accent">AI Learning &middot; Day 115 of 150</span>
+    <span class="tag">Integration Testing</span>
+    <span class="tag">CUSUM</span>
     <span class="tag">Go</span>
   </div>
-  <h1 class="post-title">Day 114 &mdash; Live A/B &mdash; Traffic Splitting for Models</h1>
-  <p class="post-subtitle">Candidate model ID in an escalation step's routing config. No new deploy, no new binary — just a hashed request key deciding whether this one mirrors to a candidate model, the same shape as a feature flag's percentage rollout, applied to inference traffic instead of code paths.</p>
+  <h1 class="post-title">Day 115 &mdash; Closing the Loop &mdash; One Integration Test, Four Products</h1>
+  <p class="post-subtitle">Days 111-114 each unit-tested one package against fakes: the rule DSL, the dedupe state machine, the FineForge webhook client, the A/B router. Today's test is the first one that wires the real packages to each other and asks whether a drift signal survives every handoff intact.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 114 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 115 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 17, 2026</span>
+    <span class="meta-item">August 18, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-114-live-a-b-traffic-splitting-for-models.png" alt="Day 114 — Live A/B — Traffic Splitting for Models" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-115-closing-the-loop-platform-integration-test.png" alt="Day 115 — Closing the Loop — One Integration Test, Four Products" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Candidate model ID in an escalation step's routing config. Not a new deploy, not a new binary, not even a restart — a firing rule's escalation reaches a step, that step names a candidate model and a percentage, and from that moment on some slice of live requests quietly mirrors to it while everything else keeps running exactly as it did yesterday.</p>
+<p>Integration test asserts webhook 202.</p>
 
-<h2 id="a-canary-with-no-deploy-attached">A Canary With No Deploy Attached</h2>
+<p>That's the smallest possible claim, and it hides a much bigger diagram: one test file now proves that a synthetic quality-score drop can walk, unmodified, from a LensAI-shaped inference event through a real CUSUM detector, a real rule evaluator, and a real retrying HTTP client, and land as one deduplicated <code>202 Accepted</code> at a webhook receiver. CUSUM here is a cumulative-sum control chart — a running tally that flags a <em>sustained</em> shift in a metric, not just one noisy sample, the same statistical tool factories have used on manufacturing lines since the 1950s. Days 111 through 114 built the four packages this test finally wires together; none of them had ever run in the same process before today.</p>
 
-<p>A canary release usually means shipping a new binary to a small slice of instances and watching it before a full rollout. Today's <code>ab_test_candidate</code> escalation step does the same job at a different layer: the binary never changes, only which model ID a request's inference call targets, decided per request by <code>pkg/abtest.Router.Decide</code>.</p>
+<h2 id="in-process-not-a-docker-compose-stack">In-Process, Not a Docker-Compose Stack</h2>
 
-<p>That's the same trick a feature-flag service plays on a boolean code path, just pointed at a model ID instead of an <code>if</code> branch. Yesterday's evaluator decided <em>when</em> a rule has fired long enough to escalate; today's router decides, for each request after that point, <em>which</em> model actually serves it.</p>
+<p>This platform already has a way to run its products together: <code>INTEGRATION.md</code>, written on Day 87, wires LensAI, TraceForge, and RouteIQ into one docker-compose stack for demos. Today's test doesn't reuse that container topology. It imports <code>pkg/cusum</code>, <code>pkg/rule</code>, and <code>pkg/fineforge</code> directly into one Go test binary, substituting an <code>httptest.Server</code> for FineForge — a product that doesn't have a repo yet.</p>
 
-<p>So what: treating a candidate model rollout as a routing decision instead of a deployment means the blast radius of "try the candidate" is a percentage in a config value, not a binary someone has to build, ship, and be ready to roll back.</p>
+<p>That substitution isn't new to this test. <code>fallback-chain/pkg/trace/integration_test.go</code>, written on Day 86, faked a missing <code>agent-trace-collector</code> the exact same way, for the exact same reason: a live external dependency that's expensive or impossible to stand up on every CI push gets faked at its boundary, while everything upstream of that boundary runs for real. An in-process test is also faster and more deterministic than a container topology, and it tests exactly the code boundary that matters here — not "does the demo stack start," but "does the drift signal survive intact across three packages that were each only ever unit-tested against fakes before today."</p>
 
-<h2 id="deterministic-not-a-coin-flip-per-request">Deterministic, Not a Coin Flip Per Request</h2>
+<p>So what: a green docker-compose demo proves the products can be deployed next to each other, which is a different claim from proving the actual function calls between them return what the next function expects — today's test is aimed at the second claim, not the first.</p>
 
-<p><code>Router.Decide</code> takes a stable key — a request ID, never a value regenerated per call — hashes it with FNV-1a, and buckets the result into one of 10,000 slots. A request whose bucket falls under the configured <code>sample_percent</code> threshold mirrors to the candidate; everything else doesn't, and no shared counter or coordination between processes is needed for the observed rate to land where the config says it should.</p>
+<h2 id="closing-the-loop">Closing the Loop</h2>
+
+<p>Every arrow in the diagram below is now backed by a passing assertion, not just a design doc from three days ago.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -247,45 +249,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Request arrives, key known"] --> B["FNV-1a hash key"]
-  B --> C["Bucket 0-9999"]
-  C -- "bucket under threshold" --> D["Mirror to candidate"]
-  C -- "bucket at or above" --> E["Baseline only"]
-  D --> F["Baseline still runs too"]
+  A["LensAI-shaped drift fixture"] --> B["Real CUSUM detector"]
+  B --> C["BuildAlertPayload keeps request ID"]
+  C --> D["Real rule evaluator escalates"]
+  D --> E["fineforge_retrain step fires"]
+  E --> F["Real HTTPRetrainClient posts"]
+  F --> G["httptest stub returns 202"]
 </pre>
 
+<p>The correlation leg is worth a pause, because the plan going into today assumed a <code>trace_id</code> field that turns out not to exist. <code>drift-detector/pkg/lensai</code> has no <code>Event</code> type at all — <code>cusum.AlertPayload</code> carries its correlation identity on <code>RequestID</code> instead, the field a TraceForge span lookup would actually key off. The test asserts <code>RequestID</code> survives unchanged from the injected fixture through <code>cusum.BuildAlertPayload</code>, because that's the real contract, not the one the brief guessed at three days early.</p>
+
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a raffle with pre-printed numbers</div>
-  A raffle drum drawn fresh each night gives every ticket-holder a new chance every time, which is exactly wrong for this job — the same person could win Monday and lose Tuesday with no code change in between. A raffle where each ticket's outcome was fixed the moment it was printed is the opposite: check ticket #4471 on any night, at any booth, and it says the same thing every time, because the outcome was never redrawn, only looked up. Router.Decide is the second kind of raffle — a request's bucket is a fact about its key, computed the same way everywhere, not a fresh roll each time it shows up.
+  <div class="attr-label">DS analogy &mdash; a relay race baton</div>
+  Each of the four packages had already been individually timed — a rule DSL clocked on Day 111, a dedupe state machine on Day 112, a webhook client on Day 113, an A/B router on Day 114 — the same way four sprinters can each run a fast solo 100 meters on separate afternoons. A relay isn't proven by four solo times, though; it's proven by one continuous run where the baton never touches the ground between handoffs, because a dropped baton at any exchange zone ends the race regardless of how fast each leg ran alone. Today's test is the first full relay this rule engine has run, not a fifth solo sprint with a slightly longer track.
 </div>
 
-<p>So what: a request routed by a coin flip can land in the candidate arm on one attempt and the baseline on a retry of the identical logical request, which makes "did the candidate see this case" an unanswerable question — a deterministic hash makes it answerable by construction, every time, from any process.</p>
+<p>So what: a passing unit test for each of four packages tells you every runner is fast; it says nothing about whether the baton — the drift signal, carrying its request ID — actually survives the handoff between any two of them, which is the specific claim this test and only this test makes.</p>
 
-<h2 id="two-scores-or-no-comparison">Two Scores, or No Comparison</h2>
+<h2 id="the-concrete-result">The Concrete Result</h2>
 
-<p>Routing to the candidate on its own proves nothing — a request that only ever sees the candidate has no baseline to compare against, and a request that only ever sees the baseline was never part of the experiment at all. Today's second piece, <code>Collector</code>, exists to close that gap: it never lets the candidate arm replace the baseline call, both run, both get scored, and the collector pairs the two scores by the same key <code>Router.Decide</code> used to route in the first place.</p>
-
-<p>Whichever score arrives first — baseline or candidate — waits in a pending map keyed by request key until its counterpart shows up; a duplicate report for the same arm is dropped, first write wins, so a retried scoring call can't silently overwrite a value that already got paired. <code>Summarize()</code> reduces every completed pair down to one number that actually answers the question: the mean difference between what the candidate scored and what the baseline scored, on the exact same requests.</p>
+<p>The fixture drives a 30-sample alternating 70/90 baseline (mean 80) into a sustained drop to a raw hourly mean of 68 across 16 consecutive hourly windows — a 15% relative decline, the same shape and window count Day 110's chaos-replay fixture already verified alarms within its own sensitivity presets. Real <code>cusum.EvaluateRange</code> flags the drop, the real evaluator walks a three-step escalation ladder (warn at 0 minutes, page at 30 minutes, retrain at 2 hours), and the retrain step's real <code>HTTPRetrainClient</code> POSTs to the stub.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">10,000</span><span class="stat-label">Hash buckets Decide samples into</span></div>
-  <div class="stat-cell"><span class="stat-num">200k</span><span class="stat-label">Sample convergence test size</span></div>
-  <div class="stat-cell"><span class="stat-num">&plusmn;0.5%</span><span class="stat-label">Observed-vs-configured rate tolerance</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Webhook call on the drift fixture</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Webhook calls on the flat fixture</span></div>
+  <div class="stat-cell"><span class="stat-num">30 min</span><span class="stat-label">Dedupe window that suppressed the re-trigger</span></div>
 </div>
 
-<p>So what: an unpaired candidate score and an unpaired baseline score are two different, differently-distributed samples that happen to share a time window — pairing by key is what turns "we also ran a candidate" into "we know whether the candidate is better, on the requests that actually saw both."</p>
+<p>A second assertion inside the same test matters as much as the call count: a synthetic re-trigger, replayed a few seconds after the real firing, lands well inside that 30-minute dedupe window and produces zero additional due steps, which is why the webhook still fires exactly once. A second, fully separate test runs the identical evaluator and client against a flat, no-drift fixture across the same 16-hour span and confirms zero calls — the negative case, proving the pipeline stays quiet on a quiet signal instead of firing on anything that merely runs through it. Both tests decode the request body FineForge's stub actually received and check it field-for-field against <code>DESIGN.md</code> §3 Contract 1 — <code>rule_id</code>, <code>segment.task_type</code>, <code>segment.model_id</code>, <code>window.start</code>, <code>window.end</code>, <code>triggered_at</code> — not just the <code>202</code> status code sitting on top of it.</p>
+
+<p>So what: a webhook that fires once with the right body and a webhook that fires zero times on silence are two different proofs that both had to pass for this pipeline to be trustworthy, and a test that only checked the happy path would have missed the second one entirely.</p>
 
 <h2 id="the-honest-limitation">The Honest Limitation</h2>
 
-<p><code>Collector.Pending()</code> reports how many requests are stuck waiting on their other half, and today's code never expires one on its own. A candidate call that errors before it ever scores leaves its baseline half sitting in the pending map indefinitely — not wrong, exactly, since nothing corrupts, but a caller running this for a long-lived rule needs to add its own timeout or garbage-collection pass, because <code>Collector</code> itself will hold that half forever.</p>
+<p>This test proves the Go-level contract between three packages is correct. It does not prove the real Kafka-to-ClickHouse ingestion path that would produce a LensAI event in production, and it cannot test against a real FineForge server, because FineForge doesn't exist as a deployed service yet — only the stub does.</p>
 
-<p>The router has the same shape of gap in the other direction: nothing in today's code stops an <code>ab_test_candidate</code> step from routing traffic indefinitely once a rule fires, because neither <code>Router</code> nor the escalation step it comes from carries an expiration. A percentage answers "how much," never "for how long."</p>
+<p>There's a smaller honest correction too: the original plan called for a dedicated CI job named <code>integration</code> to run this file. That job doesn't exist in <code>.github/workflows/ci.yml</code> — every module's tests, unit and integration alike, run under one <code>go</code> job's per-module <code>go test -race ./...</code> step, the same way <code>fallback-chain/pkg/trace/integration_test.go</code> already gets picked up with no build tag and no special wiring. A green integration test and a correctly deployed production pipeline are different claims, and no amount of in-process testing collapses them into one.</p>
 
-<p>So what: today's code answers the sampling and pairing questions correctly, but a production rollout of this needs a caller-owned TTL on both the pending map and the routing decision itself — leaving that out here is an honest scope boundary, not an oversight to paper over.</p>
+<p>So what: writing down what this test doesn't cover is what keeps a green checkmark from being mistaken for a finished platform — the same discipline that matters more, not less, on the day a test finally spans four packages instead of one.</p>
 
 <h2 id="the-experience-bridge">The Experience Bridge</h2>
 
-<p>Today's Experience post reaches the exact same deterministic-bucketing idea from Wayfair's pricing platform: PAS's live A/B price experiments hash a SKU ID modulo 100 into a percentile bucket, for the same reason <code>Router.Decide</code> hashes a request key into one of 10,000 — so the same entity gets the same treatment every time a rule re-evaluates, not a fresh coin flip that makes "was this SKU in the experiment" unanswerable.</p>
+<p>Today's Experience post reaches this same trade-off from the opposite direction: BrowserStack's FaceID and TouchID automation needed a real physical device, a camera-injection rig, and real biometric hardware for a fully honest end-to-end run, which made that full stack too slow and too flaky to run on every change — so most of what needed verifying became a contract test against a faked API response instead, with only a thin layer of true end-to-end runs on top.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -305,35 +310,39 @@ flowchart LR
   }
 }}%%
 flowchart LR
-  W["Wayfair: hash SKU ID mod 100"] --> P1["Consistent treatment group"]
-  R["abtest: hash request key"] --> P2["Consistent candidate arm"]
-  P1 --> X["Same bucketing idea, two domains"]
+  W["BrowserStack: real device farm costly"] --> P1["Few E2E, many contract tests"]
+  R["DriftWatch: real FineForge absent"] --> P2["Few E2E, many contract tests"]
+  P1 --> X["Same pyramid, two domains"]
   P2 --> X
 </pre>
 
-<div class="pullquote"><p>A deterministic hash answers who's in the experiment; a paired collector answers whether the experiment found anything — neither one alone is a complete answer, and today's code only ships the first two-thirds of that story on purpose.</p></div>
+<div class="pullquote"><p>Four unit-tested packages don't make one proven pipeline until something runs the baton through all four.</p></div>
 
-<p><strong>So what:</strong> a candidate model rollout that only samples traffic, without pairing its scores against the baseline it ran beside, isn't an experiment — it's just traffic going somewhere new and nobody watching closely enough to say if that was a good idea.</p>
+<p><strong>So what:</strong> a device farm and a not-yet-built downstream service are different kinds of constraint, but they force the identical ratio — few expensive end-to-end runs, many fast contract tests underneath — and today's test is what that ratio looks like when the "device" is a webhook receiver that doesn't have a repo yet.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 114 of 150 &mdash; Live A/B — Traffic Splitting for Models</p>
-  <p><em>Next up:</em> <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-115-closing-the-loop-platform-integration-test.html">Day 115 — Closing the Loop — One Integration Test, Four Products</a>.</p>
+  <p>AI Learning &middot; Day 115 of 150 &mdash; Closing the Loop — One Integration Test, Four Products</p>
+  <p><em>Next up:</em> Day 116 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-113-webhooks-contract-for-auto-retrain.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 113 — Webhooks — Contract for Auto-Retrain (yesterday's post — the other escalation action this same rule engine can trigger)</span>
+      <span>Day 114 — Live A/B — Traffic Splitting for Models (yesterday's post — the fourth package today's test wires in)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-111-alert-dsl-rules-as-data.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 111 — Alert DSL — Rules as Data (the DESIGN.md that named A/B routing as future, out-of-scope work three days ago)</span>
+      <span>Day 111 — Alert DSL — Rules as Data (the DESIGN.md that fixed the webhook contract this test verifies field-for-field)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-86-trace-context-propagation-w3c-traceparent.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 114 — Wayfair A/B Price Tests — Ethical Holdouts (today's companion Experience post — the same deterministic-bucketing idea, in a pricing engine)</span>
+      <span>Day 86 — Trace Context Propagation — W3C traceparent (the earlier post whose fallback-chain test set the in-process-substitution precedent this one follows)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-115-integration-testing-pyramid-browserstack-ci.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 115 — Integration Testing Pyramid — BrowserStack CI (today's companion Experience post — the same few-E2E, many-contract-tests ratio, from a device farm)</span>
     </a>
   </div>
 </div>
@@ -344,9 +353,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-canary-with-no-deploy-attached">A Canary With No Deploy</a></li>
-      <li><a href="#deterministic-not-a-coin-flip-per-request">Deterministic, Not a Coin Flip</a></li>
-      <li><a href="#two-scores-or-no-comparison">Two Scores, or No Comparison</a></li>
+      <li><a href="#in-process-not-a-docker-compose-stack">In-Process, Not Compose</a></li>
+      <li><a href="#closing-the-loop">Closing the Loop</a></li>
+      <li><a href="#the-concrete-result">The Concrete Result</a></li>
       <li><a href="#the-honest-limitation">The Honest Limitation</a></li>
       <li><a href="#the-experience-bridge">The Experience Bridge</a></li>
     </ul>
@@ -355,11 +364,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-114-live-a-b-traffic-splitting-for-models.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-115-closing-the-loop-platform-integration-test.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Live+A%2FB+%E2%80%94+Traffic+Splitting+for+Models+%C2%B7+Day+114&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-114-live-a-b-traffic-splitting-for-models.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Closing+the+Loop+%E2%80%94+One+Integration+Test%2C+Four+Products+%C2%B7+Day+115&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-115-closing-the-loop-platform-integration-test.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -372,17 +381,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D113</span> AI Learning</div>
-          <a href="day-113-webhooks-contract-for-auto-retrain.html" class="series-post-title">Webhooks — Contract for Auto-Retrain</a>
+          <div class="series-post-kicker"><span class="series-post-num">D114</span> AI Learning</div>
+          <a href="day-114-live-a-b-traffic-splitting-for-models.html" class="series-post-title">Live A/B — Traffic Splitting for Models</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D114</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Live A/B — Traffic Splitting for Models</div>
-          <div class="series-post-desc">A deterministic router and a paired-score collector, not a coin flip.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D115</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Closing the Loop — One Integration Test, Four Products</div>
+          <div class="series-post-desc">Four unit-tested packages run the same relay together for the first time.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D115</span> AI Learning</div>
-          <a href="day-115-closing-the-loop-platform-integration-test.html" class="series-post-title">Closing the Loop — One Integration Test, Four Products</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D116</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
@@ -419,5 +428,7 @@ flowchart LR
   }
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </body>
 </html>

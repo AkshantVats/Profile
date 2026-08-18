@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-115-closing-the-loop-platform-integration-test.html",
+          "kicker": "AI Learning · Day 115 of 150",
+          "title": "Day 115 — Closing the Loop — One Integration Test, Four Products",
+          "subtitle": "Four unit-tested packages finally run the same relay",
+          "date": "2026-08-18",
+          "slug": "day-115-closing-the-loop-platform-integration-test",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-115-closing-the-loop-platform-integration-test.html",
+          "coverImage": "blog/assets/covers/day-115-closing-the-loop-platform-integration-test.png",
+          "desc": "Days 111-114 unit-tested the rule DSL, the dedupe state machine, the FineForge webhook client, and the A/B router separately against fakes. Today's integration test wires the real CUSUM detector, the real evaluator, and a real retrying HTTP client together in-process, and proves the drift signal — and its request ID — survives every handoff intact."
+        },
+        {
           "href": "blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html",
           "kicker": "AI Learning · Day 114 of 150",
           "title": "Day 114 — Live A/B — Traffic Splitting for Models",
