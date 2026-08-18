@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-117-alert-storms-backpressure-on-notifications.html",
+          "kicker": "AI Learning · Day 117 of 150",
+          "title": "Day 117 — Alert Storms — Backpressure on Notifications",
+          "subtitle": "Protect humans and downstream webhooks",
+          "date": "2026-08-18",
+          "slug": "day-117-alert-storms-backpressure-on-notifications",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-117-alert-storms-backpressure-on-notifications.html",
+          "coverImage": "blog/assets/covers/day-117-alert-storms-backpressure-on-notifications.png",
+          "desc": "A 30-minute dedupe window is backpressure by another name: it caps the rate a human and a webhook receive, not the rate a condition actually fires. Today's 100-rule storm test proves that cap holds under concurrent load — 24,000 evaluations in, 800 notifications out."
+        },
+        {
           "href": "blog/series/ai-learning/day-116-on-call-interfaces-slack-vs-pagerduty.html",
           "kicker": "AI Learning · Day 116 of 150",
           "title": "Day 116 — On-Call Interfaces — Slack vs PagerDuty",
