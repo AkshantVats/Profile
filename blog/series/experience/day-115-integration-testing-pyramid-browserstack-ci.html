@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 114 &mdash; Wayfair A/B Price Tests &mdash; Ethical Holdouts | Experience Series</title>
-<meta name="description" content="Wayfair's pricing experiments hold a slice of SKUs out of a price change on purpose, deterministically and at a deliberately small percentage — the same reasoning that decides how much live traffic a candidate model gets to see before anyone trusts it.">
-<meta property="og:title" content="Day 114 &mdash; Wayfair A/B Price Tests &mdash; Ethical Holdouts">
-<meta property="og:description" content="A holdout group's size is a policy decision before it's a statistics one. Wayfair's pricing experiments, and today's DriftWatch candidate router, both have to answer the same question: how much of the population is it acceptable to treat differently, and for how long?">
+<title>Day 115 &mdash; Integration Testing Pyramid &mdash; BrowserStack CI | Experience Series</title>
+<meta name="description" content="A real device, a camera injection rig, and real biometric hardware made every true end-to-end FaceID/TouchID test at BrowserStack expensive — so most of what needed verifying became a contract test instead. Today's alert-rule-engine integration test draws the same line for a different pipeline.">
+<meta property="og:title" content="Day 115 &mdash; Integration Testing Pyramid &mdash; BrowserStack CI">
+<meta property="og:description" content="A device farm's cost taught this ratio before any book did: few true end-to-end tests, many contract tests underneath. The same shape shows up in today's alert-rule-engine integration test, one httptest stub away from the same trade.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-114-wayfair-ab-price-tests-ethical-holdouts.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-115-integration-testing-pyramid-browserstack-ci.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-115-integration-testing-pyramid-browserstack-ci.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-114-wayfair-ab-price-tests-ethical-holdouts.png">
-<meta property="article:published_time" content="2026-08-17">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-115-integration-testing-pyramid-browserstack-ci.png">
+<meta property="article:published_time" content="2026-08-18">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 114 of 150</span>
-    <span class="tag">Pricing</span>
-    <span class="tag">Experiments</span>
-    <span class="tag">Ethics</span>
+    <span class="tag accent">Experience &middot; Day 115 of 150</span>
+    <span class="tag">Testing</span>
+    <span class="tag">BrowserStack</span>
+    <span class="tag">CI</span>
   </div>
-  <h1 class="post-title">Day 114 &mdash; Wayfair A/B Price Tests &mdash; Ethical Holdouts</h1>
-  <p class="post-subtitle">Wayfair's pricing platform can run an A/B test on real customers' prices, and the hardest decision in that flow was never the statistics &mdash; it was how much of the population it's acceptable to treat differently, deterministically, and for how long. The same question decides how much live traffic a candidate model gets today.</p>
+  <h1 class="post-title">Day 115 &mdash; Integration Testing Pyramid &mdash; BrowserStack CI</h1>
+  <p class="post-subtitle">A real device, a camera injection rig, and real biometric hardware in the loop made every true end-to-end FaceID/TouchID test expensive at BrowserStack &mdash; so most of what needed verifying became a contract test instead, not a device-farm run. Today's <code>alert-rule-engine</code> integration test draws the identical line for a different pipeline.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 114 of 150</span>
+    <span class="meta-item">Experience &middot; Day 115 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 17, 2026</span>
+    <span class="meta-item">August 18, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,77 +208,87 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-114-wayfair-ab-price-tests-ethical-holdouts.png" alt="Day 114 — Wayfair A/B Price Tests — Ethical Holdouts" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-115-integration-testing-pyramid-browserstack-ci.png" alt="Day 115 — Integration Testing Pyramid — BrowserStack CI" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>A pricing experiment at Wayfair doesn't ask "does this margin change help revenue" in the abstract. It asks that question on a deliberately small slice of real SKUs, while the rest keep the price they would have gotten anyway &mdash; and choosing how big that slice gets to be is a policy decision dressed up as a statistics one.</p>
+<p>Automating FaceID and TouchID testing at BrowserStack meant every fully honest end-to-end run needed three things at once: a real remote physical device, the Camera Image Injection rig feeding it a synthetic face or fingerprint, and the device's actual biometric hardware responding to that injection. Running that full stack for every single change to the instrumentation layer was never realistic &mdash; devices are a shared, finite pool, and a real device in the loop makes a test slow and occasionally flaky for reasons that have nothing to do with the code under test.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Scope note &mdash; Wayfair, PAS &amp; Pricing/Promotions</div>
-  I've been a Sr. Software Engineer III at Wayfair since November 2024, leading the PAS and Pricing, Promotions &amp; Discounts teams. My resume documents architecting a GCP event-driven Global Pricing &amp; Promotion Engine that reduced price propagation from hours to sub-seconds across 20k+ suppliers, and a high-throughput bulk processing framework handling 250k+ SKU updates per supplier at 99.99% availability. The experiment mechanics below are documented architecture from PAS's Experiments adjustment type, not a single dated test I ran &mdash; I'm describing how the platform is built to decide who gets a different price and why, not one specific experiment's results.
+  <div class="attr-label">Scope note &mdash; BrowserStack, Device Instrumentation</div>
+  My resume documents the role directly: "Reverse-engineered APKs/IPAs to hook into native iOS/Android OS APIs, enabling fully automated FaceID/TouchID testing on remote physical devices via Camera Image Injection and biometrics instrumentation" (BrowserStack, May&ndash;Dec 2021, Sr. Software Engineer). What follows is the general testing-economics shape that kind of instrumentation runs into as a matter of course &mdash; why a device farm forces a specific ratio of end-to-end tests to contract tests &mdash; not a specific documented rollout or a named test-suite composition my resume doesn't itemize.
 </div>
 
-<h2 id="a-holdout-is-a-population-you-choose-not-to-help">A Holdout Is a Population You Choose Not to Help</h2>
+<h2 id="what-a-real-device-actually-proves">What a Real Device Actually Proves</h2>
 
-<p>Every pricing experiment at Wayfair starts the same way: a Pricing Manager creates an adjustment set scoped to a target population &mdash; commonly around 10% of SKUs in a category &mdash; and that adjustment set carries an experimental price modifier, like a margin change, that only the treatment group ever sees. Everyone outside that population keeps the price the existing formula would have produced.</p>
+<p>A true end-to-end run through Camera Image Injection proves something no other test can: that the injected signal actually reaches the phone's camera and biometric sensor path, and that the OS's real FaceID or TouchID stack responds to it the way it would to a genuine human. That's the whole point of the rig &mdash; a mocked camera input can't tell you whether the injection technique itself still works against this OS version, on this device model, today.</p>
 
-<p>Calling the untouched 90% a "control group" is accurate but understates what it actually is: a decision, made in advance, to withhold a change from most of the population specifically so the smaller group's outcome means something. A drug trial's placebo arm is the same shape of decision outside pricing &mdash; the people who don't get the new treatment aren't an oversight, they're the reason the treated group's result is trustworthy at all.</p>
+<p>But most of what changed day to day in the instrumentation layer wasn't the injection rig or the OS's biometric stack &mdash; it was the code that hooked the native API, parsed its response, and decided pass or fail. That code has a well-defined boundary: it calls a specific native API and expects a specific shape of response back.</p>
 
-<p>So what: a holdout isn't the boring, unchanged half of an experiment &mdash; it's the part doing the actual epistemic work, and shrinking it without thinking about why shrinks how much the treatment group's result is worth believing.</p>
+<p>So what: a real device proves the injection reaches real hardware and real hardware responds the way expected; it says nothing extra about whether the hook's own parsing logic is correct, which is a separate, narrower claim that doesn't need a phone to check.</p>
 
-<h2 id="why-a-small-percentage-not-a-coin-flip">Why a Small Percentage, Not a Coin Flip</h2>
+<h2 id="the-boundary-that-didnt-need-a-phone">The Boundary That Didn't Need a Phone</h2>
 
-<p>PAS's Experiments adjustment type sits at the bottom of a five-tier priority ladder &mdash; Corrections, Overrides, Floor/Shelf Pricing, and Main margin formulas all outrank it, so an experimental modifier only ever applies where nothing more urgent already claimed that SKU's price. That ordering is itself an ethics decision: a live pricing test is never allowed to override a manual correction or a price floor, no matter how interesting its result would be.</p>
+<p>Once the hook and the OS API are treated as two sides of a contract &mdash; this call, this expected response shape &mdash; verifying that contract stops requiring a physical device at all. A test can fake the native API's response directly and check that the hook parses it, classifies it, and reports pass or fail correctly, all without touching the device farm.</p>
 
-<p>Assignment into the treatment population is deterministic, not a fresh coin flip per pricing run: a hash of the SKU ID modulo 100 picks a percentile bucket, and the same SKU lands in the same bucket every time the rule re-evaluates. A customer who sees a test price on Monday sees the same test price on Tuesday, not a price that flickers between two experiments depending on which run happened to touch it that hour.</p>
+<p>That's not a lesser test standing in for a better one. It's the correct test for a question that was never actually about hardware: does this specific piece of code do the right thing with a given input, independent of whatever device happens to produce that input on a given day.</p>
 
-<p>So what: consistency isn't a nicety here, it's a fairness requirement &mdash; a population that gets a different price on alternating days by chance was never really in a controlled experiment, just in an unpredictable one.</p>
+<p>So what: the split isn't "cheap test vs. thorough test" &mdash; it's two different questions, one that only a real device can answer and one that a real device answers no better than a fake response would, at a fraction of the cost.</p>
 
-<h2 id="what-a-sample-percent-actually-buys-you">What a Sample Percent Actually Buys You</h2>
+<h2 id="the-ratio-taught-by-necessity">The Ratio, Taught by Necessity</h2>
 
-<p>Wayfair's experiments are also explicitly time-bounded: expiration monitors alert when an adjustment set is about to lapse, so a 5% or 10% test doesn't quietly become a permanent, unreviewed fork of the pricing formula for that population. A test that never expires isn't a controlled experiment anymore &mdash; it's just a second, undocumented pricing rule nobody remembers approving.</p>
+<p>Nobody handed down a rule that said "run few end-to-end tests and many contract tests." The device farm's own limits taught it directly: a shared pool of physical devices, real camera hardware in the loop, and the occasional flake a genuine phone introduces that a fake API response never would.</p>
 
-<p>A restaurant running a new dish as tonight's special, on a fixed number of tables, for one evening only, draws the same line: the special isn't the new menu until someone decides it earned that, and until then only a bounded slice of tables ever sees it.</p>
+<p>The practical response was to run the full injection-rig path on a handful of representative cases &mdash; enough to catch a real regression in the injection technique itself or an OS-version quirk &mdash; and push everything else about the hook's own logic down to contract-level tests that could run constantly, on every change, with no device involved.</p>
 
-<p>So what: the percentage answers "how many," but the expiration answers "for how long" &mdash; and a rule that only ever encodes the first question can drift a temporary test into a permanent, unaccountable policy.</p>
+<p>So what: the pyramid shape here wasn't a best practice picked from a book, it was the only ratio the device farm's cost and flakiness left room for &mdash; the theory came afterward as a name for what the constraint had already forced.</p>
 
-<h2 id="what-this-buys-driftwatchs-candidate-router">What This Buys DriftWatch's Candidate Router</h2>
+<h2 id="a-dress-rehearsal-not-every-costume-fitting">A Dress Rehearsal, Not Every Costume Fitting</h2>
 
-<p>Today's code gives DriftWatch's alert-rule-engine the same shape of decision, for a different population: when a drift rule's escalation reaches a new <code>ab_test_candidate</code> step, <code>pkg/abtest.Router.Decide</code> hashes a stable per-request key and routes it to a candidate model only if it lands under the step's configured <code>sample_percent</code> &mdash; the same deterministic-bucket idea PAS applies to SKU IDs, applied here to request keys so the same logical request always lands in the same arm.</p>
+<p>A theater production doesn't run a full dress rehearsal &mdash; lights, orchestra, the whole cast in costume &mdash; every time one actor's costume needs a hem checked. A costume fitting checks the one thing that changed, on a mannequin or the actor alone, in minutes instead of hours.</p>
 
-<p>Crucially, routing to the candidate never replaces the baseline call &mdash; both run, both get scored, and a new <code>Collector</code> pairs each request's baseline and candidate score by key so a caller compares matched outcomes instead of two differently-distributed samples. That's the holdout principle in code: the 95% baseline population isn't collateral damage from under-resourcing the candidate, it's what makes the 5% candidate arm's paired comparison mean anything at all.</p>
+<p>The full dress rehearsal still matters, and skipping it entirely would be a mistake &mdash; it's the only rehearsal that proves the costume, the lighting cues, and the orchestra actually work together as one show. It just doesn't need to happen for every single hem.</p>
 
-<p>So what: a candidate model that only ever sees traffic no one is comparing it against isn't being evaluated, it's just running &mdash; pairing is what turns "we routed some requests to it" into "we know whether it's actually better."</p>
+<p>So what: an end-to-end device-farm run is the dress rehearsal, and a contract test against a faked API response is the costume fitting &mdash; both are real checks, they just prove different things, and only one of them needs the whole cast in the room.</p>
 
-<h2 id="what-a-sample-percent-alone-doesnt-decide">What a Sample Percent Alone Doesn't Decide</h2>
+<h2 id="the-same-shape-in-todays-integration-test">The Same Shape in Today's Integration Test</h2>
 
-<p>None of this answers how big <code>sample_percent</code> should actually be, and that's deliberately left to whoever configures the rule, not to the router itself &mdash; the same way Wayfair's dynamic-pricing guardrails cap how often and how far a single SKU's price can move (at most once an hour, with anything over a 20% swing routed to manual review) instead of baking one universal number into the pricing engine.</p>
+<p>Today's <code>alert-rule-engine/integration_test.go</code> draws the identical line, for DriftWatch instead of a device farm. It wires the real <code>drift-detector</code> CUSUM detector, the real rule evaluator, and a real <code>pkg/fineforge.HTTPRetrainClient</code> together in-process, feeding a synthetic drift-shaped event through all three and asserting the webhook fires exactly once with the right contract body &mdash; that's the "real components, wired together" half of the pyramid, run on every CI push because nothing in it needs a live external service.</p>
 
-<p><strong>So what:</strong> a deterministic router and a paired-score collector answer "can we run this experiment safely," not "should we, and how big" &mdash; that second question is a judgment call about the population being held out, and no amount of hashing makes it disappear.</p>
+<p>The one product with no live local service, FineForge, gets an <code>httptest.Server</code> standing in for its <code>/hooks/retrain</code> endpoint instead of a real deployment &mdash; the same substitution BrowserStack's own contract tests made for the OS API response, faking the one dependency that would otherwise force a slow, external-hardware-shaped test for a question that doesn't need one.</p>
+
+<p>So what: DriftWatch didn't inherit this pattern from a testing textbook either &mdash; it inherited it from the same place BrowserStack's did, a genuinely external dependency (a device, a not-yet-built FineForge server) that's expensive or impossible to run on every push, so the contract gets tested directly instead.</p>
+
+<h2 id="what-the-contract-test-doesnt-prove">What the Contract Test Doesn't Prove</h2>
+
+<p>An in-process integration test that wires the real CUSUM detector, the real rule evaluator, and a real webhook client against an <code>httptest</code> stub proves the Go-level contract between <code>pkg/cusum</code>, <code>pkg/rule</code>, and <code>pkg/fineforge</code> is correct. It does not prove that the real Kafka-to-ClickHouse-to-drift-detector path behaves the same way under production load, and it does not prove a live FineForge server &mdash; which doesn't exist yet &mdash; would actually accept that exact request body.</p>
+
+<p>BrowserStack's own contract tests had the identical blind spot: a hook that correctly parsed every fake API response it was ever handed still couldn't catch a genuine OS-version quirk that changed what the real biometric stack sent back, because that quirk only ever showed up on a real device.</p>
+
+<p><strong>So what:</strong> "the contract is correct" and "the deployed system is correct" are different claims, and no amount of fast, device-free contract testing collapses them into one &mdash; which is exactly why the pyramid keeps a thin layer of true end-to-end tests at the top instead of deciding contract tests alone are enough.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 114 of 150 &mdash; Wayfair A/B Price Tests &mdash; Ethical Holdouts</p>
-  <p><em>Next up:</em> <a href="day-115-integration-testing-pyramid-browserstack-ci.html">Day 115 &mdash; Integration Testing Pyramid — BrowserStack CI</a></p>
+  <p>Experience &middot; Day 115 of 150 &mdash; Integration Testing Pyramid — BrowserStack CI</p>
+  <p><em>Next up:</em> Day 116 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-113-webhook-retries-stripe-style-stealth-payments.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 113 — Webhook Retries — Stripe-Style at Stealth Payments (yesterday's post — the sender/receiver contract this rule engine's other webhook has to keep)</span>
+      <span>Day 114 — Wayfair A/B Price Tests — Ethical Holdouts (yesterday's post — a different platform, the same "what does this actually let you claim" discipline)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-84-browserstack-health-checks-that-lied.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 111 — PagerDuty Routing Trees — Wayfair On-Call (the same platform's other policy-not-statistics decision: who gets told, how urgently)</span>
+      <span>Day 84 — BrowserStack Integration Test Flakiness — Health Checks That Lied (same rig, an earlier lesson about trusting one signal from a real device)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-114-live-a-b-traffic-splitting-for-models.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-99-using-gpt-to-grade-gpt-browserstack-skepticism.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 114 — Live A/B — Traffic Splitting for Models (today's companion AI Learning post — the router and collector themselves, as code)</span>
+      <span>Day 99 — Using GPT to Grade GPT — BrowserStack Skepticism (same rig, a different lesson — an automated verdict earning trust, not the shape of the test suite around it)</span>
     </a>
   </div>
 </div>
@@ -289,22 +299,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-holdout-is-a-population-you-choose-not-to-help">A Holdout You Choose Not to Help</a></li>
-      <li><a href="#why-a-small-percentage-not-a-coin-flip">Why a Small Percentage</a></li>
-      <li><a href="#what-a-sample-percent-actually-buys-you">What a Sample Percent Buys You</a></li>
-      <li><a href="#what-this-buys-driftwatchs-candidate-router">What This Buys DriftWatch</a></li>
-      <li><a href="#what-a-sample-percent-alone-doesnt-decide">What It Doesn't Decide</a></li>
+      <li><a href="#what-a-real-device-actually-proves">What a Real Device Proves</a></li>
+      <li><a href="#the-boundary-that-didnt-need-a-phone">The Boundary That Didn't Need a Phone</a></li>
+      <li><a href="#the-ratio-taught-by-necessity">The Ratio, Taught by Necessity</a></li>
+      <li><a href="#a-dress-rehearsal-not-every-costume-fitting">Dress Rehearsal, Not Every Fitting</a></li>
+      <li><a href="#the-same-shape-in-todays-integration-test">Today's Integration Test</a></li>
+      <li><a href="#what-the-contract-test-doesnt-prove">What It Doesn't Prove</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-114-wayfair-ab-price-tests-ethical-holdouts.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-115-integration-testing-pyramid-browserstack-ci.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Wayfair+A%2FB+Price+Tests+%E2%80%94+Ethical+Holdouts+%C2%B7+Day+114&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-114-wayfair-ab-price-tests-ethical-holdouts.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Integration+Testing+Pyramid+%E2%80%94+BrowserStack+CI+%C2%B7+Day+115&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-115-integration-testing-pyramid-browserstack-ci.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -317,17 +328,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D113</span> Experience</div>
-          <a href="day-113-webhook-retries-stripe-style-stealth-payments.html" class="series-post-title">Webhook Retries — Stripe-Style at Stealth Payments</a>
+          <div class="series-post-kicker"><span class="series-post-num">D114</span> Experience</div>
+          <a href="day-114-wayfair-ab-price-tests-ethical-holdouts.html" class="series-post-title">Wayfair A/B Price Tests — Ethical Holdouts</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D114</span> Experience &middot; now</div>
-          <div class="series-post-title">Wayfair A/B Price Tests — Ethical Holdouts</div>
-          <div class="series-post-desc">A holdout's size is a policy decision before it's a statistics one.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D115</span> Experience &middot; now</div>
+          <div class="series-post-title">Integration Testing Pyramid — BrowserStack CI</div>
+          <div class="series-post-desc">Few E2E tests, many contract tests — the ratio a device farm forced, not a book chose.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D115</span> Experience</div>
-          <a href="day-115-integration-testing-pyramid-browserstack-ci.html" class="series-post-title">Integration Testing Pyramid — BrowserStack CI</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D116</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

@@ -1260,6 +1260,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-115-integration-testing-pyramid-browserstack-ci.html",
+          "kicker": "Experience · Day 115 of 150",
+          "title": "Day 115 — Integration Testing Pyramid — BrowserStack CI",
+          "subtitle": "Few real E2E tests, many contract tests underneath",
+          "date": "2026-08-18",
+          "slug": "day-115-integration-testing-pyramid-browserstack-ci",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-115-integration-testing-pyramid-browserstack-ci.html",
+          "coverImage": "blog/assets/covers/day-115-integration-testing-pyramid-browserstack-ci.png",
+          "desc": "A real device, a camera injection rig, and real biometric hardware in the loop made every true end-to-end FaceID/TouchID test at BrowserStack expensive, so most of what needed verifying became a contract test instead — the same trade today's alert-rule-engine integration test makes, substituting an httptest stub for the one product with no live server."
+        },
+        {
           "href": "blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html",
           "kicker": "Experience · Day 114 of 150",
           "title": "Day 114 — Wayfair A/B Price Tests — Ethical Holdouts",
