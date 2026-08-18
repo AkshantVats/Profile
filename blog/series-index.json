@@ -1284,6 +1284,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-117-load-test-alert-storm-agoda-black-friday-prep.html",
+          "kicker": "Experience · Day 117 of 150",
+          "title": "Day 117 — Load Test Alert Storm — Agoda Black Friday Prep",
+          "subtitle": "100 rules, one shared evaluator, 93.3% suppression under storm",
+          "date": "2026-08-18",
+          "slug": "day-117-load-test-alert-storm-agoda-black-friday-prep",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-117-load-test-alert-storm-agoda-black-friday-prep.html",
+          "coverImage": "blog/assets/covers/day-117-load-test-alert-storm-agoda-black-friday-prep.png",
+          "desc": "A Prometheus alert built to catch WhiteFalcon degrading was the first thing to go dark when cardinality exploded at Agoda. Today's 100-rule concurrent storm test is DriftWatch's answer to the question that incident left open: does the alerting pipeline itself survive peak load."
+        },
+        {
           "href": "blog/series/experience/day-116-runbooks-that-get-used-slack-link-previews.html",
           "kicker": "Experience · Day 116 of 150",
           "title": "Day 116 — Runbooks That Get Used — Slack Link Previews",
