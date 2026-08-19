@@ -1332,6 +1332,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html",
+          "kicker": "Experience · Day 120 of 150",
+          "title": "Day 120 — Training Data Is Production Data — Legal at Walmart",
+          "subtitle": "Fail-closed beats a reviewer catching it at the last mile",
+          "date": "2026-08-19",
+          "slug": "day-120-training-data-is-production-data-legal-at-walmart",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html",
+          "coverImage": "blog/assets/covers/day-120-training-data-is-production-data-legal-at-walmart.png",
+          "desc": "Debug logs from a 7-million-sensor edge fleet look like harmless numbers until someone reads what's actually inside them — why data-prep-pipeline/DESIGN.md's PII redaction audit is built to fail closed instead of relying on a reviewer catching it at the vendor handoff."
+        },
+        {
           "href": "blog/series/experience/day-119-month-4-recap-platform-story-recruiters.html",
           "kicker": "Experience · Day 119 of 150",
           "title": "Day 119 — Month 4 Recap — Platform Story for Recruiters",
