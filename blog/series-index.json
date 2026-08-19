@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-119-auto-retrain-loops-platform-closure.html",
+          "kicker": "AI Learning · Day 119 of 150",
+          "title": "Day 119 — Auto-Retrain Loops — Platform Closure",
+          "subtitle": "DriftWatch→FineForge is event-driven architecture",
+          "date": "2026-08-19",
+          "slug": "day-119-auto-retrain-loops-platform-closure",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-119-auto-retrain-loops-platform-closure.html",
+          "coverImage": "blog/assets/covers/day-119-auto-retrain-loops-platform-closure.png",
+          "desc": "DriftWatch's product essay narrates a closed loop from drift detector to retrain webhook, but the five real Go packages behind that sentence are a chain of independently-testable contracts, not one feedback controller. Three of five arrows in the chain are proven; the retrain edge stays wired-but-not-live, same as Day 118's framing."
+        },
+        {
           "href": "blog/series/ai-learning/day-118-mlops-launch-baseline-monitor-act.html",
           "kicker": "AI Learning · Day 118 of 150",
           "title": "Day 118 — MLOps Launch — Baseline, Monitor, Act",
