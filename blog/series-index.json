@@ -1272,6 +1272,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-116-runbooks-that-get-used-slack-link-previews.html",
+          "kicker": "Experience · Day 116 of 150",
+          "title": "Day 116 — Runbooks That Get Used — Slack Link Previews",
+          "subtitle": "Runbook link rides inside the alert, not a wiki click away",
+          "date": "2026-08-18",
+          "slug": "day-116-runbooks-that-get-used-slack-link-previews",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-116-runbooks-that-get-used-slack-link-previews.html",
+          "coverImage": "blog/assets/covers/day-116-runbooks-that-get-used-slack-link-previews.png",
+          "desc": "A runbook buried in a wiki costs a paged, half-awake engineer one extra click they skip more often than not. Today's alert-rule-engine notify adapters put DriftWatch's RUNBOOK.md inside the alert itself instead — a Slack link preview, a PagerDuty custom_details field — the same zero-clicks-away placement Delivery Hero's on-call golden commands needed and rarely got."
+        },
+        {
           "href": "blog/series/experience/day-115-integration-testing-pyramid-browserstack-ci.html",
           "kicker": "Experience · Day 115 of 150",
           "title": "Day 115 — Integration Testing Pyramid — BrowserStack CI",
