@@ -1296,6 +1296,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-118-open-source-launch-checklist-first-repo-public.html",
+          "kicker": "Experience · Day 118 of 150",
+          "title": "Day 118 — Open Source Launch Checklist — First Repo Public",
+          "subtitle": "README, LICENSE, CONTRIBUTING before HN or critics arrive",
+          "date": "2026-08-19",
+          "slug": "day-118-open-source-launch-checklist-first-repo-public",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-118-open-source-launch-checklist-first-repo-public.html",
+          "coverImage": "blog/assets/covers/day-118-open-source-launch-checklist-first-repo-public.png",
+          "desc": "This repo's own Show HN draft has sat written since Day 25, sixty-three days before this build ran its first dedicated launch-readiness review at all. DriftWatch's Day 118 checklist is the second time this build does the checklist before the post instead of after."
+        },
+        {
           "href": "blog/series/experience/day-117-load-test-alert-storm-agoda-black-friday-prep.html",
           "kicker": "Experience · Day 117 of 150",
           "title": "Day 117 — Load Test Alert Storm — Agoda Black Friday Prep",
