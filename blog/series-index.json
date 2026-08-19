@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-118-mlops-launch-baseline-monitor-act.html",
+          "kicker": "AI Learning · Day 118 of 150",
+          "title": "Day 118 — MLOps Launch — Baseline, Monitor, Act",
+          "subtitle": "Ship detector before auto-action",
+          "date": "2026-08-19",
+          "slug": "day-118-mlops-launch-baseline-monitor-act",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-118-mlops-launch-baseline-monitor-act.html",
+          "coverImage": "blog/assets/covers/day-118-mlops-launch-baseline-monitor-act.png",
+          "desc": "DriftWatch's launch README draws one continuous line from baseline to automated retrain, but only baseline and monitor run unattended today. The retrain webhook stays wired-but-not-live until it earns the same trust a fire alarm earns before it's allowed to auto-dispatch."
+        },
+        {
           "href": "blog/series/ai-learning/day-117-alert-storms-backpressure-on-notifications.html",
           "kicker": "AI Learning · Day 117 of 150",
           "title": "Day 117 — Alert Storms — Backpressure on Notifications",
