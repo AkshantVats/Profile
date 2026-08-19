@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 118 &mdash; Open Source Launch Checklist &mdash; First Repo Public | Experience Series</title>
-<meta name="description" content="LensAI's HN announcement was drafted on Day 25, sixty-three days before this repo ran its first dedicated launch-readiness review at all (RouteIQ, Day 88) — for a different product, not LensAI's own. DriftWatch, today, is the second time this build does the checklist before the post.">
-<meta property="og:title" content="Day 118 &mdash; Open Source Launch Checklist &mdash; First Repo Public">
-<meta property="og:description" content="A Show HN draft has sat in this repo since Day 25 with no launch-readiness review ever run against it. Today's DriftWatch launch-readiness day is this repo's second time doing the checklist before the post instead of after — and LensAI's own draft still hasn't had its turn.">
+<title>Day 119 &mdash; Month 4 Recap &mdash; Platform Story for Recruiters | Experience Series</title>
+<meta name="description" content="Not 'did you write thirty blog posts' but 'do these four products add up to one platform.' TraceForge, RouteIQ, alert-rule-engine, and DriftWatch share a Dispatcher and an eval pipeline instead of duplicating them — and this post names exactly where that reuse lives in the code, plus what's still config-verified rather than run.">
+<meta property="og:title" content="Day 119 &mdash; Month 4 Recap &mdash; Platform Story for Recruiters">
+<meta property="og:description" content="Four Go modules, one shared Dispatcher, one webhook deliberately left wired-but-not-live. Month 4's honest recap of whether this build's four products add up to a platform or four unrelated READMEs — including what's actually verified and what's config-only.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-118-open-source-launch-checklist-first-repo-public.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-118-open-source-launch-checklist-first-repo-public.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-119-month-4-recap-platform-story-recruiters.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-119-month-4-recap-platform-story-recruiters.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-118-open-source-launch-checklist-first-repo-public.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-119-month-4-recap-platform-story-recruiters.png">
 <meta property="article:published_time" content="2026-08-19">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,92 +185,115 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 118 of 150</span>
-    <span class="tag">Open Source</span>
-    <span class="tag">LensAI</span>
-    <span class="tag">Launch Readiness</span>
+    <span class="tag accent">Experience &middot; Day 119 of 150</span>
+    <span class="tag">Recap</span>
+    <span class="tag">Platform</span>
+    <span class="tag">DriftWatch</span>
+    <span class="tag">Hiring</span>
   </div>
-  <h1 class="post-title">Day 118 &mdash; Open Source Launch Checklist &mdash; First Repo Public</h1>
-  <p class="post-subtitle">This repo's own Show HN draft has sat written since Day 25 &mdash; sixty-three days before this build ran its first dedicated launch-readiness review at all, and that review was for a different product. Today's DriftWatch launch-readiness day is the second time this build does the checklist before the post instead of after.</p>
+  <h1 class="post-title">Day 119 &mdash; Month 4 Recap &mdash; Platform Story for Recruiters</h1>
+  <p class="post-subtitle">Four connected products &gt; four READMEs. TraceForge, RouteIQ, alert-rule-engine, and DriftWatch share a Dispatcher and an eval pipeline instead of duplicating them &mdash; this post names exactly where that reuse lives, and exactly what's still config-verified rather than run.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 118 of 150</span>
+    <span class="meta-item">Experience &middot; Day 119 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 19, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-118-open-source-launch-checklist-first-repo-public.png" alt="Day 118 — Open Source Launch Checklist — First Repo Public" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-119-month-4-recap-platform-story-recruiters.png" alt="Day 119 — Month 4 Recap — Platform Story for Recruiters" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>I keep a document called <code>docs/hn-launch-lensai.md</code> in this same repository. It's the Show HN draft for LensAI, the inference-observability pipeline this whole 150-day build orbits &mdash; title, body, key design decisions, honest limitations, repo link. It was written on Day 25. Today is Day 118. In between, nobody went back and checked whether the thing that draft points to was actually ready for a stranger to land on.</p>
+<p>Month 4 of this build ends today, and the honest recruiter question isn't &ldquo;did you write thirty blog posts&rdquo; &mdash; it's whether the four Go modules that came out of that window add up to one coherent platform story or four unrelated side projects with good READMEs. I want to answer that directly, using only what's actually shipped: TraceForge, RouteIQ, alert-rule-engine, and DriftWatch, in the order they connect to each other.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; this repo, not a past employer</div>
-  Today's post is about this build's own repo, not a prior company engagement &mdash; the same honesty convention every Experience post applies to an employer story applies here to a self-referential one: I'm not going to claim a launch-readiness discipline I can verify came from somewhere specific if it didn't. What follows is what actually happened in this repo's own history, checked against its own commits.
+  <div class="attr-label">Scope note &mdash; this repo's own products, not an employer story</div>
+  Today's post narrates this build's own four products and their actual current state, not a past company engagement &mdash; the same self-referential convention Day 118 used for its own launch-readiness review. Nothing below borrows a scale number or a specific incident from Agoda, Wayfair, Delivery Hero, or Walmart.
 </div>
 
-<h2 id="a-draft-with-nowhere-to-land">A Draft With Nowhere To Land</h2>
+<h2 id="four-products-not-four-side-projects">Four Products, Not Four Side Projects</h2>
 
-<p>A Show HN post is, functionally, an invitation: come look at my repository right now. <code>docs/hn-launch-lensai.md</code> reads like it's ready to send &mdash; a clean pitch, honest limitations section, a repo link at the bottom. What it doesn't do is check that the destination behind that link is ready for the traffic the invitation asks for.</p>
+<p>TraceForge (<code>agent-trace-collector</code>) is the first link: it ingests and stores traces, giving the rest of the stack somewhere real to read from instead of guessing at production behavior. RouteIQ (<code>routeiq-launch</code>) reads what TraceForge sees and turns it into routing and cost decisions &mdash; which model handles a given request, and at what price. alert-rule-engine takes a routed decision or a traced metric that crosses a threshold and turns it into a page, first to Slack, then to PagerDuty if nobody acknowledges it.</p>
 
-<p>That's not a hypothetical gap. A repo with a Show HN draft in its <code>docs/</code> folder and no root <code>CONTRIBUTING.md</code>, no explicit license file a legal team can green-light in thirty seconds, no landing page that answers "what is this" faster than the README's first paragraph &mdash; that repo is one good Hacker News run away from a wave of visitors bouncing off exactly the friction a launch checklist exists to remove.</p>
+<p>DriftWatch is the fourth link, and it's the one that closes the loop: it watches the <em>quality</em> of what's being routed, not just whether it's up, and &mdash; staged, not yet live &mdash; can ask for a retrain when quality keeps sliding. Each of these four is a real, independently shippable Go module with its own README, its own tests, its own CI run. None of them needs the others to build or pass its own test suite.</p>
 
-<p>So what: writing the announcement is the easy 20% of a launch; the other 80% is unglamorous and doesn't announce itself as missing until someone's already looking.</p>
+<p>So what: independently shippable is not the same claim as connected &mdash; a recruiter skimming four separate repos has no way to tell the difference from the READMEs alone, which is exactly the gap the rest of this post exists to close.</p>
 
-<h2 id="why-the-order-matters">Why the Order Matters</h2>
+<h2 id="the-sentence-that-makes-it-a-platform">The Sentence That Makes It a Platform</h2>
 
-<p>A restaurant doesn't put a "grand opening" sign in the window and then, the same week, discover the kitchen doesn't have a working expo station. The sign goes up after the kitchen's been through a soft-open week of dry runs &mdash; not because the food wasn't good before, but because "the food is good" and "the kitchen can serve forty covers at once without falling over" are different claims, and only one of them gets tested by opening night traffic.</p>
+<p>The sentence that actually makes these four a platform, and not four READMEs, lives in the code, not in this post's framing of it. DriftWatch's retrain webhook fires through the exact same alert-rule-engine <code>Dispatcher</code> that Days 116 and 117 built and load-tested &mdash; the component that decides who gets notified, on which channel, and how often before it gets throttled. DriftWatch doesn't ship its own notification system; it reuses the one that was already proven, two days earlier, to hold up under 100 concurrent rules.</p>
 
-<p>RouteIQ, this same repo's first product arc, drew that line explicitly: Day 88 was named a launch-<em>readiness</em> day, not a launch day, and its own checklist stated the order plainly &mdash; README, Helm chart, and a landing page, all done and reviewed, before Day 89's Show HN writeup and version tag. DriftWatch, today, follows the identical order: <code>driftwatch-launch/README.md</code>, its Helm chart, and an explicit <code>LAUNCH-CHECKLIST.md</code> ship today; the HN writeup and the <code>v1.0</code> tag are Day 119's job, not today's.</p>
+<p>The same reuse runs upstream. DriftWatch's <code>drift-detector</code> module watches a score stream for sustained drift using a CUSUM chart &mdash; a control-chart method that only flags a change once it accumulates past a threshold, so one noisy data point can't trigger a false alarm on its own &mdash; and that score stream is fed by the same shadow-traffic-and-eval pipeline this build started building around TraceForge's trace ingestion. A platform, in other words, is what you get when the fourth module's input and output both point back at work the first three modules already did.</p>
 
-<p>So what: the checklist coming before the post, twice now, isn't a coincidence &mdash; it's this build correcting, on its second product, a sequencing mistake its first launch (LensAI, Day 25) never went back and fixed for itself.</p>
+<p>A car's dashboard makes the same point physically. Four gauges &mdash; speed, fuel, engine temperature, oil pressure &mdash; could each be sold as a standalone gadget clipped onto the wheel, and each would work fine on its own. What makes them a dashboard instead of four gadgets is that they're wired into the same electrical system and the same sensor bus, so a change registered by one shows up correctly on another without anyone rewiring the car.</p>
 
-<h2 id="what-a-checklist-actually-catches">What a Checklist Actually Catches</h2>
+<p>So what: the shared Dispatcher and the shared eval pipeline are this repo's wiring &mdash; the part that turns four gauges into a dashboard, and it's the part a README screenshot alone can't show.</p>
 
-<p>A LAUNCH-CHECKLIST.md is not a vibes document. RouteIQ's version, and DriftWatch's today, are both structured as a table: one row per launch artifact, a status of done, deferred, or explicitly out of scope, and a one-line reason for whichever it is. The GitHub org transfer that would move a repo under a dedicated brand &mdash; <code>routeiq-dev</code> for RouteIQ, <code>driftwatch-dev</code> for DriftWatch &mdash; is marked <strong>not executed by this automated build</strong> on both checklists, for the same reason: transferring repository ownership is irreversible and owner-scoped, and an unattended pipeline shouldn't be the one deciding to pull that trigger.</p>
+<h2 id="what-staff-judgment-actually-looks-like">What Staff Judgment Actually Looks Like</h2>
 
-<p>That row matters more than it looks. A checklist that only ever says "done" isn't earning its place &mdash; it's the rows marked deferred or out-of-scope, with a stated reason, that prove someone actually walked the list item by item instead of rubber-stamping it. LensAI's Day 25 draft has no equivalent row for "has anyone checked this since," because no checklist existed to hold that row.</p>
+<p>Today's code deliverable is DriftWatch's product essay, and its most interesting sentence isn't a feature claim &mdash; it's the one about the retrain webhook. The webhook is built and tested end to end against a stand-in for FineForge, the not-yet-built retraining system on the other end of it, and deliberately left wired-but-not-live: nothing in this build currently lets a drift alarm actually trigger a retrain without a human approving it first.</p>
 
-<p>So what: the value of a launch checklist isn't the items it marks done, it's the items it's honest about not doing yet &mdash; that's the difference between a checklist and a press release.</p>
+<p>That's the decision I want to name directly, because it's the one a Staff-level hiring loop is actually screening for. Anyone can wire an alarm to an action; the harder skill is knowing which automations are safe to trust unattended on day one and which need a track record first, and then saying so plainly in a README instead of quietly shipping the safer version while the essay implies the fully automated one.</p>
 
-<h2 id="the-part-thats-still-not-done">The Part That's Still Not Done</h2>
+<p>A fire sprinkler system is plumbed the same way before it's trusted. The pipes run to every room and the heads are mounted and pressure-tested, but the valve to the main water line often stays closed for a stretch after installation, until an inspector signs off &mdash; because the cost of a false trigger, a room full of water, is worse than the cost of a short delay before the system goes fully live.</p>
 
-<p>I want to be direct about where this leaves LensAI's own draft: <code>docs/hn-launch-lensai.md</code> is still sitting in <code>infra-ai-streaming/docs/</code>, unsent, and this post does not retroactively run a LensAI launch-readiness day against it. That's a real gap this post is naming, not quietly fixing. Today's checklist work is scoped to DriftWatch, per Day 118's own ticket &mdash; going back to audit LensAI's README, LICENSE, and CONTRIBUTING.md against the same bar RouteIQ and DriftWatch just cleared is honest follow-up work, not something this post gets to claim credit for by association.</p>
+<p>So what: the retrain webhook staying wired-but-not-live isn't an unfinished feature, it's the same kind of judgment call &mdash; and the instinct to leave a powerful automation switched off until it earns trust is the same one I've watched more senior engineers apply on real production systems, long before this build existed.</p>
 
-<p><strong>So what:</strong> naming a gap this post doesn't close is the same discipline the checklist itself is built on &mdash; a status row that says "not done" is more useful, and more honest, than one that quietly disappears.</p>
+<h2 id="the-recruiters-actual-question">The Recruiter's Actual Question</h2>
+
+<p>Zoom out from any single module and the real question a hiring committee is asking becomes clearer: not &ldquo;can you write Go,&rdquo; which four green CI badges already answer, but &ldquo;can you see the whole system you built, including the parts you chose not to build yet.&rdquo; Thirty-plus days of consistent posting is evidence of discipline. It is not, on its own, evidence of that.</p>
+
+<p>The evidence for that is closer to what's actually in this post: a webhook that reuses an existing Dispatcher instead of shipping a second one, a CUSUM input that reuses TraceForge's trace pipeline instead of building a parallel ingestion path, and a retrain trigger left off by design rather than by accident. Four repos that share components instead of duplicating them is a specific, checkable claim, not a slogan.</p>
+
+<p>So what: &ldquo;four connected products&rdquo; only means something if a reader can go verify the connection in the code &mdash; this post names the exact files and days where that verification lives, on purpose.</p>
+
+<h2 id="whats-verified-and-whats-not">What's Verified and What Isn't</h2>
+
+<p>A recap making an honesty pitch has to survive being honest about its own gaps, so here they are without softening. This sandbox has never had a reachable Docker daemon &mdash; not on Day 88's RouteIQ launch, not on Day 118's DriftWatch checklist, and not today &mdash; so none of the four products' container images has ever actually been build-verified end to end in this environment.</p>
+
+<p>Today's other code deliverable, the four-product <code>docker-compose.yml</code> that wires TraceForge, LensAI, RouteIQ, and DriftWatch together behind one <code>--profile driftwatch</code> flag, passed <code>docker compose config</code> &mdash; which confirms the YAML is well-formed and every referenced service resolves &mdash; but nobody has actually run <code>docker compose up</code> against it, because there's no daemon in this sandbox to run it on. That's a real limitation on the platform claim, not a rounding error.</p>
+
+<p>So what: a recap that says &ldquo;we verified the config parses&rdquo; instead of &ldquo;we verified it runs&rdquo; is doing the same thing the retrain webhook does &mdash; stating exactly how far the verification actually went, instead of letting a green checkmark imply more than it proved.</p>
+
+<h2 id="what-month-4-actually-proves">What Month 4 Actually Proves</h2>
+
+<p>None of this makes DriftWatch, RouteIQ, alert-rule-engine, or TraceForge a finished product &mdash; each one still has its own open <code>BENCHMARKS.md</code> caveats, its own &ldquo;not yet measured against a live broker&rdquo; line, its own list of what a human still has to do manually. What Month 4 actually proves is narrower, and I think more useful to a reader deciding whether to trust the rest of this build: reuse compounds here instead of resetting on every new product.</p>
+
+<p>The next module doesn't start from zero. It starts from a Dispatcher that already survived a 100-rule storm test, a CUSUM pipeline already wired to a real trace source, and a habit of writing down exactly what's proven versus assumed before calling anything done.</p>
+
+<p><strong>So what:</strong> a platform story isn't the absence of gaps &mdash; every module here still has them &mdash; it's a codebase where each new piece makes the next one cheaper to build honestly, and that compounding is the actual thing four separate READMEs can't show.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 118 of 150</p>
-  <p><em>Next up:</em> <a href="day-119-month-4-recap-platform-story-recruiters.html">Day 119 — Month 4 Recap — Platform Story for Recruiters</a></p>
+  <p>Experience &middot; Day 119 of 150</p>
+  <p><em>Next up:</em> Day 120 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-117-load-test-alert-storm-agoda-black-friday-prep.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-118-open-source-launch-checklist-first-repo-public.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 117 — Load Test Alert Storm — Agoda Black Friday Prep (yesterday's post — DriftWatch's storm test, the last piece before today's launch-readiness day)</span>
+      <span>Day 118 — Open Source Launch Checklist — First Repo Public (yesterday's post — the DriftWatch launch-readiness day this recap builds on)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/main/routeiq-launch/LAUNCH-CHECKLIST.md">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/main/driftwatch-launch/PRODUCT_ESSAY.md">
       <span class="footnote-arrow">&rarr;</span>
-      <span>routeiq-launch/LAUNCH-CHECKLIST.md (Day 88 — the checklist-before-the-post pattern this post traces to its second use)</span>
+      <span>driftwatch-launch/PRODUCT_ESSAY.md (Day 119 — today's code deliverable, the essay this post's "Staff judgment" section is about)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-118-mlops-launch-baseline-monitor-act.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-119-auto-retrain-loops-platform-closure.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 118 — MLOps Launch — Baseline, Monitor, Act (today's companion AI Learning post — why a monitor ships before the auto-action it feeds)</span>
+      <span>Day 119 — Auto-Retrain Loops — Platform Closure (today's companion AI Learning post — why DriftWatch→FineForge is event-driven architecture)</span>
     </a>
   </div>
 </div>
@@ -281,21 +304,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-draft-with-nowhere-to-land">A Draft With Nowhere to Land</a></li>
-      <li><a href="#why-the-order-matters">Why the Order Matters</a></li>
-      <li><a href="#what-a-checklist-actually-catches">What a Checklist Catches</a></li>
-      <li><a href="#the-part-thats-still-not-done">What's Still Not Done</a></li>
+      <li><a href="#four-products-not-four-side-projects">Four Products, Not Side Projects</a></li>
+      <li><a href="#the-sentence-that-makes-it-a-platform">The Sentence That Makes It a Platform</a></li>
+      <li><a href="#what-staff-judgment-actually-looks-like">What Staff Judgment Looks Like</a></li>
+      <li><a href="#the-recruiters-actual-question">The Recruiter's Actual Question</a></li>
+      <li><a href="#whats-verified-and-whats-not">What's Verified and What Isn't</a></li>
+      <li><a href="#what-month-4-actually-proves">What Month 4 Actually Proves</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-118-open-source-launch-checklist-first-repo-public.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-119-month-4-recap-platform-story-recruiters.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Open+Source+Launch+Checklist+%E2%80%94+First+Repo+Public+%C2%B7+Day+118&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-118-open-source-launch-checklist-first-repo-public.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Month+4+Recap+%E2%80%94+Platform+Story+for+Recruiters+%C2%B7+Day+119&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-119-month-4-recap-platform-story-recruiters.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -308,17 +333,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D117</span> Experience</div>
-          <a href="day-117-load-test-alert-storm-agoda-black-friday-prep.html" class="series-post-title">Load Test Alert Storm — Agoda Black Friday Prep</a>
+          <div class="series-post-kicker"><span class="series-post-num">D118</span> Experience</div>
+          <a href="day-118-open-source-launch-checklist-first-repo-public.html" class="series-post-title">Open Source Launch Checklist — First Repo Public</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D118</span> Experience &middot; now</div>
-          <div class="series-post-title">Open Source Launch Checklist — First Repo Public</div>
-          <div class="series-post-desc">The Show HN draft that sat unchecked for 63 days.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D119</span> Experience &middot; now</div>
+          <div class="series-post-title">Month 4 Recap — Platform Story for Recruiters</div>
+          <div class="series-post-desc">Four products, one shared Dispatcher, one honest gap on Docker.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D119</span> Experience</div>
-          <a href="day-119-month-4-recap-platform-story-recruiters.html" class="series-post-title">Month 4 Recap — Platform Story for Recruiters</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D120</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
