@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html",
+          "kicker": "AI Learning · Day 120 of 150",
+          "title": "Day 120 — Instruction Tuning Formats — Alpaca vs ShareGPT",
+          "subtitle": "Schema choice affects tokenizer efficiency",
+          "date": "2026-08-19",
+          "slug": "day-120-instruction-tuning-formats-alpaca-vs-sharegpt",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html",
+          "coverImage": "blog/assets/covers/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.png",
+          "desc": "Alpaca's flat instruction/input/output form and ShareGPT's named-turn transcript aren't a syntax choice — data-prep-pipeline's DESIGN.md routes between them by trace_id span count, and the pick changes how many tokens a fine-tuning run spends on template overhead versus the task itself."
+        },
+        {
           "href": "blog/series/ai-learning/day-119-auto-retrain-loops-platform-closure.html",
           "kicker": "AI Learning · Day 119 of 150",
           "title": "Day 119 — Auto-Retrain Loops — Platform Closure",
