@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 120 &mdash; Training Data Is Production Data &mdash; Legal at Walmart | Experience Series</title>
-<meta name="description" content="Debug logs from a 7-million-sensor edge fleet look like harmless numbers until someone reads what's actually inside them. Why a fail-closed PII scrubber has to sit in the export pipeline itself, not in a reviewer's last-minute read before a vendor handoff.">
-<meta property="og:title" content="Day 120 &mdash; Training Data Is Production Data &mdash; Legal at Walmart">
-<meta property="og:description" content="A telemetry pipeline that looks anonymous on paper can still carry identifying text in its debug fields. The fix isn't a sharper-eyed reviewer at the vendor handoff — it's a scrubber that fails closed instead of a review that fails open.">
+<title>Day 121 &mdash; Why We Left Pure Prometheus &mdash; Columnar Rollups at Agoda | Experience Series</title>
+<meta name="description" content="A labels-and-scrapes model runs out exactly where a training-data query needs to begin. Why Agoda's answer to Prometheus cardinality was a columnar, histogram-based store — and why today's data-prep-pipeline connector gets to write a plain SQL WHERE clause because of the same shape.">
+<meta property="og:title" content="Day 121 &mdash; Why We Left Pure Prometheus &mdash; Columnar Rollups at Agoda">
+<meta property="og:description" content="A design-tradeoff lesson from Agoda's move off pure Prometheus, and why it's the reason today's FineForge connector can filter judge_score with one SQL clause instead of a cardinality-aware label query.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-120-training-data-is-production-data-legal-at-walmart.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-120-training-data-is-production-data-legal-at-walmart.png">
-<meta property="article:published_time" content="2026-08-19">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.png">
+<meta property="article:published_time" content="2026-08-20">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,23 +185,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 120 of 150</span>
-    <span class="tag">Privacy</span>
-    <span class="tag">Data Governance</span>
-    <span class="tag">Walmart</span>
+    <span class="tag accent">Experience &middot; Day 121 of 150</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Data Modeling</span>
+    <span class="tag">Agoda</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 120 &mdash; Training Data Is Production Data &mdash; Legal at Walmart</h1>
-  <p class="post-subtitle">Debug logs from a 7-million-sensor edge fleet look like harmless numbers until someone reads what's actually inside them. Why a scrubber that fails closed beats a reviewer catching it at the last mile &mdash; and why that lesson is the whole reason today's FineForge design doc has a PII section before it has an export format.</p>
+  <h1 class="post-title">Day 121 &mdash; Why We Left Pure Prometheus &mdash; Columnar Rollups at Agoda</h1>
+  <p class="post-subtitle">A labels-and-scrapes model runs out exactly where a training-data query needs to begin. The design lesson that outlived the specific system it came from &mdash; and why today's connector gets to write one SQL <code>WHERE</code> clause instead of a cardinality-aware label query.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 120 of 150</span>
+    <span class="meta-item">Experience &middot; Day 121 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 19, 2026</span>
+    <span class="meta-item">August 20, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">8 min read</span>
   </div>
@@ -209,89 +209,77 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-120-training-data-is-production-data-legal-at-walmart.png" alt="Day 120 — Training Data Is Production Data — Legal at Walmart" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.png" alt="Day 121 — Why We Left Pure Prometheus — Columnar Rollups at Agoda" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's code deliverable is <code>data-prep-pipeline/DESIGN.md</code>, the document that opens FineForge's first module. Its second section, before a single export schema gets specified, is a PII inventory &mdash; a fixed list of what counts as sensitive and a table that stores only offsets and categories, never the original text. That ordering isn't an accident, and the reason I write it that way traces back to a much less structured lesson from Walmart Labs.</p>
+<p>Today's code is a nine-line SQL query: <code>data-prep-pipeline/pkg/connector</code> selects <code>infra_ai.judge_scores</code> rows from the last 30 days where <code>judge_score &gt; 0.8</code>, and that's the whole candidate-selection logic. No label cardinality budget to check first, no aggregation service to ask permission of &mdash; just a <code>WHERE</code> clause against a table built to answer exactly that kind of question. That query only stays that simple because of a lesson I picked up watching a very different system hit its limits at Agoda.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">Scope note &mdash; Walmart Labs, WeIoT SmartBuildings</div>
-  My resume documents the scale directly: "7M+ sensors, tens of millions of telemetry points/min: Architected WeIoT SmartBuildings ingestion layer on Azure IoT Hub" and a "fault-tolerant edge-to-cloud OTA firmware framework" for syncing config to distributed devices. What follows is the general shape of a risk that scale makes unavoidable &mdash; debug logging on an edge fleet accreting text nobody meant to collect &mdash; not a single named incident, vendor, or date my resume doesn't itemize. I'm generalizing from documented, real work, not attaching invented specifics to it.
+  <div class="attr-label">Scope note &mdash; Agoda, WhiteFalcon (not literally today's stack)</div>
+  I spent ~5 months at Agoda as a Senior Engineer on WhiteFalcon, Agoda's in-house time-series database (Kafka &rarr; Rust ingest &rarr; Redis hot tier &rarr; Ceph/S3 Parquet cold tier &rarr; a Scala query engine over RoaringBitmap indexes). The Agoda team designed and built that system; my contribution was the cross-tier query engine extension and a new Kubernetes-tag indexing dimension, both already covered in <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">Building a TSDB at Agoda</a>. WhiteFalcon is Druid-inspired, not ClickHouse &mdash; today's post is about the design lesson that carried forward from watching Prometheus hit a wall there, not a claim that Agoda ran the same database FineForge does today.
 </div>
 
-<h2 id="a-sensor-reading-doesnt-look-like-a-person">A Sensor Reading Doesn't Look Like a Person</h2>
+<h2 id="the-label-model-runs-out">The Label Model Runs Out</h2>
 
-<p>A telemetry pipeline built around numbers feels inherently safe to export. A temperature reading, a humidity value, a power draw &mdash; none of that identifies anyone on its own, and it's easy to design the whole ingestion layer around that assumption.</p>
+<p>Prometheus's data model is a metric name plus a set of labels &mdash; <code>request_duration{model="x", tenant="y", pod="z"}</code> &mdash; and every unique combination of label values gets its own time series. That's a fine model right up until the number of combinations stops being small.</p>
 
-<p>The assumption breaks the moment debugging enters the picture. Every fleet this size eventually needs a free-text field somewhere &mdash; a diagnostic note, a maintenance comment, a device-side error string &mdash; because a bare number tells you a sensor is wrong, not why.</p>
+<p><a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">A cardinality incident I covered in an earlier post</a> is the concrete version of this: a <code>pod</code> label added to a fleet metric multiplied every existing series by the fleet's pod count, scrape duration crept up with request rate flat, and the alert built to catch stack degradation was the first thing to go dark &mdash; because it depended on the same scrape pipeline that was drowning.</p>
 
-<p>So what: the numeric fields are the ones a data-export review actually looks at, but the free-text fields bolted on for debugging are the ones that quietly start carrying whatever a human typed into them.</p>
+<p>So what: a labels-and-scrapes model doesn't fail loudly when cardinality outgrows it &mdash; the failure looks identical to the system being healthy, right up until the monitoring itself stops reporting.</p>
 
-<h2 id="why-logs-drift-toward-text-nobody-asked-for">Why Logs Drift Toward Text Nobody Asked For</h2>
+<h2 id="two-shapes-on-the-table">Two Shapes on the Table</h2>
 
-<p>Nobody sets out to log identifying information. A technician troubleshooting a zone that keeps flagging false positives writes a note referencing the work order, the building, sometimes their own badge or initials, because that's the fastest way to leave context for the next person who reopens the ticket.</p>
+<table>
+<tr><th>Option</th><th>Query shape</th><th>What breaks at scale</th></tr>
+<tr><td>Stay on Prometheus, add a stricter label budget</td><td>Time series keyed by label combination</td><td>Budget only slows the growth curve; every new dimension (tenant, model version, pod) still multiplies existing series</td></tr>
+<tr><td>Move to a columnar, histogram-based store</td><td>Rows plus an inverted index, aggregation at query time</td><td>None from cardinality alone &mdash; the cost of a new dimension is index size, not a multiplied series count</td></tr>
+</table>
 
-<p>At the scale of one facility, a person can skim those notes and catch anything that shouldn't leave the building. At 7M+ sensors across 50-plus facilities, nobody is reading every diagnostic string by hand before it lands in a shared log store &mdash; the volume alone rules out a human being the check.</p>
+<p>Agoda's answer was the second row: WhiteFalcon stores raw histogram bucket counts per series and indexes tag values with RoaringBitmap &mdash; one bitmap per tag value, mapping to the set of series IDs carrying it. A query becomes a set operation (intersect the <code>model=x</code> bitmap with the <code>cluster=y</code> bitmap) instead of a scan across every label combination a scrape ever produced.</p>
 
-<p>So what: a control that depends on someone reading every row doesn't fail loudly when the fleet outgrows that person's reading speed &mdash; it just quietly stops being a control, long before anyone notices it stopped working.</p>
+<p>So what: the rejected option (a tighter budget on the old model) treats cardinality as a discipline problem; the chosen option treats it as a data-structure problem &mdash; and only one of those stops being your problem as traffic grows.</p>
 
-<h2 id="the-vendor-handoff-is-where-theory-becomes-risk">The Vendor Handoff Is Where Theory Becomes Risk</h2>
+<h2 id="what-the-shape-change-actually-bought">What the Shape Change Actually Bought</h2>
 
-<p>Inside one company's own systems, a stray identifier in a debug log is a bad habit. The moment that same log store becomes an export &mdash; a data share with an energy-optimization vendor, an analytics partner, anyone outside the org boundary &mdash; the same stray identifier becomes a real legal exposure, not a theoretical one.</p>
+<p>Storing histograms instead of pre-computed percentiles is the detail that makes the columnar approach pay off past just cardinality. A time range spanning the hot (Redis) and cold (Parquet/S3) tiers used to need two separate queries and a manual, mathematically wrong merge &mdash; you cannot average two P95s into a correct P95 for the combined range. Histogram bucket counts can be added directly: fetch both tiers' bucket counts, sum the matching buckets, compute the percentile once on the merged distribution.</p>
 
-<p>A warehouse loading dock makes the same shift physically. Crates moving between two rooms inside the same building only need a label; the same crates crossing onto a truck bound for another company need a customs declaration, because now something outside your own walls has to certify exactly what's inside.</p>
+<p>Extending the query engine to do that cross-tier merge correctly &mdash; not designing WhiteFalcon itself &mdash; was my own contribution, covered in full in <a href="https://akshantvats.github.io/Profile/blog/series/experience/when-percentiles-lie-cross-tier-queries.html">When Percentiles Lie</a>. The schema discipline that came out of the cardinality incident (a 10k label budget per metric, cross-product analysis required before any new tag) stayed in place as a guardrail on top of the new shape, not a replacement for it.</p>
 
-<p>So what: nothing about the data changes at the export boundary, only the consequence of getting it wrong does &mdash; which is exactly why the boundary is where a system needs an actual gate, not just good intentions upstream of it.</p>
+<div class="pullquote"><p>A label budget makes the old shape survive a little longer. A columnar store with a real index makes cardinality stop being the thing you're managing.</p></div>
 
-<h2 id="catching-it-in-review-is-not-a-design">Catching It in Review Is Not a Design</h2>
+<p>So what: the histogram-not-percentiles decision is what turned "we moved to a bigger store" into "cross-tier queries are now mathematically correct" &mdash; the storage shape and the query correctness were never two separate wins.</p>
 
-<p>The version of this story that ends well is legal review reading an export before it ships and flagging the free-text field that shouldn't be there. That catch is a genuinely good outcome, and it's also worth being honest about what kind of outcome it is: one attentive read, at the last point before the data left the building, working exactly once.</p>
+<h2 id="the-same-shape-today">The Same Shape, a Different Store, Three Years Later</h2>
 
-<p>A safety net that depends on someone with sharp eyes reading the whole export, every time, on schedule, isn't a design &mdash; it's a habit that holds until the day it doesn't, whether from a rushed deadline, a reviewer on leave, or a field nobody thought to flag because it looked routine.</p>
+<p>FineForge's <code>data-prep-pipeline</code> doesn't run WhiteFalcon &mdash; it reads from LensAI's own ClickHouse tables, <code>infra_ai.judge_scores</code> among them. But the reason today's connector is nine lines of SQL instead of a cardinality-aware aggregation pipeline is the same reason WhiteFalcon replaced pure Prometheus: <code>judge_scores</code> is a columnar, row-per-event table with real predicate pushdown on <code>judged_at</code> and <code>judge_score</code>, not a metric keyed by every distinct <code>(task_type, model_id, tenant_id)</code> combination that would exist as a separate series.</p>
 
-<p>So what: the right response to "legal caught it" isn't relief that the process worked &mdash; it's the harder question of what happens the time nobody catches it, and whether the answer to that question is left to chance.</p>
+<p>A judge score is inherently high-cardinality data &mdash; one row per graded request, across every task type, every model, every tenant, indefinitely. Trying to serve "give me every high-scoring conversation from the last 30 days" out of a labels-and-scrapes model would hit the same wall the fleet metric did: the query pattern that a training-data pipeline actually needs is exactly the shape a time-series-with-labels store was never built to answer cheaply.</p>
 
-<h2 id="fail-closed-not-fail-reviewed">Fail-Closed, Not Fail-Reviewed</h2>
-
-<p><code>data-prep-pipeline/DESIGN.md</code> is where that lesson actually lands in code, three months and a different company later. The PII section enumerates categories in scope &mdash; emails, phone numbers, person names, addresses, pasted secrets, cross-tenant leakage &mdash; and fixes the shape of <code>infra_ai.pii_redaction_audit</code>: it stores an offset and a category for every redaction, never the original value it removed.</p>
-
-<p>The part that actually matters is what happens when the scrubber itself is uncertain. A fail-open scrubber ships a row through when a check errors or a classifier isn't confident, on the theory that availability matters more than one missed edge case. A fail-closed scrubber blocks that row instead, on the opposite theory: an export that's occasionally late is recoverable, an export that already shipped a name to a training-data vendor is not.</p>
-
-<div class="pullquote"><p>A reviewer can only catch what they happen to read. A scrubber that fails closed doesn't need anyone to happen to be looking.</p></div>
-
-<p>So what: fail-closed isn't a stricter version of the same control legal review already provided &mdash; it's a structurally different one, because it doesn't depend on a specific person's attention on a specific day to hold.</p>
-
-<h2 id="what-this-buys-the-next-export">What This Buys the Next Export</h2>
-
-<p>The dedup section right after PII in today's design doc reserves <code>prompt_hash</code> and a <code>minhash_signature</code> column on the same <code>conversation_text</code> table the redaction audit covers &mdash; meaning every row that reaches a dedup check has already passed through the same fail-closed gate, not a separate one someone has to remember to wire in later.</p>
-
-<p>That's the actual payoff of writing the PII section before the export schema: the control isn't bolted onto the format, it's upstream of every format the pipeline will ever add, including the Alpaca-versus-ShareGPT routing this arc's companion post covers today.</p>
-
-<p><strong>So what:</strong> a legal reviewer catching one bad export is a story worth telling once; a scrubber that fails closed by default is the version of that lesson that doesn't need to be told again for every export after it.</p>
+<p>So what: the connector I shipped today didn't have to solve a cardinality problem, and that's not luck &mdash; it's the payoff of a decision made in a different system, for a different reason, that turned out to generalize to "any workload that needs to filter and aggregate over many high-cardinality dimensions belongs in a columnar store, not a labeled time series."</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 120 of 150</p>
-  <p><em>Next up:</em> <a href="day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html">Day 121 &mdash; Why We Left Pure Prometheus — Columnar Rollups at Agoda</a></p>
+  <p>Experience &middot; Day 121 of 150</p>
+  <p><em>Next up:</em> Day 122 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-119-month-4-recap-platform-story-recruiters.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 119 — Month 4 Recap — Platform Story for Recruiters (yesterday's post — the four-product reuse story this build's Month 4 closed on)</span>
+      <span>Day 120 — Training Data Is Production Data — Legal at Walmart (yesterday's post — the PII gate this pipeline's next stage builds on)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/main/data-prep-pipeline/DESIGN.md">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/cardinality-is-the-silent-killer-roaringbitmap-lessons.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>data-prep-pipeline/DESIGN.md (Day 120 — today's code deliverable, the PII inventory and fail-closed redaction audit this post is about)</span>
+      <span>Cardinality Is the Silent Killer (the full cardinality-incident post this one references)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/200">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 120 — Instruction Tuning Formats — Alpaca vs ShareGPT (today's companion AI Learning post — the export schema that sits downstream of this post's PII gate)</span>
+      <span>infra-ai-streaming PR #200 (today's code deliverable — the connector this post is about)</span>
     </a>
   </div>
 </div>
@@ -302,23 +290,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-sensor-reading-doesnt-look-like-a-person">A Sensor Reading Isn't a Person</a></li>
-      <li><a href="#why-logs-drift-toward-text-nobody-asked-for">Why Logs Drift Toward Text</a></li>
-      <li><a href="#the-vendor-handoff-is-where-theory-becomes-risk">The Vendor Handoff Is the Risk</a></li>
-      <li><a href="#catching-it-in-review-is-not-a-design">Catching It in Review Isn't a Design</a></li>
-      <li><a href="#fail-closed-not-fail-reviewed">Fail-Closed, Not Fail-Reviewed</a></li>
-      <li><a href="#what-this-buys-the-next-export">What This Buys the Next Export</a></li>
+      <li><a href="#the-label-model-runs-out">The Label Model Runs Out</a></li>
+      <li><a href="#two-shapes-on-the-table">Two Shapes on the Table</a></li>
+      <li><a href="#what-the-shape-change-actually-bought">What the Shape Change Bought</a></li>
+      <li><a href="#the-same-shape-today">The Same Shape, Three Years Later</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-120-training-data-is-production-data-legal-at-walmart.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Training+Data+Is+Production+Data+%E2%80%94+Legal+at+Walmart+%C2%B7+Day+120&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-120-training-data-is-production-data-legal-at-walmart.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Why+We+Left+Pure+Prometheus+%E2%80%94+Columnar+Rollups+at+Agoda+%C2%B7+Day+121&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -331,17 +317,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D119</span> Experience</div>
-          <a href="day-119-month-4-recap-platform-story-recruiters.html" class="series-post-title">Month 4 Recap — Platform Story for Recruiters</a>
+          <div class="series-post-kicker"><span class="series-post-num">D120</span> Experience</div>
+          <a href="day-120-training-data-is-production-data-legal-at-walmart.html" class="series-post-title">Training Data Is Production Data — Legal at Walmart</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D120</span> Experience &middot; now</div>
-          <div class="series-post-title">Training Data Is Production Data — Legal at Walmart</div>
-          <div class="series-post-desc">Fail-closed beats a reviewer catching it at the last mile.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D121</span> Experience &middot; now</div>
+          <div class="series-post-title">Why We Left Pure Prometheus — Columnar Rollups at Agoda</div>
+          <div class="series-post-desc">A labels model runs out at exactly the query shape a training-data pipeline needs.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D121</span> Experience</div>
-          <a href="day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html" class="series-post-title">Why We Left Pure Prometheus — Columnar Rollups at Agoda</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D122</span> Experience</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>

@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-121-mining-production-logs-for-sft-data.html",
+          "kicker": "AI Learning · Day 121 of 150",
+          "title": "Day 121 — Mining Production Logs for SFT Data",
+          "subtitle": "ClickHouse SQL as feature store",
+          "date": "2026-08-20",
+          "slug": "day-121-mining-production-logs-for-sft-data",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-121-mining-production-logs-for-sft-data.html",
+          "coverImage": "blog/assets/covers/day-121-mining-production-logs-for-sft-data.png",
+          "desc": "A judge_score connector is a feature store the moment its output has a join key — why two of the four candidate tables named in DESIGN.md turned out not to have one."
+        },
+        {
           "href": "blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html",
           "kicker": "AI Learning · Day 120 of 150",
           "title": "Day 120 — Instruction Tuning Formats — Alpaca vs ShareGPT",
@@ -1331,6 +1343,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html",
+          "kicker": "Experience · Day 121 of 150",
+          "title": "Day 121 — Why We Left Pure Prometheus — Columnar Rollups at Agoda",
+          "subtitle": "High-cardinality queries needed columnar rollups",
+          "date": "2026-08-20",
+          "slug": "day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html",
+          "coverImage": "blog/assets/covers/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.png",
+          "desc": "A labels-and-scrapes model runs out exactly where a training-data query needs to begin — the design lesson from Agoda leaving pure Prometheus that made today FineForge connector a plain SQL WHERE clause instead of a cardinality-aware query."
+        },
         {
           "href": "blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html",
           "kicker": "Experience · Day 120 of 150",
