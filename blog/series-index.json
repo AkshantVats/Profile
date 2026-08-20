@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html",
+          "kicker": "AI Learning · Day 123 of 150",
+          "title": "Day 123 — MinHash Dedup — Near-Duplicate Prompts",
+          "subtitle": "Similar to SimHash for docs",
+          "date": "2026-08-20",
+          "slug": "day-123-minhash-dedup-near-duplicate-prompts",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html",
+          "coverImage": "blog/assets/covers/day-123-minhash-dedup-near-duplicate-prompts.png",
+          "desc": "A ticket that says 'Hamming threshold' is picturing a bit-string. Why MinHash's array-of-minimums signature is legible as a Jaccard estimate and not a bit-distance, and how that changed a function name."
+        },
+        {
           "href": "blog/series/ai-learning/day-122-pii-in-training-data-ner-and-regex.html",
           "kicker": "AI Learning · Day 122 of 150",
           "title": "Day 122 — PII in Training Data — NER + Regex",
