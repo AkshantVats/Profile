@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-122-pii-in-training-data-ner-and-regex.html",
+          "kicker": "AI Learning · Day 122 of 150",
+          "title": "Day 122 — PII in Training Data — NER + Regex",
+          "subtitle": "Fail closed like PCI scrubbers",
+          "date": "2026-08-20",
+          "slug": "day-122-pii-in-training-data-ner-and-regex",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-122-pii-in-training-data-ner-and-regex.html",
+          "coverImage": "blog/assets/covers/day-122-pii-in-training-data-ner-and-regex.png",
+          "desc": "Regex works on data with a grammar; names and addresses have none. Why the two detector halves need different machinery, why the error costs are wildly asymmetric for training data, and how the redaction audit table proves a removal without re-storing it."
+        },
+        {
           "href": "blog/series/ai-learning/day-121-mining-production-logs-for-sft-data.html",
           "kicker": "AI Learning · Day 121 of 150",
           "title": "Day 121 — Mining Production Logs for SFT Data",
