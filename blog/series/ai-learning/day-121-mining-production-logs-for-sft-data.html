@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 120 &mdash; Instruction Tuning Formats &mdash; Alpaca vs ShareGPT | AI Learning Series</title>
-<meta name="description" content="A fine-tuning row's JSON shape is not a neutral serialization choice. Alpaca's fixed three fields and ShareGPT's named-turn transcript cost different tokenizer overhead and can represent different conversations &mdash; here's how data-prep-pipeline's export CLI picks between them.">
-<meta property="og:title" content="Day 120 &mdash; Instruction Tuning Formats &mdash; Alpaca vs ShareGPT">
-<meta property="og:description" content="Schema choice affects tokenizer efficiency: a recipe card's three fixed fields versus a group chat transcript's named turns, and why one export CLI needs to support both.">
+<title>Day 121 &mdash; Mining Production Logs for SFT Data | AI Learning Series</title>
+<meta name="description" content="ClickHouse SQL as a feature store: how a nine-line judge_score query becomes the first stage of a fine-tuning dataset, and why a candidate table without a request_id column can't actually supply candidates.">
+<meta property="og:title" content="Day 121 &mdash; Mining Production Logs for SFT Data">
+<meta property="og:description" content="A SELECT statement is a feature store the moment its output has a join key. Why the connector's whole design collapses to that one requirement — and what happened when it wasn't there.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-121-mining-production-logs-for-sft-data.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-121-mining-production-logs-for-sft-data.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.png">
-<meta property="article:published_time" content="2026-08-19">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-121-mining-production-logs-for-sft-data.png">
+<meta property="article:published_time" content="2026-08-20">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 120 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 121 of 150</span>
     <span class="tag">Fine-Tuning</span>
     <span class="tag">Data Engineering</span>
-    <span class="tag">Tokenization</span>
+    <span class="tag">ClickHouse</span>
   </div>
-  <h1 class="post-title">Day 120 &mdash; Instruction Tuning Formats &mdash; Alpaca vs ShareGPT</h1>
-  <p class="post-subtitle">Schema choice affects tokenizer efficiency: a fixed three-field form versus a named-turn transcript, and why a single export CLI has to support both instead of picking a winner.</p>
+  <h1 class="post-title">Day 121 &mdash; Mining Production Logs for SFT Data</h1>
+  <p class="post-subtitle">A SELECT statement is a feature store the moment its output has a join key. Why the connector's whole design collapses to that one requirement — and what happened when two of the four candidate tables didn't have it.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 120 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 121 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 19, 2026</span>
+    <span class="meta-item">August 20, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">8 min read</span>
   </div>
@@ -208,73 +208,33 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.png" alt="Day 120 — Instruction Tuning Formats — Alpaca vs ShareGPT" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-121-mining-production-logs-for-sft-data.png" alt="Day 121 — Mining Production Logs for SFT Data" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Export CLI supports both formats. That's today's hook, and it's a decision fixed on paper today, not code shipped today &mdash; <code>data-prep-pipeline/DESIGN.md</code>, the design doc that opens FineForge's first module, specs two different JSON shapes a training row can leave the pipeline in in.</p>
+<p>The connector's query filters high judge_score, and that's genuinely the whole first stage of a fine-tuning dataset: <code>SELECT request_id, tenant_id, task_type, model_id, judge_score, judged_at FROM infra_ai.judge_scores WHERE judged_at &gt;= $1 AND judged_at &lt; $2 AND judge_score &gt; $3</code>. No feature-engineering pipeline, no separate serving layer &mdash; the production ClickHouse database LensAI already writes to is the feature store, three months late and with zero new infrastructure.</p>
 
-<p>The two shapes are Alpaca and ShareGPT, and the first thing worth saying is that neither one is a de facto standard everyone just agrees on. They're two different bets about what an instruction-tuning example looks like, and the bet you make changes how many tokens your fine-tuning run spends before it sees a single real word.</p>
+<p>That framing only holds up if every row this query returns can actually be used downstream. Building <code>data-prep-pipeline/pkg/connector</code> today, I found out the hard way that "used downstream" has one specific, non-negotiable requirement, and that two of the four tables Day 120's design doc named as candidate sources don't meet it.</p>
 
-<p>This post is about why a pipeline that could pick one format and move on instead builds a router that picks per row &mdash; using the same field names and the same routing signal <code>data-prep-pipeline/DESIGN.md</code> fixes today.</p>
+<h2 id="a-candidate-is-only-as-good-as-its-join-key">A Candidate Is Only as Good as Its Join Key</h2>
 
-<h2 id="where-a-row-comes-from">Where a Training Row Comes From</h2>
-
-<p>Before either format enters the picture, a row has to earn its way into the export at all. <code>infra_ai.judge_scores</code> (Day 99) is the quality gate: an automated LLM judge grades every production response and stores the weighted result as <code>judge_score</code>, and Day 121's connector pulls the last 30 days of rows above the high-quality threshold, the same one this arc's own dataset dashboard (Day 125) will later chart against.</p>
-
-<p>Passing that gate only proves a response was <em>good</em>. It says nothing about whether the underlying request was a single question-and-answer or a multi-step agent run with tool calls in between &mdash; and that distinction is exactly what decides which export format a row gets.</p>
-
-<p>So what: a judge score can tell you a row is worth training on, but it can't tell you what shape to train on it in &mdash; that answer lives in a completely different table.</p>
-
-<h2 id="the-fixed-three-field-form">Alpaca: The Fixed Three-Field Form</h2>
-
-<p>Alpaca format is flat: every row is exactly three fields, no more, no fewer, regardless of what actually happened in the underlying conversation.</p>
-
-<pre><code>{
-  "instruction": "Summarize the customer's refund request in two sentences.",
-  "input": "",
-  "output": "The customer is requesting a refund for order #48213 due to a damaged item received on delivery. They have already attached photo evidence and are asking for either a replacement or full refund within 5 business days."
-}</code></pre>
-
-<p><code>instruction</code> is the task, <code>input</code> is optional extra context (often left empty, as above, when the instruction is self-contained), and <code>output</code> is the one span of text the model is actually being trained to produce. There's no field for "and then the model called a tool" &mdash; if that happened, Alpaca has nowhere to put it.</p>
-
-<p>That constraint is a feature for the common case, not a limitation someone forgot to fix: the overwhelming majority of LensAI's traffic is one prompt, one response, no intermediate steps.</p>
-
-<p>So what: a three-field form is the smallest shape that can carry a single-turn exchange honestly, which is exactly why it stays the default rather than something the pipeline reaches for only when nothing simpler will do.</p>
-
-<h2 id="the-named-turn-transcript">ShareGPT: The Named-Turn Transcript</h2>
-
-<p>ShareGPT format drops the fixed field count entirely and replaces it with a list of role-tagged turns, as many as the conversation actually took:</p>
-
-<pre><code>{
-  "conversations": [
-    { "from": "system", "value": "You are a support agent with access to the order lookup tool." },
-    { "from": "human", "value": "Where is my order #48213?" },
-    { "from": "function_call", "value": "lookup_order(order_id=\"48213\")" },
-    { "from": "observation", "value": "{\"status\": \"in_transit\", \"eta\": \"2026-08-21\"}" },
-    { "from": "gpt", "value": "Order #48213 is in transit and expected to arrive by August 21." }
-  ]
-}</code></pre>
-
-<p>Every turn names who spoke (<code>system</code>, <code>human</code>, <code>function_call</code>, <code>observation</code>, <code>gpt</code>) and what they said, in order. A tool call and its result are just two more turns in the same list, not a shape Alpaca would have to bolt on as an afterthought.</p>
-
-<p>The cost of that flexibility is verbosity: the same simple refund-summary example from the Alpaca block above would be three turns in ShareGPT (system, human, gpt) for information Alpaca already carried in two fields. So what: ShareGPT isn't strictly richer, it's differently shaped, and using it for a row that never needed more than <code>instruction</code>/<code>output</code> is paying a tax for a capability that row doesn't use.</p>
+<p>The design for this connector named four ClickHouse tables as sources: <code>judge_scores</code> (the quality gate), <code>quality_scores</code> (an older, overlapping judged-sample table), <code>agent_spans</code> (to tell single-turn from multi-turn), and <code>routing_log</code> (to drop cache-hit replays). Reading each table's actual migration file before writing a query against it, I found <code>judge_scores</code> and <code>agent_spans</code> both carry a <code>request_id</code> column. <code>quality_scores</code> and <code>routing_log</code> don't.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a recipe card versus a group chat transcript</div>
-  A recipe card has exactly three sections, always: ingredients, method, result. It's perfect as long as the dish really is one self-contained thing &mdash; but try to fit a five-course tasting menu, with a substitution decided mid-meal, onto one card and you either cram unrelated steps into "method" or start stapling extra cards together in the wrong order. A group chat transcript has no fixed section count; it's just named messages in sequence, exactly as many as the conversation actually took. That's needless overhead for a two-line "what's your return policy?" exchange, but it's the only shape that can honestly represent someone asking a question, a bot calling a tool, the tool replying, and only then the bot answering.
+  <div class="attr-label">DS analogy &mdash; a card catalog entry with no call number</div>
+  A library's card catalog is a candidate list: title, author, subject, one card per book. But a card only gets you to a shelf if it also has a call number &mdash; the join key between "this book exists" and "here is where to find it." A card with a beautiful, detailed subject description and no call number is still useless for actually retrieving the book; you'd have to walk every shelf yourself. <code>quality_scores</code> is a card with no call number: it can tell you a sample was judged well, tenant by tenant, task by task &mdash; but it can't tell you which specific request that was, so there's no shelf to walk to and fetch the conversation off of.
 </div>
 
-<p>So what: the format that wins isn't the more powerful one in the abstract, it's the one whose shape matches how many things actually happened &mdash; a recipe card for one dish, a transcript for a conversation with real back-and-forth.</p>
+<p>So what: a table can be full of real, correct information about training-data quality and still be unusable as a candidate source, if nothing in it points back to one specific request &mdash; quality is necessary but the join key is what makes a row actionable.</p>
 
-<h2 id="routing-by-trace-id">Routing by Trace ID, Not by Guessing</h2>
+<h2 id="why-this-matters-more-than-it-sounds">Why This Matters More Than It Sounds</h2>
 
-<p><code>data-prep-pipeline/DESIGN.md</code> doesn't leave the Alpaca-vs-ShareGPT choice to a human eyeballing each row. It routes on a signal that already exists: <code>lensai.agent_spans.trace_id</code> (TraceForge, Day 34), the same column that groups every tool call and sub-agent hop under one agent run.</p>
+<p>It would be easy to read "no request_id" as a minor schema inconvenience &mdash; add a join on tenant_id and task_type and move on. That doesn't work here, and the reason is what a training row is actually for: Day 122's PII audit and Day 123's dedup pass both need to act on one exact request, and the connector's own output feeds a future join into <code>infra_ai.conversation_text</code>, which is keyed by <code>request_id</code> and nothing else.</p>
 
-<p>A <code>request_id</code> whose <code>trace_id</code> has exactly one non-root span is a single-turn call &mdash; one prompt, one response, no chained steps &mdash; and gets exported as Alpaca. A <code>trace_id</code> with more than one non-root span means a tool was called or a sub-agent ran, and that row gets exported as ShareGPT, because Alpaca has no field to hold the intermediate step.</p>
+<p>A <code>(tenant_id, task_type, model_id)</code> join from <code>quality_scores</code> would match every request in that bucket, not the one request the score was actually about &mdash; silently fusing an unrelated conversation's text onto a different sample's quality label. That's not a smaller version of the right answer; it's a wrong answer that looks plausible enough to ship.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -294,59 +254,57 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["conversation_text row"] --> B["Count spans on trace_id"]
-  B -->|"one span"| C["Alpaca: instruction/output"]
-  B -->|"multiple spans"| D["ShareGPT: turn list"]
-  C --> E["Hand-rolled template wraps it"]
-  D --> F["Chat template wraps it"]
+  A["judge_scores row"] -->|"has request_id"| B["Candidate: usable"]
+  C["quality_scores row"] -->|"no request_id"| D["Not a candidate"]
+  E["routing_log row"] -->|"no request_id"| D
+  B --> F["Future join: conversation_text"]
 </pre>
 
-<p>So what: the router never has to understand what a row is <em>about</em> &mdash; it only has to count spans, which means the same rule that picks a format today keeps working the day a new <code>task_type</code> shows up that nobody wrote a special case for.</p>
+<p>So what: the honest fix wasn't a clever join &mdash; it was recognizing that a table without the right key can only ever be a coverage signal ("was anything judged in this window at all"), never a source of individual candidates, no matter how the query is written.</p>
 
-<h2 id="why-tokenizer-efficiency">Why Tokenizer Efficiency Actually Differs</h2>
+<h2 id="what-shipped-instead">What Shipped Instead of the Fallback</h2>
 
-<p>Here's the part the format choice actually costs you at train time. Alpaca's three fields aren't tokens on their own &mdash; they only become tokens once a prompt template wraps them, and the common one looks like <code>### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n{output}</code>.</p>
+<p>Day 120's design described a preference order &mdash; prefer <code>judge_scores</code>, fall back to <code>quality_scores</code> for windows it doesn't cover &mdash; and a <code>routing_log</code> cache-hit filter to drop replayed rows before scoring. Today's connector ships neither fallback. <code>pkg/connector.SelectCandidates</code> does exactly one thing: pull <code>judge_scores</code> rows in a window with <code>judge_score &gt; 0.8</code>, sorted by <code>judged_at</code> then <code>request_id</code> for a deterministic, diffable output.</p>
 
-<p>Every single Alpaca example pays that template's fixed overhead, and worse, the template is a hand-rolled guess about where the model's own output starts &mdash; get the loss-masking boundary wrong (train on the instruction text too, not just the response) and the model learns to echo its own prompt back some fraction of the time.</p>
-
-<p>ShareGPT's role-tagged turns sidestep both problems by mapping directly onto a tokenizer's built-in chat template (<code>apply_chat_template</code>, in most tokenizer libraries): the wrapping tokens are the exact ones the model will see at inference time, not a hand-rolled approximation of them, and masking every non-<code>gpt</code> turn out of the loss is a mechanical role check instead of a string-offset guess.</p>
+<table>
+<tr><th>Ticket said</th><th>What real schema allows</th><th>Where the gap goes</th></tr>
+<tr><td>judge_scores, prefer over quality_scores</td><td>judge_scores only &mdash; the only table with request_id AND judge_score</td><td>Shipped today</td></tr>
+<tr><td>Fall back to quality_scores for uncovered windows</td><td>Not possible &mdash; quality_scores has no request_id to key a candidate on</td><td>Documented as an open schema gap, not implemented</td></tr>
+<tr><td>Drop routing_log cache_hit rows before scoring</td><td>Not possible &mdash; routing_log has no request_id to anti-join on</td><td>Documented as an open schema gap, not implemented</td></tr>
+</table>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0.8</span><span class="stat-label">judge_score gate (Day 121)</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Export formats, one CLI</span></div>
-  <div class="stat-cell"><span class="stat-num">30d</span><span class="stat-label">TTL on raw text</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Table with the join key this connector needs</span></div>
+  <div class="stat-cell"><span class="stat-num">0.8</span><span class="stat-label">judge_score threshold, strict &gt;</span></div>
+  <div class="stat-cell"><span class="stat-num">30d</span><span class="stat-label">Lookback window</span></div>
 </div>
 
-<p>So what: "schema choice affects tokenizer efficiency" isn't an abstract framing &mdash; it's the difference between every training example paying a hand-rolled template's overhead and possible masking bugs, versus every example using the same chat template the model already speaks at inference time.</p>
+<p>So what: shipping the one query the schema actually supports, with the two unsupported ideas named in the code and the PR instead of quietly dropped, keeps the gap visible to whoever writes the migration that eventually closes it &mdash; the alternative was pretending a query against columns that don't exist was ever going to compile.</p>
 
-<h2 id="the-gap-this-design-names">The Gap This Design Names Instead of Hiding</h2>
+<div class="pullquote"><p>A SELECT statement only earns the name "feature store" once its output can be joined back to the thing it describes. Everything else is a report.</p></div>
 
-<p>Both schemas above assume a row has a <code>prompt_text</code> and a <code>response_text</code> to put into them. Every ClickHouse table this pipeline actually reads &mdash; <code>judge_scores</code>, <code>quality_scores</code>, <code>agent_spans</code>, even <code>inference_events</code> &mdash; stores scores, token counts, and hashes, and deliberately never the words themselves.</p>
+<h2 id="the-generalizable-lesson">The Generalizable Lesson</h2>
 
-<p><code>006_shadow_eval.sql</code>'s own header comment says as much directly: full request/response bodies live only in a Kafka message, "never duplicated permanently in ClickHouse." That's not an oversight this design papers over &mdash; it's the reason <code>data-prep-pipeline/DESIGN.md</code> proposes a new table, <code>infra_ai.conversation_text</code>, with a 30-day TTL matching the pipeline's own read window, rather than assuming the text was sitting there all along. (A TTL &mdash; time-to-live &mdash; is ClickHouse automatically deleting rows once they age past that window, so raw text never accumulates longer than the pipeline actually needs it.)</p>
+<p>The design doc that specified this connector got the quality gate right, the window right, and the threshold right &mdash; it just didn't check that every table it named as a fallback source could actually be joined to the thing being selected. That's an easy category of design mistake to make on paper: two tables both plausibly contain "judged samples," and it's tempting to treat them as interchangeable sources for the same kind of row.</p>
 
-<p>So what: naming a real gap in plain language, in the same document that specs the two export formats around it, is worth more to Day 121's connector than a design that quietly assumed the text already existed and left that assumption to be discovered mid-implementation.</p>
-
-<div class="pullquote"><p>A format isn't a syntax choice. It's a claim about how many things happened &mdash; and the row that decides between them never has to know that; it just counts spans.</p></div>
-
-<p>The generalizable shape underneath today's two JSON blocks is simple: match your data's actual structure to your schema's actual structure, and let a real signal already in your system &mdash; not a human glancing at each row &mdash; make the call. That's a smaller idea than "instruction tuning," but it's the one that decides whether a fine-tuning run spends its first few thousand steps learning your prompt template's quirks or learning the task you actually wanted it to learn.</p>
+<p><strong>So what:</strong> mining production logs for training data isn't really a modeling problem at the connector stage &mdash; it's a join-key audit, and the table that fails that audit doesn't get a lesser role in the pipeline, it gets no role until a migration gives it one.</p>
 
 <div class="series-footer">
-  <p>AI Learning &middot; Day 120 of 150 &mdash; Instruction Tuning Formats &mdash; Alpaca vs ShareGPT</p>
-  <p><em>Companion Experience post:</em> <a href="../experience/day-120-training-data-is-production-data-legal-at-walmart.html">Day 120 &mdash; Training Data Is Production Data &mdash; Legal at Walmart</a></p>
-  <p><em>Next up:</em> <a href="day-121-mining-production-logs-for-sft-data.html">Day 121 &mdash; Mining Production Logs for SFT Data</a></p>
+  <p>AI Learning &middot; Day 121 of 150 &mdash; Mining Production Logs for SFT Data</p>
+  <p><em>Companion Experience post:</em> <a href="../experience/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html">Day 121 &mdash; Why We Left Pure Prometheus — Columnar Rollups at Agoda</a></p>
+  <p><em>Next up:</em> Day 122 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-119-auto-retrain-loops-platform-closure.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 119 — Auto-Retrain Loops — Platform Closure (yesterday's post — the DriftWatch→FineForge chain this arc's FineForge module now continues)</span>
+      <span>Day 120 — Instruction Tuning Formats — Alpaca vs ShareGPT (yesterday's post — the design doc this connector implements)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-99-llm-eval-bias-position-and-length-effects.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/blob/main/data-prep-pipeline/pkg/connector/connector.go">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 99 — LLM Eval Bias — Position and Length Effects (the same async judge worker whose judge_scores table this post's quality gate reads from)</span>
+      <span>data-prep-pipeline/pkg/connector/connector.go (today's code — the package doc comment covers the schema gap in full)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
@@ -361,23 +319,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#where-a-row-comes-from">Where a Row Comes From</a></li>
-      <li><a href="#the-fixed-three-field-form">Alpaca: Fixed Three Fields</a></li>
-      <li><a href="#the-named-turn-transcript">ShareGPT: Named-Turn Transcript</a></li>
-      <li><a href="#routing-by-trace-id">Routing by Trace ID</a></li>
-      <li><a href="#why-tokenizer-efficiency">Why Tokenizer Efficiency Differs</a></li>
-      <li><a href="#the-gap-this-design-names">The Gap This Design Names</a></li>
+      <li><a href="#a-candidate-is-only-as-good-as-its-join-key">A Candidate Needs a Join Key</a></li>
+      <li><a href="#why-this-matters-more-than-it-sounds">Why This Matters More Than It Sounds</a></li>
+      <li><a href="#what-shipped-instead">What Shipped Instead of the Fallback</a></li>
+      <li><a href="#the-generalizable-lesson">The Generalizable Lesson</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-120-instruction-tuning-formats-alpaca-vs-sharegpt.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-121-mining-production-logs-for-sft-data.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Instruction+Tuning+Formats+%E2%80%94+Alpaca+vs+ShareGPT+%C2%B7+Day+120&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-120-instruction-tuning-formats-alpaca-vs-sharegpt.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Mining+Production+Logs+for+SFT+Data+%C2%B7+Day+121&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-121-mining-production-logs-for-sft-data.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -390,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D119</span> AI Learning</div>
-          <a href="day-119-auto-retrain-loops-platform-closure.html" class="series-post-title">Auto-Retrain Loops — Platform Closure</a>
+          <div class="series-post-kicker"><span class="series-post-num">D120</span> AI Learning</div>
+          <a href="day-120-instruction-tuning-formats-alpaca-vs-sharegpt.html" class="series-post-title">Instruction Tuning Formats — Alpaca vs ShareGPT</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D120</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Instruction Tuning Formats — Alpaca vs ShareGPT</div>
-          <div class="series-post-desc">A fixed three-field form vs. a named-turn transcript, routed by trace_id span count.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D121</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Mining Production Logs for SFT Data</div>
+          <div class="series-post-desc">A candidate table is only useful if it carries the join key back to a request.</div>
         </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D121</span> AI Learning</div>
-          <a href="day-121-mining-production-logs-for-sft-data.html" class="series-post-title">Mining Production Logs for SFT Data</a>
+        <div class="series-post series-post--draft">
+          <div class="series-post-kicker"><span class="series-post-num">D122</span> AI Learning</div>
+          <div class="series-post-title">Coming soon</div>
         </div>
       </div>
     </div>
