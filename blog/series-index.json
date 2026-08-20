@@ -1356,6 +1356,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-123-bloom-vs-minhash-dedup-tradeoffs.html",
+          "kicker": "Experience · Day 123 of 150",
+          "title": "Day 123 — Dedup at 1.5T/day — Bloom vs MinHash Tradeoff",
+          "subtitle": "False positive rate budgeted per query cost",
+          "date": "2026-08-20",
+          "slug": "day-123-bloom-vs-minhash-dedup-tradeoffs",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-123-bloom-vs-minhash-dedup-tradeoffs.html",
+          "coverImage": "blog/assets/covers/day-123-bloom-vs-minhash-dedup-tradeoffs.png",
+          "desc": "Today's dedup pass compares a few thousand rows with a plain O(n^2) loop, and the code says exactly why that's fine. What changes at Agoda's real 1.5T-events-a-day ingest scale, and why a Bloom filter and MinHash were never competing for the same job."
+        },
+        {
           "href": "blog/series/experience/day-122-gdpr-delete-requests-delivery-hero-user-erasure.html",
           "kicker": "Experience · Day 122 of 150",
           "title": "Day 122 — GDPR Delete Requests — Delivery Hero User Erasure",
