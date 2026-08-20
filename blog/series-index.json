@@ -1344,6 +1344,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-122-gdpr-delete-requests-delivery-hero-user-erasure.html",
+          "kicker": "Experience · Day 122 of 150",
+          "title": "Day 122 — GDPR Delete Requests — Delivery Hero User Erasure",
+          "subtitle": "Cascade delete across four stores",
+          "date": "2026-08-20",
+          "slug": "day-122-gdpr-delete-requests-delivery-hero-user-erasure",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-122-gdpr-delete-requests-delivery-hero-user-erasure.html",
+          "coverImage": "blog/assets/covers/day-122-gdpr-delete-requests-delivery-hero-user-erasure.png",
+          "desc": "One erasure request, four stores, four different meanings of deleted — and one store built specifically never to forget. Why today's redaction audit log records where a redaction happened and never what was removed."
+        },
+        {
           "href": "blog/series/experience/day-121-why-we-left-pure-prometheus-columnar-rollups-at-agoda.html",
           "kicker": "Experience · Day 121 of 150",
           "title": "Day 121 — Why We Left Pure Prometheus — Columnar Rollups at Agoda",
