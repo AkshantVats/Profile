@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-124-train-eval-leakage-stratified-splits.html",
+          "kicker": "AI Learning · Day 124 of 150",
+          "title": "Day 124 — Train/Eval Leakage — Stratified Splits",
+          "subtitle": "Same prompt different split = leakage",
+          "date": "2026-08-21",
+          "slug": "day-124-train-eval-leakage-stratified-splits",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-124-train-eval-leakage-stratified-splits.html",
+          "coverImage": "blog/assets/covers/day-124-train-eval-leakage-stratified-splits.png",
+          "desc": "request_id alone already looks sufficient for a deterministic split. Why folding task_type into the hash anyway matters, and what six real split runs show about when a 90/10 target stops holding at small sample sizes."
+        },
+        {
           "href": "blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html",
           "kicker": "AI Learning · Day 123 of 150",
           "title": "Day 123 — MinHash Dedup — Near-Duplicate Prompts",

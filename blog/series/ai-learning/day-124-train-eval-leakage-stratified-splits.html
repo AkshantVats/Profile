@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 123 &mdash; MinHash Dedup &mdash; Near-Duplicate Prompts | AI Learning Series</title>
-<meta name="description" content="A ticket that says 'Hamming threshold' is thinking in bit-strings. MinHash's signature is an array of hash minimums, not a bit-string — and the reason its threshold is easiest to reason about as a match-fraction, not a raw distance, is the whole subject of this post.">
-<meta property="og:title" content="Day 123 &mdash; MinHash Dedup &mdash; Near-Duplicate Prompts">
-<meta property="og:description" content="Why shingling turns text into a set, what the MinHash trick actually proves, how SimHash solves a related but different problem, and why I named the comparison function EstimateJaccard instead of HammingDistance.">
+<title>Day 124 &mdash; Train/Eval Leakage &mdash; Stratified Splits | AI Learning Series</title>
+<meta name="description" content="Stratify on task_type hash was today's ticket phrase. request_id alone already looks sufficient for a 90/10 split -- the reason to fold task_type into the hash anyway isn't that it fixes small-stratum variance, it's that it makes independence structural instead of assumed.">
+<meta property="og:title" content="Day 124 &mdash; Train/Eval Leakage &mdash; Stratified Splits">
+<meta property="og:description" content="What train/eval leakage actually means for a re-exportable dataset, why a deterministic hash isn't automatically a balanced one, and what six real split runs at increasing sample sizes show about when 90/10 stops being noise.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-123-minhash-dedup-near-duplicate-prompts.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-124-train-eval-leakage-stratified-splits.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-124-train-eval-leakage-stratified-splits.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-123-minhash-dedup-near-duplicate-prompts.png">
-<meta property="article:published_time" content="2026-08-20">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-124-train-eval-leakage-stratified-splits.png">
+<meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,84 +185,64 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 123 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 124 of 150</span>
     <span class="tag">Fine-Tuning</span>
-    <span class="tag">Data Structures</span>
-    <span class="tag">LSH</span>
+    <span class="tag">Data Splits</span>
+    <span class="tag">Hashing</span>
   </div>
-  <h1 class="post-title">Day 123 &mdash; MinHash Dedup &mdash; Near-Duplicate Prompts</h1>
-  <p class="post-subtitle">A ticket that says "Hamming threshold config" is picturing a bit-string. MinHash's signature is an array of hash minimums, not a bit-string — and working out why that distinction changes which vocabulary actually helps you tune the threshold is this whole post.</p>
+  <h1 class="post-title">Day 124 &mdash; Train/Eval Leakage &mdash; Stratified Splits</h1>
+  <p class="post-subtitle">"Stratify on <code>task_type</code> hash" was the whole ticket. <code>request_id</code> alone already looks sufficient for a stable 90/10 split &mdash; the reason to fold <code>task_type</code> in anyway isn't that it fixes small-stratum variance, it's that it turns an assumption about independence into a structural guarantee.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 123 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 124 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 20, 2026</span>
+    <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">10 min read</span>
+    <span class="meta-item">9 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-123-minhash-dedup-near-duplicate-prompts.png" alt="Day 123 — MinHash Dedup — Near-Duplicate Prompts" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-124-train-eval-leakage-stratified-splits.png" alt="Day 124 — Train/Eval Leakage — Stratified Splits" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The prep pipeline's design doc handed today's ticket a specific phrase to implement: "defines its own Hamming threshold config for near enough to be a duplicate." I built the near-duplicate pass, and the function that decides "near enough" is called <code>EstimateJaccard</code>, not <code>HammingDistance</code>.</p>
+<p>"Stratify on <code>task_type</code> hash." That's the entire hook line this ticket gave me. It doesn't say why a hash on <code>request_id</code> alone wouldn't already do the job, and working that out turned out to be the actual content of the day.</p>
 
-<p>Both names describe the same number. Only one of them tells you what the threshold means.</p>
+<h2 id="what-leakage-means-for-a-re-exportable-dataset">What Leakage Means for a Re-Exportable Dataset</h2>
 
-<h2 id="shingles-into-sets">Shingles: Turning Text Into a Set</h2>
+<p>"Train/eval leakage" usually means one example showing up in both sets at once &mdash; a duplicate that lets a model memorize its own eval question. Today's dataset already has a separate defense against that: Day 123's dedup pass runs before the split ever sees a row, so an exact or near-duplicate prompt shouldn't reach this code twice.</p>
 
-<p>MinHash doesn't operate on a prompt's raw characters or its word order. It operates on a <em>set</em> &mdash; so the first step is turning "where is my order 48213" into one. Split the normalized text into overlapping windows of a few consecutive words, and each window (a "shingle") becomes one element of the set.</p>
+<p>The leakage this split has to prevent is a different shape: the same prompt landing in <em>different</em> sets across two separate runs of the exact same export. Add a hundred new rows to the source and re-run the split, and if the assignment isn't a pure function of the row's own identity, some existing row can flip from eval to train or back &mdash; and a model checkpoint evaluated against one export's eval set is no longer comparable to a checkpoint evaluated against the next export's, because "eval" quietly stopped meaning the same set of prompts.</p>
 
-<p>"Where is my order 48213 it has not arrived" becomes a set of 3-word shingles: <code>{where is my, is my order, my order 48213, order 48213 it, ...}</code>. Two near-duplicate prompts &mdash; the same request with a greeting added, a clause reworded &mdash; end up as two sets that overlap heavily but aren't identical, because the shingles touching the edit differ while the rest of the sentence's shingles match exactly.</p>
+<p>So what: the fix for exact-duplicate leakage is deduping before the split; the fix for this leakage is a split that can't forget which side a row was already on, which is a property of the assignment function, not the data.</p>
 
-<p>So what: shingling is the step that turns "is this text similar" into "how much do these two sets overlap," and everything downstream &mdash; MinHash included &mdash; is really answering that second, more tractable question.</p>
-
-<h2 id="the-minhash-trick">The MinHash Trick</h2>
+<h2 id="the-po-box-mechanism">The P.O. Box Mechanism</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; one shuffled deck, drawn from two hands</div>
-  Picture every possible 3-word shingle in the language as a card in one enormous deck, shuffled once into a random order. A prompt's shingle set is a hand of cards drawn from that deck &mdash; not physically, just conceptually: whichever cards from the full deck happen to match this prompt's shingles. That prompt's MinHash value for this shuffle is whichever of its own cards landed earliest in the shuffle. Two prompts whose hands overlap almost completely are very likely to share that earliest card, because it's a property of the shuffle applied to their shared cards. Two prompts with almost no shared cards will only rarely have the same earliest card, by pure chance. Run 64 independent shuffles and count how often both prompts' earliest card matches, and that fraction is an unbiased estimate of how much their hands actually overlap.
+  <div class="attr-label">DS analogy &mdash; sorting mail by a fixed rule, not a daily lottery</div>
+  A post office that assigns P.O. boxes by the last digit of a customer's account number always routes that customer's mail to the same box, forever &mdash; the rule is a fixed function of an identity that doesn't change. Compare that to a post office that reshuffles which box gets which route every morning: mail for the same customer can land in a different box tomorrow, not because the customer moved, but because the sorting rule itself has no memory of yesterday's assignment. <code>split.Bucket(taskType, requestID)</code> is the first kind of post office. Its input never changes for a given row, so its output never can either &mdash; there's no state to lose, no log to consult, no yesterday's assignment to remember. The determinism isn't stored anywhere; it falls out of the function only depending on things that don't change.
 </div>
 
-<p>That's the entire trick, stated formally: for a random permutation of the universe of possible shingles, the probability that two sets share the same minimum element equals their Jaccard similarity &mdash; the size of their intersection divided by the size of their union. It's not an approximation of a different quantity; it's an exact probability, and running many independent permutations turns that probability into an estimate with shrinking variance.</p>
+<p>That's the entire mechanism worth naming: a pure function of stable identity is automatically leak-proof against the "same prompt, different run" failure, because there's no channel through which a re-run could learn a different answer than last time.</p>
 
-<p><code>NumHashes = 64</code> is what fixes the shuffle count. Each additional permutation, the estimator's standard error is a term shaped by the true Jaccard value, roughly halved every time you quadruple the number of hashes &mdash; there's no free lunch, just a knob between compute cost and estimate precision, and 64 is the point where that error comfortably clears the gap between a real near-duplicate and an unrelated pair.</p>
+<p>So what: you don't need to persist which set a row landed in to keep a split stable &mdash; you need an assignment rule that never had anywhere else to put it in the first place.</p>
 
-<p>So what: MinHash isn't approximate because the algorithm is sloppy &mdash; it's approximate the same way a poll is approximate, and the estimate gets tighter the same way a poll does: by sampling more independent shuffles, not by inventing a cleverer single shuffle.</p>
+<h2 id="why-request-id-alone-looks-sufficient">Why <code>request_id</code> Alone Looks Sufficient</h2>
 
-<h2 id="simhash-a-different-machine">SimHash Is a Different Machine</h2>
+<p><code>request_id</code> is already unique per row in this pipeline &mdash; no two rows, of any <code>task_type</code>, ever share one. A hash of a unique key is, on its own, already a deterministic, leak-proof assignment by the P.O.-box logic above. So why does today's code hash <code>task_type</code> and <code>request_id</code> together instead of just <code>request_id</code>?</p>
 
-<p>SimHash is the technique the "Hamming threshold" phrasing most naturally describes, and it's worth being precise about why it isn't what this ticket needed. SimHash starts from a weighted feature vector &mdash; term frequencies over a document's words or shingles &mdash; not a plain set.</p>
+<p>Not because <code>request_id</code> alone is non-deterministic &mdash; it isn't. It's because "FNV hashing a unique ID produces an output uncorrelated with any other field of that row" is an assumption about the hash function's behavior, not a property this code enforces. If <code>request_id</code>s were ever generated in a scheme that correlates with <code>task_type</code> &mdash; sequential IDs issued in task-type-grouped batches, say &mdash; a hash with any structural weakness could turn that correlation into a skewed split, silently, for exactly the categories where you'd least want it to happen.</p>
 
-<p>It projects that vector against a fixed set of random hyperplanes. The sign of the dot product against each hyperplane becomes one bit of a fixed-width signature: positive, a 1; negative, a 0. Two vectors pointing in similar directions produce signatures differing in very few bits, because a random hyperplane is unlikely to separate two nearly-aligned vectors.</p>
-
-<p>That signature genuinely is a bit-string, and Hamming distance &mdash; literally, how many bits differ &mdash; is the exactly right metric for it, bounded by the hyperplane count the same way MinHash's estimate is bounded by its hash count. SimHash approximates cosine similarity between weighted vectors; it's the technique behind large-scale near-duplicate web page detection, where "mostly the same words, similar proportions" is the notion of duplicate that matters.</p>
-
-<table>
-<tr><th></th><th>MinHash</th><th>SimHash</th></tr>
-<tr><td>Input representation</td><td>A set (shingle membership)</td><td>A weighted vector (shingle/term frequency)</td></tr>
-<tr><td>Similarity it estimates</td><td>Jaccard (intersection over union)</td><td>Cosine (angle between vectors)</td></tr>
-<tr><td>Signature shape</td><td>Array of independent hash minimums</td><td>Fixed-width bit-string</td></tr>
-<tr><td>Natural comparison</td><td>Fraction of matching array slots</td><td>Hamming distance (bits differing)</td></tr>
-</table>
-
-<p>So what: the two techniques solve related but genuinely different problems &mdash; whether two prompts share the same short phrases (MinHash's set-overlap question) is not the same question as whether two prompts use similar words in similar proportions (SimHash's vector-angle question), and picking the wrong one answers a question nobody asked.</p>
-
-<h2 id="the-vocabulary-that-fits-the-shape">The Vocabulary That Fits the Shape</h2>
-
-<p>Here's the part worth being exact about instead of just calling the ticket wrong. Hamming distance is formally defined for any two equal-length sequences over any alphabet &mdash; counting positions that differ works whether those positions hold bits or 64-bit integers. A MinHash signature is a sequence of 64 numbers, so a Hamming distance between two signatures is a perfectly well-formed quantity: count the slots where they disagree.</p>
-
-<p>The thing that changes is not correctness, it's legibility. "38 of 64 signature slots differ" doesn't tell you anything until you divide by 64. "Estimated Jaccard similarity of 0.41" tells you directly: these two prompts share roughly 41% of their shingles, which is the actual quantity <code>DefaultNearDupThreshold</code> needs to be tuned against, because "how much text do these two prompts actually share" is the question a human reviewing false positives asks first.</p>
+<p>So what: folding <code>task_type</code> directly into the hash input doesn't fix a bug in <code>request_id</code>-only hashing &mdash; it removes the need to trust an assumption about the hash function at all, by making independence something the code's structure guarantees rather than something its input data happens to provide.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -282,65 +262,74 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-  ROW["Scrubbed row"] --> SH["Shingle prompt text"]
-  SH --> SIG["Sign: 64-slot MinHash"]
-  SIG --> EJ{"EstimateJaccard >= 0.4?"}
-  EJ -->|yes| CLUSTER["Merge into cluster"]
-  EJ -->|no| KEEP["Keep as distinct"]
-  CLUSTER --> BEST["Keep highest judge_score"]</pre>
+  ROW["Deduped row"] --> KEY["task_type + request_id"]
+  KEY --> HASH["FNV-1a hash"]
+  HASH --> DEC{"decile == 9?"}
+  DEC -->|yes| EVAL["Eval set"]
+  DEC -->|no| TRAIN["Train set"]
+  EVAL --> STATS["split_stats.json"]
+  TRAIN --> STATS</pre>
 
-<p>So what: naming the function <code>EstimateJaccard</code> instead of <code>HammingDistance</code> isn't a stylistic preference &mdash; it's choosing the framing that makes the threshold's real-world meaning legible to whoever tunes it next, and that choice is exactly as load-bearing as picking the right algorithm in the first place.</p>
+<p>So what: the diagram's shape never changes between a large stratum and a tiny one &mdash; the same four steps run either way, which is exactly why balance has to be checked downstream rather than assumed from the mechanism looking correct.</p>
 
-<h2 id="picking-shingle-size-empirically">Picking Shingle Size Empirically</h2>
+<h2 id="measuring-what-90-10-actually-means-at-small-n">Measuring What "90/10" Actually Means at Small N</h2>
 
-<p>The other number this ticket left open is shingle width. Broder's original near-duplicate detection work, built for full web documents, uses a larger window &mdash; five or more words &mdash; on the reasoning that one edited word only ever costs a document a small fraction of its total shingles.</p>
-
-<p>Prompts aren't documents. They're a sentence or two, so one inserted word (a greeting, a rewording) shifts alignment across every shingle window that touches it, and that's a much bigger fraction of a short prompt's total shingle count. I checked shingle-set overlap for realistic near-duplicate prompt pairs at four window sizes before picking one.</p>
+<p>Determinism is provable by reading the code. Balance isn't &mdash; it has to be measured. I ran <code>split.Split</code> against a synthetic single-<code>task_type</code> stratum at six sizes to see where the 90/10 target actually starts holding.</p>
 
 <table>
-<tr><th>Shingle size</th><th>Reworded near-dup pair</th><th>Unrelated pair</th></tr>
-<tr><td>1 word</td><td>0.79</td><td>0.00</td></tr>
-<tr><td>2 words</td><td>0.64</td><td>0.00</td></tr>
-<tr><td>3 words</td><td>0.50</td><td>0.00</td></tr>
-<tr><td>4 words</td><td>0.35</td><td>0.00</td></tr>
+<tr><th>Rows in stratum</th><th>Train</th><th>Eval</th><th>Eval share</th></tr>
+<tr><td>5</td><td>4</td><td>1</td><td>0.200</td></tr>
+<tr><td>8</td><td>7</td><td>1</td><td>0.125</td></tr>
+<tr><td>12</td><td>9</td><td>3</td><td>0.250</td></tr>
+<tr><td>20</td><td>17</td><td>3</td><td>0.150</td></tr>
+<tr><td>40</td><td>35</td><td>5</td><td>0.125</td></tr>
+<tr><td>100</td><td>90</td><td>10</td><td>0.100</td></tr>
 </table>
 
-<p>Size 1 degrades to a plain bag-of-words comparison &mdash; it can't tell "the driver cancelled the order" from "the order cancelled the driver," because word order carries no signal once shingles are single words. Size 4 drove the genuine near-duplicate pair down near the noise floor, close enough to unrelated pairs that a threshold able to catch it would catch far too much else.</p>
+<p>At 12 rows the eval share is 25%, not 10% &mdash; two and a half times the target, from the exact same deterministic, correctly-implemented hash function. Nothing is broken at n=12. A decile bucketing of a dozen items was never going to land at a precise 10% cut; there just aren't enough rows for the law of large numbers to do its usual smoothing.</p>
 
-<div class="pullquote"><p>The paper's shingle size assumed a document long enough that one edit barely moves the needle. A prompt is short enough that the same edit moves the whole needle — the right constant depends on what you're hashing, not on which paper you read first.</p></div>
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">40</span><span class="stat-label">codegen rows tested</span></div>
+  <div class="stat-cell"><span class="stat-num">7.5%</span><span class="stat-label">codegen eval share</span></div>
+  <div class="stat-cell"><span class="stat-num">10.4%</span><span class="stat-label">support (n=3000) eval share</span></div>
+</div>
 
-<p>So what: a parameter borrowed from a paper solving a superficially similar problem at a different scale is a starting guess, not an answer &mdash; the only way to know if it transfers is to measure it against the actual data the code will see.</p>
+<p>A mixed run against a real-shaped dataset (3,000 <code>support</code> rows next to 40 <code>codegen</code> rows) shows the same pattern at a scale closer to this pipeline's actual traffic: the large stratum lands at 10.4%, close to target; the small one lands at 7.5%, noticeably off, for no reason other than having fewer rows to average over.</p>
+
+<div class="pullquote"><p>A hash function being deterministic tells you the split won't drift between runs. It tells you nothing about whether the split was close to 90/10 in the first place &mdash; those are two separate guarantees, and only the notebook checks the second one.</p></div>
+
+<p>So what: this is exactly why <code>split_stats.json</code> and its notebook exist as a separate deliverable from the split itself &mdash; a correct, deterministic mechanism and a balanced outcome are not the same claim, and the small-<code>task_type</code> case is precisely where they come apart.</p>
 
 <h2 id="the-generalizable-lesson">The Generalizable Lesson</h2>
 
-<p>The specific thing I built today estimates whether two prompts are near-duplicates. The transferable part is smaller and applies past MinHash entirely.</p>
+<p>The specific thing today's code does is bucket training rows for a fine-tuning export. The transferable part is smaller and shows up anywhere a hash decides which side of a line something lands on.</p>
 
 <ol>
-<li>A metric being technically well-defined for your data (Hamming distance over any sequence) doesn't make it the metric that best communicates what the number means.</li>
-<li>A constant borrowed from a related technique's literature (shingle size, from full-document near-dup detection) needs re-deriving against your actual scale, not just re-used.</li>
-<li>When two techniques look similar from the outside (MinHash and SimHash both output "small signatures for fuzzy matching"), the useful question is which underlying similarity notion your problem actually needs &mdash; set overlap, or vector angle &mdash; not which one is more popular.</li>
+<li>A key that's already unique doesn't automatically make a hash of it independent from every other field &mdash; that independence is an assumption about the hash function, and assumptions are cheaper to remove than to audit later.</li>
+<li>Determinism and balance are different guarantees. A hash-based split proves the first for free; the second has to be measured against the actual output, every run, not assumed from the mechanism being correct.</li>
+<li>A parameter that looks fine at the scale you tested (a 90/10 split checked against thousands of rows) can look completely different at the scale a rare category actually has &mdash; check the tail, not just the average.</li>
 </ol>
 
-<p>Naming a function honestly turned out to be the same discipline as picking the right algorithm in the first place: both are decisions about which mental model the next person reading the code inherits.</p>
+<p>Folding one more field into a hash function is a one-line change. Knowing which field, and knowing it's not enough on its own, is the actual work the ticket was asking for.</p>
 <div class="series-footer">
-  <p>Day 123 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-124-train-eval-leakage-stratified-splits.html">Day 124 &mdash; Train/Eval Leakage &mdash; Stratified Splits</a></p>
+  <p>Day 124 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 125 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-123-bloom-vs-minhash-dedup-tradeoffs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 123 — Dedup at 1.5T/day — Bloom vs MinHash Tradeoff (today's Experience post — what changes about this design at real production scale)</span>
+      <span>Day 124 — Stratified Sampling — A/B Analysis at Wayfair (today's Experience post — the same hash-bucketing idea applied to a real pricing A/B test)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-122-pii-in-training-data-ner-and-regex.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 122 — PII in Training Data — NER + Regex (the scrubber whose kept rows feed this dedup pass)</span>
+      <span>Day 123 — MinHash Dedup — Near-Duplicate Prompts (the dedup pass that runs before this split ever sees a row)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/202">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/203">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #202 (today's code deliverable — pkg/dedup's Sign, EstimateJaccard, and the shingle-size experiment)</span>
+      <span>infra-ai-streaming PR #203 (today's code deliverable — pkg/split, pkg/convert, and the split stats notebook this post is about)</span>
     </a>
   </div>
 </div>
@@ -351,11 +340,10 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#shingles-into-sets">Shingles: Turning Text Into a Set</a></li>
-      <li><a href="#the-minhash-trick">The MinHash Trick</a></li>
-      <li><a href="#simhash-a-different-machine">SimHash Is a Different Machine</a></li>
-      <li><a href="#the-vocabulary-that-fits-the-shape">The Vocabulary That Fits the Shape</a></li>
-      <li><a href="#picking-shingle-size-empirically">Picking Shingle Size Empirically</a></li>
+      <li><a href="#what-leakage-means-for-a-re-exportable-dataset">What Leakage Means Here</a></li>
+      <li><a href="#the-po-box-mechanism">The P.O. Box Mechanism</a></li>
+      <li><a href="#why-request-id-alone-looks-sufficient">Why request_id Alone Looks Sufficient</a></li>
+      <li><a href="#measuring-what-90-10-actually-means-at-small-n">Measuring 90/10 at Small N</a></li>
       <li><a href="#the-generalizable-lesson">The Generalizable Lesson</a></li>
     </ul>
   </div>
@@ -363,11 +351,11 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-123-minhash-dedup-near-duplicate-prompts.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-124-train-eval-leakage-stratified-splits.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=MinHash+Dedup+%E2%80%94+Near-Duplicate+Prompts+%C2%B7+Day+123&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-123-minhash-dedup-near-duplicate-prompts.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Train%2FEval+Leakage+%E2%80%94+Stratified+Splits+%C2%B7+Day+124&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-124-train-eval-leakage-stratified-splits.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -383,14 +371,14 @@ flowchart TD
           <div class="series-post-kicker"><span class="series-post-num">D122</span> AI Learning</div>
           <a href="day-122-pii-in-training-data-ner-and-regex.html" class="series-post-title">PII in Training Data — NER + Regex</a>
         </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D123</span> AI Learning &middot; now</div>
-          <div class="series-post-title">MinHash Dedup — Near-Duplicate Prompts</div>
-          <div class="series-post-desc">Why EstimateJaccard, not HammingDistance, is the name that makes the threshold legible.</div>
-        </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D124</span> AI Learning</div>
-          <a href="day-124-train-eval-leakage-stratified-splits.html" class="series-post-title">Train/Eval Leakage — Stratified Splits</a>
+          <div class="series-post-kicker"><span class="series-post-num">D123</span> AI Learning</div>
+          <a href="day-123-minhash-dedup-near-duplicate-prompts.html" class="series-post-title">MinHash Dedup — Near-Duplicate Prompts</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D124</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Train/Eval Leakage — Stratified Splits</div>
+          <div class="series-post-desc">Determinism proves a split won't drift. It doesn't prove it was balanced — that has to be measured.</div>
         </div>
       </div>
     </div>
