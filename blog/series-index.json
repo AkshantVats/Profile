@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html",
+          "kicker": "AI Learning · Day 126 of 150",
+          "title": "Day 126 — Data-Centric AI — Labels from Judges",
+          "subtitle": "Use Month 4 judge scores as quality filter",
+          "date": "2026-08-21",
+          "slug": "day-126-data-centric-ai-labels-from-judges",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html",
+          "coverImage": "blog/assets/covers/day-126-data-centric-ai-labels-from-judges.png",
+          "desc": "Filter judge_score>0.8 in export was the whole ticket, but judge_scores.judge_score is a 0-100 column -- a literal 0.8 threshold admits almost every row. A real Day 121 bug, why judges produce labels rather than facts, and today's 9,656/55.10/2,293 dry-run quartile numbers on top of the fix."
+        },
+        {
           "href": "blog/series/ai-learning/day-125-dataset-statistics-shift-before-train.html",
           "kicker": "AI Learning · Day 125 of 150",
           "title": "Day 125 — Dataset Statistics — Shift Before Train",
