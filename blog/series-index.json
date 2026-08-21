@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html",
+          "kicker": "AI Learning · Day 127 of 150",
+          "title": "Day 127 — LoRA — Low-Rank Adaptation Intuition",
+          "subtitle": "Rank decomposition like compressed sensing",
+          "date": "2026-08-21",
+          "slug": "day-127-lora-low-rank-adaptation-intuition",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html",
+          "coverImage": "blog/assets/covers/day-127-lora-low-rank-adaptation-intuition.png",
+          "desc": "A target_modules list looks like naming which layers to touch, but it's a budget decision -- which frozen matrices get a rank-r side path. Rank works the same way compressed sensing does: a low-dimensional approximation of an update that was never full-rank to begin with, sized against a real ~36GB NF4 quantization floor."
+        },
+        {
           "href": "blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html",
           "kicker": "AI Learning · Day 126 of 150",
           "title": "Day 126 — Data-Centric AI — Labels from Judges",

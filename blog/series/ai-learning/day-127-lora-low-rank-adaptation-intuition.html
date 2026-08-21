@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 126 &mdash; Data-Centric AI &mdash; Labels from Judges | AI Learning Series</title>
-<meta name="description" content="Filter judge_score>0.8 in export was the whole ticket. judge_scores.judge_score is a 0-100 column, so a literal 0.8 threshold admits almost every row -- the same scale mismatch as reading a Celsius thermostat in Fahrenheit and wondering why the room never feels warm enough to trip the alarm.">
-<meta property="og:title" content="Day 126 &mdash; Data-Centric AI &mdash; Labels from Judges">
-<meta property="og:description" content="A judge score is a label, not a fact about the row -- and a label written on the wrong scale doesn't fail loudly, it just quietly stops filtering anything.">
+<title>Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition | AI Learning Series</title>
+<meta name="description" content="target_modules=[q_proj, k_proj, v_proj, o_proj] in a trainer config looks like a list of layer names. It's actually a budget decision -- which frozen weight matrices get a rank-r side path, and rank is the same move as compressed sensing: a low-dimensional approximation of an update that never needed the full-rank space it lives in.">
+<meta property="og:title" content="Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition">
+<meta property="og:description" content="Rank decomposition like compressed sensing -- a target_modules list is a budget decision before it's a config value, and rank is what makes the budget affordable.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-126-data-centric-ai-labels-from-judges.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-lora-low-rank-adaptation-intuition.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-126-data-centric-ai-labels-from-judges.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-lora-low-rank-adaptation-intuition.png">
 <meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,56 +185,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 126 of 150</span>
-    <span class="tag">Data-Centric AI</span>
-    <span class="tag">LLM-as-Judge</span>
+    <span class="tag accent">AI Learning &middot; Day 127 of 150</span>
+    <span class="tag">LoRA</span>
     <span class="tag">Fine-Tuning</span>
+    <span class="tag">QLoRA</span>
   </div>
-  <h1 class="post-title">Day 126 &mdash; Data-Centric AI &mdash; Labels from Judges</h1>
-  <p class="post-subtitle">"Filter <code>judge_score&gt;0.8</code> in export" was the whole ticket. <code>judge_scores.judge_score</code> turned out to be a 0-100 column, so a literal 0.8 threshold doesn't filter &mdash; it admits almost everything, the same way a Celsius reading treated as Fahrenheit makes a room look warm enough when it isn't close.</p>
+  <h1 class="post-title">Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition</h1>
+  <p class="post-subtitle">A <code>target_modules</code> list in a trainer config reads like naming which layers to touch. It's actually a budget decision, and the rank next to it is the same move as compressed sensing &mdash; a low-dimensional approximation of an update that never needed the full-rank space it technically lives in.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 126 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 127 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">8 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-126-data-centric-ai-labels-from-judges.png" alt="Day 126 — Data-Centric AI — Labels from Judges" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-127-lora-low-rank-adaptation-intuition.png" alt="Day 127 — LoRA — Low-Rank Adaptation Intuition" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>"Filter <code>judge_score&gt;0.8</code> in export." That's the entire hook this ticket gave me, and it reads like a one-line filter nobody needs to think twice about. It's also, taken literally against the real schema, close to not a filter at all &mdash; which is the whole subject of this post.</p>
+<p><code>target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]</code> in a trainer config reads like a list of which layers to touch during fine-tuning, and stops there for most people who copy it out of a tutorial. Writing this week's <code>lora-trainer/DESIGN.md</code> forced the next question: touch them <em>how</em>, and why does the list stop at four names instead of naming every linear layer in the model?</p>
 
-<h2 id="the-instruction-that-was-almost-a-no-op">The Instruction That Was Almost a No-Op</h2>
+<h2 id="what-the-list-is-actually-selecting">What the List Is Actually Selecting</h2>
 
-<p>Day 121's connector shipped exactly what the ticket said: a threshold constant, <code>0.8</code>, compared against every row's <code>judge_score</code> with a strict greater-than. It built, it tested clean, and it looked done. What it didn't do &mdash; because nothing in a unit test against a fake reader would catch this &mdash; is filter much of anything.</p>
+<p>A frozen pretrained weight matrix, <code>W</code>, doesn't move during LoRA fine-tuning. What moves is a separate update, <code>&Delta;W</code>, added to it at inference time &mdash; and LoRA's entire trick is refusing to store <code>&Delta;W</code> at full size. Instead it factors <code>&Delta;W</code> into two much smaller matrices, <code>B</code> and <code>A</code>, whose product approximates the update at a fraction of the parameters a full <code>&Delta;W</code> would cost.</p>
 
-<p><code>infra_ai.judge_scores.judge_score</code> is documented in its own migration file as a weighted 0-100 score, not a 0-1 fraction. Against that column, a literal <code>0.8</code> threshold admits every row scoring above eight-tenths of one point out of a hundred &mdash; which is to say, essentially every row a judge model has ever scored, including the bad ones.</p>
+<p><code>target_modules</code> is the list of which <code>W</code> matrices get this treatment. Every entry in it &mdash; <code>q_proj</code>, <code>k_proj</code>, <code>v_proj</code>, <code>o_proj</code> for attention, <code>gate_proj</code>/<code>up_proj</code>/<code>down_proj</code> for a Llama-shaped MLP block &mdash; is a separate frozen matrix that gets its own <code>B&middot;A</code> side path. Leave a matrix off the list, and it stays exactly as pretrained, full stop.</p>
 
-<p>So what: the ticket's own wording wasn't wrong, and the code that implemented it literally wasn't buggy in the way a test suite checks for &mdash; the gap was between a plain-English "0.8" and the actual unit that number was supposed to be measured in, and that gap doesn't throw an exception. It just quietly stops filtering.</p>
+<p>So what: the list isn't naming "which parts of the model learn" in some vague sense &mdash; it's naming, one frozen matrix at a time, exactly where a low-rank side path gets attached, and everything left off the list is not being fine-tuned at all, no matter how central that layer is to the forward pass.</p>
 
-<h2 id="the-thermostat-mechanism">The Thermostat Mechanism</h2>
+<h2 id="the-compressed-sensing-intuition">The Compressed Sensing Intuition</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a threshold that's the right number on the wrong scale</div>
-  A smart thermostat set to "alert below 20" is a perfectly sensible instruction if 20 means twenty degrees Celsius, room temperature. Wire that same thermostat to a sensor reporting Fahrenheit and leave the threshold at 20, and the alert almost never fires &mdash; 20&deg;F is far colder than any room a person is standing in, so the "below 20" condition the instruction meant to catch essentially never triggers on the scale the sensor actually reports. The thermostat isn't broken. The number "20" is correct English and wrong physics, and the failure mode isn't an error message &mdash; it's a room that quietly never gets flagged as cold, no matter how cold it gets, because the threshold and the reading were never speaking the same scale.
+  <div class="attr-label">DS analogy &mdash; recovering a signal from far fewer numbers than it looks like it needs</div>
+  Compressed sensing reconstructs a signal &mdash; an image, an audio clip &mdash; from far fewer measurements than the signal's raw dimension would seem to require, and it works because most real signals aren't actually using all of that dimension. A photo of a mostly-blue sky has millions of pixels but almost no information content across most of them; a handful of well-chosen measurements is enough to reconstruct it exactly, because the signal's true complexity lives in a small subspace of the space it's stored in. Rank-<code>r</code> LoRA makes the identical bet about a fine-tuning update: <code>&Delta;W</code> is stored as a full <code>d&times;d</code> matrix's worth of numbers, but the argument for LoRA is that the <em>useful</em> update &mdash; the direction fine-tuning actually needs to move the weights &mdash; occupies a rank far lower than <code>d</code>, so a rank-<code>r</code> approximation with <code>r</code> in the dozens recovers nearly all of it.
 </div>
 
-<p>That's precisely <code>judge_score&gt;0.8</code> against a 0-100 column: a threshold that's syntactically valid, semantically reasonable-sounding, and numerically almost meaningless on the scale the data actually uses.</p>
-
-<p>So what: a scale mismatch between a threshold and the data it's applied to is one of the quietest failure modes in a data pipeline, precisely because nothing about it looks wrong &mdash; the code compiles, the query runs, and the only symptom is a filter that passes almost everything through.</p>
+<p>The parallel isn't decorative. Both techniques are betting that a signal which <em>looks</em> high-dimensional by construction is actually low-dimensional by content, and both fail the same way if that bet is wrong &mdash; too few measurements reconstructs a blurred photo, and too low a rank ships an adapter that can't represent the update the fine-tune actually needed.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -254,69 +252,68 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart TD
-  CONV["Production conversation"] --> JUDGE["LLM judge scores it"]
-  JUDGE --> SCORE["judge_score, 0 to 100"]
-  SCORE --> GATE{"Score above 80?"}
-  GATE -->|no| DROP["Dropped, never exported"]
-  GATE -->|yes| REST["MinHash dedup, quartile filter"]</pre>
+  IN["Input activations"] --> FROZEN["Frozen W, 4-bit NF4"]
+  IN --> LA["LoRA A, rank r"]
+  LA --> LB["LoRA B, rank r"]
+  FROZEN --> SUM["Add outputs"]
+  LB --> SUM
+  SUM --> OUT["Output activations"]</pre>
 
-<p>So what: the diagram's single decision diamond is doing all the real work in this pipeline &mdash; get the scale on either side of it wrong, and every stage drawn after it (dedup, split, dashboard) still runs, still reports success, and still ships a dataset that was never actually filtered by quality the way the ticket intended.</p>
+<p>So what: the diagram's two paths never touch each other's weights &mdash; <code>FROZEN</code> never updates and <code>LA</code>/<code>LB</code> never see the pretraining data again &mdash; which is exactly why swapping in a different rank-<code>r</code> adapter later means changing the top path's two small matrices and nothing about the bottom one.</p>
 
-<h2 id="labels-not-facts">Labels, Not Facts</h2>
+<h2 id="rank-is-a-budget-not-a-quality-knob">Rank Is a Budget, Not a Quality Knob</h2>
 
-<p>"Data-centric AI" gets described as spending more effort on the dataset than the model, which is true but incomplete. The sharper version, after fixing this bug, is that a judge score is a <strong>label</strong> &mdash; something a separate model produced about a row, on a scale and a convention someone has to get right &mdash; not a fact baked into the row itself the way <code>request_id</code> or <code>tenant_id</code> is.</p>
+<p>It's tempting to treat rank the way you'd treat a learning rate &mdash; turn it up until quality stops improving. This week's design doc fixes a small grid instead: <code>r&isin;{8,16,32,64}</code>, with <code>alpha</code> pinned at <code>2r</code> across every row, not a second free variable to search over.</p>
 
-<p>A label can be miscalibrated, mis-scaled, or silently reinterpreted by the next person who reads it, in a way a structural column mostly can't. Treating <code>judge_score</code> as self-evidently correct is exactly what let a 0.8-versus-80.0 mismatch ship in a PR whose own tests passed, because the tests checked that the comparison ran &mdash; not that the comparison meant what the ticket intended.</p>
-
-<p>So what: "the judge already scored it" answers whether a label exists, not whether every consumer of that label agrees on its scale &mdash; and a data-centric pipeline's actual job is closing that second gap, which a model-centric mindset has no reason to even look for.</p>
-
-<h2 id="todays-quartile-on-top-of-the-corrected-threshold">Today's Quartile, on Top of the Corrected Threshold</h2>
-
-<p>Today's ticket ran the corrected <code>80.0</code> threshold, plus Day 123's dedup and bottom-quartile quality filter, over 10,000 synthetic rows end to end. The threshold from Day 122's fix isn't the only quality gate in this pipeline anymore &mdash; it's the first of two, and the quartile filter downstream computes its own threshold fresh from whatever distribution survives scrub and dedup.</p>
+<p>That fixed ratio matters more than it looks. LoRA's actual update at inference time is scaled by <code>alpha/r</code>, so holding that ratio constant means a bigger rank buys more expressive capacity without also silently changing how strongly the adapter's output gets blended back in &mdash; rank and update magnitude move independently, on purpose.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">9,656</span><span class="stat-label">rows past scrub</span></div>
-  <div class="stat-cell"><span class="stat-num">55.10</span><span class="stat-label">quartile threshold, this run</span></div>
-  <div class="stat-cell"><span class="stat-num">2,293</span><span class="stat-label">rows below it, dropped</span></div>
+  <div class="stat-cell"><span class="stat-num">84M</span><span class="stat-label">attention-only params, rank 16</span></div>
+  <div class="stat-cell"><span class="stat-num">147M</span><span class="stat-label">attn+MLP params, rank 16</span></div>
+  <div class="stat-cell"><span class="stat-num">2.0</span><span class="stat-label">alpha/r, fixed across the grid</span></div>
 </div>
 
-<p>That 55.10 is not a constant anyone chose &mdash; it's the 25th percentile of whatever <code>judge_score</code> values happened to survive scrub and dedup in this run, recomputed every time <code>QualityFilter</code> runs. A fixed threshold like Day 121's 80.0 and a recomputed percentile like Day 123's quartile filter are answering different questions: one asks "does this row clear an absolute bar," the other asks "is this row in the bottom slice of whatever I actually have today."</p>
+<p>So what: a rank grid with a fixed <code>alpha/r</code> turns "how big should the adapter be" from an open search into a lookup against reserved training VRAM &mdash; the same "fix the field, don't build the search" move a first pass at a new module gets to make before any training script exists to search with.</p>
 
-<p>So what: a pipeline with only the fixed threshold would have shipped the Day 121 scale bug forever, since 0.8-on-a-100-scale never throws an error to catch it &mdash; the quartile filter downstream doesn't fix that bug, but it's a second, independently-computed signal that a badly miscalibrated first gate would eventually make visible as a distribution shift, which is exactly the kind of check a purely model-centric pipeline has no equivalent of.</p>
+<h2 id="the-arithmetic-rank-doesnt-show-you">The Arithmetic Rank Doesn't Show You</h2>
 
-<div class="pullquote"><p>A judge score is a label someone else computed, on a scale someone else chose. The moment a pipeline treats it as ground truth instead of as data with its own provenance to check, a mismatch this quiet gets to ship clean.</p></div>
+<p>None of the numbers above account for the frozen base model itself, and that's the arithmetic a rank grid alone will never surface. A 70B base in 4-bit NF4, with double quantization on the block-wise scale constants, is roughly 36GB before a single adapter parameter exists &mdash; the floor every "reserved training VRAM" figure in this week's grid sits <em>above</em>, not instead of.</p>
+
+<p>Double quantization is a second, smaller compression pass on top of NF4: the per-block scale constants NF4 needs are themselves quantized, saving roughly another 0.4 bits per parameter. At 70B parameters that's not a rounding error &mdash; it's close to 3.5GB, recovered by compressing the metadata a compression scheme needed to describe itself.</p>
+
+<p>So what: a rank of 64 looks four times more expensive than a rank of 8 by parameter count alone, but both numbers are dwarfed by the ~36GB NF4 floor underneath them &mdash; which is why the design doc treats quantization arithmetic and the rank grid as one budget, not two separate decisions made by two different people at two different times.</p>
 
 <h2 id="the-generalizable-lesson">The Generalizable Lesson</h2>
 
-<p>The specific bug here was a decimal-versus-percentage mismatch on one column. The transferable part is smaller and applies to any pipeline that filters on a label produced by a separate system.</p>
+<p>The specific numbers here are Llama-3-70B's. The transferable part generalizes to any low-rank adaptation of any large frozen model:</p>
 
 <ol>
-<li>A threshold that's syntactically valid and semantically plausible can still be numerically wrong for the data it's compared against &mdash; and unlike a type error or a null pointer, a scale mismatch produces no exception, only a filter that quietly does less than intended.</li>
-<li>A label from an external scorer (a judge model, a human rater, a heuristic) carries its own units and conventions that the label's own name doesn't state &mdash; "judge_score" says nothing about whether it's 0-1 or 0-100, and the schema, not the field name, is the only place that's actually pinned down.</li>
-<li>A second, independently-computed quality signal downstream (like a recomputed quartile) doesn't prevent a scale bug in an earlier fixed threshold, but it's the kind of redundancy that eventually surfaces one as a distribution anomaly &mdash; a single gate has no such backstop.</li>
+<li>A <code>target_modules</code> list is a per-matrix decision, not a per-layer or per-model one &mdash; a matrix left off the list is not fine-tuned at all, regardless of how central it is to the forward pass.</li>
+<li>Rank is a capacity bet, not a quality dial to maximize &mdash; the compressed-sensing framing (a high-dimensional signal that's actually low-rank in content) is the argument for why a small rank works at all, and it's a bet that can be wrong for a task far outside the base model's pretraining distribution.</li>
+<li>A VRAM budget built from a rank grid alone is incomplete without the frozen base model's own quantized footprint underneath it &mdash; the adapter is the part everyone sizes first, and the frozen weights are usually the part that actually decides whether the whole thing fits.</li>
 </ol>
 
-<p>Writing "filter <code>judge_score&gt;0.8</code>" took one line. Confirming that <code>0.8</code> meant what the person who wrote the ticket meant took reading a migration file's own comment &mdash; the part of data-centric AI that never shows up in a ticket's one-line hook.</p>
+<p>The tutorial version of <code>target_modules</code> is a copy-pasted list of four or seven strings. The version that survives writing a design doc against a real 70B model and a real GPU budget is a statement about which frozen matrices get a rank-<code>r</code> approximation, sized against a quantization floor that was never optional to account for.</p>
 
 <div class="series-footer">
-  <p>Day 126 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-127-lora-low-rank-adaptation-intuition.html">Day 127 — LoRA — Low-Rank Adaptation Intuition</a></p>
+  <p>Day 127 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 128 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-121-mining-production-logs-for-sft-data.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 121 — Mining Production Logs for SFT Data (the original 0.8-threshold ticket this post's bug was found in)</span>
+      <span>Day 126 — Data-Centric AI — Labels from Judges (yesterday's post, the last stop on data-prep-pipeline before this arc moves to lora-trainer)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-123-minhash-dedup-near-duplicate-prompts.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 123 — MinHash Dedup — Near-Duplicate Prompts (the quartile filter this post builds on)</span>
+      <span>Day 2 — Continuous Batching — the series' GOLD reference post on reading a scheduling mechanism at this same depth</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/205">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/206">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #205 (today's code deliverable — the 10k-row dry run this post's 9,656/55.10/2,293 numbers come from)</span>
+      <span>infra-ai-streaming PR #206 (today's code deliverable — lora-trainer/DESIGN.md, the source of this post's target-module presets, rank grid, and VRAM arithmetic)</span>
     </a>
   </div>
 </div>
@@ -327,10 +324,10 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-instruction-that-was-almost-a-no-op">The Instruction That Was Almost a No-Op</a></li>
-      <li><a href="#the-thermostat-mechanism">The Thermostat Mechanism</a></li>
-      <li><a href="#labels-not-facts">Labels, Not Facts</a></li>
-      <li><a href="#todays-quartile-on-top-of-the-corrected-threshold">Today's Quartile</a></li>
+      <li><a href="#what-the-list-is-actually-selecting">What the List Is Actually Selecting</a></li>
+      <li><a href="#the-compressed-sensing-intuition">The Compressed Sensing Intuition</a></li>
+      <li><a href="#rank-is-a-budget-not-a-quality-knob">Rank Is a Budget, Not a Quality Knob</a></li>
+      <li><a href="#the-arithmetic-rank-doesnt-show-you">The Arithmetic Rank Doesn't Show You</a></li>
       <li><a href="#the-generalizable-lesson">The Generalizable Lesson</a></li>
     </ul>
   </div>
@@ -338,11 +335,11 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-126-data-centric-ai-labels-from-judges.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-127-lora-low-rank-adaptation-intuition.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Data-Centric+AI+%E2%80%94+Labels+from+Judges+%C2%B7+Day+126&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-126-data-centric-ai-labels-from-judges.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=LoRA+%E2%80%94+Low-Rank+Adaptation+Intuition+%C2%B7+Day+127&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-127-lora-low-rank-adaptation-intuition.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -355,17 +352,17 @@ flowchart TD
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D124</span> AI Learning</div>
-          <a href="day-124-train-eval-leakage-stratified-splits.html" class="series-post-title">Train/Eval Leakage — Stratified Splits</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D125</span> AI Learning</div>
           <a href="day-125-dataset-statistics-shift-before-train.html" class="series-post-title">Dataset Statistics — Shift Before Train</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D126</span> AI Learning</div>
+          <a href="day-126-data-centric-ai-labels-from-judges.html" class="series-post-title">Data-Centric AI — Labels from Judges</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D126</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Data-Centric AI — Labels from Judges</div>
-          <div class="series-post-desc">A judge score is a label with its own scale, not a fact baked into the row.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D127</span> AI Learning &middot; now</div>
+          <div class="series-post-title">LoRA — Low-Rank Adaptation Intuition</div>
+          <div class="series-post-desc">Rank decomposition like compressed sensing, budgeted against a real quantization floor.</div>
         </div>
       </div>
     </div>
