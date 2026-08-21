@@ -1404,6 +1404,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html",
+          "kicker": "Experience · Day 127 of 150",
+          "title": "Day 127 — GPU Cluster Quotas — First Cloud Train Job",
+          "subtitle": "Preemptible VMs taught checkpoint obsession",
+          "date": "2026-08-21",
+          "slug": "day-127-gpu-cluster-quotas-first-cloud-train-job",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html",
+          "coverImage": "blog/assets/covers/day-127-gpu-cluster-quotas-first-cloud-train-job.png",
+          "desc": "Filing my first cloud GPU quota request taught me nothing new -- I already knew the lesson from a Wayfair spot-VM preemption and an Agoda retention window. Fix the resource budget before the system that would blow through it, applied a third time to lora-trainer's VRAM."
+        },
+        {
           "href": "blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html",
           "kicker": "Experience · Day 126 of 150",
           "title": "Day 126 — 90% of ML Is Data — Manager Quote I Now Believe",
