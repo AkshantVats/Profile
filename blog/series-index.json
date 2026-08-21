@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-128-rank-alpha-capacity-vs-overfit.html",
+          "kicker": "AI Learning · Day 128 of 150",
+          "title": "Day 128 — Rank and Alpha — Capacity vs Overfit",
+          "subtitle": "Higher rank = more capacity, more VRAM",
+          "date": "2026-08-21",
+          "slug": "day-128-rank-alpha-capacity-vs-overfit",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-128-rank-alpha-capacity-vs-overfit.html",
+          "coverImage": "blog/assets/covers/day-128-rank-alpha-capacity-vs-overfit.png",
+          "desc": "Nominal rank is a capacity ceiling, not an achieved capacity -- extra rank a narrow dataset can't productively use doesn't sit idle, it memorizes training-row noise instead. Why lora-trainer's own narrow-task flag caps rank at 8 regardless of available VRAM."
+        },
+        {
           "href": "blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html",
           "kicker": "AI Learning · Day 127 of 150",
           "title": "Day 127 — LoRA — Low-Rank Adaptation Intuition",
