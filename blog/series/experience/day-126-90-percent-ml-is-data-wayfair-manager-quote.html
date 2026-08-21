@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates | Experience Series</title>
-<meta name="description" content="Today's dataset_manifest.json buckets a training export by token count, script, and task_type so a broken slice shows up as a shape change instead of staying invisible in the aggregate. WeIoT SmartBuildings' 7M+ sensor fleet at Walmart needed the identical instrument for a different kind of broken slice -- a device cohort silently going quiet.">
-<meta property="og:title" content="Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates">
-<meta property="og:description" content="A manifest that buckets by token count, script, and label is a health check, not a report. WeIoT SmartBuildings' real sensor-fleet architecture needed the same kind of per-slice dashboard, for a different kind of silent failure.">
+<title>Day 126 &mdash; 90% of ML Is Data &mdash; Manager Quote I Now Believe | Experience Series</title>
+<meta name="description" content="A manager at Wayfair told me 90% of ML work is data work, and I argued with him. My own team's labels fed a neighboring team's ML feature pipeline at 200K RPS -- and today's BENCHMARKS.md just proved the same ratio in miniature.">
+<meta property="og:title" content="Day 126 &mdash; 90% of ML Is Data &mdash; Manager Quote I Now Believe">
+<meta property="og:description" content="Spent 3 weeks on features, 3 days on model. A Wayfair manager's line I argued with, until my own team's Bigtable labels and today's dedup benchmark both proved it right.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-125-data-quality-dashboards-walmart-sensor-null-rates.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-126-90-percent-ml-is-data-wayfair-manager-quote.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-125-data-quality-dashboards-walmart-sensor-null-rates.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-126-90-percent-ml-is-data-wayfair-manager-quote.png">
 <meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,21 +185,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 125 of 150</span>
+    <span class="tag accent">Experience &middot; Day 126 of 150</span>
     <span class="tag">Data Quality</span>
-    <span class="tag">Observability</span>
-    <span class="tag">Walmart</span>
+    <span class="tag">ML Systems</span>
+    <span class="tag">Wayfair</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates</h1>
-  <p class="post-subtitle">Today's <code>dataset_manifest.json</code> buckets a training export by token count, script, and <code>task_type</code> so a broken slice shows up as a shape change instead of hiding inside a healthy-looking average. WeIoT SmartBuildings' real 7M-sensor fleet needed the identical instrument for a different kind of broken slice.</p>
+  <h1 class="post-title">Day 126 &mdash; 90% of ML Is Data &mdash; Manager Quote I Now Believe</h1>
+  <p class="post-subtitle">Spent 3 weeks on features, 3 days on model &mdash; a line my manager at Wayfair said in a planning meeting that I privately disagreed with. My own team's labels fed a neighboring team's ML pipeline at 200K requests a second, and today's <code>BENCHMARKS.md</code> just made me do the arithmetic again.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 125 of 150</span>
+    <span class="meta-item">Experience &middot; Day 126 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
@@ -209,102 +209,106 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-125-data-quality-dashboards-walmart-sensor-null-rates.png" alt="Day 125 — Data Quality Dashboards — Walmart Sensor Null Rates" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-126-90-percent-ml-is-data-wayfair-manager-quote.png" alt="Day 126 — 90% of ML Is Data — Manager Quote I Now Believe" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's CLI mode doesn't clean anything. <code>dataprep dashboard</code> reads the same rows Day 123's dedup step already wrote and produces one file, <code>dataset_manifest.json</code>: a token-count histogram, a script-based language mix, and the exact <code>task_type</code> label distribution. Nothing in that file fixes a bad export &mdash; it only describes one.</p>
+<p>My manager said it in a planning meeting at Wayfair, in the flat tone people use for things they've said a hundred times before: "ninety percent of this work is data, not model." I nodded because you nod in planning meetings, and privately disagreed. My team didn't own a single model. Of course the data looked like most of the work &mdash; it was the only work we could see.</p>
 
-<p>That's the entire point of a distribution dashboard, and it's easy to undersell in a design doc: an aggregate number like "40,000 rows, average judge score 0.87" can look completely healthy while one slice of that export &mdash; one <code>task_type</code>, one script, one length bucket &mdash; is quietly broken. A manifest's job is to make that slice visible before a training run finds it the expensive way.</p>
+<p>I'm writing this because today's <code>BENCHMARKS.md</code> ran the same argument again, on a pipeline I built myself, and landed on almost the same number. That's not a coincidence I get to wave away twice.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; a real system I built, an illustrative scenario I'm reasoning through</div>
-  I architected the WeIoT SmartBuildings ingestion layer at Walmart Labs on Azure IoT Hub &mdash; 7M+ sensors, tens of millions of telemetry points per minute, feeding real-time HVAC control loops via Azure Stream Analytics across 50+ global facilities, plus the fault-tolerant edge-to-cloud OTA firmware framework that kept config syncs reliable for millions of distributed devices under intermittent network conditions. Those are the real system and the real numbers. The specific scenario below &mdash; a null-rate spike in one firmware cohort surfacing a bug roughly two days before it caused a visible HVAC failure &mdash; is an illustrative worked example built from that system's real failure surface (a device going quiet under bad firmware is exactly the class of problem the OTA framework existed to catch), not a claim that this exact timeline is a specific incident on record.
+  <div class="attr-label">Scope note &mdash; a real system I worked on, a manager's line I'm reconstructing from memory</div>
+  I led the PAS and Pricing, Promotions &amp; Discounts teams at Wayfair, owning <code>pricing-adjustment-bt</code> and <code>pricing-cost-adjustment-bt</code> &mdash; the Bigtable-backed adjustment sets, labels, and overrides pricing managers configure through the PAS UI. Those tables, their throughput, and the downstream Hydros/EdenReader and MarginOptimizer numbers below are real, from the architecture doc this arc's Wayfair posts are grounded in. The manager's exact wording is a paraphrase from memory, not a transcript &mdash; the substance of the disagreement and how it resolved is accurate; the precise sentence is not a quote in the legal sense.
 </div>
 
-<h2 id="the-failure-an-average-cant-see">The Failure an Average Can't See</h2>
+<h2 id="what-my-team-actually-owned">What My Team Actually Owned</h2>
 
-<p>Picture a building's HVAC system reporting temperature every thirty seconds from a hundred sensors. If five of those sensors go quiet for an hour, the building-wide average temperature barely moves &mdash; ninety-five readings still arrive on schedule, and the control loop that averages across the floor doesn't notice five missing inputs the way it would notice one wildly wrong one.</p>
+<p>PAS never trained anything. My team's whole job was <code>pricing-adjustment-bt</code>: adjustment sets, labels, jobs, overrides &mdash; the corrections a pricing manager types into a UI when an automated price is wrong for a reason the model can't see. We wrote to a CQRS read model at a few hundred queries a second and moved on with our day.</p>
 
-<p>A quiet sensor isn't a loud failure. It's a null where a number used to be, in a dataset that's still 95% intact and still looks fine from the top.</p>
+<p>Two teams over, Estimated Costs owned Hydros/EdenReader, the service that turns our labels into features. It runs at roughly 200,000 requests a second on average, 337,000 at peak, and every single one of those requests fans out into 77 separate Bigtable lookups &mdash; a chunk of them against the exact tables my team wrote to &mdash; to assemble one row of ML input. A third team, Pricing and Profit Algo, owned MarginOptimizer, the Vertex AI model that actually reads that assembled row and outputs a margin.</p>
 
-<p>Today's manifest has the same blind spot by design if you only look at the top-line count. Forty thousand rows with a healthy average judge score can still contain one <code>task_type</code> whose prompts are all getting truncated by a broken exporter, or one script whose rows are all one bad batch job's garbled output. The aggregate doesn't lie &mdash; it just doesn't look where the problem is.</p>
+<p>So what: three teams, one pipeline, and the team that owned the model was the smallest of the three by a wide margin &mdash; which is exactly the shape my manager's line was describing, whether or not I wanted to hear it that way.</p>
 
-<p>So what: a dashboard that only reports totals is a report, not a diagnostic &mdash; the whole reason to bucket by token length, script, and label instead of just counting rows is that a broken slice is invisible until you look at slices.</p>
+<h2 id="three-weeks-three-days">Three Weeks, Three Days</h2>
 
-<h2 id="weiots-real-version-of-the-same-question">WeIoT SmartBuildings' Real Version of the Same Question</h2>
+<p>The three-weeks-versus-three-days split wasn't a metric anyone tracked on a dashboard; it's how the calendar actually filled up. A margin-model retraining cycle for Pricing and Profit Algo would show up as a few days of actual model work on their side &mdash; feature selection, a threshold sweep, a holdout evaluation. Getting to a state where that model's inputs were trustworthy took my team weeks: backfilling a label field a legacy override path had been silently leaving blank, reconciling adjustment-set timestamps across a migration, chasing down why one supplier's overrides weren't landing in the read model before EdenReader's next fetch window.</p>
 
-<p>The WeIoT ingestion layer answers a structurally identical question at a much larger scale: is every device cohort still reporting the way it's supposed to, or has one silently gone quiet. At 7M+ sensors and tens of millions of telemetry points a minute, a handful of missing devices moves the fleet-wide ingestion rate by a fraction of a percent &mdash; nothing a top-line dashboard would flag, and nothing a duty engineer glancing at "ingestion rate: nominal" would catch.</p>
-
-<p>The instrument that catches it is the same shape as today's manifest: slice the incoming stream by a dimension that actually varies &mdash; firmware version, device model, facility &mdash; and watch each slice's null rate independently, the same way <code>dataset_manifest.json</code> watches each <code>task_type</code>'s row count and each script's share independently instead of trusting one dataset-wide average.</p>
-
-<p>That's precisely the gap the fault-tolerant OTA firmware framework exists to close on the other end: devices under intermittent network conditions need reliable config syncs specifically because "device went quiet" has to be recoverable, not just detectable. A per-cohort null-rate view is the detection half of that same problem &mdash; it can't fix a bad firmware push, but it can point at exactly which cohort needs the fix pushed first.</p>
-
-<p>So what: "slice by the dimension that actually varies, and watch each slice on its own" isn't a training-data-specific idea &mdash; it's the standard answer anywhere a fleet-wide average is large enough to hide a cohort-sized problem.</p>
-
-<h2 id="what-a-fleet-wide-average-would-miss">What a Fleet-Wide Average Would Miss</h2>
-
-<p>Here's where the shape of the failure matters more than the top-line number. A firmware bug that causes a device to intermittently drop its telemetry payload doesn't announce itself as a hard failure &mdash; the device is still online, still responding to health checks, just silently missing a growing fraction of its readings. Sliced by firmware version, that shows up early: one cohort's null rate climbing while every other cohort's stays flat.</p>
+<p>None of that work touched a model. All of it was the precondition for the model's next run being worth trusting. That's the asymmetry the quote was actually pointing at &mdash; not that data work is more <em>important</em> than model work, but that it's where the calendar time goes, because a model can only be as honest as the 77 Bigtable lookups feeding it.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors in the fleet</span></div>
-  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities</span></div>
-  <div class="stat-cell"><span class="stat-num">~48h</span><span class="stat-label">Illustrative lead time</span></div>
+  <div class="stat-cell"><span class="stat-num">200K</span><span class="stat-label">EdenReader avg RPS</span></div>
+  <div class="stat-cell"><span class="stat-num">77</span><span class="stat-label">Bigtable lookups per request</span></div>
+  <div class="stat-cell"><span class="stat-num">26M</span><span class="stat-label">MarginOptimizer daily hits</span></div>
 </div>
 
-<p>Not sliced &mdash; averaged across the whole fleet &mdash; that same climbing null rate on one firmware cohort can stay statistically invisible for days, especially if the affected cohort is a minority of the fleet. By the time the failure is loud enough to show up in a facility-wide average (an HVAC loop actually misbehaving because it's control-looping on stale or missing readings), the root cause is a firmware bug that's been silently degrading a slice of the fleet the whole time. A per-cohort dashboard is the difference between finding that bug from a null-rate chart and finding it from a facilities complaint.</p>
+<p>So what: at that ratio &mdash; one team assembling features from 77 lookups for every one request the model team actually serves &mdash; the feature-assembly layer isn't a preprocessing step bolted in front of the real work. It's the larger of the two systems by every measure except the one line item ("model accuracy") everyone outside the pipeline actually asks about.</p>
 
-<p>The training-data version of the same gap is smaller in stakes but identical in shape: a broken exporter silently truncating one <code>task_type</code>'s prompts doesn't crash the pipeline, and it doesn't move the dataset's average judge score enough to trip any threshold. It shows up as that one <code>task_type</code>'s token histogram collapsing toward the shortest bucket &mdash; visible in a slice, invisible in an average.</p>
+<h2 id="the-kitchen-i-kept-coming-back-to">The Kitchen I Kept Coming Back To</h2>
 
-<p>So what: the cost of not slicing isn't "you miss a rare edge case" &mdash; it's that the failure mode a slice-level dashboard exists to catch is, by construction, exactly the kind that doesn't move the number you'd otherwise be watching.</p>
+<p>The comparison I settled on, eventually, was a restaurant kitchen. A tasting menu's plating takes ten minutes at the pass and is the only part a diner ever sees. Getting there is hours of prep &mdash; butchering, reducing stock, portioning &mdash; that never appears on a plate but determines whether the ten minutes at the pass produces something good or something that only looks like it.</p>
 
-<h2 id="the-two-dashboards-side-by-side">The Two Dashboards, Side by Side</h2>
+<p>A margin model's threshold sweep is the ten minutes at the pass. Backfilling a silently-blank label field across a Bigtable migration is the stock reduction nobody at the table will ever taste directly, and that determines everything about whether the finished dish is any good.</p>
+
+<p>So what: judging a pipeline's effort by what shows up in the model's own changelog is judging a kitchen by what happens in the last ten minutes &mdash; technically accurate about where the plating occurred, and almost useless as an account of where the work actually went.</p>
+
+<h2 id="the-same-shape-in-todays-code">The Same Shape in Today's Code</h2>
+
+<p>Today's ticket was data-prep-pipeline's end-to-end dry run: 10,000 synthetic rows through scrub, dedup, a real Parquet write/read round trip, split, and dashboard, timed stage by stage. I expected the Parquet encode/decode to be the slow part &mdash; it's the only stage doing real disk I/O. It wasn't.</p>
+
+<p><code>pkg/dedup.ClusterNearDuplicates</code>, the MinHash near-duplicate pass, took 73% of the run's total wall-clock. Everything downstream of it &mdash; the actual export shape a future <code>lora-trainer</code> day would train against &mdash; ran in the remaining 27%, most of that in under a tenth of a second per stage.</p>
+
+<p>Deduplication isn't the model. It's not even adjacent to the model. It's the equivalent of my old team's label backfills: unglamorous, uncredited in the final metric, and the majority of the clock time regardless.</p>
+
+<div class="pullquote"><p>Nobody budgets three weeks for backfilling a label field. Everyone budgets three days for a threshold sweep. The calendar doesn't care which one you budgeted for &mdash; it fills up with whichever one is actually the bigger job.</p></div>
+
+<p>So what: I didn't go looking for a second data point to confirm my manager's line. I went looking for the slow stage in a benchmark I expected Parquet I/O to dominate, and found the same ratio he'd been describing three teams and two years ago.</p>
+
+<h2 id="two-pipelines-side-by-side">Two Pipelines, Side by Side</h2>
 
 <table>
-<tr><th>Property</th><th>WeIoT null-rate dashboard</th><th>Today's dataset_manifest.json</th></tr>
-<tr><td>Question answered</td><td>Is this device cohort still reporting fully?</td><td>Is this training-data slice still shaped like the rest?</td></tr>
-<tr><td>Slicing dimension</td><td>Firmware version / device model / facility</td><td>Token bucket / script / task_type</td></tr>
-<tr><td>Silent-failure signature</td><td>Null rate climbs in one cohort, fleet average barely moves</td><td>One slice's shape shifts, dataset-wide average barely moves</td></tr>
-<tr><td>What the dashboard fixes</td><td>Nothing &mdash; it points at which cohort needs the firmware fix</td><td>Nothing &mdash; it points at which slice needs the export fix</td></tr>
-<tr><td>Cost of adding it</td><td>One more field to slice ingestion metrics on</td><td>One more field (task_type) already free in the row schema</td></tr>
+<tr><th>Property</th><th>Wayfair pricing pipeline</th><th>Today's data-prep-pipeline dry run</th></tr>
+<tr><td>The "data" layer</td><td>PAS labels &rarr; EdenReader feature assembly (77 lookups/request)</td><td>scrub + dedup (MinHash clustering)</td></tr>
+<tr><td>The "model" layer</td><td>MarginOptimizer, Vertex AI batch passes</td><td>split + dashboard (consumes the cleaned export)</td></tr>
+<tr><td>Where the majority of time went</td><td>Weeks of label/backfill work per model cycle</td><td>73% of wall-clock in one dedup stage</td></tr>
+<tr><td>What shows up in the headline metric</td><td>MarginOptimizer's margin accuracy</td><td>rows/sec, dataset_manifest.json's shape</td></tr>
+<tr><td>Team that owns the majority of the work</td><td>PAS + Estimated Costs, not Pricing and Profit Algo</td><td>No team split &mdash; same codebase, same asymmetry</td></tr>
 </table>
 
-<p>The bottom row is the point worth sitting with, same as it was for yesterday's stratified split. Slicing isn't a heavier system bolted onto a simpler one &mdash; in both cases, the field you slice on was already sitting in the schema. The dashboard's whole cost is deciding to look at it independently instead of folding it into one number.</p>
+<p>The bottom row is the part I didn't expect to still be true outside an org chart. At Wayfair the asymmetry mapped onto three separate teams with three separate headcounts; in a single Go module I wrote alone this week, it's still there, just inside one <code>go test -bench</code> run instead of a quarterly planning doc.</p>
 
-<div class="pullquote"><p>A dashboard that only reports the total row count answers "how much data do I have." A dashboard that reports it per slice answers "which part of my data is lying to me" &mdash; and only one of those questions catches a silent failure before it's loud.</p></div>
+<p>So what: the 90%-is-data ratio isn't a fact about how companies staff ML teams. It's a fact about what feature-quality work actually costs, and it shows up whether or not there's an org chart around to explain it.</p>
 
-<p>So what: the value of a manifest isn't the numbers it reports at the top &mdash; it's that reporting them per slice turns a question nobody was asking ("is task_type X still healthy?") into one the dashboard answers automatically, every run.</p>
+<h2 id="believing-the-quote-now">Believing the Quote, Now</h2>
 
-<h2 id="back-to-todays-actual-manifest">Back to Today's Actual Manifest</h2>
+<p>I don't think my manager was making a point about my team's workload when he said it &mdash; if anything, the line undersold PAS a little, since "data work" sounds like a chore next to "ML" on a roadmap slide. What I've come around to is narrower: the ratio isn't a complaint about who gets credit. It's a planning input.</p>
 
-<p><code>pkg/dashboard.Build</code> ships exactly this shape: three independent slices &mdash; token-count bucket, dominant script, <code>task_type</code> &mdash; each with its own row count and share, computed over the whole export before Day 124's train/eval split is applied. None of the three numbers are exact in the tokenizer-accuracy sense (the histogram buckets a whitespace word count, and the language mix buckets a Unicode script, both documented as approximations in the package's own doc comment rather than presented as more precise than they are) &mdash; but exactness was never the point. A slice that's collapsed toward one bucket, or gone from three scripts to one, or lost a <code>task_type</code> entirely, is visible at a glance regardless of whether the underlying count is a real BPE token or a word.</p>
+<p>Budget three weeks for the labels and three days for the model, and the three days actually land on schedule. Budget it the other way around &mdash; three days for data, three weeks reserved for model tuning &mdash; and the model work waits on a data problem nobody scheduled time for, same as it would have at Wayfair, same as it did in this week's dedup benchmark.</p>
 
-<p>That's the same tradeoff the WeIoT null-rate view makes: a per-cohort null percentage doesn't need to be perfectly calibrated to be useful. It needs to move visibly when a cohort actually breaks, and stay flat when nothing has &mdash; a coarse instrument watching the right slice beats a precise one watching only the aggregate.</p>
-
-<p>So what: neither dashboard's job is to be exact. Both exist to make one question answerable at a glance &mdash; "did any one slice just change shape" &mdash; that a single top-line number can never answer, no matter how precisely it's computed.</p>
+<p>So what: the useful version of "90% of ML is data" was never about splitting credit between two kinds of engineer. It's about which line item to put the bigger number next to before the calendar decides for you.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 125 of 150</p>
-  <p><em>Next up:</em> <a href="day-126-90-percent-ml-is-data-wayfair-manager-quote.html">Day 126 &mdash; 90% of ML Is Data &mdash; Manager Quote I Now Believe</a></p>
+  <p>Experience &middot; Day 126 of 150</p>
+  <p><em>Next up:</em> Day 127 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 120 — Training Data Is Production Data — Legal at Walmart (this arc's other Walmart-grounded post, from the compliance angle instead of the sensor-fleet angle)</span>
-    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 124 — Stratified Sampling — A/B Analysis at Wayfair (yesterday's design-tradeoff post, same data-prep-pipeline arc)</span>
+      <span>Day 124 — Stratified Sampling — A/B Analysis at Wayfair (this arc's other Wayfair-grounded post, from the pricing-experiment angle instead of the ML feature-pipeline angle)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/204">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #204 (today's code deliverable — pkg/dashboard and the dataprep dashboard CLI mode this post is about)</span>
+      <span>Day 125 — Data Quality Dashboards — Walmart Sensor Null Rates (yesterday's post, same data-prep-pipeline arc, a different data-quality angle)</span>
+    </a>
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/205">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>infra-ai-streaming PR #205 (today's code deliverable — pkg/pipeline's end-to-end dry run and BENCHMARKS.md, the source of this post's 73% dedup number)</span>
     </a>
   </div>
 </div>
@@ -315,22 +319,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-failure-an-average-cant-see">The Failure an Average Can't See</a></li>
-      <li><a href="#weiots-real-version-of-the-same-question">WeIoT's Real Version</a></li>
-      <li><a href="#what-a-fleet-wide-average-would-miss">What a Fleet-Wide Average Would Miss</a></li>
-      <li><a href="#the-two-dashboards-side-by-side">The Two Dashboards, Side by Side</a></li>
-      <li><a href="#back-to-todays-actual-manifest">Back to Today's Actual Manifest</a></li>
+      <li><a href="#what-my-team-actually-owned">What My Team Actually Owned</a></li>
+      <li><a href="#three-weeks-three-days">Three Weeks, Three Days</a></li>
+      <li><a href="#the-kitchen-i-kept-coming-back-to">The Kitchen I Kept Coming Back To</a></li>
+      <li><a href="#the-same-shape-in-todays-code">The Same Shape in Today's Code</a></li>
+      <li><a href="#two-pipelines-side-by-side">Two Pipelines, Side by Side</a></li>
+      <li><a href="#believing-the-quote-now">Believing the Quote, Now</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-126-90-percent-ml-is-data-wayfair-manager-quote.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Data+Quality+Dashboards+%E2%80%94+Walmart+Sensor+Null+Rates+%C2%B7+Day+125&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=90%25+of+ML+Is+Data+%E2%80%94+Manager+Quote+I+Now+Believe+%C2%B7+Day+126&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-126-90-percent-ml-is-data-wayfair-manager-quote.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -346,14 +351,14 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
           <div class="series-post-kicker"><span class="series-post-num">D124</span> Experience</div>
           <a href="day-124-stratified-sampling-wayfair-ab-analysis.html" class="series-post-title">Stratified Sampling — A/B Analysis at Wayfair</a>
         </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D125</span> Experience &middot; now</div>
-          <div class="series-post-title">Data Quality Dashboards — Walmart Sensor Null Rates</div>
-          <div class="series-post-desc">A dashboard that only reports totals is a report. Slicing it is what makes it a diagnostic.</div>
-        </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D126</span> Experience</div>
-          <a href="day-126-90-percent-ml-is-data-wayfair-manager-quote.html" class="series-post-title">90% of ML Is Data — Manager Quote I Now Believe</a>
+          <div class="series-post-kicker"><span class="series-post-num">D125</span> Experience</div>
+          <a href="day-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="series-post-title">Data Quality Dashboards — Walmart Sensor Null Rates</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D126</span> Experience &middot; now</div>
+          <div class="series-post-title">90% of ML Is Data — Manager Quote I Now Believe</div>
+          <div class="series-post-desc">A Wayfair manager's line I argued with, until my own dedup benchmark proved him right.</div>
         </div>
       </div>
     </div>
