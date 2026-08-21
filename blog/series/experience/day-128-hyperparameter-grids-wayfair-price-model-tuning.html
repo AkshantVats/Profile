@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 127 &mdash; GPU Cluster Quotas &mdash; First Cloud Train Job | Experience Series</title>
-<meta name="description" content="Filing my first cloud GPU quota request for FineForge's lora-trainer taught me the VRAM budget has to be fixed before the config generator is, the same lesson a Wayfair spot-VM preemption and Agoda's WhiteFalcon retention window both taught me first.">
-<meta property="og:title" content="Day 127 &mdash; GPU Cluster Quotas &mdash; First Cloud Train Job">
-<meta property="og:description" content="Preemptible VMs taught checkpoint obsession. A first GPU quota request, a Wayfair spot-VM lesson, and why lora-trainer's DESIGN.md fixes the VRAM budget before any code.">
+<title>Day 128 &mdash; Hyperparameter Grids &mdash; Wayfair Price Model Tuning | Experience Series</title>
+<meta name="description" content="PAS's Floor/Shelf Price always beats Main's formula, no matter what the formula computes. This week's lora-trainer config generator makes the same guardrail call on a GPU's VRAM floor, and rejects instead of silently clamping.">
+<meta property="og:title" content="Day 128 &mdash; Hyperparameter Grids &mdash; Wayfair Price Model Tuning">
+<meta property="og:description" content="Grid search automated but needed guardrails. Wayfair's PAS priority model, a $10 floor beating an $8 formula, and why lora-trainer's config generator rejects instead of clamping.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-gpu-cluster-quotas-first-cloud-train-job.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-128-hyperparameter-grids-wayfair-price-model-tuning.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-128-hyperparameter-grids-wayfair-price-model-tuning.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-gpu-cluster-quotas-first-cloud-train-job.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-128-hyperparameter-grids-wayfair-price-model-tuning.png">
 <meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,114 +185,124 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 127 of 150</span>
-    <span class="tag">GPU Training</span>
-    <span class="tag">Capacity Planning</span>
+    <span class="tag accent">Experience &middot; Day 128 of 150</span>
+    <span class="tag">Config Guardrails</span>
+    <span class="tag">Pricing Systems</span>
     <span class="tag">Wayfair</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 127 &mdash; GPU Cluster Quotas &mdash; First Cloud Train Job</h1>
-  <p class="post-subtitle">Preemptible VMs taught checkpoint obsession &mdash; not from a GPU training run, but from a Wayfair batch pipeline that lost real work to a preempted spot VM. This week I filed my first cloud GPU quota request, for a training job of my own, and reached for the same lesson before writing a line of code.</p>
+  <h1 class="post-title">Day 128 &mdash; Hyperparameter Grids &mdash; Wayfair Price Model Tuning</h1>
+  <p class="post-subtitle">PAS's Floor/Shelf Price always beats Main's formula, no matter what the formula computes &mdash; a fixed guardrail, not a suggestion. Writing this week's LoRA config generator, I made the same call on a GPU's VRAM floor, and it made me notice how much of that priority model I'd absorbed without ever calling it a grid.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 127 of 150</span>
+    <span class="meta-item">Experience &middot; Day 128 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-127-gpu-cluster-quotas-first-cloud-train-job.png" alt="Day 127 — GPU Cluster Quotas — First Cloud Train Job" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-128-hyperparameter-grids-wayfair-price-model-tuning.png" alt="Day 128 — Hyperparameter Grids — Wayfair Price Model Tuning" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The quota request form asked for a justification string, a GPU count, and a duration, and I sat on the justification field longer than I want to admit. Not because the answer was complicated &mdash; I need to actually run <code>lora-trainer</code>'s first training pass against FineForge's own export &mdash; but because it was the first time in seven and a half years of doing this job that I'd asked a cloud provider for GPU time as an individual, not as a line item someone else's budget already approved.</p>
+<p>When a pricing manager at Wayfair clicked "Run Pricing," Delphi read ten different adjustment types off a single Bigtable row and resolved them in a fixed priority order: Corrections beat Overrides beat FSP beat Main beat Experiments. If the Floor/Shelf Price said a SKU couldn't go below $10 and Main's margin formula computed $8, the floor won &mdash; not as a suggestion competing with a formula, but as a fact the formula wasn't allowed to override.</p>
 
-<p>That gap between "my team's infrastructure request" and "my own quota form" is where this post actually starts. The lesson I reached for while filling it out didn't come from a training run. It came from a spot VM at Wayfair, years before I'd written a line of this repo.</p>
+<p>This week's <code>lora-trainer</code> config generator (Day 128's code, <code>pkg/configgen</code>) makes the same kind of call on a much smaller config space: four rank/alpha rows instead of ten adjustment types, one VRAM floor instead of a floor price. Writing it is what made me notice how much of PAS's priority model I'd absorbed without ever once calling it a grid.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; two real systems, one new personal one</div>
-  The Wayfair GKE spot/preemptible VM detail and the Dataflow pipeline's checkpoint-and-resume behavior below are both real, cited from the same architecture documentation this arc's other Wayfair posts draw on &mdash; I didn't own that pipeline personally, but I worked adjacent to teams that did, and the cost/resilience trade it describes is accurate. The Agoda WhiteFalcon retention detail is likewise real, from the WhiteFalcon architecture doc, and I contributed to that system directly as a Senior Engineer for about five months. The GPU quota request is mine, this week, for this repo &mdash; I have not yet run the training job itself, which is exactly what this post is honest about.
+  <div class="attr-label">Scope note &mdash; a real priority model, a new personal generator</div>
+  The PAS adjustment-priority table below (Corrections &gt; Overrides &gt; FSP &gt; Main &gt; Experiments) and Delphi's floor-wins conflict resolution are real, documented in the same Wayfair architecture reference this arc's other Wayfair posts cite. I led PAS end-to-end during my time there (Nov 2024&ndash;Mar 2026, Sr. Software Engineer III) and shipped directly against this priority model, but I didn't design the five-tier order itself &mdash; it predates my tenure. Today's <code>lora-trainer</code> config generator is the new system, mine, built this week, and considerably smaller in every dimension that matters (four rank rows, not ten adjustment types; a test suite, not 20k+ suppliers).
 </div>
 
-<h2 id="what-a-preempted-vm-actually-costs">What a Preempted VM Actually Costs</h2>
+<h2 id="pass-grid-ten-adjustment-types-one-priority-order">PAS's Grid &mdash; Ten Adjustment Types, One Priority Order</h2>
 
-<p>Wayfair ran <code>diy-pricing-kafka</code> and <code>file-processor</code> &mdash; two of the batch-shaped workloads in the pricing platform &mdash; on GKE spot VMs instead of standard ones, at roughly 60% lower cost for those pods. Spot pricing isn't a trick; it's a real trade, and the platform took it deliberately for anything that could tolerate interruption.</p>
-
-<p>The corresponding Dataflow projection pipeline &mdash; the one moving adjustment rows from CloudSQL into Bigtable &mdash; was built to survive that trade: on a crash, it checkpoints progress and resumes from the last checkpoint on restart, re-reading only rows changed after that point rather than replaying the whole window. That single design detail is the reason a preempted spot VM costs minutes of resumed work instead of hours of lost work.</p>
-
-<p>So what: cheap compute and safe compute aren't the same purchase, and the second one has to be built on purpose &mdash; a spot VM without a checkpoint strategy isn't a 60% discount, it's a coin flip on how much of the run survives the next preemption.</p>
-
-<h2 id="filing-the-form-without-that-safety-net-yet">Filing the Form Without That Safety Net, Yet</h2>
-
-<p>Here's what made this week's quota request uncomfortable in a way a work ticket never was: I'm requesting GPU time for a training script Day 129 hasn't written yet, against a checkpoint policy Day 130 hasn't implemented yet. The DESIGN.md I opened <code>lora-trainer</code> with this week (Day 127's own PR) exists specifically because I didn't want to be the person who learns the Wayfair lesson a second time, the hard way, on my own dime.</p>
-
-<p>Cloud GPU instances get preempted too &mdash; not identically to GKE spot VMs, but close enough that the failure mode rhymes: a training run with no checkpoint discipline treats every preemption as a full restart from step zero. On a multi-hour QLoRA fine-tune, that's not an inconvenience. It's the difference between a training run that costs what I budgeted for and one that costs three times that because it had to restart twice.</p>
-
-<p>So what: I fixed the checkpoint naming scheme and the save cadence in this week's design doc before I fixed anything about the model itself, because the VM I'm about to rent doesn't know or care that this is a hobby project instead of a Wayfair pricing pipeline.</p>
-
-<h2 id="a-second-budget-i-had-already-learned-to-fix-early">A Second Budget I'd Already Learned to Fix Early</h2>
-
-<p>The other habit I brought to this week's DESIGN.md wasn't about failure recovery at all &mdash; it was about deciding a resource ceiling before building anything that consumes it. WhiteFalcon's hot tier keeps only the last three to seven days of data at per-hour granularity; anything older moves to cold storage, by a retention window fixed at design time, not discovered later once Redis started falling over.</p>
-
-<p>That's the same move <code>lora-trainer/DESIGN.md</code> §2-3 makes for VRAM: fix the rank/alpha grid and work out the NF4 quantization arithmetic before Day 128's config generator has to guess what fits. A retention window is a disk budget decided in advance; a rank/alpha grid is a VRAM budget decided the same way.</p>
-
-<p>Neither system waited for a capacity failure to teach the lesson twice.</p>
-
-<div class="pullquote"><p>WhiteFalcon didn't discover its retention window by running out of Redis memory first. The budget came before the system that would have blown through it.</p></div>
-
-<p>So what: the habit that made this week's design doc easier to write wasn't anything about LoRA specifically &mdash; it was five months of watching a retention window keep a hot tier honest, applied to a resource I'd never budgeted for before.</p>
-
-<h2 id="three-systems-one-shape">Three Systems, One Shape</h2>
+<p>PAS resolved pricing adjustments across ten named types &mdash; FSP, HMGR, LMGR, Loyalty, Overrides, Corrections, Subsidies, RFP, Main, and Experiments &mdash; each with its own CloudSQL schema, its own Dataflow migration service projecting into a dedicated Bigtable column family, and its own fixed slot in a five-tier priority order. A pricing manager configuring a run never picked a priority. The system already had the answer, because letting two teams argue over whose adjustment wins at read time, per SKU, during a burst of 5K&ndash;10K adjustment writes in a two-to-five-minute window, doesn't scale.</p>
 
 <table>
-<tr><th>System</th><th>Resource being budgeted</th><th>What happens if you don't fix it up front</th></tr>
-<tr><td>WhiteFalcon (Agoda)</td><td>Hot-tier disk, via a 3&ndash;7 day retention window</td><td>Redis hot tier grows unbounded until it falls over</td></tr>
-<tr><td>Pricing pipeline (Wayfair)</td><td>Wall-clock survivability under spot-VM preemption</td><td>A preempted job restarts from zero instead of its last checkpoint</td></tr>
-<tr><td><code>lora-trainer</code> (this week, mine)</td><td>GPU VRAM, via a fixed rank/alpha grid and NF4 quant arithmetic</td><td>Day 128's config generator recommends a rank that doesn't fit the rented GPU</td></tr>
+<tr><th>Priority</th><th>Adjustment type</th><th>Behavior</th></tr>
+<tr><td>1 (highest)</td><td>Corrections</td><td>Overrides everything &mdash; manual fix for pricing errors</td></tr>
+<tr><td>2</td><td>Overrides</td><td>PM-set specific price, bypasses formula</td></tr>
+<tr><td>3</td><td>FSP (Floor/Shelf Price)</td><td>Sets price floors and ceilings</td></tr>
+<tr><td>4</td><td>Main (HMGR, LMGR, Loyalty)</td><td>Formula-based margin calculations</td></tr>
+<tr><td>5 (lowest)</td><td>Experiments</td><td>A/B test modifiers</td></tr>
 </table>
 
-<p>The middle row is the one I actually paid for personally this week, in the form of a quota justification I had to write myself instead of inheriting from a platform someone else already sized. Filing it made the other two rows feel less like two unrelated old jobs and more like the same rule shown twice before I had to apply it a third time.</p>
+<p>Main bundled three sub-types &mdash; HMGR and LMGR (high-margin and low-margin band formulas) and Loyalty &mdash; behind one priority slot, because all three compute a price the same way: a formula against a margin target, not a manually set value like Overrides or a hard limit like FSP. Domain isolation was the other half of the design: each type's own CloudSQL instance and column family meant a corrections-migration failure didn't block main-migration, and FSP could be sized at 8 vCPU while Main ran 16, independently, instead of one shared schema everyone had to migrate in lockstep.</p>
 
-<p>So what: none of these three systems needed a postmortem to arrive at a fixed resource budget &mdash; they needed someone to write the ceiling down before the first real run, which is the only step in this whole post I can say for certain I actually did.</p>
+<p>So what: the value of a fixed priority order wasn't that it was clever &mdash; it was that nobody had to re-derive "who wins" under load, mid-burst, with real supplier prices on the other side of the answer.</p>
 
-<h2 id="what-i-still-do-not-know">What I Still Don't Know</h2>
+<h2 id="delphis-non-negotiable-the-floor-always-wins">Delphi's Non-Negotiable: the Floor Always Wins</h2>
 
-<p>I haven't run the training job yet. The quota request is filed, the DESIGN.md is written, and Day 129's actual training script &mdash; the one that will tell me whether my rank/alpha grid's VRAM arithmetic holds up against a real GPU instead of a spreadsheet &mdash; hasn't shipped. I don't get to claim the checkpoint policy works until a preemption actually happens and the run actually resumes from where it left off.</p>
+<p>FSP sits at priority 3, below Corrections and Overrides &mdash; but it still beat Main's formula-computed price every time, because a computed price that undercuts a floor isn't a pricing decision, it's a bug. If FSP set a floor at $10 and Main's margin formula computed $8, the floor won outright. Main's $8 never reached the storefront.</p>
 
-<p>That's the honest gap in a "lessons from experience" post about an experience that isn't finished: the Wayfair and WhiteFalcon lessons are real and already proven, on systems other people ran at far larger scale than anything I'm about to rent. My own training run is still a bet that those lessons transfer, not a confirmation that they did.</p>
+<p>That's a specific design choice, not the only one available. PAS could have let Main's formula run and then silently nudge any result that fell below floor back up to $10 &mdash; same final price, different signal entirely. Instead the floor is a distinct, higher-priority adjustment type, so "the floor overrode Main's number" is a visible fact in the adjustment set Delphi reads, not a correction buried inside a formula nobody can see fired.</p>
 
-<p>So what: the design doc is the budget I fixed before spending anything. Whether it was the right budget is a question only next week's actual GPU bill and Day 130's first real preemption get to answer, not this post.</p>
+<p>So what: a floor you can see beat a formula is a floor you can audit later; a floor a formula silently respects is a floor you have to trust blind.</p>
+
+<h2 id="todays-grid-four-rank-rows-one-vram-floor">Today's Grid &mdash; Four Rank Rows, One VRAM Floor</h2>
+
+<p><code>lora-trainer/DESIGN.md</code>'s rank/alpha grid has the same two-part shape at a much smaller scale. Four rows &mdash; rank 8, 16, 32, 64 &mdash; each valid only above a fixed floor: a Llama-3-70B base model's NF4-quantized weight footprint, roughly 35.9GB, that no rank or preset gets to shrink. Every reserved-VRAM number <code>pkg/configgen.Recommend</code> works with is what's left <em>after</em> that floor, the same way every PAS adjustment operates on a price after FSP's floor has already been applied.</p>
+
+<table>
+<tr><th>System</th><th>Fixed floor</th><th>Config space</th><th>When a value can't respect it</th></tr>
+<tr><td>PAS (Wayfair)</td><td>FSP floor/shelf price, per SKU</td><td>10 adjustment types, 5-tier priority</td><td>Main's formula price is overridden &mdash; floor wins, visibly, in the adjustment set</td></tr>
+<tr><td><code>lora-trainer</code> (this week)</td><td>~35.9GB NF4 base-weight floor</td><td>4 rank/alpha rows &times; 2 target-module presets</td><td><code>Recommend()</code> returns an error naming the exact constraint that failed</td></tr>
+</table>
+
+<p>So what: neither floor is a suggestion &mdash; one is dollars per SKU, the other is gigabytes per GPU &mdash; and both exist so a downstream, compute-heavy step (Delphi's pricing pass, a multi-hour training run) never starts against a number the business or the hardware can't actually support.</p>
+
+<h2 id="two-axes-not-one-presets-alongside-ranks">Two Axes, Not One &mdash; Presets Alongside Ranks</h2>
+
+<p>PAS's grid wasn't one-dimensional either: an adjustment type (FSP vs. Main vs. Experiments) and a priority tier were two separate axes that happened to be fixed together in one table. <code>lora-trainer/DESIGN.md</code> §1 does the same thing with a second axis alongside rank: <code>attention-only</code> targets four projection matrices per transformer block, <code>attention+mlp</code> targets seven, and which preset the generator recommends is a second, VRAM-driven decision layered on top of the rank/alpha row &mdash; not a free combination of the two.</p>
+
+<p>So what: a config generator that only had one axis (just rank, or just a priority tier) would be simpler to write and wrong for the same reason a pricing engine with only "adjustment type" and no priority tier would be &mdash; real decisions here needed two coupled dimensions, not one.</p>
+
+<h2 id="same-decision-reject-dont-silently-clamp">Same Decision: Reject, Don't Silently Clamp</h2>
+
+<p>I considered clamping. If a GPU can't fit rank 64's adapter and optimizer state, silently fall back to rank 32 and still print a config &mdash; the command never fails, the operator gets <em>something</em>. I didn't build it that way. <code>pkg/configgen.Recommend</code> returns an error naming exactly which constraint failed: the NF4 floor exceeds total VRAM, or the adapter-plus-optimizer footprint exceeds what's reserved, or the activation budget can't fit even batch size 1 at the requested sequence length.</p>
+
+<p>That's the same call PAS already made with FSP: a floor that fires is a visible fact &mdash; an adjustment set field there, a returned error here &mdash; not a number a caller has to reverse-engineer later from a smaller-than-expected result. A generator that silently substitutes a valid config for the one you asked for is optimizing for "the command didn't crash," not for "the operator understood what happened."</p>
+
+<p>So what: rejecting loudly cost nothing in this week's code &mdash; 17 of <code>lora-trainer</code>'s tests exist specifically to check that the right error fires under the right constraint &mdash; and it's the same trade PAS made when it let a $10 floor visibly beat an $8 formula instead of hiding the difference behind a clamp.</p>
+
+<h2 id="what-this-analogy-isnt">What This Analogy Isn't</h2>
+
+<p>I'm not claiming a rank/alpha grid and a five-tier price-adjustment model are the same problem. SKU pricing has business stakeholders, regulatory constraints, and real supplier revenue on the other side of a wrong number; a LoRA config generator has none of that today &mdash; only a test suite, and no training run has used its output yet. The parallel is narrower and more mechanical than the headline makes it sound.</p>
+
+<p>Both are places where a fixed floor has to win over a computed recommendation. Both chose to make that override visible instead of silently correcting it. That's the piece that actually transferred from five months of shipping against PAS's priority model to this week's four-row grid &mdash; not the pricing domain, just the shape of the decision.</p>
+
+<p>So what: the design decision that traveled was "reject loud, name the constraint," not the domain it came from &mdash; which is a small enough claim I can stand behind without inflating this week's fairly small CLI into something it isn't.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 127 of 150</p>
-  <p><em>Next up:</em> <a href="day-128-hyperparameter-grids-wayfair-price-model-tuning.html">Day 128 &mdash; Hyperparameter Grids &mdash; Wayfair Price Model Tuning</a></p>
+  <p>Experience &middot; Day 128 of 150</p>
+  <p><em>Next up:</em> Day 129 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 126 — 90% of ML Is Data — Manager Quote I Now Believe (yesterday's post, this arc's other Wayfair-grounded angle: feature-pipeline staffing rather than spot-VM cost)</span>
+      <span>Day 127 — GPU Cluster Quotas — First Cloud Train Job (yesterday's post, this arc's other lora-trainer-grounded angle: resource budgets fixed before spending)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>1.5T events/day — what I worked on at Agoda (WhiteFalcon's retention-window and attribution context, cited above)</span>
+      <span>Supplier APIs and Token Buckets — Wayfair Circuit Breaker (this arc's other Wayfair design-tradeoff post, same PAS/pricing-platform context)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/206">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/208">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #206 (today's code deliverable — lora-trainer/DESIGN.md, the source of this post's VRAM-budget and checkpoint-naming detail)</span>
+      <span>infra-ai-streaming PR #208 (today's code deliverable — pkg/configgen, the source of this post's rank/alpha and VRAM-floor detail)</span>
     </a>
   </div>
 </div>
@@ -303,22 +313,23 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-a-preempted-vm-actually-costs">What a Preempted VM Actually Costs</a></li>
-      <li><a href="#filing-the-form-without-that-safety-net-yet">Filing the Form Without That Safety Net, Yet</a></li>
-      <li><a href="#a-second-budget-i-had-already-learned-to-fix-early">A Second Budget I'd Already Learned to Fix Early</a></li>
-      <li><a href="#three-systems-one-shape">Three Systems, One Shape</a></li>
-      <li><a href="#what-i-still-do-not-know">What I Still Don't Know</a></li>
+      <li><a href="#pass-grid-ten-adjustment-types-one-priority-order">PAS's Grid — Ten Types, One Order</a></li>
+      <li><a href="#delphis-non-negotiable-the-floor-always-wins">Delphi's Non-Negotiable</a></li>
+      <li><a href="#todays-grid-four-rank-rows-one-vram-floor">Today's Grid — Four Rank Rows</a></li>
+      <li><a href="#two-axes-not-one-presets-alongside-ranks">Two Axes, Not One</a></li>
+      <li><a href="#same-decision-reject-dont-silently-clamp">Same Decision: Reject, Don't Clamp</a></li>
+      <li><a href="#what-this-analogy-isnt">What This Analogy Isn't</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-127-gpu-cluster-quotas-first-cloud-train-job.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-128-hyperparameter-grids-wayfair-price-model-tuning.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=GPU+Cluster+Quotas+%E2%80%94+First+Cloud+Train+Job+%C2%B7+Day+127&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-127-gpu-cluster-quotas-first-cloud-train-job.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Hyperparameter+Grids+%E2%80%94+Wayfair+Price+Model+Tuning+%C2%B7+Day+128&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-128-hyperparameter-grids-wayfair-price-model-tuning.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -331,17 +342,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D125</span> Experience</div>
-          <a href="day-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="series-post-title">Data Quality Dashboards — Walmart Sensor Null Rates</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D126</span> Experience</div>
           <a href="day-126-90-percent-ml-is-data-wayfair-manager-quote.html" class="series-post-title">90% of ML Is Data — Manager Quote I Now Believe</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D127</span> Experience</div>
+          <a href="day-127-gpu-cluster-quotas-first-cloud-train-job.html" class="series-post-title">GPU Cluster Quotas — First Cloud Train Job</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D127</span> Experience &middot; now</div>
-          <div class="series-post-title">GPU Cluster Quotas — First Cloud Train Job</div>
-          <div class="series-post-desc">A Wayfair spot-VM lesson, an Agoda retention window, and my first GPU quota request.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D128</span> Experience &middot; now</div>
+          <div class="series-post-title">Hyperparameter Grids — Wayfair Price Model Tuning</div>
+          <div class="series-post-desc">PAS's floor-always-wins priority model, and why lora-trainer's config generator rejects instead of clamping.</div>
         </div>
       </div>
     </div>
