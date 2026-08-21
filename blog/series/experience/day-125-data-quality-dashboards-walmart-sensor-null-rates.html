@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 124 &mdash; Stratified Sampling &mdash; A/B Analysis at Wayfair | Experience Series</title>
-<meta name="description" content="Today's train/eval split hashes task_type and request_id together instead of request_id alone, so one busy category can't dominate which decile lands in eval. The same failure mode shows up in Wayfair PAS's real Experiments adjustment type -- a flat SKU-ID hash into treatment/control looks fine until a weekday-heavy sample tells you nothing true about weekend behavior.">
-<meta property="og:title" content="Day 124 &mdash; Stratified Sampling &mdash; A/B Analysis at Wayfair">
-<meta property="og:description" content="A design question today's split code raised, walked through against Wayfair PAS's real documented Experiments mechanism and its real weekday/weekend traffic split.">
+<title>Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates | Experience Series</title>
+<meta name="description" content="Today's dataset_manifest.json buckets a training export by token count, script, and task_type so a broken slice shows up as a shape change instead of staying invisible in the aggregate. WeIoT SmartBuildings' 7M+ sensor fleet at Walmart needed the identical instrument for a different kind of broken slice -- a device cohort silently going quiet.">
+<meta property="og:title" content="Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates">
+<meta property="og:description" content="A manifest that buckets by token count, script, and label is a health check, not a report. WeIoT SmartBuildings' real sensor-fleet architecture needed the same kind of per-slice dashboard, for a different kind of silent failure.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-124-stratified-sampling-wayfair-ab-analysis.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-125-data-quality-dashboards-walmart-sensor-null-rates.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-124-stratified-sampling-wayfair-ab-analysis.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-125-data-quality-dashboards-walmart-sensor-null-rates.png">
 <meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,21 +185,21 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 124 of 150</span>
-    <span class="tag">Experimentation</span>
-    <span class="tag">Pricing</span>
-    <span class="tag">Wayfair</span>
+    <span class="tag accent">Experience &middot; Day 125 of 150</span>
+    <span class="tag">Data Quality</span>
+    <span class="tag">Observability</span>
+    <span class="tag">Walmart</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 124 &mdash; Stratified Sampling &mdash; A/B Analysis at Wayfair</h1>
-  <p class="post-subtitle">Today's train/eval split hashes <code>task_type</code> and <code>request_id</code> together, not <code>request_id</code> alone, so one busy category can't dominate which decile lands in eval. Wayfair PAS's real Experiments mechanism makes the identical design choice, for the identical reason &mdash; and its own traffic data shows exactly what happens when you don't.</p>
+  <h1 class="post-title">Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates</h1>
+  <p class="post-subtitle">Today's <code>dataset_manifest.json</code> buckets a training export by token count, script, and <code>task_type</code> so a broken slice shows up as a shape change instead of hiding inside a healthy-looking average. WeIoT SmartBuildings' real 7M-sensor fleet needed the identical instrument for a different kind of broken slice.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 124 of 150</span>
+    <span class="meta-item">Experience &middot; Day 125 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
@@ -209,102 +209,102 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-124-stratified-sampling-wayfair-ab-analysis.png" alt="Day 124 — Stratified Sampling — A/B Analysis at Wayfair" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-125-data-quality-dashboards-walmart-sensor-null-rates.png" alt="Day 125 — Data Quality Dashboards — Walmart Sensor Null Rates" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's split function takes two arguments where it could have taken one. <code>split.Bucket(taskType, requestID string) int</code> hashes both the row's <code>task_type</code> and its <code>request_id</code> into a single decile, and only the rows that land in decile nine go to eval.</p>
+<p>Today's CLI mode doesn't clean anything. <code>dataprep dashboard</code> reads the same rows Day 123's dedup step already wrote and produces one file, <code>dataset_manifest.json</code>: a token-count histogram, a script-based language mix, and the exact <code>task_type</code> label distribution. Nothing in that file fixes a bad export &mdash; it only describes one.</p>
 
-<p>A simpler version &mdash; hash <code>request_id</code> alone &mdash; would have passed every test I could think to write against a single large category. It fails on a small one.</p>
+<p>That's the entire point of a distribution dashboard, and it's easy to undersell in a design doc: an aggregate number like "40,000 rows, average judge score 0.87" can look completely healthy while one slice of that export &mdash; one <code>task_type</code>, one script, one length bucket &mdash; is quietly broken. A manifest's job is to make that slice visible before a training run finds it the expensive way.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; a real system I led, a design lesson I'm applying to new code</div>
-  I led the PAS (Price Adjustment System) and Pricing, Promotions &amp; Discounts teams at Wayfair. PAS's <code>Experiments</code> adjustment type &mdash; a real, shipped mechanism, not a hypothetical &mdash; is the system this post reasons through, using its documented traffic numbers (366M weekday PAS hits vs. ~39M weekend, the 0.3&ndash;0.5x weekend multiplier) and its documented assignment mechanism (deterministic SKU-ID hashing into percentile buckets). What follows is a design comparison between that mechanism and today's <code>data-prep-pipeline</code> code, not a claim that I personally rebuilt PAS's A/B stack for this pipeline.
+  <div class="attr-label">Scope note &mdash; a real system I built, an illustrative scenario I'm reasoning through</div>
+  I architected the WeIoT SmartBuildings ingestion layer at Walmart Labs on Azure IoT Hub &mdash; 7M+ sensors, tens of millions of telemetry points per minute, feeding real-time HVAC control loops via Azure Stream Analytics across 50+ global facilities, plus the fault-tolerant edge-to-cloud OTA firmware framework that kept config syncs reliable for millions of distributed devices under intermittent network conditions. Those are the real system and the real numbers. The specific scenario below &mdash; a null-rate spike in one firmware cohort surfacing a bug roughly two days before it caused a visible HVAC failure &mdash; is an illustrative worked example built from that system's real failure surface (a device going quiet under bad firmware is exactly the class of problem the OTA framework existed to catch), not a claim that this exact timeline is a specific incident on record.
 </div>
 
-<h2 id="the-failure-a-flat-hash-cant-see">The Failure a Flat Hash Can't See</h2>
+<h2 id="the-failure-an-average-cant-see">The Failure an Average Can't See</h2>
 
-<p>Picture testing soil quality across a large field by walking to one random spot and pushing in a shovel. If the field is one uniform soil type, that single scoop is a fine sample. If one corner is sandy and another is clay, the scoop only ever tells you about wherever your feet happened to be standing &mdash; and a second scoop, taken the same random way, has no guarantee of landing anywhere near the first corner.</p>
+<p>Picture a building's HVAC system reporting temperature every thirty seconds from a hundred sensors. If five of those sensors go quiet for an hour, the building-wide average temperature barely moves &mdash; ninety-five readings still arrive on schedule, and the control loop that averages across the floor doesn't notice five missing inputs the way it would notice one wildly wrong one.</p>
 
-<p>A flat <code>hash(request_id) % 10</code> split has the same blind spot. Across a dataset dominated by one <code>task_type</code>, the law of large numbers does the stratifying for you almost by accident &mdash; enough rows, and roughly one in ten lands in the ninth decile no matter which field you hash.</p>
+<p>A quiet sensor isn't a loud failure. It's a null where a number used to be, in a dataset that's still 95% intact and still looks fine from the top.</p>
 
-<p>A small category has no such luck. A handful of rows, hashed independently, can land entirely in train or entirely in eval by the same kind of coincidence as one shovel scoop missing the sandy corner completely.</p>
+<p>Today's manifest has the same blind spot by design if you only look at the top-line count. Forty thousand rows with a healthy average judge score can still contain one <code>task_type</code> whose prompts are all getting truncated by a broken exporter, or one script whose rows are all one bad batch job's garbled output. The aggregate doesn't lie &mdash; it just doesn't look where the problem is.</p>
 
-<p>So what: a global hash split isn't wrong on average &mdash; it's wrong exactly where averages stop protecting you, on the categories too small for the law of large numbers to smooth over.</p>
+<p>So what: a dashboard that only reports totals is a report, not a diagnostic &mdash; the whole reason to bucket by token length, script, and label instead of just counting rows is that a broken slice is invisible until you look at slices.</p>
 
-<h2 id="wayfairs-real-version-of-the-same-question">Wayfair's Real Version of the Same Question</h2>
+<h2 id="weiots-real-version-of-the-same-question">WeIoT SmartBuildings' Real Version of the Same Question</h2>
 
-<p>PAS's <code>Experiments</code> adjustment type answers a structurally identical question: which SKUs get the treatment price and which stay in control. The mechanism, as I've described it before to interviewers walking through PAS's design: a PM defines a target population &mdash; say, 10% of SKUs in a category &mdash; and assignment runs as a deterministic hash of SKU ID modulo 100, bucketed into percentiles. The same SKU always lands in the same bucket on every pricing run, which is the whole point: a customer who sees a treatment price on Monday can't randomly see a control price on Tuesday just because the assignment re-rolled.</p>
+<p>The WeIoT ingestion layer answers a structurally identical question at a much larger scale: is every device cohort still reporting the way it's supposed to, or has one silently gone quiet. At 7M+ sensors and tens of millions of telemetry points a minute, a handful of missing devices moves the fleet-wide ingestion rate by a fraction of a percent &mdash; nothing a top-line dashboard would flag, and nothing a duty engineer glancing at "ingestion rate: nominal" would catch.</p>
 
-<p>That determinism requirement is exactly today's code's requirement too &mdash; <code>Bucket</code> has to return the same decile for the same row every time, or a dataset that gets re-exported after new rows are added would silently move an existing row from train to eval, which is what this day's own title calls leakage. PAS solved for consistency across pricing runs; today's split solves for consistency across dataset re-exports. Same mechanism, same reason: the assignment has to be a function of identity, not a fresh coin flip.</p>
+<p>The instrument that catches it is the same shape as today's manifest: slice the incoming stream by a dimension that actually varies &mdash; firmware version, device model, facility &mdash; and watch each slice's null rate independently, the same way <code>dataset_manifest.json</code> watches each <code>task_type</code>'s row count and each script's share independently instead of trusting one dataset-wide average.</p>
 
-<p>So what: "deterministic hash-based assignment" isn't a training-data-specific trick &mdash; it's the standard answer anywhere an experiment or a split needs the same subject to land on the same side of the line every time it's checked.</p>
+<p>That's precisely the gap the fault-tolerant OTA firmware framework exists to close on the other end: devices under intermittent network conditions need reliable config syncs specifically because "device went quiet" has to be recoverable, not just detectable. A per-cohort null-rate view is the detection half of that same problem &mdash; it can't fix a bad firmware push, but it can point at exactly which cohort needs the fix pushed first.</p>
 
-<h2 id="what-a-flat-sku-hash-would-miss">What a Flat SKU Hash Would Miss</h2>
+<p>So what: "slice by the dimension that actually varies, and watch each slice on its own" isn't a training-data-specific idea &mdash; it's the standard answer anywhere a fleet-wide average is large enough to hide a cohort-sized problem.</p>
 
-<p>Here is where PAS's own traffic numbers make the small-category problem concrete instead of abstract. PAS runs at 366M hits on a normal weekday and roughly 39M on a weekend day &mdash; not a small dip, close to a tenth of weekday volume, because supplier and pricing-manager activity (the actors who trigger most price adjustments) is a business-hours job that mostly stops on Saturday.</p>
+<h2 id="what-a-fleet-wide-average-would-miss">What a Fleet-Wide Average Would Miss</h2>
+
+<p>Here's where the shape of the failure matters more than the top-line number. A firmware bug that causes a device to intermittently drop its telemetry payload doesn't announce itself as a hard failure &mdash; the device is still online, still responding to health checks, just silently missing a growing fraction of its readings. Sliced by firmware version, that shows up early: one cohort's null rate climbing while every other cohort's stays flat.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">366M</span><span class="stat-label">Weekday PAS hits</span></div>
-  <div class="stat-cell"><span class="stat-num">~39M</span><span class="stat-label">Weekend PAS hits</span></div>
-  <div class="stat-cell"><span class="stat-num">~5%</span><span class="stat-label">Experiments' read share</span></div>
+  <div class="stat-cell"><span class="stat-num">7M+</span><span class="stat-label">Sensors in the fleet</span></div>
+  <div class="stat-cell"><span class="stat-num">50+</span><span class="stat-label">Global facilities</span></div>
+  <div class="stat-cell"><span class="stat-num">~48h</span><span class="stat-label">Illustrative lead time</span></div>
 </div>
 
-<p>A hash-only-on-SKU-ID assignment doesn't know what day it is. If an experiment's analysis window happens to span a long weekend, or a category is niche enough that its total weekly SKU count is small, the same failure mode from today's code shows up in a pricing context: a category's treatment and control groups can end up unevenly weighted toward whichever few days happened to generate most of that category's traffic, and a PM reading the results is comparing two groups that were never actually exposed to the same mix of weekday and weekend shoppers.</p>
+<p>Not sliced &mdash; averaged across the whole fleet &mdash; that same climbing null rate on one firmware cohort can stay statistically invisible for days, especially if the affected cohort is a minority of the fleet. By the time the failure is loud enough to show up in a facility-wide average (an HVAC loop actually misbehaving because it's control-looping on stale or missing readings), the root cause is a firmware bug that's been silently degrading a slice of the fleet the whole time. A per-cohort dashboard is the difference between finding that bug from a null-rate chart and finding it from a facilities complaint.</p>
 
-<p>The fix is the same shape in both places: stratify on the dimension that actually varies the outcome &mdash; <code>task_type</code> for a training-data split, category or traffic-day-type for a pricing experiment &mdash; instead of trusting one global hash to average it out for you.</p>
+<p>The training-data version of the same gap is smaller in stakes but identical in shape: a broken exporter silently truncating one <code>task_type</code>'s prompts doesn't crash the pipeline, and it doesn't move the dataset's average judge score enough to trip any threshold. It shows up as that one <code>task_type</code>'s token histogram collapsing toward the shortest bucket &mdash; visible in a slice, invisible in an average.</p>
 
-<p>So what: a random-looking split isn't automatically a fair one. It's fair only if the thing you didn't stratify on is evenly distributed in the first place, and weekend traffic at Wayfair's scale is proof that assumption doesn't hold for free.</p>
+<p>So what: the cost of not slicing isn't "you miss a rare edge case" &mdash; it's that the failure mode a slice-level dashboard exists to catch is, by construction, exactly the kind that doesn't move the number you'd otherwise be watching.</p>
 
-<h2 id="the-two-mechanisms-side-by-side">The Two Mechanisms, Side by Side</h2>
+<h2 id="the-two-dashboards-side-by-side">The Two Dashboards, Side by Side</h2>
 
 <table>
-<tr><th>Property</th><th>PAS Experiments (SKU hash)</th><th>Today's split (task_type + request_id hash)</th></tr>
-<tr><td>Question answered</td><td>Treatment or control, per SKU</td><td>Train or eval, per row</td></tr>
-<tr><td>Determinism requirement</td><td>Same SKU, same bucket, every pricing run</td><td>Same row, same bucket, every re-export</td></tr>
-<tr><td>Stratification key</td><td>Category (per this design's fix)</td><td><code>task_type</code></td></tr>
-<tr><td>Failure without it</td><td>Small category's treatment/control skewed by weekday/weekend mix</td><td>Small <code>task_type</code> entirely in train or entirely in eval</td></tr>
-<tr><td>Cost of adding it</td><td>Hash input grows by one field (category)</td><td>Hash input grows by one field (<code>task_type</code>)</td></tr>
+<tr><th>Property</th><th>WeIoT null-rate dashboard</th><th>Today's dataset_manifest.json</th></tr>
+<tr><td>Question answered</td><td>Is this device cohort still reporting fully?</td><td>Is this training-data slice still shaped like the rest?</td></tr>
+<tr><td>Slicing dimension</td><td>Firmware version / device model / facility</td><td>Token bucket / script / task_type</td></tr>
+<tr><td>Silent-failure signature</td><td>Null rate climbs in one cohort, fleet average barely moves</td><td>One slice's shape shifts, dataset-wide average barely moves</td></tr>
+<tr><td>What the dashboard fixes</td><td>Nothing &mdash; it points at which cohort needs the firmware fix</td><td>Nothing &mdash; it points at which slice needs the export fix</td></tr>
+<tr><td>Cost of adding it</td><td>One more field to slice ingestion metrics on</td><td>One more field (task_type) already free in the row schema</td></tr>
 </table>
 
-<p>The last row is the point worth sitting with. Stratifying isn't a heavier mechanism bolted onto the simple one &mdash; it's the same hash function fed one more field.</p>
+<p>The bottom row is the point worth sitting with, same as it was for yesterday's stratified split. Slicing isn't a heavier system bolted onto a simpler one &mdash; in both cases, the field you slice on was already sitting in the schema. The dashboard's whole cost is deciding to look at it independently instead of folding it into one number.</p>
 
-<p>PAS's own interview-prep notes on this system don't describe the category-level stratification fix as something already shipped; they describe deterministic SKU-ID hashing as the assignment mechanism, full stop. Reasoning through today's small-<code>task_type</code> bug is what makes the gap in that description visible: a single global hash key is one field away from being stratified, and it's easy to ship the version that's one field short.</p>
+<div class="pullquote"><p>A dashboard that only reports the total row count answers "how much data do I have." A dashboard that reports it per slice answers "which part of my data is lying to me" &mdash; and only one of those questions catches a silent failure before it's loud.</p></div>
 
-<div class="pullquote"><p>Determinism tells you the split won't drift. It says nothing about whether the split was balanced to begin with &mdash; those are two different guarantees, and only one of them comes for free from a hash function.</p></div>
+<p>So what: the value of a manifest isn't the numbers it reports at the top &mdash; it's that reporting them per slice turns a question nobody was asking ("is task_type X still healthy?") into one the dashboard answers automatically, every run.</p>
 
-<p>So what: a deterministic assignment and a stratified assignment solve two different problems that are easy to conflate, because the same hash function can provide either one depending only on which fields you feed it.</p>
+<h2 id="back-to-todays-actual-manifest">Back to Today's Actual Manifest</h2>
 
-<h2 id="back-to-todays-actual-split">Back to Today's Actual Split</h2>
+<p><code>pkg/dashboard.Build</code> ships exactly this shape: three independent slices &mdash; token-count bucket, dominant script, <code>task_type</code> &mdash; each with its own row count and share, computed over the whole export before Day 124's train/eval split is applied. None of the three numbers are exact in the tokenizer-accuracy sense (the histogram buckets a whitespace word count, and the language mix buckets a Unicode script, both documented as approximations in the package's own doc comment rather than presented as more precise than they are) &mdash; but exactness was never the point. A slice that's collapsed toward one bucket, or gone from three scripts to one, or lost a <code>task_type</code> entirely, is visible at a glance regardless of whether the underlying count is a real BPE token or a word.</p>
 
-<p><code>pkg/split.Split</code> ships the fix directly: <code>Bucket(taskType, requestID)</code> folds both fields into one FNV hash before taking it modulo 10, so every <code>task_type</code> stratum gets its own independent ~90/10 split rather than sharing one global hash space a large stratum could dominate. The stats notebook this day also ships exists because a hash-bucketed split is only statistically close to 90/10 for strata with enough rows &mdash; determinism is provable from the code, but balance has to be checked against the actual output, every time.</p>
+<p>That's the same tradeoff the WeIoT null-rate view makes: a per-cohort null percentage doesn't need to be perfectly calibrated to be useful. It needs to move visibly when a cohort actually breaks, and stay flat when nothing has &mdash; a coarse instrument watching the right slice beats a precise one watching only the aggregate.</p>
 
-<p>That checking step is the same discipline PAS's own experiment design leans on operationally: an experiment's read-model results get reviewed in BigQuery and Looker before anyone trusts the revenue and margin numbers, not assumed correct because the assignment mechanism sounds deterministic on paper.</p>
-
-<p>So what: neither mechanism gets to skip the audit step just because the hash function is deterministic &mdash; determinism proves the split is stable, not that it was fair, and those are two different questions worth asking separately.</p>
+<p>So what: neither dashboard's job is to be exact. Both exist to make one question answerable at a glance &mdash; "did any one slice just change shape" &mdash; that a single top-line number can never answer, no matter how precisely it's computed.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 124 of 150</p>
-  <p><em>Next up:</em> <a href="day-125-data-quality-dashboards-walmart-sensor-null-rates.html">Day 125 &mdash; Data Quality Dashboards &mdash; Walmart Sensor Null Rates</a></p>
+  <p>Experience &middot; Day 125 of 150</p>
+  <p><em>Next up:</em> Day 126 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-114-wayfair-ab-price-tests-ethical-holdouts.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 114 — Wayfair A/B Price Tests — Ethical Holdouts (the same PAS Experiments mechanism, from the fairness-to-customers angle instead of the sampling-balance angle)</span>
+      <span>Day 120 — Training Data Is Production Data — Legal at Walmart (this arc's other Walmart-grounded post, from the compliance angle instead of the sensor-fleet angle)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-123-bloom-vs-minhash-dedup-tradeoffs.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 123 — Dedup at 1.5T/day — Bloom vs MinHash Tradeoff (yesterday's design-tradeoff post, same data-prep-pipeline arc)</span>
+      <span>Day 124 — Stratified Sampling — A/B Analysis at Wayfair (yesterday's design-tradeoff post, same data-prep-pipeline arc)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/203">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/204">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #203 (today's code deliverable — pkg/split, pkg/convert, and the dataprep split CLI mode this post is about)</span>
+      <span>infra-ai-streaming PR #204 (today's code deliverable — pkg/dashboard and the dataprep dashboard CLI mode this post is about)</span>
     </a>
   </div>
 </div>
@@ -315,22 +315,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-failure-a-flat-hash-cant-see">The Failure a Flat Hash Can't See</a></li>
-      <li><a href="#wayfairs-real-version-of-the-same-question">Wayfair's Real Version</a></li>
-      <li><a href="#what-a-flat-sku-hash-would-miss">What a Flat SKU Hash Would Miss</a></li>
-      <li><a href="#the-two-mechanisms-side-by-side">The Two Mechanisms, Side by Side</a></li>
-      <li><a href="#back-to-todays-actual-split">Back to Today's Actual Split</a></li>
+      <li><a href="#the-failure-an-average-cant-see">The Failure an Average Can't See</a></li>
+      <li><a href="#weiots-real-version-of-the-same-question">WeIoT's Real Version</a></li>
+      <li><a href="#what-a-fleet-wide-average-would-miss">What a Fleet-Wide Average Would Miss</a></li>
+      <li><a href="#the-two-dashboards-side-by-side">The Two Dashboards, Side by Side</a></li>
+      <li><a href="#back-to-todays-actual-manifest">Back to Today's Actual Manifest</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-124-stratified-sampling-wayfair-ab-analysis.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Stratified+Sampling+%E2%80%94+A%2FB+Analysis+at+Wayfair+%C2%B7+Day+124&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-124-stratified-sampling-wayfair-ab-analysis.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Data+Quality+Dashboards+%E2%80%94+Walmart+Sensor+Null+Rates+%C2%B7+Day+125&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -346,14 +346,14 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
           <div class="series-post-kicker"><span class="series-post-num">D123</span> Experience</div>
           <a href="day-123-bloom-vs-minhash-dedup-tradeoffs.html" class="series-post-title">Dedup at 1.5T/day — Bloom vs MinHash Tradeoff</a>
         </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D124</span> Experience &middot; now</div>
-          <div class="series-post-title">Stratified Sampling — A/B Analysis at Wayfair</div>
-          <div class="series-post-desc">A deterministic hash proves a split is stable. It says nothing about whether the split was balanced.</div>
-        </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D125</span> Experience</div>
-          <a href="day-125-data-quality-dashboards-walmart-sensor-null-rates.html" class="series-post-title">Data Quality Dashboards — Walmart Sensor Null Rates</a>
+          <div class="series-post-kicker"><span class="series-post-num">D124</span> Experience</div>
+          <a href="day-124-stratified-sampling-wayfair-ab-analysis.html" class="series-post-title">Stratified Sampling — A/B Analysis at Wayfair</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D125</span> Experience &middot; now</div>
+          <div class="series-post-title">Data Quality Dashboards — Walmart Sensor Null Rates</div>
+          <div class="series-post-desc">A dashboard that only reports totals is a report. Slicing it is what makes it a diagnostic.</div>
         </div>
       </div>
     </div>

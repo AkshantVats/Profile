@@ -1380,6 +1380,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html",
+          "kicker": "Experience · Day 125 of 150",
+          "title": "Day 125 — Data Quality Dashboards — Walmart Sensor Null Rates",
+          "subtitle": "Null spike predicted firmware bug 48h early",
+          "date": "2026-08-21",
+          "slug": "day-125-data-quality-dashboards-walmart-sensor-null-rates",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html",
+          "coverImage": "blog/assets/covers/day-125-data-quality-dashboards-walmart-sensor-null-rates.png",
+          "desc": "Today's dataset_manifest.json buckets a training export by token count, script, and task_type so a broken slice shows as a shape change instead of hiding in a healthy average. WeIoT SmartBuildings' real 7M-sensor fleet at Walmart needed the same per-cohort instrument for a different kind of silent failure."
+        },
+        {
           "href": "blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html",
           "kicker": "Experience · Day 124 of 150",
           "title": "Day 124 — Stratified Sampling — A/B Analysis at Wayfair",
