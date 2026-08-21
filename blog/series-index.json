@@ -1416,6 +1416,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-128-hyperparameter-grids-wayfair-price-model-tuning.html",
+          "kicker": "Experience · Day 128 of 150",
+          "title": "Day 128 — Hyperparameter Grids — Wayfair Price Model Tuning",
+          "subtitle": "Grid search automated but needed guardrails",
+          "date": "2026-08-21",
+          "slug": "day-128-hyperparameter-grids-wayfair-price-model-tuning",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-128-hyperparameter-grids-wayfair-price-model-tuning.html",
+          "coverImage": "blog/assets/covers/day-128-hyperparameter-grids-wayfair-price-model-tuning.png",
+          "desc": "PAS's Floor/Shelf Price always beat Main's formula, no matter what the formula computed -- a fixed guardrail, not a suggestion. This week's lora-trainer config generator makes the same call on a GPU's VRAM floor: reject with a named constraint, don't silently clamp to the nearest valid rank."
+        },
+        {
           "href": "blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html",
           "kicker": "Experience · Day 127 of 150",
           "title": "Day 127 — GPU Cluster Quotas — First Cloud Train Job",
