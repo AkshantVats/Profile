@@ -1392,6 +1392,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html",
+          "kicker": "Experience · Day 126 of 150",
+          "title": "Day 126 — 90% of ML Is Data — Manager Quote I Now Believe",
+          "subtitle": "Spent 3 weeks on features, 3 days on model",
+          "date": "2026-08-21",
+          "slug": "day-126-90-percent-ml-is-data-wayfair-manager-quote",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html",
+          "coverImage": "blog/assets/covers/day-126-90-percent-ml-is-data-wayfair-manager-quote.png",
+          "desc": "A Wayfair manager's line about ML being mostly data work, argued with at the time -- until my own team's Bigtable labels feeding a 200K-RPS ML pipeline, and today's dedup benchmark taking 73% of the pipeline's wall-clock, both proved the same ratio."
+        },
+        {
           "href": "blog/series/experience/day-125-data-quality-dashboards-walmart-sensor-null-rates.html",
           "kicker": "Experience · Day 125 of 150",
           "title": "Day 125 — Data Quality Dashboards — Walmart Sensor Null Rates",
