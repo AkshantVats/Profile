@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition | AI Learning Series</title>
-<meta name="description" content="target_modules=[q_proj, k_proj, v_proj, o_proj] in a trainer config looks like a list of layer names. It's actually a budget decision -- which frozen weight matrices get a rank-r side path, and rank is the same move as compressed sensing: a low-dimensional approximation of an update that never needed the full-rank space it lives in.">
-<meta property="og:title" content="Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition">
-<meta property="og:description" content="Rank decomposition like compressed sensing -- a target_modules list is a budget decision before it's a config value, and rank is what makes the budget affordable.">
+<title>Day 128 &mdash; Rank and Alpha &mdash; Capacity vs Overfit | AI Learning Series</title>
+<meta name="description" content="A rank that fits your GPU's VRAM and a rank that's right for your dataset are two different questions. Nominal rank is a capacity ceiling, not an achieved capacity -- and lora-trainer's own narrow-task flag caps rank at 8 for reasons that have nothing to do with VRAM.">
+<meta property="og:title" content="Day 128 &mdash; Rank and Alpha &mdash; Capacity vs Overfit">
+<meta property="og:description" content="Higher rank = more capacity, more VRAM -- but capacity that a narrow dataset can't productively use goes somewhere: into memorizing the training rows instead of the pattern they share.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-lora-low-rank-adaptation-intuition.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-128-rank-alpha-capacity-vs-overfit.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-128-rank-alpha-capacity-vs-overfit.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-127-lora-low-rank-adaptation-intuition.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-128-rank-alpha-capacity-vs-overfit.png">
 <meta property="article:published_time" content="2026-08-21">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 127 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 128 of 150</span>
     <span class="tag">LoRA</span>
-    <span class="tag">Fine-Tuning</span>
-    <span class="tag">QLoRA</span>
+    <span class="tag">Overfitting</span>
+    <span class="tag">Hyperparameters</span>
   </div>
-  <h1 class="post-title">Day 127 &mdash; LoRA &mdash; Low-Rank Adaptation Intuition</h1>
-  <p class="post-subtitle">A <code>target_modules</code> list in a trainer config reads like naming which layers to touch. It's actually a budget decision, and the rank next to it is the same move as compressed sensing &mdash; a low-dimensional approximation of an update that never needed the full-rank space it technically lives in.</p>
+  <h1 class="post-title">Day 128 &mdash; Rank and Alpha &mdash; Capacity vs Overfit</h1>
+  <p class="post-subtitle">Higher rank means more capacity, and more VRAM &mdash; yesterday's post covered the VRAM half. The capacity half is a different question: capacity a narrow dataset can't productively use doesn't sit idle, it goes somewhere, and where it goes is memorizing the training rows instead of the pattern they share.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 127 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 128 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 21, 2026</span>
     <div class="meta-divider"></div>
@@ -208,31 +208,35 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-127-lora-low-rank-adaptation-intuition.png" alt="Day 127 — LoRA — Low-Rank Adaptation Intuition" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-128-rank-alpha-capacity-vs-overfit.png" alt="Day 128 — Rank and Alpha — Capacity vs Overfit" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p><code>target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]</code> in a trainer config reads like a list of which layers to touch during fine-tuning, and stops there for most people who copy it out of a tutorial. Writing this week's <code>lora-trainer/DESIGN.md</code> forced the next question: touch them <em>how</em>, and why does the list stop at four names instead of naming every linear layer in the model?</p>
+<p>Run <code>loraconfig -gpu-vram-gb 80</code> and it prints a rank, an alpha, a preset, and a batch size &mdash; the whole point of yesterday's CLI is handing you a config without making you derive any of it by hand. What it doesn't print is whether that rank is the <em>right</em> one for what you're about to train, which turns out to be a different question from whether it fits.</p>
 
-<h2 id="what-the-list-is-actually-selecting">What the List Is Actually Selecting</h2>
+<h2 id="two-different-questions-with-the-same-answer-key">Two Different Questions With the Same Answer Key</h2>
 
-<p>A frozen pretrained weight matrix, <code>W</code>, doesn't move during LoRA fine-tuning. What moves is a separate update, <code>&Delta;W</code>, added to it at inference time &mdash; and LoRA's entire trick is refusing to store <code>&Delta;W</code> at full size. Instead it factors <code>&Delta;W</code> into two much smaller matrices, <code>B</code> and <code>A</code>, whose product approximates the update at a fraction of the parameters a full <code>&Delta;W</code> would cost.</p>
+<p>"Does rank 64 fit on this GPU" is a hardware question: sum the NF4 base floor, the adapter weights, the optimizer state, and the activation budget, and check the total against 80GB. Yesterday's post walked that arithmetic end to end. "Is rank 64 the right capacity for this training run" is a statistics question, and it has nothing to do with the GPU at all &mdash; it depends on how much genuine signal is in the dataset the adapter is about to see.</p>
 
-<p><code>target_modules</code> is the list of which <code>W</code> matrices get this treatment. Every entry in it &mdash; <code>q_proj</code>, <code>k_proj</code>, <code>v_proj</code>, <code>o_proj</code> for attention, <code>gate_proj</code>/<code>up_proj</code>/<code>down_proj</code> for a Llama-shaped MLP block &mdash; is a separate frozen matrix that gets its own <code>B&middot;A</code> side path. Leave a matrix off the list, and it stays exactly as pretrained, full stop.</p>
+<p><code>lora-trainer/DESIGN.md</code>'s grid answers the first question by construction: every row is sized against a VRAM band. It does not answer the second question, and conflating the two is the easiest way to end up training a rank-64 adapter on a dataset that only needed rank 8.</p>
 
-<p>So what: the list isn't naming "which parts of the model learn" in some vague sense &mdash; it's naming, one frozen matrix at a time, exactly where a low-rank side path gets attached, and everything left off the list is not being fine-tuned at all, no matter how central that layer is to the forward pass.</p>
+<p>So what: a rank that fits is a necessary condition for training to run at all, and a wholly separate, insufficient one for training to <em>generalize</em> &mdash; the CLI checks the first, and nothing in yesterday's grid checks the second.</p>
 
-<h2 id="the-compressed-sensing-intuition">The Compressed Sensing Intuition</h2>
+<h2 id="nominal-rank-is-a-ceiling-not-an-achievement">Nominal Rank Is a Ceiling, Not an Achievement</h2>
+
+<p>Rank <code>r</code> in a LoRA config sets the maximum rank the update <code>&Delta;W = B &middot; A</code> is <em>allowed</em> to have, because <code>B</code> and <code>A</code> are <code>d&times;r</code> and <code>r&times;d</code> matrices whose product can't exceed rank <code>r</code> no matter how they're trained. It says nothing about the rank the optimizer actually needs to fit the training data well.</p>
+
+<p>If the true update a task needs is rank 6, training with <code>r=64</code> doesn't force the optimizer to somehow "waste" 58 dimensions productively. Gradient descent will use whatever capacity is available to keep driving training loss down, and once the genuinely useful rank-6 direction is captured, the remaining capacity has nowhere left to go except toward patterns that reduce loss on <em>these specific rows</em> &mdash; a training-set idiosyncrasy, a repeated phrasing, a label that happens to correlate with an irrelevant token in this particular sample.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; recovering a signal from far fewer numbers than it looks like it needs</div>
-  Compressed sensing reconstructs a signal &mdash; an image, an audio clip &mdash; from far fewer measurements than the signal's raw dimension would seem to require, and it works because most real signals aren't actually using all of that dimension. A photo of a mostly-blue sky has millions of pixels but almost no information content across most of them; a handful of well-chosen measurements is enough to reconstruct it exactly, because the signal's true complexity lives in a small subspace of the space it's stored in. Rank-<code>r</code> LoRA makes the identical bet about a fine-tuning update: <code>&Delta;W</code> is stored as a full <code>d&times;d</code> matrix's worth of numbers, but the argument for LoRA is that the <em>useful</em> update &mdash; the direction fine-tuning actually needs to move the weights &mdash; occupies a rank far lower than <code>d</code>, so a rank-<code>r</code> approximation with <code>r</code> in the dozens recovers nearly all of it.
+  <div class="attr-label">DS analogy &mdash; a pool sized for peak hides the signal that would show you a problem</div>
+  A connection pool sized to your absolute peak load, held there permanently, isn't just a memory cost. It hides backpressure: nothing ever queues, so the signal that would tell you a downstream dependency is degrading &mdash; growing queue depth, rising wait time &mdash; never fires, and the first sign of trouble is a different, worse failure once the pool itself finally saturates. An over-ranked adapter fails the same way, in-sample: training loss keeps dropping smoothly as the extra capacity soaks up training-row idiosyncrasies the same way spare pool connections soak up load, and the number that would actually reveal the problem &mdash; held-out eval loss, not training loss &mdash; is a separate measurement nobody is forced to take before calling the run a success.
 </div>
 
-<p>The parallel isn't decorative. Both techniques are betting that a signal which <em>looks</em> high-dimensional by construction is actually low-dimensional by content, and both fail the same way if that bet is wrong &mdash; too few measurements reconstructs a blurred photo, and too low a rank ships an adapter that can't represent the update the fine-tune actually needed.</p>
+<p>So what: the danger in both cases isn't the extra capacity by itself, it's that the extra capacity produces a metric that looks fine right up until the one metric that would have caught it is checked separately, on purpose.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -251,69 +255,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
     'edgeLabelBackground': '#0d2137'
   }
 }}%%
-flowchart TD
-  IN["Input activations"] --> FROZEN["Frozen W, 4-bit NF4"]
-  IN --> LA["LoRA A, rank r"]
-  LA --> LB["LoRA B, rank r"]
-  FROZEN --> SUM["Add outputs"]
-  LB --> SUM
-  SUM --> OUT["Output activations"]</pre>
+flowchart LR
+  A["Rank below true update rank"] --> B["Underfits, can't represent it"]
+  C["Rank matches true update rank"] --> D["Fits the pattern, generalizes"]
+  E["Rank far above true rank"] --> F["Extra capacity fits row noise"]</pre>
 
-<p>So what: the diagram's two paths never touch each other's weights &mdash; <code>FROZEN</code> never updates and <code>LA</code>/<code>LB</code> never see the pretraining data again &mdash; which is exactly why swapping in a different rank-<code>r</code> adapter later means changing the top path's two small matrices and nothing about the bottom one.</p>
+<p>So what: only the middle path is doing what a config generator's job description implies &mdash; the left and right paths both fail, just in opposite directions, and a grid keyed only to VRAM can land you on either one without any warning.</p>
 
-<h2 id="rank-is-a-budget-not-a-quality-knob">Rank Is a Budget, Not a Quality Knob</h2>
+<h2 id="why-narrow-task-caps-at-rank-8-regardless-of-vram">Why <code>-narrow-task</code> Caps at Rank 8, Regardless of VRAM</h2>
 
-<p>It's tempting to treat rank the way you'd treat a learning rate &mdash; turn it up until quality stops improving. This week's design doc fixes a small grid instead: <code>r&isin;{8,16,32,64}</code>, with <code>alpha</code> pinned at <code>2r</code> across every row, not a second free variable to search over.</p>
+<p>This is the part yesterday's code actually encodes. <code>lora-trainer/DESIGN.md</code> §2's grid names one explicit exception: a narrow single-task adapter &mdash; trained on one <code>task_type</code> slice of <code>data-prep-pipeline</code>'s stratified export, not the full mix &mdash; caps at rank 8 even when the GPU has VRAM to spare for rank 64. <code>pkg/configgen.selectGridRow</code> implements that exception literally: <code>if narrowTask { return grid[0] }</code>, before it ever looks at reserved VRAM at all.</p>
 
-<p>That fixed ratio matters more than it looks. LoRA's actual update at inference time is scaled by <code>alpha/r</code>, so holding that ratio constant means a bigger rank buys more expressive capacity without also silently changing how strongly the adapter's output gets blended back in &mdash; rank and update magnitude move independently, on purpose.</p>
+<p>The reasoning is exactly this post's argument, encoded as a config default instead of left as a footnote. A single <code>task_type</code> slice is a narrower, more homogeneous dataset than the full stratified export &mdash; less genuine variation for a large adapter's extra capacity to spend on &mdash; so the true update rank that slice needs is plausibly lower, and handing it rank 64 anyway buys headroom the data can't productively fill.</p>
 
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">84M</span><span class="stat-label">attention-only params, rank 16</span></div>
-  <div class="stat-cell"><span class="stat-num">147M</span><span class="stat-label">attn+MLP params, rank 16</span></div>
-  <div class="stat-cell"><span class="stat-num">2.0</span><span class="stat-label">alpha/r, fixed across the grid</span></div>
-</div>
+<p>So what: <code>-narrow-task</code> is the one place in yesterday's CLI where a statistics judgment overrides a hardware one on purpose &mdash; a GPU that could easily afford rank 64 still gets told rank 8, because "can afford it" and "should use it" were never the same question to begin with.</p>
 
-<p>So what: a rank grid with a fixed <code>alpha/r</code> turns "how big should the adapter be" from an open search into a lookup against reserved training VRAM &mdash; the same "fix the field, don't build the search" move a first pass at a new module gets to make before any training script exists to search with.</p>
+<h2 id="what-the-grid-still-cant-tell-you">What the Grid Still Can't Tell You</h2>
 
-<h2 id="the-arithmetic-rank-doesnt-show-you">The Arithmetic Rank Doesn't Show You</h2>
+<p>None of this means rank 64 is wrong on a full stratified export, or that rank 8 is always safe. The QLoRA paper's own reported results are conspicuously flat across a wide range of ranks on many benchmarks &mdash; a signal that, past some point, more rank buys diminishing returns for a lot of realistic fine-tuning tasks, not a guarantee that any specific rank is safe for any specific dataset.</p>
 
-<p>None of the numbers above account for the frozen base model itself, and that's the arithmetic a rank grid alone will never surface. A 70B base in 4-bit NF4, with double quantization on the block-wise scale constants, is roughly 36GB before a single adapter parameter exists &mdash; the floor every "reserved training VRAM" figure in this week's grid sits <em>above</em>, not instead of.</p>
+<p>The honest gap: <code>pkg/configgen.Recommend</code> has no eval-loss signal to check against, because no training run has happened yet. It can only enforce what's mechanically knowable in advance &mdash; VRAM fit, and the one named exception DESIGN.md already committed to for narrow tasks &mdash; and it says nothing about whether a full-dataset rank-64 run this week will actually generalize once Day 129's training script runs it against real held-out data.</p>
 
-<p>Double quantization is a second, smaller compression pass on top of NF4: the per-block scale constants NF4 needs are themselves quantized, saving roughly another 0.4 bits per parameter. At 70B parameters that's not a rounding error &mdash; it's close to 3.5GB, recovered by compressing the metadata a compression scheme needed to describe itself.</p>
-
-<p>So what: a rank of 64 looks four times more expensive than a rank of 8 by parameter count alone, but both numbers are dwarfed by the ~36GB NF4 floor underneath them &mdash; which is why the design doc treats quantization arithmetic and the rank grid as one budget, not two separate decisions made by two different people at two different times.</p>
-
-<h2 id="the-generalizable-lesson">The Generalizable Lesson</h2>
-
-<p>The specific numbers here are Llama-3-70B's. The transferable part generalizes to any low-rank adaptation of any large frozen model:</p>
-
-<ol>
-<li>A <code>target_modules</code> list is a per-matrix decision, not a per-layer or per-model one &mdash; a matrix left off the list is not fine-tuned at all, regardless of how central it is to the forward pass.</li>
-<li>Rank is a capacity bet, not a quality dial to maximize &mdash; the compressed-sensing framing (a high-dimensional signal that's actually low-rank in content) is the argument for why a small rank works at all, and it's a bet that can be wrong for a task far outside the base model's pretraining distribution.</li>
-<li>A VRAM budget built from a rank grid alone is incomplete without the frozen base model's own quantized footprint underneath it &mdash; the adapter is the part everyone sizes first, and the frozen weights are usually the part that actually decides whether the whole thing fits.</li>
-</ol>
-
-<p>The tutorial version of <code>target_modules</code> is a copy-pasted list of four or seven strings. The version that survives writing a design doc against a real 70B model and a real GPU budget is a statement about which frozen matrices get a rank-<code>r</code> approximation, sized against a quantization floor that was never optional to account for.</p>
+<p>So what: a config generator can encode "don't give a narrow task more capacity than it needs" as a rule today, but "is this rank right for this specific dataset" is an empirical question only a completed training run with a held-out eval split can answer &mdash; which is precisely the run this generator's output hasn't been through yet.</p>
 
 <div class="series-footer">
-  <p>Day 127 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-128-rank-alpha-capacity-vs-overfit.html">Day 128 &mdash; Rank and Alpha &mdash; Capacity vs Overfit</a></p>
+  <p>Day 128 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 129 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-126-data-centric-ai-labels-from-judges.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-127-lora-low-rank-adaptation-intuition.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 126 — Data-Centric AI — Labels from Judges (yesterday's post, the last stop on data-prep-pipeline before this arc moves to lora-trainer)</span>
+      <span>Day 127 — LoRA — Low-Rank Adaptation Intuition (yesterday's post, the VRAM-budget half of this same rank/alpha grid)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching — the series' GOLD reference post on reading a scheduling mechanism at this same depth</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/206">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/208">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #206 (today's code deliverable — lora-trainer/DESIGN.md, the source of this post's target-module presets, rank grid, and VRAM arithmetic)</span>
+      <span>infra-ai-streaming PR #208 (today's code deliverable — pkg/configgen, the source of this post's narrow-task rank-8 cap)</span>
     </a>
   </div>
 </div>
@@ -324,22 +307,21 @@ flowchart TD
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#what-the-list-is-actually-selecting">What the List Is Actually Selecting</a></li>
-      <li><a href="#the-compressed-sensing-intuition">The Compressed Sensing Intuition</a></li>
-      <li><a href="#rank-is-a-budget-not-a-quality-knob">Rank Is a Budget, Not a Quality Knob</a></li>
-      <li><a href="#the-arithmetic-rank-doesnt-show-you">The Arithmetic Rank Doesn't Show You</a></li>
-      <li><a href="#the-generalizable-lesson">The Generalizable Lesson</a></li>
+      <li><a href="#two-different-questions-with-the-same-answer-key">Two Different Questions</a></li>
+      <li><a href="#nominal-rank-is-a-ceiling-not-an-achievement">Nominal Rank Is a Ceiling</a></li>
+      <li><a href="#why-narrow-task-caps-at-rank-8-regardless-of-vram">Why -narrow-task Caps at 8</a></li>
+      <li><a href="#what-the-grid-still-cant-tell-you">What the Grid Still Can't Tell</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-127-lora-low-rank-adaptation-intuition.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-128-rank-alpha-capacity-vs-overfit.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=LoRA+%E2%80%94+Low-Rank+Adaptation+Intuition+%C2%B7+Day+127&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-127-lora-low-rank-adaptation-intuition.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Rank+and+Alpha+%E2%80%94+Capacity+vs+Overfit+%C2%B7+Day+128&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-128-rank-alpha-capacity-vs-overfit.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -352,17 +334,17 @@ flowchart TD
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D125</span> AI Learning</div>
-          <a href="day-125-dataset-statistics-shift-before-train.html" class="series-post-title">Dataset Statistics — Shift Before Train</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D126</span> AI Learning</div>
           <a href="day-126-data-centric-ai-labels-from-judges.html" class="series-post-title">Data-Centric AI — Labels from Judges</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D127</span> AI Learning</div>
+          <a href="day-127-lora-low-rank-adaptation-intuition.html" class="series-post-title">LoRA — Low-Rank Adaptation Intuition</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D127</span> AI Learning &middot; now</div>
-          <div class="series-post-title">LoRA — Low-Rank Adaptation Intuition</div>
-          <div class="series-post-desc">Rank decomposition like compressed sensing, budgeted against a real quantization floor.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D128</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Rank and Alpha — Capacity vs Overfit</div>
+          <div class="series-post-desc">Nominal rank is a ceiling, not an achieved capacity — and why narrow-task caps at rank 8 regardless of VRAM.</div>
         </div>
       </div>
     </div>
