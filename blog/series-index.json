@@ -1368,6 +1368,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html",
+          "kicker": "Experience · Day 124 of 150",
+          "title": "Day 124 — Stratified Sampling — A/B Analysis at Wayfair",
+          "subtitle": "Random split biased weekend traffic—stratify by segment",
+          "date": "2026-08-21",
+          "slug": "day-124-stratified-sampling-wayfair-ab-analysis",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html",
+          "coverImage": "blog/assets/covers/day-124-stratified-sampling-wayfair-ab-analysis.png",
+          "desc": "Today's train/eval split hashes task_type and request_id together so one busy category can't dominate eval. Wayfair PAS's real Experiments mechanism makes the identical design choice, and its own weekday/weekend traffic split shows exactly what a flat hash misses."
+        },
+        {
           "href": "blog/series/experience/day-123-bloom-vs-minhash-dedup-tradeoffs.html",
           "kicker": "Experience · Day 123 of 150",
           "title": "Day 123 — Dedup at 1.5T/day — Bloom vs MinHash Tradeoff",
