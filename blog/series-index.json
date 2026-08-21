@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-125-dataset-statistics-shift-before-train.html",
+          "kicker": "AI Learning · Day 125 of 150",
+          "title": "Day 125 — Dataset Statistics — Shift Before Train",
+          "subtitle": "EDA prevents day-4 loss flatline",
+          "date": "2026-08-21",
+          "slug": "day-125-dataset-statistics-shift-before-train",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-125-dataset-statistics-shift-before-train.html",
+          "coverImage": "blog/assets/covers/day-125-dataset-statistics-shift-before-train.png",
+          "desc": "A token histogram and label distribution don't fix a training export. What a rare label actually gets per gradient step at realistic batch sizes, computed from this pipeline's own real 1.3%-share codegen stratum -- and why that number stays invisible until the manifest computes it."
+        },
+        {
           "href": "blog/series/ai-learning/day-124-train-eval-leakage-stratified-splits.html",
           "kicker": "AI Learning · Day 124 of 150",
           "title": "Day 124 — Train/Eval Leakage — Stratified Splits",
