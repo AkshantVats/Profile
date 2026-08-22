@@ -1428,4 +1428,16 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/ai-learning/day-130-checkpointing-wal-for-gradients.html</loc>
+    <lastmod>2026-08-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/experience/day-130-checkpoint-corruption-resume-after-spot-kill.html</loc>
+    <lastmod>2026-08-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
