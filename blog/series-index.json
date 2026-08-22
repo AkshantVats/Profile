@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-129-qlora-4bit-training.html",
+          "kicker": "AI Learning · Day 129 of 150",
+          "title": "Day 129 — QLoRA — 4-bit Training",
+          "subtitle": "Quantized base weights save memory",
+          "date": "2026-08-22",
+          "slug": "day-129-qlora-4bit-training",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-129-qlora-4bit-training.html",
+          "coverImage": "blog/assets/covers/day-129-qlora-4bit-training.png",
+          "desc": "NF4 spaces its 16 buckets by quantile, not by fixed step -- precision where the weight distribution actually has values. Why it's applied only to the frozen base and never the LoRA adapter actually being trained."
+        },
+        {
           "href": "blog/series/ai-learning/day-128-rank-alpha-capacity-vs-overfit.html",
           "kicker": "AI Learning · Day 128 of 150",
           "title": "Day 128 — Rank and Alpha — Capacity vs Overfit",
