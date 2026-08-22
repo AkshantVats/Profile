@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-130-checkpointing-wal-for-gradients.html",
+          "kicker": "AI Learning · Day 130 of 150",
+          "title": "Day 130 — Checkpointing — WAL for Gradients",
+          "subtitle": "Resume training like Kafka offset commit",
+          "date": "2026-08-22",
+          "slug": "day-130-checkpointing-wal-for-gradients",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-130-checkpointing-wal-for-gradients.html",
+          "coverImage": "blog/assets/covers/day-130-checkpointing-wal-for-gradients.png",
+          "desc": "A checkpoint resumes the way a Kafka consumer resumes a topic -- by trusting only a committed pointer, never the last raw write. Why AdamW's momentum state doubles a LoRA checkpoint's size, and what this week's resume path honestly doesn't restore."
+        },
+        {
           "href": "blog/series/ai-learning/day-129-qlora-4bit-training.html",
           "kicker": "AI Learning · Day 129 of 150",
           "title": "Day 129 — QLoRA — 4-bit Training",
