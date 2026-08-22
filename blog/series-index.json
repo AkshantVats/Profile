@@ -1428,6 +1428,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-129-training-metrics-agoda-ingestion-lag.html",
+          "kicker": "Experience · Day 129 of 150",
+          "title": "Day 129 — Training Metrics — Agoda Ingestion Lag Analogy",
+          "subtitle": "Watch consumer lag not just loss curve",
+          "date": "2026-08-22",
+          "slug": "day-129-training-metrics-agoda-ingestion-lag",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-129-training-metrics-agoda-ingestion-lag.html",
+          "coverImage": "blog/assets/covers/day-129-training-metrics-agoda-ingestion-lag.png",
+          "desc": "WhiteFalcon's Redis hot tier only stayed correct if the Rust consumers stayed current -- a failure mode Kafka throughput alone couldn't reveal. Why lora-trainer's lora_training_metrics stream pairs tokens_per_second with loss instead of shipping loss alone."
+        },
+        {
           "href": "blog/series/experience/day-128-hyperparameter-grids-wayfair-price-model-tuning.html",
           "kicker": "Experience · Day 128 of 150",
           "title": "Day 128 — Hyperparameter Grids — Wayfair Price Model Tuning",
