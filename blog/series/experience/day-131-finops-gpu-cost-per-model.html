@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 130 &mdash; Checkpoint Corruption &mdash; Resume After Spot Kill | Experience Series</title>
-<meta name="description" content="A retry loop makes an unreliable write reliable. It doesn't make a three-file checkpoint atomic. Wayfair's GCS progress-write retries, Dataflow's checkpoint-and-resume, and why lora-trainer's save path writes its pointer file last.">
-<meta property="og:title" content="Day 130 &mdash; Checkpoint Corruption &mdash; Resume After Spot Kill">
-<meta property="og:description" content="Resume after a spot kill isn't only about whether a checkpoint exists -- it's about whether the crash landed before or after that checkpoint finished writing. Wayfair's retry patterns and this week's write-order fix.">
+<title>Day 131 &mdash; FinOps GPU &mdash; Finance Asked for Cost Per Model | Experience Series</title>
+<meta name="description" content="A retail cost calculator aggregates a dozen upstream feeds at thousands of queries per second. This week's GPU cost calculator does one multiply. Why cost.py chose a static rate table over a live pricing feed, and what that decision actually costs.">
+<meta property="og:title" content="Day 131 &mdash; FinOps GPU &mdash; Finance Asked for Cost Per Model">
+<meta property="og:description" content="GPU $/hr x measured wall time -> total. The design decision wasn't the math -- it was choosing which two of flexible, zero-dependency, and accurate to keep.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-130-checkpoint-corruption-resume-after-spot-kill.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-130-checkpoint-corruption-resume-after-spot-kill.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-131-finops-gpu-cost-per-model.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-131-finops-gpu-cost-per-model.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-130-checkpoint-corruption-resume-after-spot-kill.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-131-finops-gpu-cost-per-model.png">
 <meta property="article:published_time" content="2026-08-22">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,136 +185,121 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 130 of 150</span>
-    <span class="tag">Checkpoint Corruption</span>
-    <span class="tag">Object Storage</span>
+    <span class="tag accent">Experience &middot; Day 131 of 150</span>
+    <span class="tag">Cost Accounting</span>
+    <span class="tag">FinOps</span>
     <span class="tag">Wayfair</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 130 &mdash; Checkpoint Corruption &mdash; Resume After Spot Kill</h1>
-  <p class="post-subtitle">Day 127 asked whether <code>lora-trainer</code>'s checkpoint policy would survive a real preemption. It still hasn't been tested against one. Writing this week's save path surfaced a narrower, harder question first: what does "resume" mean if the crash lands in the middle of writing the checkpoint itself, not just mid-training-step.</p>
+  <h1 class="post-title">Day 131 &mdash; FinOps GPU &mdash; Finance Asked for Cost Per Model</h1>
+  <p class="post-subtitle">Day 130's ticket was about correctness &mdash; whether a checkpoint could be trusted after a crash landed mid-write. This week's ticket asks something a distributed-systems argument can't settle on its own: what did this training run actually cost, and how honest can that number be when the CLI has no live price feed to ask.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 130 of 150</span>
+    <span class="meta-item">Experience &middot; Day 131 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 22, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">5 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-130-checkpoint-corruption-resume-after-spot-kill.png" alt="Day 130 — Checkpoint Corruption — Resume After Spot Kill" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-131-finops-gpu-cost-per-model.png" alt="Day 131 — FinOps GPU — Finance Asked for Cost Per Model" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Day 127's quota-request post ended on an honest gap: the checkpoint policy in <code>lora-trainer/DESIGN.md</code> was written, but nothing had tested it, because no training run had happened yet. This week's ticket closed that gap on paper &mdash; a real save/resume implementation, not just a design doc &mdash; and closing it surfaced a question the design doc hadn't asked.</p>
+<p>Day 130's post closed on an honest gap: the checkpoint write-order fix was sound on paper, unverified against a real preemption. This week's ticket doesn't extend that thread at all &mdash; <code>lora-trainer</code>'s Day 131 line reads "GPU $/hr &times; wall time &rarr; total; expose in CLI summary," and nothing about it is a distributed-systems problem.</p>
 
-<p>"Does the run resume after a crash" and "is the checkpoint it resumes from actually complete" are two different claims. Day 127's Wayfair analogy answered the first one. This week's code is about the second.</p>
+<p>It's an older question than any of this arc's checkpoint or quota posts: what does a system owe a stakeholder who wants a dollar figure, when the system genuinely has no live price feed to ask. That turned out to be a more interesting design question than the arithmetic suggests.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; real retry data, illustrative arithmetic</div>
-  The Wayfair GCS progress-write retry configuration and the PAS Dataflow checkpoint-and-resume behavior below are both real, cited from the same architecture documentation Day 127 drew on &mdash; I didn't own <code>gst-acc-promotions</code> or the PAS Dataflow pipeline personally. The "hours lost" figures further down are an illustrative calculation against this week's own checkpoint cadence, not a specific dated incident on any system I've worked on &mdash; I'm flagging that distinction up front rather than letting the title imply otherwise.
+  <div class="attr-label">Scope note &mdash; real design pattern, illustrative premise</div>
+  Wayfair's SPCS (Supplier Cost Service) &mdash; the real "net cost calculator" documented in the same <code>pricing-system-architecture.md</code> file Days 124&ndash;130 have already drawn on &mdash; genuinely aggregates multiple upstream cost inputs at production traffic. I didn't own SPCS personally; I'm citing its documented shape, not a system I built. Today's plan line reads "tagged cloud resources by <code>model_id</code> label" &mdash; I checked <code>resume-extracted.md</code>, the Agoda/WhiteFalcon doc, and all of <code>pricing-system-architecture.md</code> for GPU cost tagging or a <code>model_id</code> cost-attribution scheme, and none of them document anything like it at any employer. This post doesn't claim that happened anywhere. It's a design essay about the calculator this week's code actually built, using SPCS only as a real point of comparison for calculator complexity.
 </div>
 
-<h2 id="a-retry-loop-is-not-the-same-guarantee-as-an-atomic-write">A Retry Loop Isn't the Same Guarantee as an Atomic Write</h2>
+<h2 id="two-cost-calculators-two-orders-of-magnitude">Two Cost Calculators, Two Orders of Magnitude</h2>
 
-<p>Wayfair's <code>gst-acc-promotions</code> service writes job progress to Google Cloud Storage as it works, and retries those writes 3 to 8 times with exponential backoff and jitter before giving up. That's a real, specific resilience number from the architecture documentation this arc keeps drawing on, and it solves a real problem: a transient network blip or a GCS 429 doesn't have to fail the whole job.</p>
+<p>SPCS is a Python FastAPI service backed by its own Bigtable instance (<code>supplier-cost-bt</code>), running at roughly 2,800 queries per second on average and up to 4,200 at peak. It sits between UCMS's supplier cost updates and Delphi's price calculation, folding in PricingAlgo's ML-estimated shipping and revenue costs before handing a net cost downstream &mdash; a documented, multi-source aggregation problem.</p>
 
-<p>What a retry loop doesn't solve is a different failure entirely. If a process writes three related files and dies after the first two land but before the third does, retrying each write individually never helps &mdash; there was no failed write to retry, just a process that stopped existing between two writes that each, on their own, succeeded.</p>
+<p><code>lora-trainer/cost.py</code>, this week's code, does none of that aggregation. One rate, one measured duration, one multiply: <code>total = rate &times; (wall_time_seconds / 3600.0)</code>.</p>
 
-<p>So what: reliability and atomicity are separate guarantees, and a system can have excellent retry coverage on every individual write while still leaving a reader to find a directory with two of three files in it.</p>
+<p>So what: the two systems answer the same kind of question &mdash; what did this cost &mdash; but SPCS earns its Bigtable-backed complexity from a dozen real upstream inputs, and a training-cost CLI with exactly one input has no such justification for building the same machinery.</p>
 
-<h2 id="three-files-one-crash-window">Three Files, One Crash Window</h2>
-
-<p><code>lora-trainer/DESIGN.md</code> §4 gives each checkpoint three files &mdash; the adapter weights, the adapter config, and the optimizer state &mdash; plus a small <code>latest</code> pointer object that names which checkpoint is safe to resume from. Writing all three files reliably, even with Wayfair-grade retry coverage on each one, still leaves a window: a crash after file two and before file three lands three files where a reader expects three, minus one.</p>
-
-<p>The corresponding Wayfair pattern is PAS's Dataflow pipeline, the one Day 127 already covered: on restart, it resumes from its last checkpoint rather than replaying the whole window. Neither the architecture doc nor Day 127's post says how that pipeline itself avoids resuming from a half-written checkpoint &mdash; that implementation detail isn't documented at the level this arc's context files go to, so I'm not claiming to know Wayfair's specific answer.</p>
-
-<p>So what: I couldn't borrow Wayfair's exact fix for this piece, only the shape of the question it raises &mdash; which meant this week's code had to answer it from first principles instead of by analogy.</p>
-
-<h2 id="the-fix-is-an-order-not-a-retry-count">The Fix Is an Order, Not a Retry Count</h2>
-
-<p><code>checkpoint.py</code>'s <code>CheckpointManager.save()</code> writes the three checkpoint files first, one at a time, fully. Only after all three are confirmed written does it write the <code>latest</code> pointer &mdash; and nothing before that point in the method ever touches it.</p>
-
-<pre><code>for local_name, key_name in CHECKPOINT_FILES.items():
-    ...
-    self.store.put(checkpoint_key(self.run_id, step, key_name), data)
-
-# latest is written last, and only here
-pointer = json.dumps({"step": step, "train_loss": train_loss}).encode("utf-8")
-self.store.put(latest_pointer_key(self.run_id), pointer)</code></pre>
-
-<p>The mental model that made this ordering obvious came from databases, not from Wayfair: a write-ahead log only lets a reader see a record after its write is confirmed durable, never before. <code>latest</code> plays that exact role here &mdash; a resume reads <code>latest</code> first and trusts everything it names is complete, because this code path never writes <code>latest</code> for a checkpoint that isn't. A crash between file two and file three leaves three orphaned files and an unchanged pointer, not a corrupt resume.</p>
-
-<p>So what: the corruption-safety here cost zero extra retries and zero extra infrastructure &mdash; it cost getting one write's position in the sequence right, which is a code-review-time decision, not a runtime one.</p>
-
-<h2 id="what-a-full-restart-actually-costs">What a Full Restart Actually Costs</h2>
-
-<p>Nothing in this repo has been preempted yet, so I can't report a real number here &mdash; only work one out. At this week's default cadence, a checkpoint lands every 500 steps; a crash costs, at most, whatever training happened since the last one, not the whole run.</p>
-
-<p>The illustrative case is a run with no checkpointing at all, saving only once at the very end. A six-hour training run that gets spot-killed in its final minutes, with no intermediate checkpoint to fall back to, loses the entire six hours &mdash; not because six hours is a number I've personally lost, but because "save once, at the end" and "save never" cost identically everything up to the moment of the crash.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Checkpoints, save-at-end policy</span></div>
-  <div class="stat-cell"><span class="stat-num">~6h</span><span class="stat-label">Lost on a late-run spot kill</span></div>
-  <div class="stat-cell"><span class="stat-num">500</span><span class="stat-label">Steps between checkpoints, this week's cadence</span></div>
-  <div class="stat-cell"><span class="stat-num">&le;1</span><span class="stat-label">Checkpoint intervals ever at risk</span></div>
-</div>
-
-<p>So what: "resume from latest" only bounds a loss to one checkpoint interval if a checkpoint interval is short enough to matter &mdash; the cadence number in the ticket isn't a nicety, it's the actual size of the number this whole design exists to shrink.</p>
-
-<h2 id="two-systems-the-same-ordering-rule">Two Systems, the Same Ordering Rule</h2>
+<h2 id="the-design-decision-a-static-table-not-a-live-feed">The Design Decision: A Static Table, Not a Live Feed</h2>
 
 <table>
-<tr><th>System</th><th>What retries cover</th><th>What retries don't cover</th><th>The actual fix</th></tr>
-<tr><td><code>gst-acc-promotions</code> (Wayfair)</td><td>A single GCS write failing transiently (429/5xx)</td><td>A process dying between two related writes</td><td>Not documented at this arc's detail level</td></tr>
-<tr><td><code>lora-trainer</code> (this week)</td><td>N/A &mdash; this design doesn't add retries at all</td><td>A crash between checkpoint files and the pointer</td><td>Write order: files first, pointer last, every time</td></tr>
+<tr><th>Option</th><th>What it requires</th><th>Why</th></tr>
+<tr><td>Call a cloud billing API at run end</td><td>A live cloud account, credentials, network access</td><td>Rejected &mdash; this is an open-source CLI; it can't assume every user has a billing API to call</td></tr>
+<tr><td>Require the operator to type a dollar figure by hand</td><td>Nothing extra</td><td>Rejected &mdash; loses the "printed automatically in the CLI summary" requirement the ticket asks for</td></tr>
+<tr><td>Ship a static $/hr table keyed by <code>--gpu-type</code>, with an override flag</td><td>Nothing beyond the CLI itself</td><td>Chosen &mdash; zero external dependencies, a defensible default, and an explicit escape hatch</td></tr>
 </table>
 
-<p>Wayfair's retry numbers are more sophisticated than anything this week's code does &mdash; 3 to 8 attempts with jitter is real engineering against a real unreliable network. That sophistication answers a different question than the one this post is about, which is the one thing that made comparing the two systems useful instead of misleading.</p>
+<p>The table itself is small and says so in its own docstring: <code>GPU_HOURLY_RATES_USD</code> holds three entries &mdash; A100-40GB at $1.50/hr, A100-80GB at $2.10/hr, H100-80GB at $3.50/hr &mdash; described in the code as "an illustrative on-demand list-price table, not a live pricing feed or a specific vendor contract." <code>resolve_hourly_rate()</code> checks <code>--gpu-hourly-rate</code> first and only falls back to the table if no explicit rate was passed.</p>
 
-<p>So what: borrowing an analogy honestly sometimes means noticing exactly where it stops applying, not stretching it to cover the part it doesn't.</p>
+<p>So what: the interesting decision here wasn't the multiplication &mdash; it was choosing which two of "flexible," "zero-dependency," and "accurate out of the box" to actually keep. This design keeps the first two and hands "accurate" to whoever passes a real negotiated rate through <code>--gpu-hourly-rate</code>.</p>
+
+<h2 id="wall-time-measured-not-estimated">Wall Time, Measured, Not Estimated</h2>
+
+<p>A taxi meter doesn't estimate a fare before the trip starts. It ticks elapsed time against a posted rate and prints a total the moment the trip actually ends &mdash; the fare is never wrong about what happened, because it was never a prediction to begin with.</p>
+
+<p><code>train.py</code>'s <code>main()</code> does the same thing: it records <code>start = time.monotonic()</code> right after argument parsing, and computes <code>wall_time_seconds = time.monotonic() - start</code> only after the run &mdash; real or <code>--dry-run</code> &mdash; has actually finished. That's the same clock <code>metrics.py</code>'s <code>MetricsLogger</code> already uses for <code>tokens_per_second</code>, reused rather than re-derived.</p>
+
+<p>So what: measuring instead of estimating means the printed total is always right for whatever actually happened, at the cost of never being able to preview it before a run finishes &mdash; the meter can't quote a fare mid-trip, and neither can this CLI.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">$1.50</span><span class="stat-label">A100-40GB, $/hr</span></div>
+  <div class="stat-cell"><span class="stat-num">$2.10</span><span class="stat-label">A100-80GB, $/hr</span></div>
+  <div class="stat-cell"><span class="stat-num">$3.50</span><span class="stat-label">H100-80GB, $/hr</span></div>
+  <div class="stat-cell"><span class="stat-num">$0.01</span><span class="stat-label">5-step dry-run smoke total</span></div>
+</div>
+
+<p>That last figure is real output, not a mockup: running the dry-run path locally against <code>--gpu-type A100-80GB</code> and five synthetic steps, the CLI printed <code>lora-trainer cost: run_id=day131-smoke gpu=A100-80GB wall_time=0h00m rate=$2.10/hr total=$0.01</code>. There's no GPU in this environment and no real training happened &mdash; that's ten seconds of dry-run wall time, not an hour of a real adapter training run, and the total scales accordingly.</p>
+
+<h2 id="two-systems-one-question">Two Systems, One Question</h2>
+
+<table>
+<tr><th>System</th><th>What it aggregates</th><th>Where the number comes from</th><th>How it stays current</th></tr>
+<tr><td>SPCS (Wayfair)</td><td>UCMS supplier costs + PricingAlgo ML estimates + PAS cost adjustments</td><td>Bigtable-backed production traffic</td><td>Maintained continuously by the PPD Supplier Cost team</td></tr>
+<tr><td><code>cost.py</code> (this week)</td><td>One GPU type, one measured wall-clock duration</td><td><code>time.monotonic()</code>, measured locally</td><td>Manual table edit, or <code>--gpu-hourly-rate</code> per run</td></tr>
+</table>
+
+<p>So what: SPCS's complexity is proportional to how many real cost sources feed it; this week's calculator has exactly one input and one output, and matching SPCS's sophistication here would be solving a problem this CLI doesn't actually have yet.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>The write-order fix is covered by nineteen new unit tests against an in-memory object store, and the dry-run smoke path exercises the same save/resume chain against synthetic files. None of that is the same as a real spot kill landing mid-write on a real MinIO endpoint under real network conditions.</p>
+<p>The table assumes one GPU per run &mdash; a multi-GPU job would need its rate multiplied by device count, and nothing in <code>cost.py</code> does that yet. The table is also a snapshot that will drift from real market pricing the moment it's read, which is exactly why the docstring tells the reader to override it rather than trust it.</p>
 
-<p>Day 127 ended with an honest bet that hadn't been confirmed. This post ends with a narrower version of the same bet: the ordering argument is sound on paper and in tests, but "sound on paper" is exactly the phrase that preceded every real corruption bug I've ever debugged in a system built by someone with a working paper argument, too.</p>
+<p>A real budget decision needs a real contract rate passed through <code>--gpu-hourly-rate</code>, not this table's default. This post doesn't have one to offer, because no real GPU training has happened in this arc yet.</p>
 
-<p>So what: the next honest update on this thread isn't another design argument &mdash; it's whatever a real preemption, whenever one actually lands, has to say about whether the pointer file did its job.</p>
+<p>So what: this CLI answers "what did this adapter cost" as honestly as a taxi meter answers "what did this ride cost" &mdash; exactly as accurate as the rate it was given, and openly so, which is a more honest claim than a system that hides the same uncertainty behind unlabeled precision.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 130 of 150</p>
-  <p><em>Next up:</em> <a href="day-131-finops-gpu-cost-per-model.html">Day 131 — FinOps GPU — Finance Asked for Cost Per Model</a></p>
+  <p>Experience &middot; Day 131 of 150</p>
+  <p><em>Next up:</em> Day 132 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-130-checkpoint-corruption-resume-after-spot-kill.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 130 — Checkpoint Corruption — Resume After Spot Kill (yesterday's post, the correctness question this week's cost question deliberately isn't)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-129-training-metrics-agoda-ingestion-lag.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 129 — Training Metrics — Agoda Ingestion Lag Analogy (yesterday's post, this arc's other headline-metric-isn't-enough angle)</span>
+      <span>Day 129 — Training Metrics — Agoda Ingestion Lag Analogy (this arc's other headline-number-isn't-enough angle)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-127-gpu-cluster-quotas-first-cloud-train-job.html">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/211">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 127 — GPU Cluster Quotas — First Cloud Train Job (the Wayfair spot-VM and Dataflow checkpoint-and-resume story this post's second layer builds on)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-126-90-percent-ml-is-data-wayfair-manager-quote.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 126 — 90% of ML Is Data — Manager Quote I Now Believe (this arc's other Wayfair-grounded post)</span>
-    </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/210">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #210 (today's code deliverable — the CheckpointManager save-order fix this post is about)</span>
+      <span>infra-ai-streaming PR #211 (today's code deliverable — cost.py, the source of this post's rate table and design tradeoffs)</span>
     </a>
   </div>
 </div>
@@ -325,11 +310,10 @@ self.store.put(latest_pointer_key(self.run_id), pointer)</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-retry-loop-is-not-the-same-guarantee-as-an-atomic-write">A Retry Loop Isn't Atomicity</a></li>
-      <li><a href="#three-files-one-crash-window">Three Files, One Crash Window</a></li>
-      <li><a href="#the-fix-is-an-order-not-a-retry-count">The Fix Is an Order</a></li>
-      <li><a href="#what-a-full-restart-actually-costs">What a Full Restart Costs</a></li>
-      <li><a href="#two-systems-the-same-ordering-rule">Two Systems, One Rule</a></li>
+      <li><a href="#two-cost-calculators-two-orders-of-magnitude">Two Cost Calculators</a></li>
+      <li><a href="#the-design-decision-a-static-table-not-a-live-feed">A Static Table, Not a Live Feed</a></li>
+      <li><a href="#wall-time-measured-not-estimated">Wall Time, Measured</a></li>
+      <li><a href="#two-systems-one-question">Two Systems, One Question</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -337,11 +321,11 @@ self.store.put(latest_pointer_key(self.run_id), pointer)</code></pre>
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-130-checkpoint-corruption-resume-after-spot-kill.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-131-finops-gpu-cost-per-model.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Checkpoint+Corruption+%E2%80%94+Resume+After+Spot+Kill+%C2%B7+Day+130&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-130-checkpoint-corruption-resume-after-spot-kill.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=FinOps+GPU+%E2%80%94+Finance+Asked+for+Cost+Per+Model+%C2%B7+Day+131&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-131-finops-gpu-cost-per-model.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -357,14 +341,14 @@ self.store.put(latest_pointer_key(self.run_id), pointer)</code></pre>
           <div class="series-post-kicker"><span class="series-post-num">D129</span> Experience</div>
           <a href="day-129-training-metrics-agoda-ingestion-lag.html" class="series-post-title">Training Metrics — Agoda Ingestion Lag Analogy</a>
         </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D130</span> Experience &middot; now</div>
-          <div class="series-post-title">Checkpoint Corruption — Resume After Spot Kill</div>
-          <div class="series-post-desc">A retry loop makes a write reliable, not atomic — why lora-trainer's checkpoint saves its pointer file last.</div>
-        </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D131</span> Experience</div>
-          <a href="day-131-finops-gpu-cost-per-model.html" class="series-post-title">FinOps GPU — Finance Asked for Cost Per Model</a>
+          <div class="series-post-kicker"><span class="series-post-num">D130</span> Experience</div>
+          <a href="day-130-checkpoint-corruption-resume-after-spot-kill.html" class="series-post-title">Checkpoint Corruption — Resume After Spot Kill</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D131</span> Experience &middot; now</div>
+          <div class="series-post-title">FinOps GPU — Finance Asked for Cost Per Model</div>
+          <div class="series-post-desc">A static rate table beats a live pricing feed when the CLI has no billing account to call — and says so honestly.</div>
         </div>
       </div>
     </div>
