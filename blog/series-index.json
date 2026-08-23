@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-131-gpu-cost-accounting-dollars-per-token.html",
+          "kicker": "AI Learning · Day 131 of 150",
+          "title": "Day 131 — GPU Cost Accounting — $/1M Tokens Trained",
+          "subtitle": "FinOps for training not just inference",
+          "date": "2026-08-22",
+          "slug": "day-131-gpu-cost-accounting-dollars-per-token",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-131-gpu-cost-accounting-dollars-per-token.html",
+          "coverImage": "blog/assets/covers/day-131-gpu-cost-accounting-dollars-per-token.png",
+          "desc": "A parking garage ticket already solved the mechanism -- stamp the start, measure the elapsed time, multiply by the posted rate. What it takes to turn a run total into a per-token rate, and why this week's code honestly doesn't do that part yet."
+        },
+        {
           "href": "blog/series/ai-learning/day-130-checkpointing-wal-for-gradients.html",
           "kicker": "AI Learning · Day 130 of 150",
           "title": "Day 130 — Checkpointing — WAL for Gradients",
@@ -1451,6 +1463,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-131-finops-gpu-cost-per-model.html",
+          "kicker": "Experience · Day 131 of 150",
+          "title": "Day 131 — FinOps GPU — Finance Asked for Cost Per Model",
+          "subtitle": "Finance Asked for Cost Per Model",
+          "date": "2026-08-22",
+          "slug": "day-131-finops-gpu-cost-per-model",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-131-finops-gpu-cost-per-model.html",
+          "coverImage": "blog/assets/covers/day-131-finops-gpu-cost-per-model.png",
+          "desc": "A retail cost calculator aggregates a dozen upstream feeds at thousands of queries per second. This week's GPU cost calculator does one multiply. Why cost.py chose a static rate table over a live pricing feed, and what that decision actually costs."
+        },
         {
           "href": "blog/series/experience/day-130-checkpoint-corruption-resume-after-spot-kill.html",
           "kicker": "Experience · Day 130 of 150",
