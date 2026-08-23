@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 131 &mdash; GPU Cost Accounting &mdash; $/1M Tokens Trained | AI Learning Series</title>
-<meta name="description" content="The CLI prints one line: total dollars from wall time times an hourly rate. A parking garage ticket already solved that mechanism. What it takes to turn a run total into a per-token rate, and why this week's code honestly doesn't yet.">
-<meta property="og:title" content="Day 131 &mdash; GPU Cost Accounting &mdash; $/1M Tokens Trained">
-<meta property="og:description" content="FinOps for training, not just inference. A measured wall-clock duration times a posted rate, the same mechanism a parking garage ticket has always used -- and the honest gap between a run total and a per-token rate.">
+<title>Day 132 &mdash; First Successful Train &mdash; Emotional Milestone | Experience Series</title>
+<meta name="description" content="The ticket said run first full training on 7B. No GPU exists in this environment to do that. What did land: a fixed final/ key that captures a completed run's adapter, and the first test that proves the whole pipeline holds together end to end.">
+<meta property="og:title" content="Day 132 &mdash; First Successful Train &mdash; Emotional Milestone">
+<meta property="og:description" content="A pipeline-correctness milestone arrived before any real GPU loss curve did -- a fixed final/ key, an 8B validation model, and a test that finally proves the whole chain holds together.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-131-gpu-cost-accounting-dollars-per-token.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-131-gpu-cost-accounting-dollars-per-token.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-132-first-successful-train-emotional-milestone.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-132-first-successful-train-emotional-milestone.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-131-gpu-cost-accounting-dollars-per-token.png">
-<meta property="article:published_time" content="2026-08-22">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-132-first-successful-train-emotional-milestone.png">
+<meta property="article:published_time" content="2026-08-23">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 131 of 150</span>
-    <span class="tag">Cost Accounting</span>
-    <span class="tag">FinOps</span>
-    <span class="tag">GPU Training</span>
+    <span class="tag accent">Experience &middot; Day 132 of 150</span>
+    <span class="tag">Training Milestones</span>
+    <span class="tag">Checkpointing</span>
+    <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 131 &mdash; GPU Cost Accounting &mdash; $/1M Tokens Trained</h1>
-  <p class="post-subtitle">The CLI prints one line at the end of a run: total dollars, computed from measured wall time times an hourly rate. That mechanism is old &mdash; a parking garage solved it decades before any GPU existed. What's genuinely new is turning that one-run total into a per-token rate, and this week's code honestly doesn't do that part yet.</p>
+  <h1 class="post-title">Day 132 &mdash; First Successful Train &mdash; Emotional Milestone</h1>
+  <p class="post-subtitle">Day 131 turned a measured wall-clock duration into a dollar total. This week's ticket sounds bigger &mdash; "run first full training on 7B" &mdash; but the honest version of what actually landed is narrower: a fixed place to point to and say "that's the model," before any real GPU loss curve exists to back it up.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 131 of 150</span>
+    <span class="meta-item">Experience &middot; Day 132 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 22, 2026</span>
+    <span class="meta-item">August 23, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">5 min read</span>
   </div>
@@ -208,106 +208,82 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-131-gpu-cost-accounting-dollars-per-token.png" alt="Day 131 — GPU Cost Accounting — $/1M Tokens Trained" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-132-first-successful-train-emotional-milestone.png" alt="Day 132 — First Successful Train — Emotional Milestone" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Most of this arc's FinOps conversation, when it comes up at all in LLM infrastructure, is about inference: dollars per million tokens served, quoted per request, per model, sometimes per customer. This week's ticket is about a different half of the same budget &mdash; what a training run itself costs, before any of those trained weights ever serve a single inference request.</p>
+<p>Day 131's post closed on a small, honest gap: a run total isn't yet a per-token rate. This week's ticket reads bigger than any of that &mdash; <code>lora-trainer</code>'s Day 132 line is "run first full training on 7B (4&times;A10 or cloud spot); capture final adapter weights." That phrasing promises a real GPU run this arc hasn't had at any point so far.</p>
 
-<p>The code that answers it is small: a measured wall-clock duration, multiplied by a dollars-per-hour rate, printed as one line. Small doesn't mean uninteresting &mdash; it's small because the mechanism underneath it is one humans already built a physical machine for.</p>
-
-<h2 id="a-parking-garage-ticket-already-solved-this">A Parking Garage Ticket Already Solved This</h2>
+<p>What actually shipped is narrower, and it's still the first thing in this arc's four weeks of <code>lora-trainer</code> work that feels like a milestone rather than a design essay: a second, smaller base model sized to validate the whole pipeline before the expensive run, and a fixed key that captures a completed run's adapter &mdash; distinct from whatever periodic checkpoint happened to save last.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; a parking garage ticket, not a live meter</div>
-  A parking garage doesn't guess your bill when you drive in. It stamps a timestamp on a ticket, posts a flat rate per hour on a sign at the exit booth, and computes the total only once &mdash; when your car actually leaves and the elapsed time is a known, finished number. Nobody at the entry gate can tell you the final total, because the one input that matters most, how long you'll actually stay, doesn't exist yet.
+  <div class="attr-label">Scope note &mdash; no GPU in this environment, a real milestone anyway</div>
+  No cloud spot instance was rented and no 4&times;A10 job ran to produce this post &mdash; this CI environment has never had a GPU, the same constraint every prior post in this arc has been upfront about. The milestone this post is actually about is narrower and still real: <code>test_first_full_training_run.py</code>, driven through 1,001 synthetic steps against the new <code>local-Llama-3-8B</code>/single-A10 shape, is the first test in this repo that asserts a full run's adapter is captured and downloadable back &mdash; not just that training "ran."
 </div>
 
-<p><code>lora_trainer/cost.py</code> is built the same way. <code>train.py</code> stamps <code>start = time.monotonic()</code> the moment a run begins &mdash; the entry ticket &mdash; and only computes <code>wall_time_seconds = time.monotonic() - start</code> after the run, real or <code>--dry-run</code>, has actually finished &mdash; the exit booth. The rate itself, <code>GPU_HOURLY_RATES_USD</code>, is the posted sign: a small dict keyed by GPU type, A100-40GB at $1.50/hr up through H100-80GB at $3.50/hr.</p>
+<h2 id="the-assumption-that-was-wrong-before-it-was-right">The Assumption That Was Wrong Before It Was Right</h2>
 
-<p>So what: neither a parking garage nor this CLI needs to predict anything. Both defer the one number that actually determines the bill &mdash; elapsed time &mdash; until it's a fact, not a guess.</p>
+<p>The first version of this week's Go test compared the new 8B model against the existing 70B model at the same GPU VRAM figure, expecting both to land in the same preset and rank band. They didn't, and the reason took a moment to see: the two models' NF4-quantized base weights sit at very different floors &mdash; roughly 4.1GB for the 8B model against roughly 35.875GB for the 70B one &mdash; so the same total VRAM leaves wildly different headroom for training, and the recommender picks a different grid row for each.</p>
 
-<h2 id="training-cost-vs-inference-cost-different-units">Training Cost vs. Inference Cost: Different Units</h2>
+<p>The fix wasn't a bigger test. It was a narrower, more honest one: an exact adapter-parameter-count assertion against the 8B architecture's own constants, instead of a comparison implicitly confounded by two models picking two different presets.</p>
 
-<p>Inference cost is almost always quoted as a rate &mdash; dollars per million tokens served &mdash; because inference happens continuously, request after request, and a rate is the only unit that stays meaningful across an arbitrary number of them. Training cost, as this week's code computes it, is quoted as a single flat total for one run: not a rate, a number.</p>
+<p>So what: the wrong assumption wasn't sloppy, it was the natural first guess &mdash; and catching it before merge is exactly the kind of small, unglamorous correction that "first successful train" actually runs on, more than any single dramatic loss-curve moment does.</p>
 
-<p>Turning that total into a rate comparable to an inference $/1M number requires one more input this code doesn't have yet: how many tokens the run actually processed. <code>cost.py</code> multiplies a rate by a duration; it never divides by a token count, because nothing in this week's PR tracks a cumulative token total across a full run.</p>
+<h2 id="two-keys-two-meanings">Two Keys, Two Meanings</h2>
 
-<p>So what: the title of this post promises a per-token number the code doesn't yet produce &mdash; which is itself the most honest thing this post can point out about where the ticket's scope actually ends.</p>
+<p>Day 130's <code>latest</code> pointer answers "which periodic checkpoint is safe to resume from" &mdash; a question that changes its answer every 500 steps, on purpose, because a periodic checkpoint's entire job is to be superseded by the next one. This week's <code>final/</code> key answers a different question that a periodic checkpoint was never built to answer: which single adapter is <em>the</em> deliverable this run actually produced.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-  A["Run starts"] --> B["Record start time"]
-  B --> C["Training loop runs"]
-  C --> D["Run ends"]
-  D --> E["Measure wall time"]
-  E --> F["Look up $/hr rate"]
-  F --> G["Multiply into total"]
-  G --> H["Print CLI summary"]</pre>
+<p><code>CheckpointManager.finalize()</code> mirrors <code>save()</code>'s exact crash-safety shape &mdash; files written first, marker written last &mdash; against this new, separate prefix, so a completed run's <code>final/</code> key can never collide with whatever step number a periodic save last landed on.</p>
 
-<p>So what: every node in that chain is real code that ran during a real dry-run smoke test &mdash; there's no ninth node for "divide by tokens processed," because that step doesn't exist in this week's implementation.</p>
-
-<h2 id="the-arithmetic-a-per-token-rate-would-need">The Arithmetic a Per-Token Rate Would Need</h2>
-
-<p>The smoke test I ran locally against a five-step <code>--dry-run</code> and <code>--gpu-type A100-80GB</code> printed exactly this: <code>lora-trainer cost: run_id=day131-smoke gpu=A100-80GB wall_time=0h00m rate=$2.10/hr total=$0.01</code>. That's real CLI output, and it's also nearly meaningless as a training-cost figure &mdash; ten seconds of dry-run wall time against zero real GPU compute.</p>
-
-<p>To see the arithmetic a per-token rate would need, take a fully illustrative example instead: a 3-hour run on an A100-80GB costs 3 &times; $2.10 = $6.30. If that hypothetical run processed 60 million tokens &mdash; a round number, not a measured one &mdash; the per-token rate would be $6.30 &divide; 60 = $0.105 per 1M tokens trained.</p>
+<p>So what: a periodic checkpoint says "trust me for now"; a <code>final/</code> key says "this one doesn't get superseded" &mdash; and having a place in the object store that means that second thing, unambiguously, is most of what "the pipeline works" moment actually consists of in code.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3h</span><span class="stat-label">Illustrative run length</span></div>
-  <div class="stat-cell"><span class="stat-num">$6.30</span><span class="stat-label">3h &times; $2.10/hr</span></div>
-  <div class="stat-cell"><span class="stat-num">60M</span><span class="stat-label">Illustrative tokens (round number)</span></div>
-  <div class="stat-cell"><span class="stat-num">$0.105</span><span class="stat-label">Per 1M tokens, illustrative</span></div>
+  <div class="stat-cell"><span class="stat-num">1,001</span><span class="stat-label">Synthetic steps, integration test</span></div>
+  <div class="stat-cell"><span class="stat-num">final/</span><span class="stat-label">Fixed key, one per run</span></div>
+  <div class="stat-cell"><span class="stat-num">100</span><span class="stat-label">Python tests passing (10 new)</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Real GPU runs, this arc so far</span></div>
 </div>
 
-<p>So what: every number in that table is either arithmetic against a made-up round figure or a real ten-second smoke total &mdash; neither is a measured cost from an actual training run, because no real GPU training has happened anywhere in this arc yet.</p>
+<h2 id="what-first-successful-train-means-today-honestly">What "First Successful Train" Means Today, Honestly</h2>
 
-<h2 id="what-this-post-hasnt-verified">What This Post Hasn't Verified</h2>
+<table>
+<tr><th>Milestone</th><th>What it proves</th><th>What it doesn't</th></tr>
+<tr><td>Today: <code>test_first_full_training_run.py</code>, 8B/single-A10 shape, 1,001 synthetic steps</td><td>Config, checkpoint save, metrics, and finalize are wired correctly end to end</td><td>Anything about real convergence &mdash; there's no real loss curve behind these numbers</td></tr>
+<tr><td>Ahead: a real 4&times;A10 (or cloud spot) run on the 70B model</td><td>An adapter that actually trained against real data on real hardware</td><td>Not yet started in this arc, as of this post</td></tr>
+</table>
 
-<p>This week's code correctly measures wall time and correctly multiplies it by a rate &mdash; that part is tested, nineteen new assertions deep in <code>test_cost.py</code>, and it's the part that actually shipped. Turning that total into a genuine dollars-per-million-tokens figure needs a token counter wired into <code>train.py</code>'s loop and a division this PR doesn't add.</p>
+<p>So what: today's milestone is genuinely a milestone &mdash; the pipeline that will eventually carry a real 70B run has now been proven correct end to end on a smaller, cheaper shape first, which is exactly the sequencing the ticket's own "validate before committing" framing asks for.</p>
 
-<p>Whether a real training run's true cost curve looks anything like the $0.105/1M illustrative figure above depends entirely on real throughput on a real GPU &mdash; a number this sandboxed environment has no way to produce.</p>
+<h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>So what: the parking-garage mechanism &mdash; stamp the start, measure the elapsed time, multiply by the posted rate &mdash; is the part of "cost accounting" this week's code actually finished. Turning a run's total into training's version of an inference $/1M-token number is next week's ticket, not this one's.</p>
+<p>Nothing in this repo has run against real GPU memory pressure, a real dataset's edge cases, or a real spot preemption landing mid-<code>finalize()</code>. The write-order guarantee that makes <code>finalize()</code> crash-safe on paper is the same kind of unverified-in-practice claim Day 130's <code>save()</code> made about periodic checkpoints, and it's still true here: sound in tests, untested against a real interruption.</p>
+
+<p>Whether the 8B validation run's clean pass on synthetic steps says anything real about how the 70B run will behave under actual training dynamics is also an open question &mdash; a smaller model validating a pipeline's plumbing isn't the same claim as a smaller model predicting a bigger model's convergence.</p>
+
+<p>So what: the next honest update on this thread isn't another pipeline-correctness argument &mdash; it's whatever a real GPU, whenever this arc actually rents one, has to say about a real loss curve.</p>
 
 <div class="series-footer">
-  <p>Day 131 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-132-training-curves-loss-vs-generalization.html">Day 132 — Training Curves — Loss vs Generalization</a></p>
+  <p>Experience &middot; Day 132 of 150</p>
+  <p><em>Next up:</em> Day 133 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-130-checkpointing-wal-for-gradients.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-131-finops-gpu-cost-per-model.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 130 — Checkpointing — WAL for Gradients (yesterday's post, the source of the same lora-trainer arc's checkpoint mechanism)</span>
+      <span>Day 131 — FinOps GPU — Finance Asked for Cost Per Model (yesterday's post, this arc's other honest-scope-gap angle)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-130-checkpoint-corruption-resume-after-spot-kill.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching — the series' GOLD reference post on reading a scheduling mechanism at this same depth</span>
+      <span>Day 130 — Checkpoint Corruption — Resume After Spot Kill (the periodic-checkpoint write-order guarantee this week's final/ key extends)</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/211">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/212">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #211 (today's code deliverable — cost.py, the source of this post's rate table and CLI summary line)</span>
+      <span>infra-ai-streaming PR #212 (today's code deliverable — the 8B model registry and CheckpointManager.finalize() this post is about)</span>
     </a>
   </div>
 </div>
@@ -318,21 +294,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-parking-garage-ticket-already-solved-this">A Parking Garage Already Solved This</a></li>
-      <li><a href="#training-cost-vs-inference-cost-different-units">Training vs Inference Cost</a></li>
-      <li><a href="#the-arithmetic-a-per-token-rate-would-need">The Arithmetic a Rate Needs</a></li>
-      <li><a href="#what-this-post-hasnt-verified">What This Post Hasn't Verified</a></li>
+      <li><a href="#the-assumption-that-was-wrong-before-it-was-right">The Assumption That Was Wrong</a></li>
+      <li><a href="#two-keys-two-meanings">Two Keys, Two Meanings</a></li>
+      <li><a href="#what-first-successful-train-means-today-honestly">What the Milestone Means Today</a></li>
+      <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-131-gpu-cost-accounting-dollars-per-token.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-132-first-successful-train-emotional-milestone.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=GPU+Cost+Accounting+%E2%80%94+%241M+Tokens+Trained+%C2%B7+Day+131&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-131-gpu-cost-accounting-dollars-per-token.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=First+Successful+Train+%E2%80%94+Emotional+Milestone+%C2%B7+Day+132&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-132-first-successful-train-emotional-milestone.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -341,25 +317,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
+      <div class="series-label">Experience Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D129</span> AI Learning</div>
-          <a href="day-129-qlora-4bit-training.html" class="series-post-title">QLoRA — 4-bit Training</a>
+          <div class="series-post-kicker"><span class="series-post-num">D130</span> Experience</div>
+          <a href="day-130-checkpoint-corruption-resume-after-spot-kill.html" class="series-post-title">Checkpoint Corruption — Resume After Spot Kill</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D130</span> AI Learning</div>
-          <a href="day-130-checkpointing-wal-for-gradients.html" class="series-post-title">Checkpointing — WAL for Gradients</a>
+          <div class="series-post-kicker"><span class="series-post-num">D131</span> Experience</div>
+          <a href="day-131-finops-gpu-cost-per-model.html" class="series-post-title">FinOps GPU — Finance Asked for Cost Per Model</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D131</span> AI Learning &middot; now</div>
-          <div class="series-post-title">GPU Cost Accounting — $/1M Tokens Trained</div>
-          <div class="series-post-desc">A parking-garage ticket already solved the mechanism — stamp the start, measure the elapsed time, multiply by the posted rate.</div>
-        </div>
-        <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D132</span> AI Learning</div>
-          <a href="day-132-training-curves-loss-vs-generalization.html" class="series-post-title">Training Curves — Loss vs Generalization</a>
+          <div class="series-post-kicker"><span class="series-post-num">D132</span> Experience &middot; now</div>
+          <div class="series-post-title">First Successful Train — Emotional Milestone</div>
+          <div class="series-post-desc">No real GPU exists in this arc yet — but a fixed final/ key and a first end-to-end test are a real pipeline-correctness milestone anyway.</div>
         </div>
       </div>
     </div>
@@ -394,13 +366,6 @@ flowchart LR
     var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
     document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
   }
-})();
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-(function(){
-  var dark = document.documentElement.getAttribute("data-theme") === "dark";
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
 })();
 </script>
 </body>
