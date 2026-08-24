@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html",
+          "kicker": "AI Learning · Day 133 of 150",
+          "title": "Day 133 — Qualitative Eval — Smell Tests",
+          "subtitle": "Human scan before harness",
+          "date": "2026-08-24",
+          "slug": "day-133-qualitative-eval-smell-tests",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html",
+          "coverImage": "blog/assets/covers/day-133-qualitative-eval-smell-tests.png",
+          "desc": "A factory worker plugs in a freshly built circuit board and watches for smoke before it reaches the automated test rig -- the literal origin of 'smoke test,' and why a clean eval-loss number can't catch what five read prompts can."
+        },
+        {
           "href": "blog/series/ai-learning/day-132-training-curves-loss-vs-generalization.html",
           "kicker": "AI Learning · Day 132 of 150",
           "title": "Day 132 — Training Curves — Loss vs Generalization",
