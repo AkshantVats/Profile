@@ -1476,6 +1476,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-133-sanity-generations-before-eval.html",
+          "kicker": "Experience · Day 133 of 150",
+          "title": "Day 133 — Sanity Generations — Smell Test Before Eval",
+          "subtitle": "Smell Test Before Eval",
+          "date": "2026-08-24",
+          "slug": "day-133-sanity-generations-before-eval",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-133-sanity-generations-before-eval.html",
+          "coverImage": "blog/assets/covers/day-133-sanity-generations-before-eval.png",
+          "desc": "A restaurant line cook tastes the sauce before it goes on a hundred plates. Why lora-trainer gets a five-prompt smell test before an expensive eval harness -- and what building that smell test caught in itself."
+        },
+        {
           "href": "blog/series/experience/day-132-first-successful-train-wind-tunnel-model.html",
           "kicker": "Experience · Day 132 of 150",
           "title": "Day 132 — First Successful Train — The Milestone Was the Plumbing",
