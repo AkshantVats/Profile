@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 135 &mdash; Batch Inference &mdash; Throughput for Eval | AI Learning Series</title>
-<meta name="description" content="A held-out set only means something if every row in it gets scored the same way. Batch inference is what makes running all of them, against three separate models, still finish before anyone stops waiting on it.">
-<meta property="og:title" content="Day 135 &mdash; Batch Inference &mdash; Throughput for Eval">
-<meta property="og:description" content="A print shop's overnight run and its walk-in counter use the same presses. The only thing that changes is which one is optimizing for: never keeping anyone waiting, or getting through the whole stack by morning.">
+<title>Day 136 &mdash; Comparing Models &mdash; Win-Rate and CI | AI Learning Series</title>
+<meta name="description" content="Report Wilson interval in results -- that one line in today's ticket is the whole lesson. Why the naive normal-approximation interval breaks on small or lopsided samples, and what the Wilson score interval does instead, worked through with real numbers.">
+<meta property="og:title" content="Day 136 &mdash; Comparing Models &mdash; Win-Rate and CI">
+<meta property="og:description" content="A jar of marbles you can only sample a handful from is the same problem as a win-rate computed from fifty prompts. The Wilson score interval is the honest way to say how sure that fraction actually is.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-batch-inference-throughput-for-eval.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-136-comparing-models-win-rate-confidence-interval.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-batch-inference-throughput-for-eval.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-136-comparing-models-win-rate-confidence-interval.png">
 <meta property="article:published_time" content="2026-08-24">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 135 of 150</span>
-    <span class="tag">Batch Inference</span>
+    <span class="tag accent">AI Learning &middot; Day 136 of 150</span>
+    <span class="tag">Statistics</span>
     <span class="tag">Eval Harness</span>
-    <span class="tag">Throughput</span>
+    <span class="tag">Win-Rate</span>
   </div>
-  <h1 class="post-title">Day 135 &mdash; Batch Inference &mdash; Throughput for Eval</h1>
-  <p class="post-subtitle">Runner uses shared prompt batch API. The interesting part isn't that eval-harness calls three models per prompt — it's that it calls them in a mode built for throughput, not the mode a live chat request would use, and the difference between those two modes is the whole lesson.</p>
+  <h1 class="post-title">Day 136 &mdash; Comparing Models &mdash; Win-Rate and CI</h1>
+  <p class="post-subtitle">Report Wilson interval in results. A win-rate computed from a held-out set is a sample statistic, not a fact about the model, and today's post is about the interval that says how much that sample can actually be trusted.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 135 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 136 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 24, 2026</span>
     <div class="meta-divider"></div>
@@ -208,31 +208,47 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-135-batch-inference-throughput-for-eval.png" alt="Day 135 — Batch Inference — Throughput for Eval" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-136-comparing-models-win-rate-confidence-interval.png" alt="Day 136 — Comparing Models — Win-Rate and CI" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Yesterday's design fixed which rows an eval run is allowed to score against. Today's code fixes how those rows actually get scored — and the honest answer is: not one at a time. Three separate models run against the same fixed prompt list, and the mode that makes that finish in reasonable time is the same idea Day 2's continuous-batching post described for live serving, aimed at a workload with the opposite constraint.</p>
+<p>Report Wilson interval in results — that's the entire instruction today's ticket boils down to, and until I sat down to implement it I didn't appreciate how much statistics that one line was quietly asking for. Yesterday's runner produces a win or a loss per prompt; today's aggregate table has to turn a pile of those wins and losses into one honest number per <code>task_type</code>. The honest part is the hard part.</p>
 
-<h2 id="the-print-shop-and-the-walk-in-counter">The Print Shop and the Walk-In Counter</h2>
+<h2 id="a-jar-of-marbles-you-cant-fully-count">A Jar of Marbles You Can't Fully Count</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; same machine, opposite goal</div>
-  A commercial print shop runs a walk-in counter during the day: one customer's job at a time, started immediately, because nobody waiting at the counter will accept "come back once we've queued forty other jobs." At night, the same presses run a completely different way — every job for the next morning's delivery loaded at once, run back to back with no gaps, because nobody is standing at the counter waiting on any single page. Same machine. The only thing that changed is which one the shop is optimizing for: never making one customer wait, or getting through the whole stack by sunrise.
+  <div class="attr-label">DS analogy &mdash; sampling a jar you can't empty</div>
+  Imagine a jar with thousands of marbles, some red and some blue, and no way to tip it out and count them all. You scoop out a handful, count the reds, and get a fraction — say 33 red out of 50 scooped. That fraction is your best guess at the jar's true red ratio, but it is a guess built from one handful, and a second handful would almost certainly give a slightly different number.
 </div>
 
-<p>Online model serving is the walk-in counter — a real request arrives, and continuous batching (the mechanism Day 2's post walked through) exists specifically to keep that one request's latency low even while other requests share the same GPU. Eval is the overnight run: nobody is refreshing a browser tab waiting on prompt #40 of 2,000. The goal inverts from "answer this one fast" to "get through all of them by the time anyone checks."</p>
+<p>A win-rate is exactly that scoop. The held-out set has some true, unknowable fraction of prompts where the fine-tuned model would beat the base model if you could run every prompt that could ever exist; the eval only ever sees a finite sample of them. Reporting "66% win-rate" as if it were the jar's true ratio, with no acknowledgment that it came from one scoop, is the statistical version of assuming your handful looked exactly like the jar.</p>
 
-<p>So what: the same underlying model can be called two structurally different ways, and picking the wrong one for the job either wastes GPU sitting idle between requests, or makes a live user wait behind a batch that was never meant to include them.</p>
+<p>So what: a win-rate without a confidence interval isn't lying, but it's letting the reader assume more certainty than one sample actually earned.</p>
 
-<h2 id="three-models-one-prompt-list-one-batch-call">Three Models, One Prompt List, One Batch Call</h2>
+<h2 id="why-the-naive-interval-breaks-at-the-edges">Why the Naive Interval Breaks at the Edges</h2>
 
-<p><code>eval-harness</code>'s batch runner takes a fixed list of prompts from the held-out set and, for each one, calls three separate <code>runner_name</code>s: the LoRA adapter under test, the un-adapted base model as an ablation, and a GPT-4o reference. The "shared prompt batch API" isn't three different code paths bolted together — it's one <code>GenerationBackend</code> interface, the same Protocol Day 133's sanity-sample script already defined, called once per (prompt, runner) pair and written to one output row.</p>
+<p>The obvious way to put error bars on a proportion is the normal approximation, sometimes called the Wald interval: take the point estimate <code>p&#770;</code>, and add or subtract <code>z &times; sqrt(p&#770;(1-p&#770;)/n)</code>, where <code>z</code> is 1.96 for a 95% interval. It works fine when <code>n</code> is large and <code>p&#770;</code> is nowhere near 0 or 1 — exactly the conditions a lot of real eval slices don't meet.</p>
 
-<p>Reusing that interface instead of writing a bespoke comparison harness means a batch eval run and a five-prompt sanity check are the same mechanism at two different scales — one runs five prompts against one adapter for a human to skim, the other runs the full held-out set against three runners and writes every row to Parquet instead of stdout.</p>
+<p>Push it to an edge case and it breaks visibly: a task_type with 5 held-out prompts where the new model wins 0 of them gives <code>p&#770; = 0</code>, and the Wald formula's margin is <code>1.96 &times; sqrt(0 &times; 1 / 5) = 0</code>. The interval collapses to exactly <code>[0, 0]</code> — a claim of total certainty that the model can never win, extracted from five coin flips that all happened to land the same way.</p>
+
+<p>So what: a formula that reports zero uncertainty from a five-prompt sample isn't conservative, it's wrong in the specific way that matters most — right when the sample is smallest and least trustworthy.</p>
+
+<h2 id="the-wilson-score-interval-worked">The Wilson Score Interval, Worked</h2>
+
+<p>The Wilson score interval fixes this by inverting the question. Instead of building a symmetric band around <code>p&#770;</code> and hoping it stays inside [0,1], it asks: for which true proportions <code>p</code> would the observed count of 33 wins out of 50 not be a surprising result? That reframing is what keeps the interval well-behaved at small <code>n</code> and extreme <code>p&#770;</code>.</p>
+
+<p>The formula, with <code>z</code> = 1.96 for 95% confidence:</p>
+
+<pre><code>center = (p&#770; + z&sup2;/(2n)) / (1 + z&sup2;/n)
+margin = z &times; sqrt(p&#770;(1-p&#770;)/n + z&sup2;/(4n&sup2;)) / (1 + z&sup2;/n)
+interval = [center - margin, center + margin]</code></pre>
+
+<p>Worked at 33 wins out of 50 (<code>p&#770;</code> = 0.66): <code>z&sup2;</code> = 3.8416, the center works out to about 0.649, and the margin to about 0.127 — a 95% interval of roughly <strong>[0.522, 0.776]</strong>. Compare that to the naive Wald interval on the same numbers, <strong>[0.529, 0.791]</strong>: close here, because 50 samples at 0.66 isn't actually an edge case yet.</p>
+
+<p>Run the same Wilson formula on the 0-wins-out-of-5 case that broke Wald: center comes out to about 0.217, margin to about 0.217, giving <strong>[0, 0.435]</strong>. Zero observed wins still produces a nonzero upper bound, because five flips landing the same way is unsurprising enough that "the true win-rate could plausibly be as high as 43%" is the honest statement, not "it is provably zero."</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,62 +268,47 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Held-out prompt list"] --> B["Adapter under test"]
-  A --> C["Base model ablation"]
-  A --> D["GPT-4o reference"]
-  B --> E["One row per pair"]
-  C --> E
-  D --> E
-  E --> F["Write Parquet file"]</pre>
-
-<p>So what: fanning one prompt list out to three runners through one shared interface is what makes "base vs LoRA vs GPT-4o, same prompts" a fair comparison instead of three separately-run experiments that happen to share a topic.</p>
-
-<h2 id="why-the-latency-column-carries-a-label">Why the Latency Column Carries a Label</h2>
-
-<p>The output schema records a <code>latency_ms</code> per row alongside the completion text, because DESIGN.md's third metric is exactly that: is the adapter fast enough to serve, independent of whether it's correct. But a number measured inside an overnight batch run and a number measured against a single live request answer different questions, even if both are technically "latency."</p>
-
-<p>This sandbox has no live GPU and no real GPT-4o credential, so every runner here is a stub — deterministic, clearly labeled, not a production measurement dressed up as one. The <code>latency_ms</code> column exists so the schema is ready the day a real <code>HFGenerationBackend</code> and a real <code>BaselineRunner</code> exist, but today's numbers describe stub call overhead, not inference speed.</p>
+  A["Wins vs losses per task_type"] --> B["Compute point estimate p"]
+  B --> C["Apply Wilson score formula"]
+  C --> D["Report win-rate with interval"]
+  D --> E["Wide interval flags small n"]</pre>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Runners per prompt: adapter, base, GPT-4o</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Shared GenerationBackend interface, not three</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Parquet file, one row per (prompt, runner)</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Live GPU or GPT-4o credential in this sandbox</span></div>
+  <div class="stat-cell"><span class="stat-num">33/50</span><span class="stat-label">Worked example: wins out of held-out prompts</span></div>
+  <div class="stat-cell"><span class="stat-num">0.649</span><span class="stat-label">Wilson interval center, not the raw 0.66</span></div>
+  <div class="stat-cell"><span class="stat-num">&plusmn;0.127</span><span class="stat-label">95% margin at n=50</span></div>
+  <div class="stat-cell"><span class="stat-num">[0, 0.435]</span><span class="stat-label">Wilson interval at 0 wins of 5 — Wald gives [0,0]</span></div>
 </div>
 
-<p>So what: labeling a stub number honestly costs nothing today and saves someone from citing a fabricated latency figure in a real decision six months from now, once this schema is full of numbers that actually came off real hardware.</p>
+<p>So what: the Wilson interval isn't a fancier way to report the same number — it's the version that stays honest exactly where the naive version quietly stops being true.</p>
 
-<h2 id="what-batch-mode-does-not-change">What Batch Mode Doesn't Change</h2>
+<h2 id="what-statistical-significance-vs-base-means-here">What "Statistical Significance vs Base" Means Here</h2>
 
-<p>Switching from one-request-at-a-time to a full-list batch changes throughput, not correctness. Each (prompt, runner) pair still gets its own row, its own completion, its own timing — batching is a scheduling decision about how work gets grouped on the way to the GPU, not a shortcut that merges or approximates results across prompts.</p>
+<p>The ticket's second half — statistical significance vs base — is really asking whether a task_type's interval excludes 0.5. If the whole Wilson interval sits above 0.5, the fine-tuned model beating the base model on that task_type is unlikely to be noise; if the interval straddles 0.5, the eval can't yet distinguish "genuinely better" from "got lucky on a small sample."</p>
 
-<p>That distinction matters here specifically because eval scores have to be trustworthy per-row before they get aggregated by <code>task_type</code> in a later ticket. A batch mode that quietly blended results across prompts to go faster would make every downstream metric in DESIGN.md §3 meaningless, no matter how fast it ran.</p>
+<p>A task_type with only a handful of held-out prompts will tend to produce a wide interval that straddles 0.5 even if the true win-rate is well above it — that's not a bug in the statistics, it's the statistics accurately reporting that a handful of prompts wasn't enough evidence yet.</p>
 
-<p>So what: throughput and correctness are two separate axes, and today's runner only touches one of them — batching runs are what makes it feasible to score a whole held-out set instead of a hand-picked handful, without changing what "scoring one prompt" actually means.</p>
+<p>So what: "significant vs base" isn't a yes/no the harness can compute in isolation — it depends on how many prompts each task_type's held-out slice actually has, which is a dataset-design question, not just a statistics one.</p>
 
 <div class="series-footer">
-  <p>Day 135 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-136-comparing-models-win-rate-confidence-interval.html">Day 136 — Comparing Models — Win-Rate and CI</a></p>
+  <p>Day 136 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 137 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 134 — Eval Harness Design — Held-Out Sets (yesterday's post, the held-out manifest this batch runner reads from)</span>
+      <span>Day 135 — Batch Inference — Throughput for Eval (yesterday's post, the batch runner that produces the win/loss rows this table aggregates)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching — the series' GOLD reference post on the serving-side mechanism this post contrasts against</span>
+      <span>Day 2 — Continuous Batching — the series' GOLD reference post this series has followed for depth and structure</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 133 — Qualitative Eval — Smell Tests (the same GenerationBackend interface this runner reuses at a larger scale)</span>
-    </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/215">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #215 (today's code deliverable — eval-harness batch inference runner)</span>
+      <span>Day 134 — Eval Harness Design — Held-Out Sets (the manifest that defines which prompts fall into each task_type)</span>
     </a>
   </div>
 </div>
@@ -318,21 +319,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-print-shop-and-the-walk-in-counter">The Print Shop and Walk-In Counter</a></li>
-      <li><a href="#three-models-one-prompt-list-one-batch-call">Three Models, One Batch Call</a></li>
-      <li><a href="#why-the-latency-column-carries-a-label">Why Latency Carries a Label</a></li>
-      <li><a href="#what-batch-mode-does-not-change">What Batch Mode Doesn't Change</a></li>
+      <li><a href="#a-jar-of-marbles-you-cant-fully-count">A Jar of Marbles You Can't Count</a></li>
+      <li><a href="#why-the-naive-interval-breaks-at-the-edges">Why the Naive Interval Breaks</a></li>
+      <li><a href="#the-wilson-score-interval-worked">The Wilson Score Interval, Worked</a></li>
+      <li><a href="#what-statistical-significance-vs-base-means-here">What "Significant vs Base" Means</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-135-batch-inference-throughput-for-eval.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-136-comparing-models-win-rate-confidence-interval.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Batch+Inference+%E2%80%94+Throughput+for+Eval+%C2%B7+Day+135&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-135-batch-inference-throughput-for-eval.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Comparing+Models+%E2%80%94+Win-Rate+and+CI+%C2%B7+Day+136&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-136-comparing-models-win-rate-confidence-interval.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -345,17 +346,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D133</span> AI Learning</div>
-          <a href="day-133-qualitative-eval-smell-tests.html" class="series-post-title">Qualitative Eval — Smell Tests</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D134</span> AI Learning</div>
           <a href="day-134-eval-harness-design-held-out-sets.html" class="series-post-title">Eval Harness Design — Held-Out Sets</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D135</span> AI Learning</div>
+          <a href="day-135-batch-inference-throughput-for-eval.html" class="series-post-title">Batch Inference — Throughput for Eval</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D135</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Batch Inference — Throughput for Eval</div>
-          <div class="series-post-desc">The print-shop analogy for why eval mode and live-serving mode use the same models in structurally different ways.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D136</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Comparing Models — Win-Rate and CI</div>
+          <div class="series-post-desc">The jar-of-marbles analogy for confidence intervals, and why the Wilson score interval beats the naive normal approximation at small n.</div>
         </div>
       </div>
     </div>

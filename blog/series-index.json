@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html",
+          "kicker": "AI Learning · Day 136 of 150",
+          "title": "Day 136 — Comparing Models — Win-Rate and CI",
+          "subtitle": "Confidence intervals on win-rate",
+          "date": "2026-08-24",
+          "slug": "day-136-comparing-models-win-rate-confidence-interval",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html",
+          "coverImage": "blog/assets/covers/day-136-comparing-models-win-rate-confidence-interval.png",
+          "desc": "A jar of marbles you can only sample a handful from is the same problem as a win-rate computed from fifty prompts. Why the naive normal-approximation interval breaks at small n or extreme proportions, and how the Wilson score interval fixes it -- worked through with real numbers."
+        },
+        {
           "href": "blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html",
           "kicker": "AI Learning · Day 135 of 150",
           "title": "Day 135 — Batch Inference — Throughput for Eval",
