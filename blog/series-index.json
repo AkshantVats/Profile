@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html",
+          "kicker": "AI Learning · Day 135 of 150",
+          "title": "Day 135 — Batch Inference — Throughput for Eval",
+          "subtitle": "vLLM batch mode for eval runs",
+          "date": "2026-08-24",
+          "slug": "day-135-batch-inference-throughput-for-eval",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html",
+          "coverImage": "blog/assets/covers/day-135-batch-inference-throughput-for-eval.png",
+          "desc": "A print shop runs a walk-in counter by day and one continuous overnight batch by night, same presses, opposite goal -- why eval-harness scores base, LoRA, and GPT-4o through one shared batch interface instead of three separate calls."
+        },
+        {
           "href": "blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html",
           "kicker": "AI Learning · Day 134 of 150",
           "title": "Day 134 — Eval Harness Design — Held-Out Sets",
@@ -1499,6 +1511,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html",
+          "kicker": "Experience · Day 135 of 150",
+          "title": "Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts",
+          "subtitle": "Real Wayfair pattern: deterministic hash-assigned population, not a hand-picked sample",
+          "date": "2026-08-24",
+          "slug": "day-135-benchmark-honesty-dont-cherry-pick",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html",
+          "coverImage": "blog/assets/covers/day-135-benchmark-honesty-dont-cherry-pick.png",
+          "desc": "The fastest way to make an adapter look good is to eyeball ten outputs. Why today's batch runner scores the full held-out set instead -- and the real Wayfair pricing-experiment pattern (hash-assigned population, not a cherry-picked sample) behind that call."
+        },
         {
           "href": "blog/series/experience/day-134-leakage-train-test-contamination.html",
           "kicker": "Experience · Day 134 of 150",
