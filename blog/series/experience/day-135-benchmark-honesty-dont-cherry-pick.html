@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets | AI Learning Series</title>
-<meta name="description" content="Never tune on the eval set — the rule is one sentence and still gets broken constantly, usually by accident, one dataset refresh at a time. Locking a hash of the test set into registry metadata is how you make the accident detectable instead of invisible.">
-<meta property="og:title" content="Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets">
-<meta property="og:description" content="An exam board seals the answer key in an envelope and records the seal's number before anyone opens it. If the seal on file doesn't match the envelope in the room, everyone knows the key was swapped. A test set's hash is that seal number.">
+<title>Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts | Experience Series</title>
+<meta name="description" content="The easiest way to make an adapter look good is to eyeball ten outputs and call it a win. Wayfair's pricing experiments never got to sample-size their way around that, and today's batch runner is built the same way -- score everything, not a flattering slice.">
+<meta property="og:title" content="Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts">
+<meta property="og:description" content="A pricing experiment that only ran on the ten SKUs most likely to look good would never survive a review. An eval that only checks ten prompts somehow does, constantly, because nobody built the harness that makes the alternative just as easy.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-eval-harness-design-held-out-sets.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-benchmark-honesty-dont-cherry-pick.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-eval-harness-design-held-out-sets.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-benchmark-honesty-dont-cherry-pick.png">
 <meta property="article:published_time" content="2026-08-24">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,123 +185,101 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 134 of 150</span>
-    <span class="tag">Held-Out Sets</span>
-    <span class="tag">Eval Design</span>
-    <span class="tag">LoRA Training</span>
+    <span class="tag accent">Experience &middot; Day 135 of 150</span>
+    <span class="tag">Benchmark Design</span>
+    <span class="tag">Eval Harness</span>
+    <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets</h1>
-  <p class="post-subtitle">Never tune on the eval set. It's one sentence, everyone learns it early, and it still gets violated constantly — almost never on purpose, almost always because a pipeline changed and nobody re-checked whether the held-out set was still actually held out.</p>
+  <h1 class="post-title">Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts</h1>
+  <p class="post-subtitle">The fastest way to make a new adapter look good is to run it on ten prompts you already half-know the answer to. Wayfair's pricing team never had that shortcut available to them at any sample size that mattered, and it shaped how I built today's batch runner: score the whole held-out set, or don't call it a score.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 134 of 150</span>
+    <span class="meta-item">Experience &middot; Day 135 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 24, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">5 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-134-eval-harness-design-held-out-sets.png" alt="Day 134 — Eval Harness Design — Held-Out Sets" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-135-benchmark-honesty-dont-cherry-pick.png" alt="Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>"Never tune on the eval set" is the first rule anyone learns about held-out data, and it survives as a rule precisely because it's so easy to break without noticing. Nobody sits down and decides to cheat. What actually happens is a pipeline gets re-run, a dataset gets refreshed, and a handful of rows that used to be safely on the training side end up close enough to the test side that the model has effectively seen the answer already.</p>
-
-<h2 id="the-sealed-envelope">The Sealed Envelope</h2>
+<p>The plan line for today pairs a title with a specific number: "Wayfair pricing eval used 2k SKU sample minimum." I went looking for that figure in the context docs before writing a word of this post, because a specific number is exactly the kind of detail that's easy to invent and easy to get caught inventing.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; what a locked hash actually buys you</div>
-  A standardized exam board seals the answer key in an envelope before the exam, and writes the envelope's seal number into the official record right then, before anyone opens it. On grading day, the seal number in the record has to match the seal on the envelope in the room. If it doesn't, everyone knows immediately that the key was swapped at some point — not because anyone watched it happen, but because the numbers no longer agree.
+  <div class="attr-label">Scope note &mdash; what's documented vs. what the plan line implies</div>
+  No context doc I have access to states a "2k SKU minimum" sample-size rule for Wayfair pricing evaluation &mdash; I checked <code>pricing-system-architecture.md</code> for it directly and didn't find it. What is documented, and what this post actually draws on, is more useful than a round number anyway: PAS's Experiments adjustment type targets an explicit <em>population</em> of the catalog (the architecture doc's own example is "10% of SKUs in a category"), assigned by a deterministic hash of SKU ID rather than by hand. That's the real mechanism behind today's post, not the number in the subtitle.
 </div>
 
-<p>A held-out test set works the same way once it has a hash locked into a registry: the hash is the seal number, computed once, at the moment the set is confirmed clean, and written down somewhere nobody scoring a model can quietly edit. Every later eval run recomputes the hash of whatever set it's about to score against and compares it to the locked value. A mismatch doesn't prove what changed — it proves something did, which is the whole point of a seal.</p>
+<h2 id="the-ten-prompts-that-feel-like-enough">The Ten Prompts That Feel Like Enough</h2>
 
-<p>So what: a held-out set with no locked hash is just a file with a name that says "test." Nothing stops it from silently becoming a slightly different file next month, and nothing would tell you if it had.</p>
+<p>Every adapter-training story has the same tempting shortcut at the end: run the new model on a handful of prompts you already have opinions about, read the outputs, and decide it's better because the outputs you looked at got better. It's not dishonest exactly &mdash; it's just a sample size chosen by how much patience is left at the end of a long day, not by what would actually let you trust the answer.</p>
 
-<h2 id="how-a-test-set-drifts-without-anyone-touching-it">How a Test Set Drifts Without Anyone Touching It</h2>
+<p>The failure mode isn't that ten prompts are always wrong. It's that ten prompts you picked, after training, tend to quietly become ten prompts the new model happens to do well on &mdash; not because anyone's cheating, but because a person skimming outputs stops skimming once they've seen three or four that confirm what they were hoping to see.</p>
 
-<p>The FineForge pipeline this design sits at the end of makes the drift concrete. <code>data-prep-pipeline</code> splits rows into train and eval once, by a deterministic hash of each row's ID, stratified so every task type gets its own 90/10 split rather than one global split a large category could dominate. That split is correct the day it runs.</p>
+<p>So what: a benchmark that only reports what a person chose to look at isn't measuring the adapter. It's measuring how persuadable the person doing the looking was that day.</p>
 
-<p>The pipeline keeps running, though. A later pull of production traffic can add new rows that never went through the original split logic at all — and nothing in a fresh pull checks whether one of those new training rows happens to be a near-duplicate of something already sitting in the eval bucket from months earlier.</p>
+<h2 id="a-pricing-run-never-got-to-cherry-pick">A Pricing Run Never Got to Cherry-Pick</h2>
 
-<p>The split fixed membership once. It said nothing about what gets added around it later.</p>
+<p>Wayfair's pricing experiments couldn't get away with the equivalent shortcut, and the reason is structural, not cultural. An Experiments adjustment set targets a defined population &mdash; the architecture doc's example is 10% of SKUs within a category &mdash; and which SKUs land in that population is decided by a deterministic hash of SKU ID, not by a pricing manager picking the ones expected to respond well.</p>
 
-<pre class="mermaid">
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#1e3a5f',
-    'primaryTextColor': '#f0f4f8',
-    'primaryBorderColor': '#4a90d9',
-    'lineColor': '#4a90d9',
-    'secondaryColor': '#0d2137',
-    'tertiaryColor': '#0a1a2e',
-    'background': 'transparent',
-    'nodeBorder': '#4a90d9',
-    'clusterBkg': '#0d2137',
-    'titleColor': '#f0f4f8',
-    'edgeLabelBackground': '#0d2137'
-  }
-}}%%
-flowchart LR
-  A["Held-out set from split"] --> B["Check exact hash match"]
-  B --> C["Check near-dup match"]
-  C -->|"Clean"| D["Lock test set hash"]
-  C -->|"Leak found"| E["Block the eval run"]
-  D --> F["Score adapter for real"]</pre>
+<table>
+<tr><th>Approach</th><th>Who picks the sample</th><th>What it actually measures</th></tr>
+<tr><td>Cherry-picked demo</td><td>Whoever's presenting the result, after seeing early outcomes</td><td>How good the best-looking cases look</td></tr>
+<tr><td>Hash-assigned population</td><td>A deterministic function of ID, fixed before results exist</td><td>How the change performs across the population it's meant to cover</td></tr>
+</table>
 
-<p>So what: the leakage check has to run against the held-out set every time an eval fires, not once when the split was created — otherwise the seal number gets written down and then never checked again, which defeats the reason for sealing it in the first place.</p>
+<p>Deterministic assignment isn't a bigger sample for its own sake &mdash; it's a sample nobody can quietly shrink toward the flattering end after the fact, because the assignment rule was fixed before anyone had a result to be tempted by.</p>
 
-<h2 id="why-a-hash-and-not-just-a-filename">Why a Hash, and Not Just a Filename</h2>
+<p>So what: the thing that made Wayfair's pricing experiments trustworthy wasn't a specific SKU count. It was that the population was picked by a formula, not a preference, and the formula ran before any outcome existed to bias it.</p>
 
-<p>A filename or a version tag records intent — "this is supposed to be the v3 held-out set" — but it records nothing about content. A file can be silently overwritten, re-exported with a slightly different row count, or regenerated from a pipeline whose logic changed since the last run, all while keeping the exact same name. A reader trusting the filename has no way to know any of that happened.</p>
+<h2 id="why-todays-runner-scores-everything-it-is-given">Why Today's Runner Scores Everything It's Given</h2>
 
-<p>A hash of the actual row contents — in this design, <code>sha256</code> over the sorted list of row IDs the set contains — changes if and only if the actual membership changes. Two runs against a set with the same hash are provably scoring the same rows, no matter what either run happened to call the file. That provability is the entire reason to compute a hash instead of trusting a name: a name is a claim, a hash is a fact you can check.</p>
+<p>The batch inference runner I shipped today takes whatever prompt list the held-out set hands it and calls three runners &mdash; the adapter under test, the base model, and a GPT-4o reference &mdash; on every single one, writing one row per (prompt, runner) pair to Parquet. There's no code path that samples a flattering subset, and no argument that lets a caller pass in "just the first ten."</p>
+
+<p>That's a direct, deliberate answer to the cherry-picking problem: the easiest way to stop a person from eyeballing ten favorable outputs and calling it done is to make scoring the whole set no harder than scoring ten prompts would have been. A runner that batches the full list costs about the same wall-clock effort per prompt as a small hand-picked sample would &mdash; so there's no longer a convenience argument for the smaller, biased one.</p>
+
+<p>So what: benchmark honesty isn't a promise people keep through willpower. It's a property of the tool, and today's tool makes the honest path the fast path.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Leakage checks before any lock</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Hash, recomputed every eval run</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Registry to write it to, so far</span></div>
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Days until model-registry exists</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Runners scored per prompt, no exceptions</span></div>
+  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">Real PAS Experiments target-population example</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Code paths that accept a partial prompt list</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Parquet file, every row, every runner</span></div>
 </div>
 
-<p>So what: the registry to actually store this hash doesn't exist yet in this arc — it's Day 138's module. Reserving the field now, ahead of the table that will hold it, means the eval harness isn't redesigned the day that registry ships; it just gets somewhere real to write a value it was already computing.</p>
+<h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<h2 id="the-limits-of-a-hash">What a Hash Doesn't Solve</h2>
+<p>The runner produces rows, not scores &mdash; the metrics that turn those rows into exact-match, judge, and latency numbers per DESIGN.md §3 are a later ticket, so there's no real result to report yet from a real held-out set. I also don't know yet how the runner behaves once the held-out set is genuinely large; every test against it so far has used a small synthetic prompt list, and "no cherry-picking allowed" is easy to promise at ten prompts and harder to keep cheap at ten thousand.</p>
 
-<p>A locked hash proves a test set didn't silently change between two eval runs. It says nothing about whether that test set was ever clean to begin with. A held-out set that had a leak baked in from day one will hash consistently every single time — the seal matches the envelope, and the envelope was compromised before it was ever sealed.</p>
-
-<p>So what: hashing and leakage-checking are two different jobs, done in a specific order — check for leaks first, lock the hash of a set that has already passed that check, and only then treat a stable hash as meaning something. A hash locked before the leakage check runs is just a very precise record of a mistake.</p>
+<p>So what: today's honesty is structural, not proven under load. The real test of whether scoring everything stays the fast path is what happens the day the held-out set stops being small enough that skipping it was never even tempting.</p>
 
 <div class="series-footer">
-  <p>Day 134 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-135-batch-inference-throughput-for-eval.html">Day 135 — Batch Inference — Throughput for Eval</a></p>
+  <p>Experience &middot; Day 135 of 150</p>
+  <p><em>Next up:</em> Day 136 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-134-leakage-train-test-contamination.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 133 — Qualitative Eval — Smell Tests (yesterday's post, the cheap check this design sits one step downstream of)</span>
+      <span>Day 134 — Leakage — Train/Test Contamination Postmortem (yesterday's post, the held-out manifest this runner scores against)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-131-finops-gpu-cost-per-model.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching — the series' GOLD reference post on reading a scheduling mechanism at this same depth</span>
-    </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/214">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #214 (today's code deliverable — eval-harness/DESIGN.md)</span>
+      <span>Day 131 — FinOps GPU — Finance Asked for Cost Per Model (another Wayfair-grounded post drawing on the same pricing-system-architecture.md)</span>
     </a>
   </div>
 </div>
@@ -312,21 +290,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-sealed-envelope">The Sealed Envelope</a></li>
-      <li><a href="#how-a-test-set-drifts-without-anyone-touching-it">How a Test Set Drifts</a></li>
-      <li><a href="#why-a-hash-and-not-just-a-filename">Why a Hash, Not a Filename</a></li>
-      <li><a href="#the-limits-of-a-hash">What a Hash Doesn't Solve</a></li>
+      <li><a href="#the-ten-prompts-that-feel-like-enough">The Ten Prompts That Feel Like Enough</a></li>
+      <li><a href="#a-pricing-run-never-got-to-cherry-pick">A Pricing Run Never Cherry-Picked</a></li>
+      <li><a href="#why-todays-runner-scores-everything-it-is-given">Why the Runner Scores Everything</a></li>
+      <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-134-eval-harness-design-held-out-sets.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-135-benchmark-honesty-dont-cherry-pick.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Eval+Harness+Design+%E2%80%94+Held-Out+Sets+%C2%B7+Day+134&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-134-eval-harness-design-held-out-sets.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Benchmark+Honesty+%E2%80%94+Don%27t+Cherry-Pick+10+Prompts+%C2%B7+Day+135&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-135-benchmark-honesty-dont-cherry-pick.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,21 +313,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
+      <div class="series-label">Experience Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D133</span> AI Learning</div>
-          <a href="day-133-qualitative-eval-smell-tests.html" class="series-post-title">Qualitative Eval — Smell Tests</a>
-        </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D134</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Eval Harness Design — Held-Out Sets</div>
-          <div class="series-post-desc">The sealed-envelope analogy for why a locked test-set hash catches silent drift a filename never would.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D133</span> Experience</div>
+          <a href="day-133-sanity-generations-before-eval.html" class="series-post-title">Sanity Generations — Smell Test Before Eval</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D135</span> AI Learning</div>
-          <a href="day-135-batch-inference-throughput-for-eval.html" class="series-post-title">Batch Inference — Throughput for Eval</a>
+          <div class="series-post-kicker"><span class="series-post-num">D134</span> Experience</div>
+          <a href="day-134-leakage-train-test-contamination.html" class="series-post-title">Leakage — Train/Test Contamination Postmortem</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D135</span> Experience &middot; now</div>
+          <div class="series-post-title">Benchmark Honesty — Don't Cherry-Pick 10 Prompts</div>
+          <div class="series-post-desc">Why today's batch runner scores the full held-out set — and the real Wayfair pricing-experiment pattern behind that decision.</div>
         </div>
       </div>
     </div>
@@ -384,13 +362,6 @@ flowchart LR
     var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){as.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-20% 0px -70% 0px'});
     document.querySelectorAll('h2[id]').forEach(function(h){io.observe(h);});
   }
-})();
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-(function(){
-  var dark = document.documentElement.getAttribute("data-theme") === "dark";
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", securityLevel: "loose" });
 })();
 </script>
 </body>
