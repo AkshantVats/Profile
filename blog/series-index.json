@@ -1500,6 +1500,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-135-benchmark-honesty-full-held-out-set.html",
+          "kicker": "Experience · Day 135 of 150",
+          "title": "Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts",
+          "subtitle": "Wayfair Pricing Eval Used A Real Sample, Not A Demo",
+          "date": "2026-08-24",
+          "slug": "day-135-benchmark-honesty-full-held-out-set",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-full-held-out-set.html",
+          "coverImage": "blog/assets/covers/day-135-benchmark-honesty-full-held-out-set.png",
+          "desc": "A fruit vendor hands you the strawberry sitting on top of the box -- genuinely sweet, and no evidence at all about the forty underneath. Why eval-harness's batch runner takes a held-out manifest instead of a prompt list."
+        },
+        {
           "href": "blog/series/experience/day-134-leakage-train-test-contamination.html",
           "kicker": "Experience · Day 134 of 150",
           "title": "Day 134 — Leakage — Train/Test Contamination Postmortem",

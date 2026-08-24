@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 134 &mdash; Leakage &mdash; Train/Test Contamination Postmortem | Experience Series</title>
-<meta name="description" content="The plan line promises a postmortem: near-duplicate prompts quietly inflated an eval score by 20 points. There's no live eval run in this sandbox to have produced that number yet -- but the design that would have caught it before it shipped is today's real deliverable.">
-<meta property="og:title" content="Day 134 &mdash; Leakage &mdash; Train/Test Contamination Postmortem">
-<meta property="og:description" content="A student who has seen 90% of an exam's questions, reworded on a practice sheet, will ace the exam without knowing the material. The score is real. It just isn't measuring what everyone assumes it measures.">
+<title>Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts | Experience Series</title>
+<meta name="description" content="Ten good-looking outputs are not a benchmark. eval-harness's batch runner takes a held-out manifest instead of a prompt list, so the honest sample is the only sample the code knows how to run.">
+<meta property="og:title" content="Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts">
+<meta property="og:description" content="A fruit vendor hands you the strawberry sitting on top of the box. It is genuinely sweet, and it tells you nothing about the rest of the box.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-134-leakage-train-test-contamination.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-leakage-train-test-contamination.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-full-held-out-set.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-benchmark-honesty-full-held-out-set.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-leakage-train-test-contamination.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-135-benchmark-honesty-full-held-out-set.png">
 <meta property="article:published_time" content="2026-08-24">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,115 +185,133 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 134 of 150</span>
-    <span class="tag">Leakage</span>
+    <span class="tag accent">Experience &middot; Day 135 of 150</span>
+    <span class="tag">Benchmarks</span>
     <span class="tag">Eval Harness</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 134 &mdash; Leakage &mdash; Train/Test Contamination Postmortem</h1>
-  <p class="post-subtitle">The plan line for today reads like a postmortem: near-duplicate prompts quietly inflated an eval score by 20 points. There's no live eval harness anywhere in this sandbox to have produced that number. What actually happened this week was designing the two checks that would catch it &mdash; and finding out, on paper, exactly how easy the failure they're guarding against is to miss.</p>
+  <h1 class="post-title">Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts</h1>
+  <p class="post-subtitle">The plan line pairs a rule with a number: a pricing eval that insisted on a 2,000-SKU minimum sample. The number isn't one I can source from my notes, but the rule behind it is the most reusable thing I took out of two years of pricing work &mdash; a sample you chose after seeing the results isn't a measurement. Today's code is that rule turned into an API signature.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 134 of 150</span>
+    <span class="meta-item">Experience &middot; Day 135 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 24, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">5 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-134-leakage-train-test-contamination.png" alt="Day 134 — Leakage — Train/Test Contamination Postmortem" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-135-benchmark-honesty-full-held-out-set.png" alt="Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The plan line for today reads "Leakage &mdash; Train/Test Contamination Postmortem," subtitled with a specific, plausible number: near-duplicate prompts inflated an eval score by 20 points. That's a real failure mode, and it's the kind that's genuinely easy to miss, because the score that comes out the other end looks exactly like a good score. It isn't what happened this week, because <code>eval-harness</code> has no scoring loop yet &mdash; today's actual ticket was its DESIGN.md.</p>
+<p>The plan line for today reads "Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts," subtitled with a rule from pricing work: a minimum sample of 2,000 SKUs. That exact threshold isn't a number I can point at in my own notes, so treat it as the plan line's shorthand rather than a figure I'm vouching for. The rule underneath it I will vouch for, because it survived every pricing review I sat in: a sample you picked after seeing how it scored is not a sample, it's a highlight reel.</p>
 
 <div class="attr-box mine">
   <div class="attr-label">Scope note &mdash; what actually shipped vs. what the plan line implies</div>
-  There is no eval run in this arc that has ever produced a score, contaminated or otherwise &mdash; <code>eval-harness</code> is a brand-new module as of today, and Day 135 is the earliest anything in it actually scores an adapter. What this post is about is a smaller, truer version of the plan line's story: not a postmortem for a leak that happened, but the design work that traced exactly how a leak like that would happen, closely enough to write two specific checks against it before the module that could have caused it exists.
+  Today's deliverable is <code>eval-harness</code>'s batch inference runner: the code that pushes one set of prompts through three models and writes every result down. It has still never scored a real fine-tuned adapter, because the generation path in this sandbox is the same deterministic stub Day 133's post described &mdash; no GPU, no base-model weights on disk. So this post isn't a report on a benchmark I ran. It's about the one design decision inside the runner that the plan line's rule is really about: what the runner will accept as input, and what it refuses to.
 </div>
 
-<h2 id="the-exam-question-that-got-reworded">The Exam Question That Got Reworded</h2>
+<h2 id="the-strawberry-on-top-of-the-box">The Strawberry On Top of the Box</h2>
 
-<p>A student who has quietly seen 90% of an exam's questions in advance &mdash; reworded slightly on a practice sheet, not copied verbatim &mdash; will ace the exam without having learned the material. The score is real; a grader can point at it. It just isn't measuring what everyone assumes a passing grade measures, because the questions weren't unseen.</p>
+<p>A fruit vendor holds out the strawberry sitting on top of the box and invites you to taste it. It's genuinely sweet &mdash; nobody lied to you. It also tells you nothing about the forty strawberries underneath it, and both of you know which one was placed on top.</p>
 
-<p>A held-out eval set is that exam. If a training row and a test row are near-identical &mdash; same underlying prompt, different phrasing &mdash; a model doesn't need to generalize to answer the test row well. It already learned something close enough during training.</p>
+<p>Cherry-picking, in eval terms, means choosing which examples to look at <em>after</em> you've seen how they turned out. It rarely feels like cheating while you're doing it. It feels like "let me check a few prompts I know well," and the prompts you know well are the ones you've already been staring at since the data-prep work started.</p>
 
-<p>The eval score climbs, and the climb looks exactly like the model getting better, because from the scoring code's point of view, nothing distinguishes a genuinely improved answer from a memorized one.</p>
+<p>Day 133's five sanity prompts &mdash; a fixed handful a person skims to catch an obviously broken adapter &mdash; are exactly that top-of-the-box taste, and they're supposed to be. The trap isn't having them. The trap is the quiet slide from "these five look fine" to "the adapter looks good," which is a claim about the whole box made from the one berry on top.</p>
 
-<p>So what: this is the failure the plan line's "20 points" is pointing at, and it's dangerous precisely because it's silent. A model that's actually worse but happens to have memorized a slice of the test set can outscore a model that's actually better and hasn't.</p>
+<p>So what: the danger isn't a dishonest engineer, it's an honest one with a small sample and a deadline. The fix has to be structural, because willpower is exactly the thing that runs out at the end of a long build.</p>
 
-<h2 id="two-checks-because-one-kind-of-copy-isnt-the-only-kind">Two Checks, Because One Kind of Copy Isn't the Only Kind</h2>
+<h2 id="what-pricing-runs-taught-me-about-sample-size">What Pricing Runs Taught Me About Sample Size</h2>
 
-<p>The natural first instinct is a single check: hash every prompt, compare hashes, done. That catches the exam question copied verbatim. It does not catch the reworded one &mdash; the practice-sheet case, where the words differ but the underlying question is close enough that a model trained on one can coast on the other.</p>
+<p>A Wayfair pricing run isn't a spot check &mdash; the run manifest covers millions of SKUs (individual sellable products) across the catalog, fanned out through Dataflow and Pub/Sub to the Delphi calculator. Before a run goes wide, a pricing manager reviews a simulation of it in the PMS console. That review is the moment where sample size stops being a statistics-class topic and becomes a human habit.</p>
 
-<p><code>eval-harness</code>'s DESIGN.md fixes two separate checks, not one, because they catch two genuinely different things:</p>
+<p>The natural way to review a simulation is to look up SKUs you recognize. Those are the well-behaved ones: clean cost data, no exotic adjustments, a category you've debugged before. A simulation can look completely reasonable across a dozen familiar SKUs and still be wrong on a long tail nobody opened.</p>
+
+<div class="attr-box team">
+  <div class="attr-label">Scope note &mdash; team system vs. my takeaway</div>
+  I led the PAS (Price Adjustment System) and Pricing, Promotions &amp; Discounts teams at Wayfair; Delphi, the pricing calculator, and the PMS run console were owned by neighboring teams whose reviews I sat in rather than ran. The specific "2,000 SKU minimum" in today's plan line is the plan's phrasing, not a threshold I can attribute to a documented policy. What I'm carrying forward is the pattern those reviews taught, which is that the analysis everyone trusted ran over the full experiment population in BigQuery &mdash; the console spot-check was a smell test, never the evidence.
+</div>
+
+<p>Day 124's post covered the other half of this problem: <em>which</em> side of the train/test line a row lands on, solved by deterministic hashing so the same subject always lands in the same bucket. Sample size is the question that comes after that one is settled. A perfectly stratified split still tells you nothing if the person reading the results only opens ten rows of it.</p>
+
+<p>So what: the pricing lesson wasn't "use a bigger number." It was that the honest population and the convenient population are almost never the same set, and the convenient one is always closer to hand.</p>
+
+<h2 id="three-models-one-prompt-list">Three Models, One Prompt List</h2>
+
+<p>The runner's actual job is narrow. It takes the held-out test set &mdash; the slice of data deliberately kept out of training so it can act as an unseen exam &mdash; and pushes every prompt in it through three models: the adapter under test, the base model it was built on, and a strong reference model. An adapter, here, is the small bundle of extra weights fine-tuning produces, layered on top of a base model that itself never changes.</p>
 
 <table>
-<tr><th>Check</th><th>Catches</th><th>Reuses</th></tr>
-<tr><td>Exact match</td><td>Byte-identical prompt in both train and test</td><td><code>prompt_hash</code> — already computed at write time, per <code>data-prep-pipeline</code>'s own schema</td></tr>
-<tr><td>Near-duplicate</td><td>Reworded, paraphrased, or lightly edited near-copies</td><td><code>minhash_signature</code> — reserved by <code>data-prep-pipeline</code>, backfilled once Day 123's dedup runs</td></tr>
+<tr><th>Model</th><th>What it answers</th><th>Without it</th></tr>
+<tr><td>Adapter under test</td><td>How the fine-tuned model does</td><td>Nothing to score</td></tr>
+<tr><td>Un-adapted base model</td><td>Whether fine-tuning changed anything</td><td>A score with no "compared to what"</td></tr>
+<tr><td>Reference tier (GPT-4o / Claude class)</td><td>How far from a strong general model</td><td>No sense of whether the gap matters</td></tr>
 </table>
 
-<p>So what: neither check alone is honest about what "no leakage" means. A dataset that passes an exact-match check can still be full of the practice-sheet problem, and a report that only checks one is a report that would have called the plan line's 20-point inflation clean.</p>
+<p>Comparing against the un-adapted base is the row people skip, and it's the one that decides whether the whole training arc was worth its GPU bill. A fine-tuned adapter scoring 71% is meaningless until you know the base model scored 68% or 41% on the identical prompts. Identical is doing real work in that sentence &mdash; three models scored on three different prompt sets is three anecdotes, not a comparison.</p>
 
-<h2 id="a-split-fixes-membership-once-a-pipeline-keeps-moving">A Split Fixes Membership Once; A Pipeline Keeps Moving</h2>
+<p>Results land as Parquet, a columnar file format that stores one row per prompt-and-model pair with the completion and its three metrics attached &mdash; exact match against the expected answer, a quality score from a model acting as judge, and generation latency. The point of writing every row rather than a summary is that a stored row can be re-read by someone who doubts the headline number. A mean score with no rows behind it is a claim; a mean with the rows behind it is evidence.</p>
 
-<p>The tempting shortcut is to trust the split and stop there: <code>data-prep-pipeline</code> already sorts every row into train or test by a deterministic hash, so isn't that the leakage check, done at split time? It answers a narrower question than it looks like it does &mdash; which bucket a row was in, on the one day the split ran, over the rows that existed then.</p>
+<p>So what: the runner isn't clever, and it shouldn't be. Its whole value is that the same prompts hit all three models and every single answer is kept.</p>
 
-<p><code>data-prep-pipeline</code> is a pipeline, not a one-time export. A later run can pull in new conversation rows that never went through the original split at all, and there is nothing in the split logic itself that stops one of those new rows from being a near-duplicate of something already sitting in the eval bucket. The exam metaphor holds here too: locking the exam questions on day one doesn't help if someone photocopies a nearly-identical version and slips it into next semester's study packet.</p>
-
-<p>So what: this is why the design runs the leakage check against the held-out manifest every time, not once at split time. A held-out set that was clean the day it was cut can still go bad later, quietly, if nothing keeps checking it.</p>
-
-<h2 id="why-the-gate-blocks-by-default">Why the Gate Blocks, Not Warns</h2>
+<h2 id="the-runner-doesnt-accept-a-prompt-list">The Runner Doesn't Accept a Prompt List</h2>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Leakage checks, exact + near-dup</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Eval runs scored so far</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">FineForge modules now open (data-prep, lora-trainer, eval-harness)</span></div>
-  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Days until model-registry (Day 138)</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Models scored per prompt</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Metrics per row (match, judge, latency)</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Input the runner accepts: a manifest</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Hand-picked prompt lists it will take</span></div>
 </div>
 
-<p>The easier design would flag a leak and let the eval run proceed anyway, with a warning attached to the score. I fixed the default the other way: a confirmed match blocks the run. A warning is easy to skip past, especially the fifth time it fires and nothing has broken yet &mdash; and a score computed alongside an unresolved leak warning is a number people will screenshot and trust before they read the caveat underneath it.</p>
+<p>The obvious signature is <code>run(prompts, models)</code> &mdash; hand it a list, get back scores. That signature makes cherry-picking a one-line change that leaves no trace, because a list of ten prompts and a list of the full held-out set are the same type. I gave it the other signature: the runner takes the held-out manifest &mdash; the fixed, hashed list of test rows Day 134's design pinned down &mdash; and reads its own prompts out of it.</p>
 
-<p>So what: an eval score that can't be fully trusted is worse than no score, because it's the one that looks trustworthy. Blocking by default costs a run when the flag turns out to be a false positive; warning by default costs a wrong number treated as a right one, silently, until someone notices the model shipped isn't actually the best one.</p>
+<p>There is still a <code>--limit</code> flag, because a smoke run against three prompts is how you find out the Parquet writer works before spending an hour of compute. It doesn't quietly produce a smaller benchmark. It stamps the run's output with the sample count and a <code>partial</code> marker, so a partial run is legible as a partial run in the file itself &mdash; not just in the memory of whoever typed the command.</p>
+
+<p>This is the same instinct as yesterday's blocking leakage gate, one layer up. Make the honest path the default path, and make the shortcut label itself so nobody downstream has to remember to ask.</p>
+
+<p>So what: the API signature is the policy. A rule that lives in a runbook gets skipped at 11pm; a rule that lives in a function's arguments has to be deliberately worked around, and working around it leaves a mark in the output.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>The leakage-check queries are written on paper, not in code &mdash; Day 135 owns the actual implementation, and I don't yet know how often the near-duplicate check will fire on real data versus how often it'll be a coincidental false positive an operator has to override. I also don't know whether <code>data-prep-pipeline</code>'s eval bucket, cut once on Day 124's data, has already drifted by the time a real training run reads it, because nothing has checked it yet.</p>
+<p>I don't know what a full held-out run actually costs in wall-clock time or dollars, because nothing has run one against a real model. That number matters more than it sounds: if scoring the full set takes four hours, people will start reaching for <code>--limit</code> out of impatience, and the flag I added as a smoke-test convenience becomes the default path by erosion. Batch throughput is the thing standing between an honest benchmark and one nobody has the patience to run.</p>
 
-<p>The 20-point inflation the plan line describes is still hypothetical &mdash; a plausible number for a plausible failure, not a measured one. What exists today is the design that would catch it, on the honest bet that finding this on paper, before <code>eval-harness</code> ever scores a real adapter, is worth more than finding it after a wrong number has already shaped a decision.</p>
+<p>I also don't know how the reference-tier comparison behaves on cost. Sending the entire held-out set through a frontier API on every eval run is the kind of line item that gets quietly deleted after the first invoice, and I haven't yet designed the caching that would make it survivable.</p>
 
-<p>So what: a leakage check is only worth what it catches before the number it's protecting gets trusted. This week, writing the check down was the whole job &mdash; the postmortem the plan line asked for doesn't exist yet, because the thing it would be a postmortem for got caught first.</p>
+<p>So what: benchmark honesty isn't only a discipline problem, it's a throughput and cost problem wearing a discipline problem's clothes. Today the runner refuses the shortcut &mdash; whether it stays refused depends on how cheap the honest path turns out to be.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 134 of 150</p>
-  <p><em>Next up:</em> <a href="day-135-benchmark-honesty-full-held-out-set.html">Day 135 &mdash; Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts</a></p>
+  <p>Experience &middot; Day 135 of 150</p>
+  <p><em>Next up:</em> Day 136 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-134-leakage-train-test-contamination.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 134 &mdash; Leakage &mdash; Train/Test Contamination Postmortem (yesterday's post &mdash; the held-out manifest this runner reads from)</span>
+    </a>
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-124-stratified-sampling-wayfair-ab-analysis.html">
+      <span class="footnote-arrow">&rarr;</span>
+      <span>Day 124 &mdash; Stratified Sampling &mdash; Wayfair A/B Analysis (which side of the line a row lands on; today is how many rows you read)</span>
+    </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-133-sanity-generations-before-eval.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 133 — Sanity Generations — Smell Test Before Eval (yesterday's post, the cheap check this design sits one step downstream of)</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-120-training-data-is-production-data-legal-at-walmart.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 120 — Training Data Is Production Data — Legal at Walmart (the data-prep-pipeline design this post's held-out set and prompt_hash column both reuse directly)</span>
+      <span>Day 133 &mdash; Sanity Generations &mdash; Smell Test Before Eval (the five-prompt taste this post insists is not a benchmark)</span>
     </a>
     <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/214">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #214 (today's code deliverable — eval-harness/DESIGN.md)</span>
+      <span>infra-ai-streaming PR #214 (eval-harness/DESIGN.md &mdash; the held-out set, leakage checks, and metrics today's runner implements)</span>
     </a>
   </div>
 </div>
@@ -304,10 +322,10 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-exam-question-that-got-reworded">The Exam Question That Got Reworded</a></li>
-      <li><a href="#two-checks-because-one-kind-of-copy-isnt-the-only-kind">Two Checks, Not One</a></li>
-      <li><a href="#a-split-fixes-membership-once-a-pipeline-keeps-moving">A Split Fixes Membership Once</a></li>
-      <li><a href="#why-the-gate-blocks-by-default">Why the Gate Blocks by Default</a></li>
+      <li><a href="#the-strawberry-on-top-of-the-box">The Strawberry On Top of the Box</a></li>
+      <li><a href="#what-pricing-runs-taught-me-about-sample-size">What Pricing Runs Taught Me</a></li>
+      <li><a href="#three-models-one-prompt-list">Three Models, One Prompt List</a></li>
+      <li><a href="#the-runner-doesnt-accept-a-prompt-list">The Runner Refuses a Prompt List</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -315,11 +333,11 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-134-leakage-train-test-contamination.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-135-benchmark-honesty-full-held-out-set.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Leakage+%E2%80%94+Train%2FTest+Contamination+Postmortem+%C2%B7+Day+134&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-134-leakage-train-test-contamination.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Benchmark+Honesty+%E2%80%94+Don%27t+Cherry-Pick+10+Prompts+%C2%B7+Day+135&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-135-benchmark-honesty-full-held-out-set.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -332,17 +350,17 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D132</span> Experience</div>
-          <a href="day-132-first-successful-train-wind-tunnel-model.html" class="series-post-title">First Successful Train — The Milestone Was the Plumbing</a>
+          <div class="series-post-kicker"><span class="series-post-num">D133</span> Experience</div>
+          <a href="day-133-sanity-generations-before-eval.html" class="series-post-title">Sanity Generations &mdash; Smell Test Before Eval</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D133</span> Experience</div>
-          <a href="day-133-sanity-generations-before-eval.html" class="series-post-title">Sanity Generations — Smell Test Before Eval</a>
+          <div class="series-post-kicker"><span class="series-post-num">D134</span> Experience</div>
+          <a href="day-134-leakage-train-test-contamination.html" class="series-post-title">Leakage &mdash; Train/Test Contamination Postmortem</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D134</span> Experience &middot; now</div>
-          <div class="series-post-title">Leakage — Train/Test Contamination Postmortem</div>
-          <div class="series-post-desc">Two leakage checks designed before eval-harness ever scores a real adapter — and why the gate blocks by default instead of warning.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D135</span> Experience &middot; now</div>
+          <div class="series-post-title">Benchmark Honesty &mdash; Don't Cherry-Pick 10 Prompts</div>
+          <div class="series-post-desc">Why the batch runner takes a held-out manifest instead of a prompt list &mdash; and what pricing reviews taught me about sample size.</div>
         </div>
       </div>
     </div>
