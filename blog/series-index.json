@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-132-training-curves-loss-vs-generalization.html",
+          "kicker": "AI Learning · Day 132 of 150",
+          "title": "Day 132 — Training Curves — Loss vs Generalization",
+          "subtitle": "Watch eval loss not train loss",
+          "date": "2026-08-24",
+          "slug": "day-132-training-curves-loss-vs-generalization",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-132-training-curves-loss-vs-generalization.html",
+          "coverImage": "blog/assets/covers/day-132-training-curves-loss-vs-generalization.png",
+          "desc": "A chef tasting their own sauce always says it's good. A blind customer taste test is the number that actually matters -- and this week's metrics stream only has the chef's opinion."
+        },
+        {
           "href": "blog/series/ai-learning/day-131-gpu-cost-accounting-dollars-per-token.html",
           "kicker": "AI Learning · Day 131 of 150",
           "title": "Day 131 — GPU Cost Accounting — $/1M Tokens Trained",
@@ -1463,6 +1475,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-132-first-successful-train-wind-tunnel-model.html",
+          "kicker": "Experience · Day 132 of 150",
+          "title": "Day 132 — First Successful Train — The Milestone Was the Plumbing",
+          "subtitle": "The Milestone Was the Plumbing",
+          "date": "2026-08-24",
+          "slug": "day-132-first-successful-train-wind-tunnel-model",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-132-first-successful-train-wind-tunnel-model.html",
+          "coverImage": "blog/assets/covers/day-132-first-successful-train-wind-tunnel-model.png",
+          "desc": "A wind-tunnel scale model earns its keep before the real bridge gets built. Why lora-trainer validates its whole pipeline on a smaller, single-GPU-friendly model before ever touching the expensive 70B run."
+        },
         {
           "href": "blog/series/experience/day-131-finops-gpu-cost-per-model.html",
           "kicker": "Experience · Day 131 of 150",
