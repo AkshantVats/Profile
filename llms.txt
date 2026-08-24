@@ -10,6 +10,7 @@ Email: akshant3@gmail.com
 
 ## AI Learning Series
 
+- [Day 136 — Comparing Models — Win-Rate and CI](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html): The Wilson score interval for a binomial win-rate, worked with real numbers, and why the naive normal approximation breaks at small n or extreme proportions.
 - [Day 135 — Batch Inference — Throughput for Eval](https://akshantvats.github.io/Profile/blog/series/ai-learning/day-135-batch-inference-throughput-for-eval.html): A batch inference runner scoring the LoRA adapter, base model, and a GPT-4o reference against the same held-out prompts, using the offline/throughput-optimized counterpart to online continuous batching.
 Learning AI Inference as a Distributed Systems Engineer — 30 posts published (Day 0–29 of 150). Topics: KV cache, continuous batching, GPU scheduling, RAG pipelines, feature flags for model rollouts, eBPF tracing, OTel Collector, LLM observability, agent infrastructure.
 
@@ -142,6 +143,7 @@ Learning AI Inference as a Distributed Systems Engineer — 30 posts published (
 
 ## Experience Series
 
+- [Day 136 — Win-Rate vs Accuracy — Stakeholder Language](https://akshantvats.github.io/Profile/blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html): Why the eval-harness aggregate table reports win-rate with a confidence interval instead of F1, grounded in how Wayfair's PAS translates calculator output into a decision a pricing manager can act on.
 - [Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts](https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html): Why the batch runner scores the full held-out set instead of a hand-picked sample, grounded in Wayfair's real hash-assigned-population pattern for pricing experiments.
 Production war stories from large-scale engineering: Agoda (WhiteFalcon in-house TSDB, 1.5T events/day), Delivery Hero (rider tracking at 5k geo-events/s), Wayfair (pricing platform, 70k+ suppliers), Walmart Labs (7M+ IoT sensors, 50+ facilities).
 
