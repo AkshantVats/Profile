@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html",
+          "kicker": "AI Learning · Day 134 of 150",
+          "title": "Day 134 — Eval Harness Design — Held-Out Sets",
+          "subtitle": "Never tune on eval set",
+          "date": "2026-08-24",
+          "slug": "day-134-eval-harness-design-held-out-sets",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html",
+          "coverImage": "blog/assets/covers/day-134-eval-harness-design-held-out-sets.png",
+          "desc": "An exam board seals the answer key in an envelope and records the seal's number before anyone opens it -- if the numbers don't match on grading day, everyone knows the key was swapped. A test set's locked hash is that seal number."
+        },
+        {
           "href": "blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html",
           "kicker": "AI Learning · Day 133 of 150",
           "title": "Day 133 — Qualitative Eval — Smell Tests",
@@ -1487,6 +1499,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-134-leakage-train-test-contamination.html",
+          "kicker": "Experience · Day 134 of 150",
+          "title": "Day 134 — Leakage — Train/Test Contamination Postmortem",
+          "subtitle": "Near-Duplicate Prompts Inflated Eval 20 Points",
+          "date": "2026-08-24",
+          "slug": "day-134-leakage-train-test-contamination",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-134-leakage-train-test-contamination.html",
+          "coverImage": "blog/assets/covers/day-134-leakage-train-test-contamination.png",
+          "desc": "A student who has seen 90% of an exam's questions, reworded on a practice sheet, will ace the exam without knowing the material. Why eval-harness's DESIGN.md fixes two leakage checks before it ever scores a real adapter."
+        },
         {
           "href": "blog/series/experience/day-133-sanity-generations-before-eval.html",
           "kicker": "Experience · Day 133 of 150",

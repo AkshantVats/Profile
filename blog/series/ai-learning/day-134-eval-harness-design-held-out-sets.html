@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 133 &mdash; Qualitative Eval &mdash; Smell Tests | AI Learning Series</title>
-<meta name="description" content="A held-out eval-loss number can drop cleanly while the model it's scoring quietly outputs repeated tokens, truncated JSON, or empty strings. Why a human skimming five fixed prompts belongs in front of any automated eval harness, not just behind one.">
-<meta property="og:title" content="Day 133 &mdash; Qualitative Eval &mdash; Smell Tests">
-<meta property="og:description" content="A factory worker plugs in a freshly built circuit board and watches for smoke before it ever reaches the automated test rig -- the literal origin of 'smoke test.' A model's five-prompt sanity check is the same idea, cheaper than the harness it protects.">
+<title>Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets | AI Learning Series</title>
+<meta name="description" content="Never tune on the eval set — the rule is one sentence and still gets broken constantly, usually by accident, one dataset refresh at a time. Locking a hash of the test set into registry metadata is how you make the accident detectable instead of invisible.">
+<meta property="og:title" content="Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets">
+<meta property="og:description" content="An exam board seals the answer key in an envelope and records the seal's number before anyone opens it. If the seal on file doesn't match the envelope in the room, everyone knows the key was swapped. A test set's hash is that seal number.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-133-qualitative-eval-smell-tests.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-134-eval-harness-design-held-out-sets.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-eval-harness-design-held-out-sets.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-133-qualitative-eval-smell-tests.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-134-eval-harness-design-held-out-sets.png">
 <meta property="article:published_time" content="2026-08-24">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,54 +185,56 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 133 of 150</span>
-    <span class="tag">Qualitative Eval</span>
-    <span class="tag">Smell Tests</span>
+    <span class="tag accent">AI Learning &middot; Day 134 of 150</span>
+    <span class="tag">Held-Out Sets</span>
+    <span class="tag">Eval Design</span>
     <span class="tag">LoRA Training</span>
   </div>
-  <h1 class="post-title">Day 133 &mdash; Qualitative Eval &mdash; Smell Tests</h1>
-  <p class="post-subtitle">Yesterday's post drew the line between train loss and eval loss &mdash; a held-out number that answers whether a model generalizes. It's still just a number. A model can score a clean eval loss and still output truncated JSON, repeated tokens, or an empty string, and no loss curve will ever tell you that on its own.</p>
+  <h1 class="post-title">Day 134 &mdash; Eval Harness Design &mdash; Held-Out Sets</h1>
+  <p class="post-subtitle">Never tune on the eval set. It's one sentence, everyone learns it early, and it still gets violated constantly — almost never on purpose, almost always because a pipeline changed and nobody re-checked whether the held-out set was still actually held out.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 133 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 134 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 24, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">5 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-133-qualitative-eval-smell-tests.png" alt="Day 133 — Qualitative Eval — Smell Tests" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-134-eval-harness-design-held-out-sets.png" alt="Day 134 — Eval Harness Design — Held-Out Sets" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Yesterday's post drew a real line: train loss grades a model on batches it already adjusted its weights against, eval loss grades it on batches it never saw. Watching both together answers whether a model generalizes. What neither number answers is whether the model's actual output &mdash; the text a person or a downstream system would read &mdash; is usable at all.</p>
+<p>"Never tune on the eval set" is the first rule anyone learns about held-out data, and it survives as a rule precisely because it's so easy to break without noticing. Nobody sits down and decides to cheat. What actually happens is a pipeline gets re-run, a dataset gets refreshed, and a handful of rows that used to be safely on the training side end up close enough to the test side that the model has effectively seen the answer already.</p>
 
-<h2 id="the-circuit-board-that-smokes">The Circuit Board That Smokes</h2>
+<h2 id="the-sealed-envelope">The Sealed Envelope</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; where "smoke test" literally comes from</div>
-  Before a freshly assembled circuit board ever reaches an automated test rig, a factory worker plugs it in and watches it for a few seconds. If it smokes, it fails, obviously and immediately, and it never reaches the rig at all. That's not a rigorous electrical test &mdash; it's the cheapest possible check for the one failure so bad it makes every other test pointless. The phrase "smoke test" comes from exactly this, in hardware, long before software borrowed it.
+  <div class="attr-label">DS analogy &mdash; what a locked hash actually buys you</div>
+  A standardized exam board seals the answer key in an envelope before the exam, and writes the envelope's seal number into the official record right then, before anyone opens it. On grading day, the seal number in the record has to match the seal on the envelope in the room. If it doesn't, everyone knows immediately that the key was swapped at some point — not because anyone watched it happen, but because the numbers no longer agree.
 </div>
 
-<p>A model that just finished training is the freshly assembled board. Eval loss is the automated test rig &mdash; thorough, quantitative, expensive to run at scale. Before anything reaches it, a fixed set of prompts, generated and read by a person, is the plug-it-in-and-watch-for-smoke step: not proof the model is good, just proof it isn't obviously, catastrophically broken.</p>
+<p>A held-out test set works the same way once it has a hash locked into a registry: the hash is the seal number, computed once, at the moment the set is confirmed clean, and written down somewhere nobody scoring a model can quietly edit. Every later eval run recomputes the hash of whatever set it's about to score against and compares it to the locked value. A mismatch doesn't prove what changed — it proves something did, which is the whole point of a seal.</p>
 
-<p>So what: a low eval loss and a smoking board can coexist. Eval loss is computed as an average over a whole batch of held-out tokens &mdash; a model that outputs mostly-sensible text with one garbled section, or that repeats itself in a way that still assigns reasonable per-token probability, can post a perfectly respectable eval-loss number while producing output nobody would want to read.</p>
+<p>So what: a held-out set with no locked hash is just a file with a name that says "test." Nothing stops it from silently becoming a slightly different file next month, and nothing would tell you if it had.</p>
 
-<h2 id="what-a-clean-eval-loss-cant-see">What a Clean Eval Loss Can't See</h2>
+<h2 id="how-a-test-set-drifts-without-anyone-touching-it">How a Test Set Drifts Without Anyone Touching It</h2>
 
-<p>Degenerate repetition &mdash; a model looping the same phrase &mdash; is the classic example, but it's not the only one. A LoRA adapter fine-tuned on a JSON-structured dataset can drift on formatting specifically: valid tokens, reasonable per-token loss, and output that fails to parse as JSON anyway because a closing brace or quote landed wrong. None of that shows up as an anomaly in an aggregate loss number computed over thousands of tokens.</p>
+<p>The FineForge pipeline this design sits at the end of makes the drift concrete. <code>data-prep-pipeline</code> splits rows into train and eval once, by a deterministic hash of each row's ID, stratified so every task type gets its own 90/10 split rather than one global split a large category could dominate. That split is correct the day it runs.</p>
 
-<p>So what: eval loss is a necessary check, not a sufficient one. It catches a model that hasn't learned the training distribution at all; it does not reliably catch a model that learned the distribution well on average while failing in a specific, visible way a human would notice in the first sentence.</p>
+<p>The pipeline keeps running, though. A later pull of production traffic can add new rows that never went through the original split logic at all — and nothing in a fresh pull checks whether one of those new training rows happens to be a near-duplicate of something already sitting in the eval bucket from months earlier.</p>
+
+<p>The split fixed membership once. It said nothing about what gets added around it later.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,52 +254,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Run finishes training"] --> B["Resume adapter checkpoint"]
-  B --> C["Generate 5 fixed prompts"]
-  C --> D["Human reads samples"]
-  D -->|"Smells fine"| E["Send to eval harness"]
-  D -->|"Smells broken"| F["Back to debugging"]</pre>
+  A["Held-out set from split"] --> B["Check exact hash match"]
+  B --> C["Check near-dup match"]
+  C -->|"Clean"| D["Lock test set hash"]
+  C -->|"Leak found"| E["Block the eval run"]
+  D --> F["Score adapter for real"]</pre>
 
-<p>So what: the human-read step sits before the eval harness, not after it, precisely because it's cheap and the harness isn't. There's no point spending an expensive, quantitative pass measuring exactly how good a model is at a task, if five seconds of reading its output would have shown it can't do the task at all.</p>
+<p>So what: the leakage check has to run against the held-out set every time an eval fires, not once when the split was created — otherwise the seal number gets written down and then never checked again, which defeats the reason for sealing it in the first place.</p>
 
-<h2 id="whats-actually-in-the-report-today">What's Actually in the Report Today</h2>
+<h2 id="why-a-hash-and-not-just-a-filename">Why a Hash, and Not Just a Filename</h2>
 
-<p><code>generate_samples.py</code> resumes a run's checkpoint, runs five fixed <code>SANITY_PROMPTS</code> through a <code>GenerationBackend</code>, and writes a JSON <code>SampleReport</code> pairing every prompt with its completion. In this GPU-less CI, that backend is <code>StubGenerationBackend</code> &mdash; a deterministic function of the prompt string, not a real forward pass. The real backend, <code>HFGenerationBackend</code>, calls PEFT's actual <code>model.generate()</code>, but nothing here can run it against real weights yet.</p>
+<p>A filename or a version tag records intent — "this is supposed to be the v3 held-out set" — but it records nothing about content. A file can be silently overwritten, re-exported with a slightly different row count, or regenerated from a pipeline whose logic changed since the last run, all while keeping the exact same name. A reader trusting the filename has no way to know any of that happened.</p>
+
+<p>A hash of the actual row contents — in this design, <code>sha256</code> over the sorted list of row IDs the set contains — changes if and only if the actual membership changes. Two runs against a set with the same hash are provably scoring the same rows, no matter what either run happened to call the file. That provability is the entire reason to compute a hash instead of trusting a name: a name is a claim, a hash is a fact you can check.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Fixed prompts per report</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Backends: stub (tested) + real (untested here)</span></div>
-  <div class="stat-cell"><span class="stat-num">18</span><span class="stat-label">New tests for the sanity path</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Real completions read so far</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Leakage checks before any lock</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Hash, recomputed every eval run</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Registry to write it to, so far</span></div>
+  <div class="stat-cell"><span class="stat-num">4</span><span class="stat-label">Days until model-registry exists</span></div>
 </div>
 
-<p>So what: the honest state today is the harness for the smoke test exists and is tested, not that a smoke test has actually been run on a real model. The stub proves the resume-generate-report plumbing works end to end; it can't prove anything about what a real fine-tuned model would actually say.</p>
+<p>So what: the registry to actually store this hash doesn't exist yet in this arc — it's Day 138's module. Reserving the field now, ahead of the table that will hold it, means the eval harness isn't redesigned the day that registry ships; it just gets somewhere real to write a value it was already computing.</p>
 
-<h2 id="why-five-and-why-fixed">Why Five, and Why Fixed</h2>
+<h2 id="the-limits-of-a-hash">What a Hash Doesn't Solve</h2>
 
-<p>The prompt set is small and constant across runs on purpose. Small, because a human is going to read it &mdash; five completions get read in full; fifty get skimmed, which defeats the point. Fixed, because the value of a smoke test comes from comparability: the same five prompts run after every training run mean a person can notice "this run's answer to prompt three got worse" in a way a different random sample every time never lets them.</p>
+<p>A locked hash proves a test set didn't silently change between two eval runs. It says nothing about whether that test set was ever clean to begin with. A held-out set that had a leak baked in from day one will hash consistently every single time — the seal matches the envelope, and the envelope was compromised before it was ever sealed.</p>
 
-<p>So what: a smoke test that changes its own inputs between runs isn't really a smoke test anymore &mdash; it's a fresh unknown each time, exactly the property a cheap, fast, comparable pre-check is supposed to eliminate.</p>
+<p>So what: hashing and leakage-checking are two different jobs, done in a specific order — check for leaks first, lock the hash of a set that has already passed that check, and only then treat a stable hash as meaning something. A hash locked before the leakage check runs is just a very precise record of a mistake.</p>
 
 <div class="series-footer">
-  <p>Day 133 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-134-eval-harness-design-held-out-sets.html">Day 134 — Eval Harness Design — Held-Out Sets</a></p>
+  <p>Day 134 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 135 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-132-training-curves-loss-vs-generalization.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-133-qualitative-eval-smell-tests.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 132 — Training Curves — Loss vs Generalization (yesterday's post, the eval-loss number this smoke test sits in front of)</span>
+      <span>Day 133 — Qualitative Eval — Smell Tests (yesterday's post, the cheap check this design sits one step downstream of)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching — the series' GOLD reference post on reading a scheduling mechanism at this same depth</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/213">
+    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/214">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #213 (today's code deliverable — generate_samples.py, sweep.py, and SWEEP_RESULTS.md)</span>
+      <span>infra-ai-streaming PR #214 (today's code deliverable — eval-harness/DESIGN.md)</span>
     </a>
   </div>
 </div>
@@ -308,21 +312,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-circuit-board-that-smokes">The Circuit Board That Smokes</a></li>
-      <li><a href="#what-a-clean-eval-loss-cant-see">What Eval Loss Can't See</a></li>
-      <li><a href="#whats-actually-in-the-report-today">What's Actually in the Report</a></li>
-      <li><a href="#why-five-and-why-fixed">Why Five, and Why Fixed</a></li>
+      <li><a href="#the-sealed-envelope">The Sealed Envelope</a></li>
+      <li><a href="#how-a-test-set-drifts-without-anyone-touching-it">How a Test Set Drifts</a></li>
+      <li><a href="#why-a-hash-and-not-just-a-filename">Why a Hash, Not a Filename</a></li>
+      <li><a href="#the-limits-of-a-hash">What a Hash Doesn't Solve</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-133-qualitative-eval-smell-tests.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-134-eval-harness-design-held-out-sets.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Qualitative+Eval+%E2%80%94+Smell+Tests+%C2%B7+Day+133&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-133-qualitative-eval-smell-tests.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Eval+Harness+Design+%E2%80%94+Held-Out+Sets+%C2%B7+Day+134&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-134-eval-harness-design-held-out-sets.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,17 +339,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D131</span> AI Learning</div>
-          <a href="day-131-gpu-cost-accounting-dollars-per-token.html" class="series-post-title">GPU Cost Accounting — $/1M Tokens Trained</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D132</span> AI Learning</div>
           <a href="day-132-training-curves-loss-vs-generalization.html" class="series-post-title">Training Curves — Loss vs Generalization</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D133</span> AI Learning</div>
+          <a href="day-133-qualitative-eval-smell-tests.html" class="series-post-title">Qualitative Eval — Smell Tests</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D133</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Qualitative Eval — Smell Tests</div>
-          <div class="series-post-desc">The factory smoke-test analogy — why a human reading five fixed prompts belongs in front of an eval harness, not behind it.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D134</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Eval Harness Design — Held-Out Sets</div>
+          <div class="series-post-desc">The sealed-envelope analogy for why a locked test-set hash catches silent drift a filename never would.</div>
         </div>
       </div>
     </div>
