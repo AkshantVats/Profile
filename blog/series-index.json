@@ -1512,6 +1512,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html",
+          "kicker": "Experience · Day 136 of 150",
+          "title": "Day 136 — Win-Rate vs Accuracy — Stakeholder Language",
+          "subtitle": "PM understood win-rate, not F1 -- the real PAS pattern behind that decision",
+          "date": "2026-08-24",
+          "slug": "day-136-win-rate-vs-accuracy-stakeholder-language",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html",
+          "coverImage": "blog/assets/covers/day-136-win-rate-vs-accuracy-stakeholder-language.png",
+          "desc": "A lab printout full of decimal values means nothing until someone circles the ones that matter. Why the eval-harness aggregate table reports win-rate with a confidence interval instead of F1 -- and the real PAS pattern of translating calculator output into a decision a manager can act on."
+        },
+        {
           "href": "blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html",
           "kicker": "Experience · Day 135 of 150",
           "title": "Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts",
