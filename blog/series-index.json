@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-141-vllm-architecture-pagedattention-refresher.html",
+          "kicker": "AI Learning · Day 141 of 150",
+          "title": "Day 141 — vLLM Architecture — PagedAttention Refresher",
+          "subtitle": "KV cache paging like OS virtual memory",
+          "date": "2026-08-25",
+          "slug": "day-141-vllm-architecture-pagedattention-refresher",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-141-vllm-architecture-pagedattention-refresher.html",
+          "coverImage": "blog/assets/covers/day-141-vllm-architecture-pagedattention-refresher.png",
+          "desc": "A parking garage assigns every car numbered stalls scattered anywhere open, tracked by a directory at the entrance. Why PagedAttention pages a sequence's KV cache the same way, and what a Helm value like max_num_seqs actually bounds on that mechanism."
+        },
+        {
           "href": "blog/series/ai-learning/day-140-baselines-for-drift-register-at-deploy.html",
           "kicker": "AI Learning · Day 140 of 150",
           "title": "Day 140 — Baselines for Drift — Register at Deploy",
