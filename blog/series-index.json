@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-137-error-analysis-failure-taxonomies.html",
+          "kicker": "AI Learning · Day 137 of 150",
+          "title": "Day 137 — Error Analysis — Failure Taxonomies",
+          "subtitle": "Cluster failures like incident tags",
+          "date": "2026-08-25",
+          "slug": "day-137-error-analysis-failure-taxonomies",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-137-error-analysis-failure-taxonomies.html",
+          "coverImage": "blog/assets/covers/day-137-error-analysis-failure-taxonomies.png",
+          "desc": "A filing cabinet with labeled drawers still needs someone to read each folder before they know why a case is in there. Why grouping failures by task_type isn't the same question as grouping them by why they failed, and what a real failure taxonomy would still need."
+        },
+        {
           "href": "blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html",
           "kicker": "AI Learning · Day 136 of 150",
           "title": "Day 136 — Comparing Models — Win-Rate and CI",
