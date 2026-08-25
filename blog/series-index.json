@@ -1572,6 +1572,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-141-helm-values-sprawl-route-service-eks.html",
+          "kicker": "Experience · Day 141 of 150",
+          "title": "Day 141 — Helm for Route Service on EKS — Values File Sprawl",
+          "subtitle": "Delivery Hero · Route Service chart · 12 envs × helmfile",
+          "date": "2026-08-25",
+          "slug": "day-141-helm-values-sprawl-route-service-eks",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-141-helm-values-sprawl-route-service-eks.html",
+          "coverImage": "blog/assets/covers/day-141-helm-values-sprawl-route-service-eks.png",
+          "desc": "A blueprint photocopied for twelve job sites drifts the moment each foreman pencils in local changes. Why Route Service's Helm values sprawled across Delivery Hero's EKS environments, and what fixed it, before that same lesson lands on a chart that happens to point at a GPU."
+        },
+        {
           "href": "blog/series/experience/day-140-baseline-registration-drift-needs-a-reference.html",
           "kicker": "Experience · Day 140 of 150",
           "title": "Day 140 — Baseline Registration — Drift Needs a Reference",
