@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 137 &mdash; Failure Galleries &mdash; How Support Triages Tickets | Experience Series</title>
-<meta name="description" content="A win-rate table says the adapter is 65% better; it never shows what the losing prompts actually said. Why today's HTML report renders only the worst-margin losses, capped at 20, and what Delivery Hero's Revisit Order System has to do with that cap.">
-<meta property="og:title" content="Day 137 &mdash; Failure Galleries &mdash; How Support Triages Tickets">
-<meta property="og:description" content="An ER intake board doesn't read every arriving patient's chart over a loudspeaker in walk-in order. Why today's failure gallery renders worst-margin losses first, capped at 20, and how that maps onto a rider-tracking system that could never scan live traffic for one bad route either.">
+<title>Day 138 &mdash; Model Registry &mdash; Artifacts + Metadata | AI Learning Series</title>
+<meta name="description" content="Git for weights with semver tags. Why a registry row -- artifact_uri, eval_scores, git sha, dataset hash -- answers questions a raw file in a bucket structurally cannot, and how it reuses the same crash-safe finalize() pattern this series already built.">
+<meta property="og:title" content="Day 138 &mdash; Model Registry &mdash; Artifacts + Metadata">
+<meta property="og:description" content="A library card catalog doesn't store the books differently -- it just records which book, which printing, which shelf. Why a model registry's job is the catalog card, not the storage bucket.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-137-failure-galleries-support-triage.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-137-failure-galleries-support-triage.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-138-model-registry-artifacts-metadata.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-138-model-registry-artifacts-metadata.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-137-failure-galleries-support-triage.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-138-model-registry-artifacts-metadata.png">
 <meta property="article:published_time" content="2026-08-25">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 137 of 150</span>
-    <span class="tag">Support Triage</span>
-    <span class="tag">Eval Harness</span>
+    <span class="tag accent">AI Learning &middot; Day 138 of 150</span>
+    <span class="tag">Model Registry</span>
+    <span class="tag">Artifact Metadata</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 137 &mdash; Failure Galleries &mdash; How Support Triages Tickets</h1>
-  <p class="post-subtitle">A win-rate table can say an adapter is 65% better and never show you what the losing 35% actually said. Delivery Hero's rider-tracking platform faced the same shape of problem at a very different scale, and the fix it landed on &mdash; snapshot the flagged case, don't scan the live stream &mdash; is the one today's failure gallery reuses.</p>
+  <h1 class="post-title">Day 138 &mdash; Model Registry &mdash; Artifacts + Metadata</h1>
+  <p class="post-subtitle">Git for weights with semver tags. Today's post is about the gap between "the file is saved somewhere" and "I can prove exactly which file this is, what trained it, and whether it was any good" &mdash; and why a registry row closes that gap while a bucket path alone can't.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 137 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 138 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 25, 2026</span>
     <div class="meta-divider"></div>
@@ -208,43 +208,36 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-137-failure-galleries-support-triage.png" alt="Day 137 — Failure Galleries — How Support Triages Tickets" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-138-model-registry-artifacts-metadata.png" alt="Day 138 — Model Registry — Artifacts + Metadata" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>The plan's bridge line for today reads: "HTML report gallery is support-triage for models." I went looking for a literal support-triage workflow in the Delivery Hero context doc before writing a word of this post, because a specific remembered process is exactly the kind of detail that's easy to invent and easy to get caught inventing.</p>
+<p>"Registry row: artifact_uri, eval_scores" is today's hook, and it undersells the point slightly. The interesting part isn't that the row stores a URI and a score &mdash; a filename can already encode both of those, badly. The interesting part is what a row can do that a filename structurally cannot: be queried, compared, and trusted.</p>
+
+<h2 id="a-catalog-card-does-not-store-the-book">A Catalog Card Doesn't Store the Book</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">Scope note &mdash; what's documented vs. what the plan line implies</div>
-  No context doc I have access to describes a literal "an agent opens the worst route first" workflow at Delivery Hero &mdash; I checked <code>delivery-hero-rider-tracking-system.md</code> directly and found no such transcript. What is documented, and what this post actually draws on, is the mechanism underneath it: the architecture doc's own component table lists a <strong>Revisit Order System</strong> whose role is "audit replay / immutable snapshots into Route object," feeding a <strong>UI</strong> scoped explicitly as "Customer and support surfaces" &mdash; not the live Route Consumers pipeline. My own resume line for that role: built end-to-end rider tracking on OSRM, processing 5k+ real-time route updates per second, on a platform handling 1M+ daily orders. Nobody, support included, was ever going to page through that live stream flag by flag. That gap between "the live pipeline" and "the one snapshot a person actually needs" is the real precedent behind today's post, not a remembered ticket queue.
+  <div class="attr-label">DS analogy &mdash; the card catalog, not the shelf</div>
+  A library's card catalog doesn't hold any books. It holds a card per book: title, author, edition, call number, which copies are checked out. The shelf is where the physical object lives; the card is what lets a librarian answer "do we have the second edition, and where is it" without walking every aisle. A model registry plays the card's role, not the shelf's &mdash; the artifact still lives in object storage, exactly where it already did.
 </div>
 
-<h2 id="an-er-intake-board-not-a-waiting-room-loudspeaker">An ER Intake Board, Not a Waiting-Room Loudspeaker</h2>
+<p>Delete the card catalog and every book is still physically on the shelf. What's gone is the ability to answer any question about them faster than a manual search, or to prove a claim like "this is the second edition" instead of just asserting it. That's the same gap between a folder of <code>.safetensors</code> files and a registry: the weights aren't the missing piece, the provable metadata about the weights is.</p>
 
-<p>A hospital emergency room doesn't read out every arriving patient's chart over a loudspeaker in the order they walked through the door. A triage nurse looks at each new arrival for a few seconds, decides how bad it is, and the worst cases get pulled to the front of the board while the sprained ankle waits.</p>
+<p>So what: a registry's value isn't storage, it's the queryable claim layer on top of storage &mdash; which is exactly why today's ticket is "upload artifact + metadata," two different jobs bundled into one API, not one job with an extra field.</p>
 
-<p>The loudspeaker approach would technically show you everyone eventually, in strict arrival order, with no judgment applied. It would also mean the person having a heart attack waits behind eleven people with paperwork questions, because "everyone gets a turn" and "the worst case gets seen first" are different sorting rules entirely.</p>
+<h2 id="three-fields-three-different-questions">Three Fields, Three Different Questions</h2>
 
-<p>So what: a system that surfaces the worst case first isn't cutting corners on completeness &mdash; it's admitting that reading everything in arrival order is a worse use of a scarce reader's attention than reading the worst thing first.</p>
+<p>The ticket names three metadata fields, and each one answers a question the artifact file alone can't: <code>eval_scores</code> answers "was this version actually better," reusing the same win-rate-plus-Wilson-interval shape this series' eval-harness module already built rather than inventing a second scoring format. <code>git_sha</code> answers "what exact code produced this," the same discipline a Docker image's build provenance label gives a container. <code>dataset_hash</code> answers "what data did it see" &mdash; today's module accepts it as a caller-supplied sha256 hex string rather than trusting a filename like <code>v3-final-FINAL.pkl</code> to mean anything.</p>
 
-<h2 id="route-snapshots-existed-because-live-traffic-never-would-surface-one-order">Route Snapshots Existed Because Live Traffic Never Would Surface One Order</h2>
+<div class="attr-box mine">
+  <div class="attr-label">Honest gap &mdash; dataset_hash isn't wired to a real producer yet</div>
+  Yesterday's eval-harness DESIGN.md reserved a <code>test_set_hash</code> field explicitly for this module to consume. Grepping that codebase for it turns up exactly one hit &mdash; a comment citing it as precedent, not a function that computes one. So <code>dataset_hash</code> today is a caller-supplied string with a documented shape, not a value joined against a real upstream hash yet. Naming that now is cheaper than someone discovering it by reading two modules that don't actually connect.
+</div>
 
-<p>Delivery Hero's rider-tracking platform ran at a scale where "read the live stream and find the bad one" was never a workable plan. The rider-tracking work I built there processed 5k+ real-time route updates a second across a platform doing 1M+ daily orders and 10k+ concurrent requests on AWS EKS &mdash; a firehose, not a queue a person could sit and watch.</p>
-
-<p>That's exactly why the architecture keeps a separate component for the case a customer or support agent actually needs to look at: the Revisit Order System writes an immutable snapshot into the Route object, and the UI layer that customers and support use reads from that snapshot &mdash; not from Route Consumers, the component still reading the live 5k+/sec stream. A support agent responding to one complaint never needed the firehose; they needed the one order's route, frozen at a point they could actually inspect.</p>
-
-<p>So what: the fix for "the live stream is too big to read" isn't a faster reader, it's a system that stops pretending every consumer needs the live stream in the first place &mdash; some consumers only ever needed one flagged snapshot.</p>
-
-<h2 id="todays-gallery-runs-the-same-play-on-model-losses">Today's Gallery Runs the Same Play on Model Losses</h2>
-
-<p>Yesterday's aggregate table already answers "is the adapter better, and by how much" with a win-rate per <code>task_type</code>. It says nothing about what a losing prompt's output actually looked like, which is the same gap a raw 5k+/sec route stream leaves for a support agent: a number, not a case to read.</p>
-
-<p><code>build_failure_gallery()</code> is today's snapshot mechanism. It re-walks the same comparison list the aggregate table already builds, keeps only the prompts where <code>adapter_under_test</code> lost to the base model, joins each one's actual completion text back in from yesterday's Parquet rows, and sorts the result worst-margin-first. Nothing about that function reads the full comparison set into the rendered report &mdash; only the losses, worst first, the same "flag it, then snapshot only the flagged one" shape as the Revisit Order System.</p>
-
-<p><code>to_driftwatch_samples()</code> takes that same worst-first list one step further: it converts up to 20 of the worst cases into the exact field shape DriftWatch's own alert payload already uses, a cap that's reused directly from DriftWatch's own <code>AlertSampleCap</code> rather than picked independently. It's a reserved interface, not a live call &mdash; there's no DriftWatch ingestion endpoint wired up in this repo yet, same honest-gap posture as prior weeks' reserved interfaces.</p>
+<p>None of those three questions has a good answer if the only artifact of a training run is a file with a human-chosen name. A human-chosen name is optimized for being memorable, not for being provably tied to the run that produced it &mdash; the two goals aren't the same, and a registry row is what makes the second one possible.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -264,46 +257,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Adapter vs base comparisons"] --> B["Keep adapter losses only"]
-  B --> C["Sort worst margin first"]
-  C --> D["Render HTML failure gallery"]
-  D --> E["Cap top 20 samples"]
-  E --> F["Reserved DriftWatch interface"]</pre>
+  A["Training run finishes"] --> B["Upload artifact to object store"]
+  B --> C["Compute eval scores"]
+  C --> D["Record git sha + dataset hash"]
+  D --> E["Commit registry row last"]</pre>
 
-<p>So what: the same design choice shows up twice in this post at two very different scales &mdash; a 5k+/sec production route stream and a batch eval report both landed on "snapshot the worst case, don't hand the reader the whole stream," because a reader's attention is the actual scarce resource in both systems.</p>
+<p>So what: three metadata fields sound like bookkeeping until you notice none of the three questions they answer is answerable from the artifact bytes themselves &mdash; the row isn't decoration on top of the file, it's the only place those answers exist at all.</p>
+
+<h2 id="why-the-row-commits-last-not-first">Why the Row Commits Last, Not First</h2>
+
+<p>This series already solved a version of this problem: Day 132's <code>finalize()</code> writes a run's final adapter files first, and only writes the <code>final</code> marker object after every file lands &mdash; so a crash mid-write leaves no marker at all, never a marker pointing at a half-written adapter. Today's registry upload takes the same shape one layer up: the artifact uploads to its object-store key first, and the registry row that makes it discoverable and queryable commits only after the upload is confirmed.</p>
+
+<p>Get that order backwards &mdash; write the row first, upload the artifact after &mdash; and a crash between the two steps leaves a registry entry pointing at a URI with nothing behind it. Any consumer that trusts the registry (a rollback, a deploy, a comparison query) would find a row and reasonably assume the artifact exists, because that's what a committed row is supposed to mean.</p>
+
+<p>So what: a registry is only as trustworthy as its worst-case ordering guarantee &mdash; "row exists" has to mean "artifact exists," which is a promise you only get by writing the artifact first and the row last, the same lesson Day 132's checkpoint marker already taught this pipeline once.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">20</span><span class="stat-label">DriftWatch sample cap, reused not re-derived</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Live DriftWatch ingestion endpoints wired up</span></div>
-  <div class="stat-cell"><span class="stat-num">280</span><span class="stat-label">Char cap on redacted completion text</span></div>
-  <div class="stat-cell"><span class="stat-num">5k+</span><span class="stat-label">Real Delivery Hero route updates/sec support never scanned live</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Metadata fields required per artifact</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Write order: artifact first, row last</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Trustworthy rows if that order flips</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Crash-safety pattern reused from Day 132</span></div>
 </div>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>The Revisit Order System's snapshot is a real, immutable audit record &mdash; the architecture doc is explicit that it feeds the Route object directly, not a synthesized stand-in. Today's DriftWatch sample isn't that yet: <code>request_id</code> is a hash of the prompt text, because <code>runner.py</code>'s schema has no real request_id column to join against, and <code>rationale</code> is the adapter's own redacted completion, because there's no live judge-rationale field in this data path either. Both gaps are named directly in the code's own docstrings rather than quietly papered over.</p>
+<p>"Git for weights with semver tags" is the hook's framing, and it's a useful shorthand, not a literal claim &mdash; today's registry records a git sha and an eval score, not a full content-addressed diff history the way git tracks every commit's changes. Whether this registry ever grows a real diff/lineage view between two artifact versions, the way <code>git log -p</code> shows you between two commits, is an open question this module doesn't answer yet.</p>
 
-<p>So what: a reserved interface with an honestly-labeled synthetic field is still useful &mdash; it proves the shape is right before a real trace store or a real judge pass exists to fill it &mdash; but it isn't the same as the audit snapshot Delivery Hero's support UI actually got to read from, and pretending otherwise would be the exact kind of invented precision this post opened by refusing to do.</p>
+<p>So what: "git for weights" is the right intuition to reach for &mdash; provable identity, a queryable history, no more trusting a filename &mdash; even though today's implementation is closer to git's object store and commit metadata than to its full diffing toolchain, and that gap is worth naming rather than implying this is a finished analogy.</p>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 137 of 150</p>
-  <p><em>Next up:</em> <a href="day-138-artifact-storage-registry-vs-shared-folder.html">Day 138 — Artifact Storage — Registry vs. Shared Folder</a></p>
+  <p>Day 138 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 139 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-137-error-analysis-failure-taxonomies.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 136 — Win-Rate vs Accuracy — Stakeholder Language (yesterday's post, the aggregate table this gallery extends)</span>
+      <span>Day 137 — Error Analysis — Failure Taxonomies (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-135-benchmark-honesty-dont-cherry-pick.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 135 — Benchmark Honesty — Don't Cherry-Pick 10 Prompts (the batch runner whose Parquet rows this gallery joins completions from)</span>
+      <span>Day 2 — Continuous Batching — the series' GOLD reference post this series has followed for depth and structure</span>
     </a>
-    <a href="https://github.com/AkshantVats/infra-ai-streaming/pull/218">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-132-training-curves-loss-vs-generalization.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>infra-ai-streaming PR #218 (today's code deliverable — eval-harness HTML report generator and failure gallery)</span>
+      <span>Day 132 — Training Curves — the finalize()/final marker pattern today's registry row-commit order reuses</span>
     </a>
   </div>
 </div>
@@ -314,9 +314,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#an-er-intake-board-not-a-waiting-room-loudspeaker">An ER Intake Board, Not a Loudspeaker</a></li>
-      <li><a href="#route-snapshots-existed-because-live-traffic-never-would-surface-one-order">Route Snapshots vs Live Traffic</a></li>
-      <li><a href="#todays-gallery-runs-the-same-play-on-model-losses">Today's Gallery, Same Play</a></li>
+      <li><a href="#a-catalog-card-does-not-store-the-book">A Catalog Card, Not the Book</a></li>
+      <li><a href="#three-fields-three-different-questions">Three Fields, Three Questions</a></li>
+      <li><a href="#why-the-row-commits-last-not-first">Why the Row Commits Last</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -324,11 +324,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-137-failure-galleries-support-triage.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-138-model-registry-artifacts-metadata.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Failure+Galleries+%E2%80%94+How+Support+Triages+Tickets+%C2%B7+Day+137&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-137-failure-galleries-support-triage.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Model+Registry+%E2%80%94+Artifacts+%2B+Metadata+%C2%B7+Day+138&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-138-model-registry-artifacts-metadata.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -337,21 +337,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">Experience Series</div>
+      <div class="series-label">AI Learning Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D135</span> Experience</div>
-          <a href="day-135-benchmark-honesty-dont-cherry-pick.html" class="series-post-title">Benchmark Honesty — Don't Cherry-Pick 10 Prompts</a>
+          <div class="series-post-kicker"><span class="series-post-num">D136</span> AI Learning</div>
+          <a href="day-136-comparing-models-win-rate-confidence-interval.html" class="series-post-title">Comparing Models — Win-Rate and CI</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D136</span> Experience</div>
-          <a href="day-136-win-rate-vs-accuracy-stakeholder-language.html" class="series-post-title">Win-Rate vs Accuracy — Stakeholder Language</a>
+          <div class="series-post-kicker"><span class="series-post-num">D137</span> AI Learning</div>
+          <a href="day-137-error-analysis-failure-taxonomies.html" class="series-post-title">Error Analysis — Failure Taxonomies</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D137</span> Experience &middot; now</div>
-          <div class="series-post-title">Failure Galleries — How Support Triages Tickets</div>
-          <div class="series-post-desc">Why today's failure gallery renders worst-margin losses first, capped at 20 — and how Delivery Hero's Revisit Order System solved the same shape of problem at production scale.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D138</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Model Registry — Artifacts + Metadata</div>
+          <div class="series-post-desc">Why a registry row answers questions a raw artifact file structurally can't — and how it reuses the same crash-safe write-order lesson this series already learned once.</div>
         </div>
       </div>
     </div>

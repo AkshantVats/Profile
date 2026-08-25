@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-138-model-registry-artifacts-metadata.html",
+          "kicker": "AI Learning · Day 138 of 150",
+          "title": "Day 138 — Model Registry — Artifacts + Metadata",
+          "subtitle": "Git for weights with semver tags",
+          "date": "2026-08-25",
+          "slug": "day-138-model-registry-artifacts-metadata",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-138-model-registry-artifacts-metadata.html",
+          "coverImage": "blog/assets/covers/day-138-model-registry-artifacts-metadata.png",
+          "desc": "A library card catalog doesn't store the books, it records which book, which printing, which shelf. Why a registry row -- artifact_uri, eval_scores, git sha, dataset hash -- answers questions a raw file in a bucket structurally cannot."
+        },
+        {
           "href": "blog/series/ai-learning/day-137-error-analysis-failure-taxonomies.html",
           "kicker": "AI Learning · Day 137 of 150",
           "title": "Day 137 — Error Analysis — Failure Taxonomies",
@@ -1535,6 +1547,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-138-artifact-storage-registry-vs-shared-folder.html",
+          "kicker": "Experience · Day 138 of 150",
+          "title": "Day 138 — Artifact Storage — Registry vs. Shared Folder",
+          "subtitle": "The plan line said Wayfair had a rollback panic from an unversioned blob — here's what's actually documented, and why a model artifact needs a registry row.",
+          "date": "2026-08-25",
+          "slug": "day-138-artifact-storage-registry-vs-shared-folder",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-138-artifact-storage-registry-vs-shared-folder.html",
+          "coverImage": "blog/assets/covers/day-138-artifact-storage-registry-vs-shared-folder.png",
+          "desc": "A library with no catalog card still has every book on the shelf -- it just can't tell you which printing you're holding. Why a model artifact needs a registry row, not just an S3 key, and what Wayfair's real rollback safety net looks like for services that already have one."
+        },
         {
           "href": "blog/series/experience/day-137-failure-galleries-support-triage.html",
           "kicker": "Experience · Day 137 of 150",
