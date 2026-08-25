@@ -1538,6 +1538,18 @@
           "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-109-sensitivity-tuning-precision-recall-tradeoff.html",
           "coverImage": "blog/assets/covers/day-109-sensitivity-tuning-precision-recall-tradeoff.png",
           "desc": "A tenant sensitivity preset is one multiplier on the CUSUM chart's h threshold, not a smarter detector — strict, balanced, and noisy all run the identical accumulation math. The same 15% sustained drop, evaluated three ways, alarms under strict within six hours and doesn't under balanced or noisy."
+        },
+        {
+          "href": "blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html",
+          "kicker": "AI Learning · Day 139 of 150",
+          "title": "Day 139 — Promotion Gates — Staging to Production",
+          "subtitle": "CI gate on eval threshold",
+          "date": "2026-08-25",
+          "slug": "day-139-promotion-gates-staging-to-production",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html",
+          "coverImage": "blog/assets/covers/day-139-promotion-gates-staging-to-production.png",
+          "desc": "A bridge's weight rating is set by its weakest beam, not the average beam. Why today's staging-to-production gate refuses promotion on the worst-scoring task_type, even when the mean looks fine, and how semantic versioning sits right next to that gate without either substituting for the other."
         }
       ]
     },
@@ -3022,6 +3034,18 @@
           "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.html",
           "coverImage": "blog/assets/covers/day-109-multi-tenant-noisy-neighbor-delivery-hero-stealth-ordering-burst.png",
           "desc": "A volume spike against Order Service looked exactly like a DDoS and turned out to be one franchise's legitimate lunch rush. The fix wasn't a smarter detector — it was admitting one fleet-wide threshold can't serve every tenant's very different baseline honestly."
+        },
+        {
+          "href": "blog/series/experience/day-139-semantic-versioning-what-counts-as-breaking.html",
+          "kicker": "Experience · Day 139 of 150",
+          "title": "Day 139 — Semantic Versioning — What Counts as Breaking",
+          "subtitle": "Additive query types vs. a new cardinality dimension",
+          "date": "2026-08-25",
+          "slug": "day-139-semantic-versioning-what-counts-as-breaking",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-139-semantic-versioning-what-counts-as-breaking.html",
+          "coverImage": "blog/assets/covers/day-139-semantic-versioning-what-counts-as-breaking.png",
+          "desc": "A pipe thread's diameter is load-bearing; its color is not. Why two real changes to Agoda's WhiteFalcon query engine — one additive, one schema-shaped — map cleanly onto minor and major version bumps, without needing a remembered incident to make the point."
         }
       ]
     },
