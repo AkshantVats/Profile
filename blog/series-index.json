@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-140-baselines-for-drift-register-at-deploy.html",
+          "kicker": "AI Learning · Day 140 of 150",
+          "title": "Day 140 — Baselines for Drift — Register at Deploy",
+          "subtitle": "CUSUM needs mu0 from eval harness",
+          "date": "2026-08-25",
+          "slug": "day-140-baselines-for-drift-register-at-deploy",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-140-baselines-for-drift-register-at-deploy.html",
+          "coverImage": "blog/assets/covers/day-140-baselines-for-drift-register-at-deploy.png",
+          "desc": "A surveyor's benchmark disc only means something once it's set into bedrock. Why CUSUM literally cannot compute a drift signal without a reference mean, and what changes when that reference gets pushed at promotion time instead of bootstrapped from live traffic."
+        },
+        {
           "href": "blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html",
           "kicker": "AI Learning · Day 139 of 150",
           "title": "Day 139 — Promotion Gates — Staging to Production",
@@ -1559,6 +1571,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-140-baseline-registration-drift-needs-a-reference.html",
+          "kicker": "Experience · Day 140 of 150",
+          "title": "Day 140 — Baseline Registration — Drift Needs a Reference",
+          "subtitle": "Can't detect drift day 1 without day 0 score",
+          "date": "2026-08-25",
+          "slug": "day-140-baseline-registration-drift-needs-a-reference",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-140-baseline-registration-drift-needs-a-reference.html",
+          "coverImage": "blog/assets/covers/day-140-baseline-registration-drift-needs-a-reference.png",
+          "desc": "A bathroom scale can't tell you you've gained weight on the very first step-on. Why Wayfair's agile-anomaly monitors stay silent for weeks after they're created, and why today's registry pushes a baseline explicitly instead of waiting for one to accumulate."
+        },
         {
           "href": "blog/series/experience/day-139-semantic-versioning-what-counts-as-breaking.html",
           "kicker": "Experience · Day 139 of 150",

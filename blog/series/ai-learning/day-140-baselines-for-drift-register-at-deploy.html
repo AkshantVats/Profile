@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 139 &mdash; Promotion Gates &mdash; Staging to Production | AI Learning Series</title>
-<meta name="description" content="CI gate on eval threshold. Why a promotion gate checks the worst task_type's win-rate, not the average, and how semver's bump-type field sits right next to it without either one substituting for the other.">
-<meta property="og:title" content="Day 139 &mdash; Promotion Gates &mdash; Staging to Production">
-<meta property="og:description" content="A bridge's weight rating is set by its weakest beam, not the average beam. Why today's staging-to-production gate refuses promotion on the worst-scoring task_type, even when the mean looks fine.">
+<title>Day 140 &mdash; Baselines for Drift &mdash; Register at Deploy | AI Learning Series</title>
+<meta name="description" content="Webhook pushes baseline vector on promote. Why CUSUM literally cannot compute a drift signal without a reference mean, and what changes when that reference gets pushed explicitly at promotion time instead of bootstrapped from live traffic.">
+<meta property="og:title" content="Day 140 &mdash; Baselines for Drift &mdash; Register at Deploy">
+<meta property="og:description" content="A surveyor's benchmark disc only means something once it's set into bedrock. Why today's registry POSTs a model's eval vector to DriftWatch the moment it's promoted, becoming the CUSUM detector's mu0 before a single production score exists.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-139-promotion-gates-staging-to-production.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-140-baselines-for-drift-register-at-deploy.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-140-baselines-for-drift-register-at-deploy.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-139-promotion-gates-staging-to-production.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-140-baselines-for-drift-register-at-deploy.png">
 <meta property="article:published_time" content="2026-08-25">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,54 +185,54 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 139 of 150</span>
-    <span class="tag">Promotion Gates</span>
-    <span class="tag">Semantic Versioning</span>
+    <span class="tag accent">AI Learning &middot; Day 140 of 150</span>
+    <span class="tag">Baseline Registration</span>
+    <span class="tag">CUSUM</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 139 &mdash; Promotion Gates &mdash; Staging to Production</h1>
-  <p class="post-subtitle">CI gate on eval threshold. Today's post is about the gap between "the average score looks fine" and "every task this model touches actually clears the bar" &mdash; and why a promotion gate has to check the second thing, not the first.</p>
+  <h1 class="post-title">Day 140 &mdash; Baselines for Drift &mdash; Register at Deploy</h1>
+  <p class="post-subtitle">Webhook pushes baseline vector on promote is today's hook, and the interesting part is what CUSUM literally cannot compute without it. A cumulative-sum detector accumulates deviation from a reference mean &mdash; call it mu0 &mdash; and until a mu0 exists for a given task_type, there's no deviation to accumulate at all.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 139 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 140 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 25, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-139-promotion-gates-staging-to-production.png" alt="Day 139 — Promotion Gates — Staging to Production" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-140-baselines-for-drift-register-at-deploy.png" alt="Day 140 — Baselines for Drift — Register at Deploy" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>"Promotion API checks min win-rate" is today's hook, and the interesting part isn't the threshold number itself. It's which score the gate actually checks. A model can look production-ready on average and still fail the gate outright, and today's post is about why that's the correct behavior, not a bug.</p>
+<p>Webhook pushes baseline vector on promote is today's hook, and it's worth stating plainly what breaks without it. A drift detector needs something to call "the drift from," and until today's code exists, model-registry never told the drift-detector service what that "from" point was for a newly promoted model. Today closes that gap with one webhook call.</p>
 
-<h2 id="the-weakest-beam-sets-the-rating">The Weakest Beam Sets the Rating</h2>
+<h2 id="a-benchmark-disc-only-means-something-once-its-set">A Benchmark Disc Only Means Something Once It's Set</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the bridge rating, not the average beam</div>
-  A highway bridge's posted weight limit isn't the average strength across every beam holding the deck up. It's set by the single weakest beam, because a truck crossing the bridge doesn't drive across the average member, it drives across whichever one happens to be underneath its wheels. Inspectors rate the whole structure to its worst beam on purpose &mdash; a strong average with one rotten beam is still a bridge that fails under the right truck.
+  <div class="attr-label">DS analogy &mdash; the surveyor's benchmark disc</div>
+  Land surveyors set a benchmark: a physical brass disc, driven into bedrock or a building foundation, stamped with a known elevation measured against sea level. Every later survey of that same ground references that disc, not the raw ground itself, because "has this land subsided" is only answerable relative to a fixed point someone recorded first. Without the disc, a surveyor can measure today's elevation perfectly and still have no way to say whether it moved.
 </div>
 
-<p>A staging entry's <code>eval_scores</code> list carries one row per <code>task_type</code>, and averaging those rows into a single blended number is the tempting shortcut. Today's <code>promote_to_production()</code> gate refuses that shortcut entirely: it checks every <code>eval_scores</code> entry on its own, and the model fails the moment any single task_type falls short, regardless of how good the other tasks looked.</p>
+<p>CUSUM (cumulative sum) is the drift-detector service's control-chart algorithm, running since day 111: it walks a stream of scores and accumulates each one's deviation from a reference mean, flagging drift once that running sum crosses a threshold. The reference mean is usually written mu0 (&mu;<sub>0</sub>), and it plays exactly the benchmark disc's role &mdash; every later score gets judged against it, never against its own raw value in isolation.</p>
 
-<p>So what: a model that's excellent at summarization and mediocre at code review isn't "production ready" because the mean looks fine &mdash; it's exactly as ready as its worst task, the same way a bridge is exactly as strong as its worst beam.</p>
+<p>So what: a CUSUM detector with no mu0 registered for a task_type isn't broken, it's unset &mdash; the mathematical equivalent of a survey with nowhere yet to plant the benchmark disc.</p>
 
-<h2 id="the-gate-checks-every-task-not-the-mean">The Gate Checks Every Task, Not the Mean</h2>
+<h2 id="what-gets-pushed-and-when">What Gets Pushed, and When</h2>
 
-<p><code>promote_to_production()</code> takes a <code>run_id</code> and, by default, a <code>min_win_rate</code> of 0.7 &mdash; not 0.5, because 0.5 is already the coin-flip baseline eval-harness's own <code>significant</code> field tests against via a Wilson-interval lower bound, and a stricter bar is the entire point of a separate gate a caller can still tune. For every <code>eval_scores</code> entry it checks two things: does <code>win_rate</code> clear <code>min_win_rate</code>, and, unless the caller explicitly opts out, is <code>significant</code> true.</p>
+<p>Day 139's <code>promote_to_production()</code> gate already computes and verifies one thing per task_type before it allows a promotion: an <code>eval_scores</code> entry carrying <code>win_rate</code>, a <code>significant</code> flag, and the sample it was measured on. Today's addition is one more side effect on a successful promotion &mdash; the same <code>eval_scores</code> dict gets POSTed to DriftWatch's baseline endpoint, keyed by <code>model_name</code> and <code>task_type</code>, before <code>promote_to_production()</code> returns.</p>
 
-<p>An entry with a missing or non-numeric <code>win_rate</code> fails outright rather than being silently skipped &mdash; a malformed score is never treated as a passing one by omission. The function also collects every failing task_type into one error message instead of stopping at the first failure, so a caller promoting a model that fails on three tasks sees all three failures at once, not one failure per retry.</p>
+<p>DriftWatch stores that vector as-is; it doesn't recompute or smooth it first. The first score CUSUM will ever compare against is the exact <code>win_rate</code> the promotion gate already verified was good enough to ship, so the reference and the ship decision are backed by one number, not two numbers that happen to agree.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,54 +252,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Staging entry has eval scores"] --> B{"Every task_type over threshold?"}
-  B -->|No| F["Refuse, list every failure"]
-  B -->|Yes| C{"Every task_type significant?"}
-  C -->|No| F
-  C -->|Yes| E["Stage set to production"]</pre>
+  A["Promotion gate passes"] --> B["eval_scores vector exists"]
+  B --> C["POST to DriftWatch baseline"]
+  C --> D["Stored as mu0 per task"]
+  D --> E["CUSUM has a reference"]</pre>
 
-<p>So what: a gate that stops at the first failure teaches a caller one problem per attempt; a gate that reports every failure at once is the difference between one promotion cycle and three, which matters more the more task_types a model actually needs to clear.</p>
+<p>So what: the mechanism is unglamorous on purpose, one more POST call on an already-passing promotion, but it's the entire difference between a detector that can evaluate its first post-deploy score correctly and one that has to wait an unknown number of future evals before it has anything to compare against.</p>
 
-<h2 id="semver-sits-next-to-the-gate-not-inside-it">Semver Sits Next to the Gate, Not Inside It</h2>
+<h2 id="why-push-instead-of-let-cusum-bootstrap-itself">Why Push Instead of Let CUSUM Bootstrap Itself</h2>
 
-<p>The same module also assigns every newly registered artifact a real <code>major.minor.patch</code> version under a <code>model_name</code> lineage, and the two features are deliberately independent &mdash; a version bump never gates anything, and a promotion never changes the version number. The first registration under a brand-new <code>model_name</code> always starts at a fixed genesis version, <code>0.1.0</code>, because there's nothing to bump from yet; registering it is a beginning, not an increment.</p>
+<p>The alternative design lets CUSUM bootstrap its own mu0 by averaging the first N production scores it observes. That's the same implicit-accumulation approach Wayfair's own Datadog monitors use in production, where an agile-anomaly monitor stays silent for its first weeks while it learns a metric's normal shape from whatever traffic happens to pass by. It needs no extra code at promotion time, but it leaves every freshly-promoted model with a real coverage gap for however long that bootstrap window runs.</p>
 
-<p>Every later registration computes its version by bumping the current latest one, and the bump type &mdash; major, minor, or patch &mdash; is a compatibility judgment only the caller can supply. The module validates the string is one of the three allowed values and then does the arithmetic itself, so two callers registering against the same lineage can never race into a duplicate or out-of-order version. Comparing versions has to happen numerically too: sorted as plain text, <code>"10.0.0"</code> comes before <code>"9.0.0"</code>, so every version comparison here parses the three components into integers first, the same way Day 138's registry parsed <code>eval_scores</code> into real fields instead of trusting a string.</p>
+<p>Pushing the baseline at promotion time closes that gap entirely, because the reference already exists by construction the moment the model starts serving. The cost is the opposite one: a single eval run, however carefully gated, is one sample, noisier than an average of N production scores would be. Today's design accepts that extra noise in exchange for coverage from score one instead of score N.</p>
 
-<p>So what: semver and the promotion gate solve two different problems that happen to sit in the same module &mdash; one answers "what changed," the other answers "is this good enough" &mdash; and keeping them independent means a major-version bump with terrible eval scores still can't promote itself.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0.7</span><span class="stat-label">Default min_win_rate, stricter than the 0.5 coin flip</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Required eval_scores keys per entry</span></div>
-  <div class="stat-cell"><span class="stat-num">0.1.0</span><span class="stat-label">Genesis version for a new model_name lineage</span></div>
-  <div class="stat-cell"><span class="stat-num">1-way</span><span class="stat-label">Promotion transition &mdash; no demote_to_staging()</span></div>
-</div>
+<p>So what: an implicit, accumulated baseline and an explicit, pushed one are both legitimate answers to the same question, and the honest reason today's code picks the second is that zero drift coverage on day one is a worse failure mode than a slightly noisy mu0, not that the pushed baseline is unconditionally the better number.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>The gate can't verify a caller's <code>significant</code> field is honest &mdash; it checks the key exists and is truthy, the same shallow check it applies to <code>win_rate</code>, but the actual Wilson-interval computation happens entirely inside eval-harness before this module ever sees the dict. A caller that hand-builds a fake <code>eval_scores</code> entry could talk its way past the gate, and nothing here would catch it.</p>
+<p>I don't know whether DriftWatch treats a re-promotion of the same <code>model_name</code> &mdash; a new version replacing an old one in production &mdash; as a reason to overwrite mu0 with the new version's eval vector, or whether the original baseline persists across the model's whole lineage. Days 111&ndash;117 built the CUSUM detector itself and days 138&ndash;139 built the registry and its gate, but nothing in what I've read yet specifies which of those two behaviors today's webhook implements.</p>
 
-<p>So what: the honest read on today's gate isn't "this makes promotion safe," it's "this makes promotion require evidence in a specific, checkable shape" &mdash; shaped evidence beats a bare filename by a wide margin, but it still isn't the same thing as verified evidence, and that gap is worth keeping in view rather than letting the gate's existence imply more confidence than the code actually earns.</p>
+<p>That's not a small gap: it changes whether CUSUM watches for drift from the model's very first production version, or drift from whichever version happens to be running right now. So what: "baseline gets pushed at promotion" answers the day-zero question cleanly, but it leaves a second question about baseline lifecycle open that the code, not this post, will have to answer.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">&mu;0</span><span class="stat-label">Reference mean CUSUM accumulates deviation against</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Required eval_scores keys reused as the baseline payload</span></div>
+  <div class="stat-cell"><span class="stat-num">111&ndash;117</span><span class="stat-label">Days that built the CUSUM detector this feeds</span></div>
+  <div class="stat-cell"><span class="stat-num">1-way</span><span class="stat-label">Push at promotion — no scheduled re-baseline yet</span></div>
+</div>
 
 <div class="series-footer">
-  <p>Day 139 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-140-baselines-for-drift-register-at-deploy.html">Day 140 &mdash; Baselines for Drift &mdash; Register at Deploy</a></p>
+  <p>Day 140 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 141 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-138-model-registry-artifacts-metadata.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 138 — Model Registry — Artifacts + Metadata (yesterday's post)</span>
+      <span>Day 139 — Promotion Gates — Staging to Production (yesterday's post)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
       <span>Day 2 — Continuous Batching — the series' GOLD reference post this series has followed for depth and structure</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-118-mlops-launch-baseline-monitor-act.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 136 — Comparing Models — where win_rate and the Wilson-interval significant field this gate reuses were built</span>
+      <span>Day 118 — MLOps Launch — Baseline, Monitor, Act — where DriftWatch's baseline-and-monitor loop was first framed</span>
     </a>
   </div>
 </div>
@@ -310,9 +309,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-weakest-beam-sets-the-rating">The Weakest Beam Sets the Rating</a></li>
-      <li><a href="#the-gate-checks-every-task-not-the-mean">The Gate Checks Every Task</a></li>
-      <li><a href="#semver-sits-next-to-the-gate-not-inside-it">Semver Sits Next to the Gate</a></li>
+      <li><a href="#a-benchmark-disc-only-means-something-once-its-set">The Benchmark Disc Analogy</a></li>
+      <li><a href="#what-gets-pushed-and-when">What Gets Pushed, and When</a></li>
+      <li><a href="#why-push-instead-of-let-cusum-bootstrap-itself">Push vs. Bootstrap</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -320,11 +319,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-139-promotion-gates-staging-to-production.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-140-baselines-for-drift-register-at-deploy.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Promotion+Gates+%E2%80%94+Staging+to+Production+%C2%B7+Day+139&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-139-promotion-gates-staging-to-production.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Baselines+for+Drift+%E2%80%94+Register+at+Deploy+%C2%B7+Day+140&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-140-baselines-for-drift-register-at-deploy.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -337,17 +336,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D137</span> AI Learning</div>
-          <a href="day-137-error-analysis-failure-taxonomies.html" class="series-post-title">Error Analysis — Failure Taxonomies</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D138</span> AI Learning</div>
           <a href="day-138-model-registry-artifacts-metadata.html" class="series-post-title">Model Registry — Artifacts + Metadata</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D139</span> AI Learning</div>
+          <a href="day-139-promotion-gates-staging-to-production.html" class="series-post-title">Promotion Gates — Staging to Production</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D139</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Promotion Gates — Staging to Production</div>
-          <div class="series-post-desc">Why the gate checks the worst task_type's win-rate, not the average — and how semver's bump-type field sits right next to it without either one substituting for the other.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D140</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Baselines for Drift — Register at Deploy</div>
+          <div class="series-post-desc">Why CUSUM can't compute a drift signal without a reference mean, and what changes when that reference gets pushed at promotion time instead of bootstrapped from live traffic.</div>
         </div>
       </div>
     </div>

@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 139 &mdash; Promotion Gates &mdash; Staging to Production | AI Learning Series</title>
-<meta name="description" content="CI gate on eval threshold. Why a promotion gate checks the worst task_type's win-rate, not the average, and how semver's bump-type field sits right next to it without either one substituting for the other.">
-<meta property="og:title" content="Day 139 &mdash; Promotion Gates &mdash; Staging to Production">
-<meta property="og:description" content="A bridge's weight rating is set by its weakest beam, not the average beam. Why today's staging-to-production gate refuses promotion on the worst-scoring task_type, even when the mean looks fine.">
+<title>Day 140 &mdash; Baseline Registration &mdash; Drift Needs a Reference | Experience Series</title>
+<meta name="description" content="Today's bridge line pushes a model's eval vector to DriftWatch the moment it's promoted, instead of waiting for the CUSUM detector to bootstrap its own history. Wayfair's own Datadog agile-anomaly monitors draw the same line in a different place -- they stay silent for weeks until they've accumulated a baseline, and that gap is worth looking at directly.">
+<meta property="og:title" content="Day 140 &mdash; Baseline Registration &mdash; Drift Needs a Reference">
+<meta property="og:description" content="A bathroom scale can't tell you you've gained weight on the very first step-on. Why Wayfair's agile-anomaly monitors stay silent for weeks after they're created, and why today's registry pushes a baseline explicitly instead of waiting for one to accumulate.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-139-promotion-gates-staging-to-production.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-139-promotion-gates-staging-to-production.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-140-baseline-registration-drift-needs-a-reference.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-140-baseline-registration-drift-needs-a-reference.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-139-promotion-gates-staging-to-production.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-140-baseline-registration-drift-needs-a-reference.png">
 <meta property="article:published_time" content="2026-08-25">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 139 of 150</span>
-    <span class="tag">Promotion Gates</span>
-    <span class="tag">Semantic Versioning</span>
+    <span class="tag accent">Experience &middot; Day 140 of 150</span>
+    <span class="tag">Baseline Registration</span>
+    <span class="tag">Drift Detection</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 139 &mdash; Promotion Gates &mdash; Staging to Production</h1>
-  <p class="post-subtitle">CI gate on eval threshold. Today's post is about the gap between "the average score looks fine" and "every task this model touches actually clears the bar" &mdash; and why a promotion gate has to check the second thing, not the first.</p>
+  <h1 class="post-title">Day 140 &mdash; Baseline Registration &mdash; Drift Needs a Reference</h1>
+  <p class="post-subtitle">Today's bridge line is a two-line design decision: push a model's eval score vector to DriftWatch the moment it's promoted, instead of waiting for the CUSUM detector to bootstrap its own history from live traffic. Wayfair's own monitoring stack draws the same line in a different place &mdash; its agile-anomaly monitors won't fire until they've accumulated weeks of history, and that gap is worth looking at directly.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 139 of 150</span>
+    <span class="meta-item">Experience &middot; Day 140 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 25, 2026</span>
     <div class="meta-divider"></div>
@@ -208,31 +208,42 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-139-promotion-gates-staging-to-production.png" alt="Day 139 — Promotion Gates — Staging to Production" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-140-baseline-registration-drift-needs-a-reference.png" alt="Day 140 — Baseline Registration — Drift Needs a Reference" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>"Promotion API checks min win-rate" is today's hook, and the interesting part isn't the threshold number itself. It's which score the gate actually checks. A model can look production-ready on average and still fail the gate outright, and today's post is about why that's the correct behavior, not a bug.</p>
+<p>The thread line behind today's ticket reads "push eval vector to DriftWatch when registering model," and the interesting part isn't the POST call itself. It's the timing decision hiding inside it &mdash; register the baseline the moment a model ships, rather than letting the drift detector work one out for itself from whatever scores happen to arrive after. I've watched that second option play out for real, on a production monitoring stack, and it's worth describing exactly what "letting it work one out for itself" costs.</p>
 
-<h2 id="the-weakest-beam-sets-the-rating">The Weakest Beam Sets the Rating</h2>
+<h2 id="a-scale-only-means-something-after-the-first-weigh-in">A Scale Only Means Something After the First Weigh-In</h2>
+
+<p>A bathroom scale can't tell you you've gained weight the very first time you step on it. It reports one absolute number, with nothing recorded yet to compare that number against. The word "gained" only becomes possible once an earlier reading is already sitting somewhere in memory.</p>
+
+<p>Drift detection has the identical shape. A CUSUM detector &mdash; the cumulative-sum control-chart algorithm the drift-detector service has run since day 111 &mdash; flags a score sliding away from where it started, not whether today's score is good or bad on its own. Without a first reading recorded somewhere, "away from where it started" doesn't mean anything at all.</p>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the bridge rating, not the average beam</div>
-  A highway bridge's posted weight limit isn't the average strength across every beam holding the deck up. It's set by the single weakest beam, because a truck crossing the bridge doesn't drive across the average member, it drives across whichever one happens to be underneath its wheels. Inspectors rate the whole structure to its worst beam on purpose &mdash; a strong average with one rotten beam is still a bridge that fails under the right truck.
+  <div class="attr-label">My scope &mdash; PAS &amp; Promotions, Nov 2024&ndash;Mar 2026</div>
+  I led the PAS and Pricing, Promotions &amp; Discounts teams at Wayfair, owning end-to-end delivery across both areas &mdash; which included the on-call rotation and the Datadog monitors underneath those services. The agile-anomaly detection itself is Datadog's own model, not something either team built; what my teams owned was which metrics it watched and where the thresholds sat.
 </div>
 
-<p>A staging entry's <code>eval_scores</code> list carries one row per <code>task_type</code>, and averaging those rows into a single blended number is the tempting shortcut. Today's <code>promote_to_production()</code> gate refuses that shortcut entirely: it checks every <code>eval_scores</code> entry on its own, and the model fails the moment any single task_type falls short, regardless of how good the other tasks looked.</p>
+<p>So what: a monitor with nothing recorded to compare against isn't cautious, it's blind &mdash; and knowing that distinction is what makes today's design decision, push the baseline explicitly, worth taking seriously instead of skipping as boilerplate.</p>
 
-<p>So what: a model that's excellent at summarization and mediocre at code review isn't "production ready" because the mean looks fine &mdash; it's exactly as ready as its worst task, the same way a bridge is exactly as strong as its worst beam.</p>
+<h2 id="what-a-freshly-added-monitor-does-for-the-first-few-weeks">What a Freshly-Added Monitor Does for the First Few Weeks</h2>
 
-<h2 id="the-gate-checks-every-task-not-the-mean">The Gate Checks Every Task, Not the Mean</h2>
+<div class="attr-box team">
+  <div class="attr-label">Datadog's own machine, verified against the architecture doc</div>
+  gst-acc-promotions runs a "Throughput anomaly" monitor set to a weekly agile-anomaly bound. PAS runs a "GraphQL throughput anomaly" monitor set to a daily agile-anomaly bound. Both are Datadog's built-in seasonal-baseline feature: it learns the normal shape of a metric across a day or week of history before it will flag any deviation from that shape.
+</div>
 
-<p><code>promote_to_production()</code> takes a <code>run_id</code> and, by default, a <code>min_win_rate</code> of 0.7 &mdash; not 0.5, because 0.5 is already the coin-flip baseline eval-harness's own <code>significant</code> field tests against via a Wilson-interval lower bound, and a stricter bar is the entire point of a separate gate a caller can still tune. For every <code>eval_scores</code> entry it checks two things: does <code>win_rate</code> clear <code>min_win_rate</code>, and, unless the caller explicitly opts out, is <code>significant</code> true.</p>
+<p>Stand up a brand-new metric and wire an agile-anomaly monitor to it on day one, and that monitor is functionally decorative for its first stretch of life. It has nothing recorded yet to call "normal," so it has no basis for calling anything "abnormal" either. The monitor sits in the dashboard, green, and green means "still building its reference," not "all clear."</p>
 
-<p>An entry with a missing or non-numeric <code>win_rate</code> fails outright rather than being silently skipped &mdash; a malformed score is never treated as a passing one by omission. The function also collects every failing task_type into one error message instead of stopping at the first failure, so a caller promoting a model that fails on three tasks sees all three failures at once, not one failure per retry.</p>
+<p>So what: the honest read on a fresh agile-anomaly monitor is that its silence isn't a signal for the first stretch of its life, and mistaking that silence for health is exactly the gap today's registry code is built not to leave open on a freshly promoted model.</p>
+
+<h2 id="pushing-the-baseline-instead-of-waiting-for-it">Pushing the Baseline Instead of Waiting for It</h2>
+
+<p>Day 139's <code>promote_to_production()</code> gate already computes one <code>eval_scores</code> entry per <code>task_type</code> before it allows a promotion, each carrying a verified <code>win_rate</code>. Today's code adds exactly one more step to a successful promotion: that same, already-verified vector gets POSTed to DriftWatch's baseline endpoint before the function returns. Nothing about the eval run itself changes &mdash; only what happens to its result afterward.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,54 +263,42 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Staging entry has eval scores"] --> B{"Every task_type over threshold?"}
-  B -->|No| F["Refuse, list every failure"]
-  B -->|Yes| C{"Every task_type significant?"}
-  C -->|No| F
-  C -->|Yes| E["Stage set to production"]</pre>
+  A["Model promoted"] --> B["Eval vector already verified"]
+  B --> C["Pushed to DriftWatch as baseline"]
+  C --> D["CUSUM has a day-0 reference"]</pre>
 
-<p>So what: a gate that stops at the first failure teaches a caller one problem per attempt; a gate that reports every failure at once is the difference between one promotion cycle and three, which matters more the more task_types a model actually needs to clear.</p>
+<p>This is the opposite choice from what Datadog's agile-anomaly monitors make. Their baseline accumulates implicitly, from whatever traffic happens to pass by once a monitor exists, with no explicit moment where anyone declares "this is now the reference." Today's registry code declares that moment on purpose, at the one point in a model's life where a trustworthy score already exists: the promotion gate that just passed it.</p>
 
-<h2 id="semver-sits-next-to-the-gate-not-inside-it">Semver Sits Next to the Gate, Not Inside It</h2>
-
-<p>The same module also assigns every newly registered artifact a real <code>major.minor.patch</code> version under a <code>model_name</code> lineage, and the two features are deliberately independent &mdash; a version bump never gates anything, and a promotion never changes the version number. The first registration under a brand-new <code>model_name</code> always starts at a fixed genesis version, <code>0.1.0</code>, because there's nothing to bump from yet; registering it is a beginning, not an increment.</p>
-
-<p>Every later registration computes its version by bumping the current latest one, and the bump type &mdash; major, minor, or patch &mdash; is a compatibility judgment only the caller can supply. The module validates the string is one of the three allowed values and then does the arithmetic itself, so two callers registering against the same lineage can never race into a duplicate or out-of-order version. Comparing versions has to happen numerically too: sorted as plain text, <code>"10.0.0"</code> comes before <code>"9.0.0"</code>, so every version comparison here parses the three components into integers first, the same way Day 138's registry parsed <code>eval_scores</code> into real fields instead of trusting a string.</p>
-
-<p>So what: semver and the promotion gate solve two different problems that happen to sit in the same module &mdash; one answers "what changed," the other answers "is this good enough" &mdash; and keeping them independent means a major-version bump with terrible eval scores still can't promote itself.</p>
-
-<div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">0.7</span><span class="stat-label">Default min_win_rate, stricter than the 0.5 coin flip</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Required eval_scores keys per entry</span></div>
-  <div class="stat-cell"><span class="stat-num">0.1.0</span><span class="stat-label">Genesis version for a new model_name lineage</span></div>
-  <div class="stat-cell"><span class="stat-num">1-way</span><span class="stat-label">Promotion transition &mdash; no demote_to_staging()</span></div>
-</div>
+<p>So what: the tradeoff is direct &mdash; an implicit, accumulated baseline needs no extra code but leaves a real coverage gap while it builds; an explicit, pushed baseline closes that gap the moment the model goes live, at the cost of one more webhook call the registry now has to get right.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>The gate can't verify a caller's <code>significant</code> field is honest &mdash; it checks the key exists and is truthy, the same shallow check it applies to <code>win_rate</code>, but the actual Wilson-interval computation happens entirely inside eval-harness before this module ever sees the dict. A caller that hand-builds a fake <code>eval_scores</code> entry could talk its way past the gate, and nothing here would catch it.</p>
+<p>I don't know whether a single promotion run's eval vector is a stable enough number to serve as a permanent reference. Datadog's own agile-anomaly model sidesteps this exact question by continuously re-learning its baseline on a rolling window instead of fixing it once. Today's registry code fixes the baseline at promotion time and doesn't revisit it, which is simpler but assumes that one eval run wasn't a noisy outlier.</p>
 
-<p>So what: the honest read on today's gate isn't "this makes promotion safe," it's "this makes promotion require evidence in a specific, checkable shape" &mdash; shaped evidence beats a bare filename by a wide margin, but it still isn't the same thing as verified evidence, and that gap is worth keeping in view rather than letting the gate's existence imply more confidence than the code actually earns.</p>
+<p>So what: pushing a baseline explicitly solves the day-zero coverage gap cleanly, but it trades away the self-correcting property a rolling, continuously-updated baseline gets for free &mdash; and that gap is worth watching once a model has been in production long enough for its true score distribution to have shifted for reasons that have nothing to do with drift.</p>
+
+<div class="stat-callout">
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Agile-anomaly monitors on PAS + gst-acc-promotions</span></div>
+  <div class="stat-cell"><span class="stat-num">20k+</span><span class="stat-label">Suppliers behind the services I led</span></div>
+  <div class="stat-cell"><span class="stat-num">250k+</span><span class="stat-label">SKU updates per supplier those services process</span></div>
+  <div class="stat-cell"><span class="stat-num">~17mo</span><span class="stat-label">Tenure leading PAS &amp; Promotions at Wayfair</span></div>
+</div>
 
 <div class="series-footer">
-  <p>Day 139 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-140-baselines-for-drift-register-at-deploy.html">Day 140 &mdash; Baselines for Drift &mdash; Register at Deploy</a></p>
+  <p>Experience &middot; Day 140 of 150</p>
+  <p><em>Next up:</em> Day 141 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-138-model-registry-artifacts-metadata.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-139-semantic-versioning-what-counts-as-breaking.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 138 — Model Registry — Artifacts + Metadata (yesterday's post)</span>
+      <span>Day 139 — Semantic Versioning — What Counts as Breaking (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/supplier-apis-and-token-buckets-wayfair-circuit-breaker.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching — the series' GOLD reference post this series has followed for depth and structure</span>
-    </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-136-comparing-models-win-rate-confidence-interval.html">
-      <span class="footnote-arrow">&rarr;</span>
-      <span>Day 136 — Comparing Models — where win_rate and the Wilson-interval significant field this gate reuses were built</span>
+      <span>Supplier APIs and Token Buckets — full Wayfair pricing/promotions context this post draws from</span>
     </a>
   </div>
 </div>
@@ -310,9 +309,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-weakest-beam-sets-the-rating">The Weakest Beam Sets the Rating</a></li>
-      <li><a href="#the-gate-checks-every-task-not-the-mean">The Gate Checks Every Task</a></li>
-      <li><a href="#semver-sits-next-to-the-gate-not-inside-it">Semver Sits Next to the Gate</a></li>
+      <li><a href="#a-scale-only-means-something-after-the-first-weigh-in">A Scale Only Means Something</a></li>
+      <li><a href="#what-a-freshly-added-monitor-does-for-the-first-few-weeks">A Fresh Monitor's First Weeks</a></li>
+      <li><a href="#pushing-the-baseline-instead-of-waiting-for-it">Pushing the Baseline</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -320,11 +319,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-139-promotion-gates-staging-to-production.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-140-baseline-registration-drift-needs-a-reference.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Promotion+Gates+%E2%80%94+Staging+to+Production+%C2%B7+Day+139&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-139-promotion-gates-staging-to-production.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Baseline+Registration+%E2%80%94+Drift+Needs+a+Reference+%C2%B7+Day+140&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-140-baseline-registration-drift-needs-a-reference.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -333,21 +332,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
+      <div class="series-label">Experience Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D137</span> AI Learning</div>
-          <a href="day-137-error-analysis-failure-taxonomies.html" class="series-post-title">Error Analysis — Failure Taxonomies</a>
+          <div class="series-post-kicker"><span class="series-post-num">D138</span> Experience</div>
+          <a href="day-138-artifact-storage-registry-vs-shared-folder.html" class="series-post-title">Artifact Storage — Registry vs. Shared Folder</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D138</span> AI Learning</div>
-          <a href="day-138-model-registry-artifacts-metadata.html" class="series-post-title">Model Registry — Artifacts + Metadata</a>
+          <div class="series-post-kicker"><span class="series-post-num">D139</span> Experience</div>
+          <a href="day-139-semantic-versioning-what-counts-as-breaking.html" class="series-post-title">Semantic Versioning — What Counts as Breaking</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D139</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Promotion Gates — Staging to Production</div>
-          <div class="series-post-desc">Why the gate checks the worst task_type's win-rate, not the average — and how semver's bump-type field sits right next to it without either one substituting for the other.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D140</span> Experience &middot; now</div>
+          <div class="series-post-title">Baseline Registration — Drift Needs a Reference</div>
+          <div class="series-post-desc">Wayfair's agile-anomaly monitors stay silent for weeks after they're created — why today's registry pushes a baseline explicitly instead of waiting for one to accumulate.</div>
         </div>
       </div>
     </div>
