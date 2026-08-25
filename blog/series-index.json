@@ -1524,6 +1524,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-137-failure-galleries-support-triage.html",
+          "kicker": "Experience · Day 137 of 150",
+          "title": "Day 137 — Failure Galleries — How Support Triages Tickets",
+          "subtitle": "Worst examples taught more than mean metric",
+          "date": "2026-08-25",
+          "slug": "day-137-failure-galleries-support-triage",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-137-failure-galleries-support-triage.html",
+          "coverImage": "blog/assets/covers/day-137-failure-galleries-support-triage.png",
+          "desc": "An ER intake board doesn't read every arriving patient's chart over a loudspeaker in walk-in order. Why today's failure gallery renders worst-margin losses first, capped at 20 -- and how Delivery Hero's Revisit Order System solved the same shape of problem at production scale."
+        },
+        {
           "href": "blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html",
           "kicker": "Experience · Day 136 of 150",
           "title": "Day 136 — Win-Rate vs Accuracy — Stakeholder Language",
