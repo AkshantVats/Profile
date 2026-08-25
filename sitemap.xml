@@ -1512,4 +1512,16 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/ai-learning/day-137-error-analysis-failure-taxonomies.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://akshantvats.github.io/Profile/blog/series/experience/day-137-failure-galleries-support-triage.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
