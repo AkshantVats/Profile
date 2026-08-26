@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html",
+          "kicker": "AI Learning · Day 144 of 150",
+          "title": "Day 144 — Observing Custom Models — LensAI Labels",
+          "subtitle": "model_id label on all metrics",
+          "date": "2026-08-26",
+          "slug": "day-144-observing-custom-models-lensai-labels",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html",
+          "coverImage": "blog/assets/covers/day-144-observing-custom-models-lensai-labels.png",
+          "desc": "A trophy shop casts one mold for the whole season and rivets on a different engraved nameplate per winner. Why LensAI attaches model_id and adapter_version as bounded labels on every metric instead of cloning a dashboard file, and how a dashboard variable resolves adapter version without a single new query."
+        },
+        {
           "href": "blog/series/ai-learning/day-143-routing-fine-tuned-models-registry-integration.html",
           "kicker": "AI Learning · Day 143 of 150",
           "title": "Day 143 — Routing Fine-Tuned Models — Registry Integration",
@@ -1607,6 +1619,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-144-day-1-monitoring-new-service-checklist.html",
+          "kicker": "Experience · Day 144 of 150",
+          "title": "Day 144 — Day-1 Monitoring — New Service Checklist",
+          "subtitle": "Wayfair · PAS Core vs gst-acc-promotions · monitoring coverage matrix",
+          "date": "2026-08-26",
+          "slug": "day-144-day-1-monitoring-new-service-checklist",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-144-day-1-monitoring-new-service-checklist.html",
+          "coverImage": "blog/assets/covers/day-144-day-1-monitoring-new-service-checklist.png",
+          "desc": "A fire marshal doesn't sign off on a building and leave the smoke detectors for later. Why Wayfair's own Monitoring Coverage Matrix shows the platform's highest-traffic service with the thinnest day-one monitoring, and why today's fine-tuned model doesn't wait to find out if it earns a dashboard."
+        },
         {
           "href": "blog/series/experience/day-143-canary-routing-staged-trust-different-dial.html",
           "kicker": "Experience · Day 143 of 150",

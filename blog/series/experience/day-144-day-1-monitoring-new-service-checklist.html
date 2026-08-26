@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 143 &mdash; Canary Routing &mdash; Staged Trust, Different Dial | Experience Series</title>
-<meta name="description" content="Today's own PR trials a promoted model at 10% of RouteIQ's traffic before it earns the rest. WhiteFalcon staged trust the same way on a completely different dial -- not percent of traffic, but elapsed time, in how it compacted data as it aged.">
-<meta property="og:title" content="Day 143 &mdash; Canary Routing &mdash; Staged Trust, Different Dial">
-<meta property="og:description" content="A cellar master doesn't rack a young wine next to a proven vintage on day one -- it earns coarser handling as it ages and proves stable. Why WhiteFalcon staged trust in data by elapsed time instead of traffic percentage, and why today's model rollout needed the opposite dial.">
+<title>Day 144 &mdash; Day-1 Monitoring &mdash; New Service Checklist | Experience Series</title>
+<meta name="description" content="Wayfair's own Monitoring Coverage Matrix shows PAS Core -- 295M+ daily hits -- with no explicit error-rate or latency monitor, while gst-acc-promotions, a fraction of the traffic, has nine. Why a checklist applied at launch beats waiting for a service to earn its dashboards, and where the same instinct shows up in today's fine-tuned-model rollout.">
+<meta property="og:title" content="Day 144 &mdash; Day-1 Monitoring &mdash; New Service Checklist">
+<meta property="og:description" content="A fire marshal doesn't sign off on a building and leave the smoke detectors for later -- every unit gets the same fitting before anyone moves in, regardless of how risky that unit looks. Why the platform's highest-traffic service had the thinnest day-one monitoring, and why today's fine-tuned model doesn't wait to find out if it earns a dashboard.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-143-canary-routing-staged-trust-different-dial.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-143-canary-routing-staged-trust-different-dial.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-144-day-1-monitoring-new-service-checklist.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-144-day-1-monitoring-new-service-checklist.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-143-canary-routing-staged-trust-different-dial.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-144-day-1-monitoring-new-service-checklist.png">
 <meta property="article:published_time" content="2026-08-26">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 143 of 150</span>
-    <span class="tag">Agoda</span>
-    <span class="tag">WhiteFalcon</span>
+    <span class="tag accent">Experience &middot; Day 144 of 150</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">PAS</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 143 &mdash; Canary Routing &mdash; Staged Trust, Different Dial</h1>
-  <p class="post-subtitle">Today's own PR trials a promoted model at 10% of RouteIQ's traffic and widens it as the model earns confidence. WhiteFalcon staged trust the same way, years earlier, on a completely different axis &mdash; not percent of traffic, but elapsed time: fresh data stayed at full per-hour resolution, and only got compacted down once it aged past the window anyone still queried it precisely.</p>
+  <h1 class="post-title">Day 144 &mdash; Day-1 Monitoring &mdash; New Service Checklist</h1>
+  <p class="post-subtitle">Today's own PR clones LensAI's dashboards for a freshly promoted fine-tuned model the moment it takes its first request, instead of waiting to notice a blind spot later. Wayfair's own Monitoring Coverage Matrix already shows what happens without that discipline: the highest-traffic service in the whole pricing platform turns out to be one of the least explicitly monitored ones.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 143 of 150</span>
+    <span class="meta-item">Experience &middot; Day 144 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 26, 2026</span>
     <div class="meta-divider"></div>
@@ -208,38 +208,38 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-143-canary-routing-staged-trust-different-dial.png" alt="Day 143 — Canary Routing — Staged Trust, Different Dial" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-144-day-1-monitoring-new-service-checklist.png" alt="Day 144 — Day-1 Monitoring — New Service Checklist" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's code isn't mine to review line by line yet &mdash; it's a teammate's PR against <code>vllm-deploy-kit</code>, trialing a freshly promoted model at 10% of RouteIQ's weighted traffic instead of cutting every request over at once. The percentage is new to this repo, but the underlying instinct &mdash; don't hand something unproven full trust immediately, let it earn wider exposure over a staged dial &mdash; is one I watched Agoda's WhiteFalcon apply on a completely different axis, years before RouteIQ existed.</p>
+<p>Today's code in <code>vllm-deploy-kit</code> isn't a routing change or a Helm value &mdash; it's a claim about timing. LensAI clones the base model's dashboard for a freshly promoted fine-tuned model the moment that model takes its first production request, not after someone opens a ticket asking why nobody can see it. Wayfair's own pricing platform, across the two teams I led there, already shows what happens to a service that never got that treatment on day one.</p>
 
-<h2 id="a-cellar-doesnt-trust-a-vintage-on-day-one">A Cellar Doesn't Trust a Vintage on Day One</h2>
+<h2 id="a-building-doesnt-get-smoke-detectors-after-the-fire">A Building Doesn't Get Smoke Detectors After the Fire</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the cellar master's rack</div>
-  A cellar master doesn't shelve a young wine next to a proven vintage the day it's bottled. It sits in a rack that gets checked often, tasted, temperature-logged, handled with attention proportional to how much could still go wrong with it. Only once it's aged past the point where it's still changing does it move to the long-term racks, checked rarely, handled coarsely, because by then there's nothing left to catch that a monthly glance wouldn't also catch. The dial that decides how much attention a bottle gets isn't how many people are drinking it &mdash; it's how long it's been sitting there.
+  <div class="attr-label">DS analogy &mdash; the smoke detector every unit gets</div>
+  A fire marshal doesn't sign off on occupancy and leave the detector wiring for later. Every unit in a new building gets the identical detector fitted from the same supply run and tested against the same checklist before anyone moves a couch in, regardless of whether that particular unit looks like the risky one. The detector isn't a judgment about that unit's fire risk &mdash; it's a standard fitting that goes in because the building has one, period.
 </div>
 
 <div class="attr-box team">
-  <div class="attr-label">What's documented, verified against the architecture doc</div>
-  WhiteFalcon's storage layers work on exactly that dial. Fresh events land in a Redis hot tier, bucketed at per-hour granularity, for the last 3&ndash;7 days &mdash; the window where peak query load actually concentrates. As data ages past that window, background compaction jobs merge it down: hourly buckets into 3-hour buckets, then into daily files, coarser each time, before it settles into Parquet on the S3 cold tier.
+  <div class="attr-label">What's documented, verified against the pricing architecture doc</div>
+  Wayfair's Monitoring Coverage Matrix runs across the services in the domain I helped lead. <code>gst-acc-promotions</code>, averaging under 1 RPS, shows "yes" across nearly every signal &mdash; error rate, latency, CPU saturation, deployment health, synthetics, nine active monitors in total. PAS Core, running 3,400+ RPS average and roughly 295&ndash;366M hits a day, shows "no explicit" across most of that same row: no explicit error-rate monitor, no explicit latency monitor, no deployment-health monitor. The doc lists both facts side by side as a monitoring gap to close, not as a postmortem.
 </div>
 
-<p>So what: the attention a piece of data gets in WhiteFalcon was never a function of how much traffic was hitting it, it was a function of how long it had been sitting there since it was written &mdash; the same shape as a cellar master's rack, just with hours in place of years.</p>
+<p>So what: the service carrying the platform's single largest blast radius if it degrades wasn't the one that ended up with the fuller checklist &mdash; the smaller, newer surface did, which is the opposite of what "monitor the risky thing first" would predict.</p>
 
-<h2 id="why-elapsed-time-was-the-right-dial-there">Why Elapsed Time Was the Right Dial There</h2>
+<h2 id="why-the-backwards-result-isnt-a-mystery">Why the Backwards Result Isn't a Mystery</h2>
 
-<p>That dial makes sense once you notice what the risk actually was. A metric's query load is heaviest in the hours right after it's written &mdash; dashboards, alerts, and on-call engineers are all looking at "now," not at data from three weeks ago. Once a window of data ages past the 3&ndash;7 day hot range, the cost of coarsening it to 3-hour or daily granularity is almost entirely storage efficiency, because the query pattern that needed per-hour precision has already moved on to fresher data.</p>
+<p>Dashboards and monitors get attached to a service in proportion to how recently someone had the monitoring config open with a reason to touch it, not in proportion to the service's actual blast radius. <code>gst-acc-promotions</code> is under constant feature work &mdash; new cron jobs, new Pub/Sub fan-out paths, new GraphQL operations &mdash; and every one of those changes is a moment where adding one more monitor costs nothing extra, because the file is already open.</p>
 
-<p>Percent-of-traffic wouldn't have bounded that risk at all. Every hour of data gets roughly the same query volume relative to its own age &mdash; there's no meaningful "10% of this hour's events" to protect first, because the risk isn't distributed unevenly across events, it's distributed unevenly across time. A staged rollout by request count would have been solving a problem WhiteFalcon's compaction pipeline never actually had.</p>
+<p>PAS Core is the opposite case. It's a mature GraphQL surface running at 295M+ daily hits with an error rate near zero, and nobody has had a reason in a long time to go back into a thing that, by every account, keeps working. Reliability is what starves a service of the checklist, because the checklist only gets applied when someone's already in there for another reason.</p>
 
-<p>So what: elapsed time was the right dial specifically because the thing WhiteFalcon was protecting &mdash; query precision on data nobody was querying precisely anymore &mdash; decayed with age, not with volume, which is a distinction that matters more than it sounds like it should.</p>
+<p>So what: "this is important, surely it's monitored" is exactly backwards for a service that's gone a long stretch without failing &mdash; staying up reads as safety, and that sense of safety is precisely what keeps anyone from reopening the monitoring config.</p>
 
-<h2 id="where-the-same-idea-turns-into-a-percentage-instead">Where the Same Idea Turns Into a Percentage Instead</h2>
+<h2 id="where-the-same-checklist-runs-today">Where the Same Checklist Runs Today</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -259,45 +259,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["WhiteFalcon: risk decays with age"] --> B["Dial is elapsed time"]
-  C["RouteIQ: risk decays with proof"] --> D["Dial is traffic percent"]
-  B --> E["Hourly to daily compaction"]
-  D --> F["10% trial widens over time"]</pre>
+  A["New service ships, no checklist"] --> B["Runs reliably for months"]
+  B --> C["Nobody reopens monitoring config"]
+  D["New endpoint ships with checklist"] --> E["Dashboard cloned day one"]
+  E --> F["Coverage independent of reliability"]</pre>
 
-<p>A freshly promoted model doesn't carry a risk that decays with age &mdash; it carries a risk that decays with evidence. The first thousand requests against a new endpoint are exactly as risky as the request before them, until enough of them come back clean that confidence actually changes. Time alone proves nothing there; volume of successful traffic does.</p>
+<p>Today's PR treats a newly registered fine-tuned endpoint the way a building's fire code treats a new unit, not the way PAS Core's monitoring history treats a mature one. The moment RouteIQ's registry sees a new artifact_prefix, LensAI clones the base model's dashboard against the new <code>model_id</code> label and starts collecting from the first request &mdash; same panels, same alert thresholds, before any evidence exists to argue this specific model deserves them.</p>
 
-<p>That's the real reason today's PR reaches for a traffic-percentage dial instead of a time-based one, and it isn't a contradiction of WhiteFalcon's approach &mdash; it's the same design instinct pointed at a differently shaped risk. Bound exposure before you trust something with everything, but bind that exposure to whatever variable the risk actually tracks: age for data going cold, request volume for a model going live.</p>
+<p>That's the whole point of a checklist over an instinct: it doesn't wait to find out whether the new thing turns out to matter, because PAS Core's own history says the decision to add monitoring "later" usually just doesn't get made.</p>
 
-<p>So what: "canary routing" and "compaction cadence" read like unrelated engineering vocabulary, but they're both answers to the same question &mdash; how much should get exposed to something before it's earned full trust &mdash; asked against two different clocks.</p>
+<p>So what: cloning the dashboard on day one isn't extra caution for a model that probably didn't need it &mdash; it's the one moment the decision is cheap, and after that moment passes, Wayfair's own numbers say it tends to stay unmade for years.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't have a number for how WhiteFalcon's specific compaction thresholds &mdash; the exact hour count before the first merge, the exact day count before the final one &mdash; were chosen, only that the doc confirms the stages exist: hourly, then 3-hour, then daily. I also wasn't the engineer who set those thresholds; my scope there was the cross-tier query engine and the Kubernetes cardinality dimension, not the compaction pipeline's own tuning.</p>
+<p>I don't know whether <code>gst-acc-promotions</code>' nine-monitor coverage was deliberate day-one policy or something that accumulated feature by feature over quarters of active work &mdash; the doc shows the end state, not the sequence that produced it. I led both the PAS and the Promotions/Discounts teams, but the monitoring doc itself is dated March 2026, so I can't say whether PAS Core's specific gaps have since been closed.</p>
 
-<p>So what: the shape I'm confident in is that WhiteFalcon staged trust by time rather than volume, because the doc backs that plainly; the exact numbers behind where each threshold sits are a detail I don't have and won't invent to make this post read more precise than it is.</p>
+<p>So what: the shape I'm confident in is the contrast the doc actually shows &mdash; one high-traffic service under-monitored, one low-traffic service thoroughly instrumented; exactly when each state was reached, and whether it's still true today, is a detail I'd rather leave open than guess at.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3&ndash;7d</span><span class="stat-label">WhiteFalcon hot-tier retention window</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Compaction stages: hourly, 3-hour, daily</span></div>
-  <div class="stat-cell"><span class="stat-num">10%</span><span class="stat-label">Today's RouteIQ trial weight for the new model</span></div>
-  <div class="stat-cell"><span class="stat-num">1.5T</span><span class="stat-label">Events/day WhiteFalcon ingests at Agoda</span></div>
+  <div class="stat-cell"><span class="stat-num">366M</span><span class="stat-label">PAS Core daily hits, no explicit error monitor</span></div>
+  <div class="stat-cell"><span class="stat-num">0.9</span><span class="stat-label">gst-acc-promotions avg RPS, 9 active monitors</span></div>
+  <div class="stat-cell"><span class="stat-num">7</span><span class="stat-label">Monitoring gaps the doc itself recommends closing</span></div>
+  <div class="stat-cell"><span class="stat-num">1st</span><span class="stat-label">Request a cloned LensAI dashboard now covers</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 143 of 150</p>
-  <p><em>Next up:</em> <a href="day-144-day-1-monitoring-new-service-checklist.html">Day 144 — Day-1 Monitoring — New Service Checklist</a></p>
+  <p>Experience &middot; Day 144 of 150</p>
+  <p><em>Next up:</em> Day 145 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-143-canary-routing-staged-trust-different-dial.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 142 — GPU Node Pools — Taints and Tolerations (yesterday's post)</span>
+      <span>Day 143 — Canary Routing — Staged Trust, Different Dial (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-111-pagerduty-routing-trees-wayfair-on-call.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Building a TSDB at Agoda — full WhiteFalcon system tour and the three contribution areas</span>
+      <span>Day 111 — PagerDuty Routing Trees — Wayfair On-Call (same platform, the alerting side of this story)</span>
     </a>
   </div>
 </div>
@@ -308,9 +308,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-cellar-doesnt-trust-a-vintage-on-day-one">The Cellar Master's Rack</a></li>
-      <li><a href="#why-elapsed-time-was-the-right-dial-there">Why Time Was the Right Dial</a></li>
-      <li><a href="#where-the-same-idea-turns-into-a-percentage-instead">Where It Becomes a Percentage</a></li>
+      <li><a href="#a-building-doesnt-get-smoke-detectors-after-the-fire">The Smoke Detector Analogy</a></li>
+      <li><a href="#why-the-backwards-result-isnt-a-mystery">Why It's Backwards</a></li>
+      <li><a href="#where-the-same-checklist-runs-today">Where It Runs Today</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -318,11 +318,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-143-canary-routing-staged-trust-different-dial.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-144-day-1-monitoring-new-service-checklist.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Canary+Routing+%E2%80%94+Staged+Trust%2C+Different+Dial+%C2%B7+Day+143&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-143-canary-routing-staged-trust-different-dial.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Day-1+Monitoring+%E2%80%94+New+Service+Checklist+%C2%B7+Day+144&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-144-day-1-monitoring-new-service-checklist.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,17 +335,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D141</span> Experience</div>
-          <a href="day-141-helm-values-sprawl-route-service-eks.html" class="series-post-title">Helm for Route Service on EKS — Values File Sprawl</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D142</span> Experience</div>
           <a href="day-142-gpu-node-pools-taints-tolerations.html" class="series-post-title">GPU Node Pools — Taints and Tolerations</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D143</span> Experience</div>
+          <a href="day-143-canary-routing-staged-trust-different-dial.html" class="series-post-title">Canary Routing — Staged Trust, Different Dial</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D143</span> Experience &middot; now</div>
-          <div class="series-post-title">Canary Routing — Staged Trust, Different Dial</div>
-          <div class="series-post-desc">A cellar master doesn't rack a young wine next to a proven vintage on day one — why WhiteFalcon staged trust in data by elapsed time instead of traffic percentage, and why today's model rollout needed the opposite dial.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D144</span> Experience &middot; now</div>
+          <div class="series-post-title">Day-1 Monitoring — New Service Checklist</div>
+          <div class="series-post-desc">A fire marshal doesn't sign off on a building and leave the smoke detectors for later — why the platform's highest-traffic service had the thinnest day-one monitoring, and why today's fine-tuned model doesn't wait to find out if it earns a dashboard.</div>
         </div>
       </div>
     </div>
