@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 141 &mdash; Helm for Route Service on EKS &mdash; Values File Sprawl | Experience Series</title>
-<meta name="description" content="A same-day teammate's DESIGN.md sets Helm values for tensor parallel size, KV cache sizing, and a GPU-aware HPA on vllm-deploy-kit's chart. None of it is a generic cluster template -- every value in it inherits a lesson from running Route Service's own Helm chart across Delivery Hero's EKS environments, where the values file was the thing that actually drifted.">
-<meta property="og:title" content="Day 141 &mdash; Helm for Route Service on EKS &mdash; Values File Sprawl">
-<meta property="og:description" content="A blueprint photocopied for twelve job sites drifts the moment each foreman starts penciling in local changes. Why Route Service's Helm values sprawled across Delivery Hero's EKS environments, and what fixed it, before that same lesson gets applied to a chart that happens to point at a GPU.">
+<title>Day 142 &mdash; GPU Node Pools &mdash; Taints and Tolerations | Experience Series</title>
+<meta name="description" content="Today's own PR wires nodeSelector, tolerations, and affinity onto vllm-deploy-kit's pod spec -- three fields that only do their job together. Why that pairing isn't new to me, and what it cost Delivery Hero's EKS cluster the one time it was missing.">
+<meta property="og:title" content="Day 142 &mdash; GPU Node Pools &mdash; Taints and Tolerations">
+<meta property="og:description" content="A loading dock behind a building gets a keycard lock so random cars can't pull in -- but a keycard alone doesn't send trucks there, dispatch still has to route them on purpose. Why a tainted node pool needs both a toleration and an affinity, and what it cost when a cluster I ran had only the first one.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-141-helm-values-sprawl-route-service-eks.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-141-helm-values-sprawl-route-service-eks.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-142-gpu-node-pools-taints-tolerations.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-141-helm-values-sprawl-route-service-eks.png">
-<meta property="article:published_time" content="2026-08-25">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-142-gpu-node-pools-taints-tolerations.png">
+<meta property="article:published_time" content="2026-08-26">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 141 of 150</span>
-    <span class="tag">Helm Values</span>
+    <span class="tag accent">Experience &middot; Day 142 of 150</span>
+    <span class="tag">Kubernetes</span>
     <span class="tag">EKS</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 141 &mdash; Helm for Route Service on EKS &mdash; Values File Sprawl</h1>
-  <p class="post-subtitle">Today's teammate PR writes <code>vllm-deploy-kit</code>'s Helm values contract &mdash; tensor parallel size, KV cache sizing, an HPA scaled on GPU utilization. None of that is a generic cluster template; every value in it inherits a lesson from running Route Service's own Helm chart across Delivery Hero's EKS environments, where the values file was the thing that actually drifted.</p>
+  <h1 class="post-title">Day 142 &mdash; GPU Node Pools &mdash; Taints and Tolerations</h1>
+  <p class="post-subtitle">Today's own PR wires <code>nodeSelector</code>, <code>tolerations</code>, and <code>affinity</code> onto <code>vllm-deploy-kit</code>'s pod spec &mdash; three fields that only do their job together. That pairing isn't new to me; it's the exact discipline I built after watching a Delivery Hero node pool fill with pods that had no business being there, on a cluster with nothing to do with GPUs at all.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 141 of 150</span>
+    <span class="meta-item">Experience &middot; Day 142 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 25, 2026</span>
+    <span class="meta-item">August 26, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">6 min read</span>
   </div>
@@ -208,44 +208,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-141-helm-values-sprawl-route-service-eks.png" alt="Day 141 — Helm for Route Service on EKS — Values File Sprawl" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-142-gpu-node-pools-taints-tolerations.png" alt="Day 142 — GPU Node Pools — Taints and Tolerations" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's code lives in a different repo and a different pair of hands: a same-day teammate is writing <code>vllm-deploy-kit/DESIGN.md</code>, a Helm values contract for tensor parallel size, KV cache sizing (<code>gpu_memory_utilization</code>, <code>max_num_seqs</code>, <code>max_model_len</code>), and an HPA (Horizontal Pod Autoscaler &mdash; the Kubernetes controller that adds or removes pods based on a metric) scaled on GPU utilization. My part of today isn't that document &mdash; it's the lesson underneath it. Every one of those values lives in a chart meant to run across more than one environment, and that's exactly the shape of problem I spent thirteen months operating at Delivery Hero, on a chart with nothing to do with GPUs at all.</p>
+<p>Today's code is mine, not a teammate's: <code>vllm-deploy-kit/chart/templates/deployment.yaml</code> adds <code>nodeSelector</code>, <code>tolerations</code>, and <code>affinity</code> to the pod spec so a serving pod that asks for a GPU actually lands on the node pool that has one, tainted so nothing else can land there by accident. I didn't reach for that pairing because a Kubernetes doc told me to. I reached for it because I watched one half of it be missing on a real cluster, and watched what that half-measure actually cost.</p>
 
-<h2 id="a-blueprint-photocopied-onto-every-job-site">A Blueprint Photocopied Onto Every Job Site</h2>
+<h2 id="a-loading-dock-with-a-keycard-lock">A Loading Dock With a Keycard Lock</h2>
 
-<p>A construction blueprint gets photocopied once for every job site it applies to. Each site's foreman then pencils in the changes their site actually needs &mdash; a different foundation depth, a different utility hookup, a different setback from the property line. Nothing about that pencil mark is wrong on its own; it's a real, local difference the master blueprint was never going to capture.</p>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; the loading dock with a keycard lock</div>
+  A loading dock behind a building gets a keycard lock so ordinary cars can't pull in and take up space meant for delivery trucks &mdash; that lock is the taint, and it doesn't ask who's on the other side, it just blocks everyone without a card. A truck's keycard is the toleration: it gets the truck past the lock, but a keycard sitting in the glovebox doesn't drive the truck anywhere. Whether the truck actually pulls into that dock instead of parking on the street out front is the dispatcher's routing instruction &mdash; the affinity &mdash; and without it, a truck that's fully allowed through the gate might never be told to go there at all.
+</div>
 
-<p>The trouble starts later, when the architect revises the master blueprint and that revision has to reach twelve photocopies that have each already been marked up by a different hand. Nobody can tell, from looking at any single copy, which lines are the architect's and which are the foreman's &mdash; and the foreman for site four has no reliable way to know the master changed at all.</p>
+<p>A Kubernetes taint on a node works the same way: it's a blanket refusal, <code>NoSchedule</code>, that keeps every pod off that node unless the pod carries a matching toleration. A toleration is permission, not preference &mdash; it tells the scheduler "you're allowed to place me here," not "place me here." Getting a GPU-hungry pod onto a GPU node pool and keeping everything else off it takes both halves working at once, and it took me finding out the hard way that shipping only the first half is worse than shipping neither.</p>
 
-<p>So what: a values file per environment behaves exactly like that photocopy, and the failure mode isn't the first pencil mark, it's the tenth revision nobody can trace back to a single source anymore.</p>
+<p>So what: a taint alone keeps the wrong pods out, and a toleration alone lets the right pods in, but neither one on its own tells the scheduler to actually prefer that node &mdash; which is exactly the gap a pod with a toleration and no affinity falls into.</p>
 
-<h2 id="what-route-services-eks-deployment-actually-looked-like">What Route Service's EKS Deployment Actually Looked Like</h2>
+<h2 id="what-the-eks-cluster-i-ran-actually-looked-like">What the EKS Cluster I Ran Actually Looked Like</h2>
 
 <div class="attr-box team">
   <div class="attr-label">What's documented, verified against the architecture doc</div>
-  Route Service is documented as an EKS deployment stack, taking inputs from Order Service and Order SQS's lifecycle events (<code>PICKED UP</code>, <code>PLACED</code>, <code>RIDER ENQUE</code>, <code>RIDER PICKED UP</code>) and producing, together with the Revisit Order System, the Route <code>{ }</code> object the UI reads. The chart itself and its exact environment layout aren't detailed beyond that in the architecture doc I have &mdash; what's documented is the service's data flow, not its Helm directory structure.
+  The Global Logistics Platform's architecture doc lists the OSRM cluster as its own component &mdash; a map-matching and routing engine with its own database, separate from Route Service and Route Consumers, which read Order SQS's lifecycle events and produce the Route object the UI reads. The doc documents that OSRM is a distinct piece of the stack; it doesn't itemize which EKS node pool it ran on or how that pool was sized, which is a gap in what I have in front of me, not a claim I'm making about it.
 </div>
 
 <div class="attr-box mine">
   <div class="attr-label">My scope &mdash; Global Logistics Platform, Delivery Hero, Jun 2022&ndash;Jul 2023</div>
-  I scaled that platform to 1M+ daily orders on AWS EKS, holding 10k+ concurrent requests with zero downtime, and built the end-to-end rider tracking on top of OSRM that processed 5k+ real-time route updates a second. Operating at that concurrency, across the environments a logistics platform needs, is where I actually lived the values-file problem this post is about.
+  I scaled that platform to 1M+ daily orders on AWS EKS, holding 10k+ concurrent requests with zero downtime, and built the rider tracking on top of OSRM that processed 5k+ real-time route updates a second. OSRM keeps its road-network graph resident in memory to answer map-matching queries fast, which is the reason it ran on a node pool sized differently &mdash; and priced differently &mdash; from the general fleet Route Service and Route Consumers ran on. That difference is where this post's lesson actually happened.
 </div>
 
-<p>Today's plan frames the shape of that sprawl as "12 environments &times; helmfile" &mdash; a number I'm using to make the pattern concrete, not a documented count from the architecture doc, which doesn't itemize Route Service's exact environment list. What the doc does confirm is the part that matters: Route Service ran as an EKS deployment stack, and an EKS deployment stack with more than a couple of environments is where a values file stops being one file and starts being a family of files that has to agree with itself.</p>
+<p>I'm using "the OSRM pool" as shorthand for a memory-heavy node pool distinct from the general fleet &mdash; a framing device to make the pattern concrete, the same way Day 141's post used "12 environments" for Route Service's Helm sprawl without claiming that exact count came from the architecture doc. What I can stand behind is the mechanism: any node pool provisioned for one workload's specific resource shape, sitting in the same cluster as a general-purpose fleet, is exposed to this problem the moment nothing keeps other pods off it.</p>
 
-<p>So what: the specific environment count is a framing device, but the mechanism it's illustrating &mdash; more environments than one person can hold in their head, all sharing one chart &mdash; is exactly what an EKS deployment stack like Route Service's runs into by construction.</p>
+<p>So what: the precise node count and instance type aren't things I have written down anymore, but the shape of the problem &mdash; one pool costs more per node than the rest of the fleet, and Kubernetes' scheduler has no opinion about that cost unless something tells it to &mdash; is the part this post is actually about.</p>
 
-<h2 id="the-values-file-sprawl-pattern">The Values File Sprawl Pattern</h2>
+<h2 id="the-pool-that-kept-filling-with-the-wrong-pods">The Pool That Kept Filling With the Wrong Pods</h2>
 
-<p>Helmfile's usual answer to "more than one environment" is a base <code>values.yaml</code> plus a per-environment override file &mdash; <code>values-staging.yaml</code>, <code>values-prod-eu.yaml</code>, and so on &mdash; merged at deploy time. That structure is sound on its own. What breaks it in practice is that nothing stops an override file from setting a key that has nothing to do with that environment's real differences, because a merge command doesn't know which keys were supposed to vary and which weren't.</p>
-
-<p>Once one override file redefines a key it didn't need to touch &mdash; a resource limit, a probe timeout, a log level &mdash; that environment silently stops inheriting future changes to the base default for that key. The base file gets updated, every environment's Helm diff looks clean on the surface, and the one environment sitting on a stale override doesn't show up as broken until its behavior visibly diverges from every other environment running the same chart.</p>
+<p>Kubernetes' default scheduler places a pod on any node where its resource requests fit, full stop. It has no idea that one node pool costs more per hour than another unless a taint tells it to treat that pool as off-limits by default. Without a taint, an ordinary Route Service or Route Consumer replica &mdash; small CPU and memory footprint, nothing GPU- or memory-shaped about it &mdash; is just as eligible for a spot on the pricier pool as it is for a spot on the general fleet, and the scheduler will use whichever node clears its bin-packing check first.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -265,35 +266,34 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Base values.yaml"] --> M["helmfile merge"]
-  B["Per-env override file"] --> M
-  M --> C["Deployed to EKS"]
-  C --> D["Next change hand-edited"]
-  D --> B</pre>
+  A["No taint on pricey pool"] --> B["Scheduler sees free capacity"]
+  B --> C["Ordinary pod lands there"]
+  C --> D["Pricey node billed for cheap work"]
+  E["Taint + toleration + affinity"] --> F["Only the right pod lands there"]</pre>
 
-<p>So what: the sprawl isn't caused by having many environments, it's caused by override files that are free to touch any key at all &mdash; and the fix has to constrain that freedom, not add a thirteenth environment's worth of documentation explaining it.</p>
+<p>The failure mode isn't dramatic. Nothing crashes, no alert fires, no customer notices a thing &mdash; the ordinary pod runs exactly as well on the expensive node as it would have on a cheap one. That's precisely why it's the kind of waste that survives for months: every individual placement looks harmless, and the only thing that would surface it is someone actually comparing what each node pool costs against what actually needed to run there.</p>
 
-<h2 id="what-actually-fixes-it">What Actually Fixes It</h2>
+<p>So what: the scheduler was never the thing that failed here &mdash; it did exactly what an untainted pool tells it to do, which is treat every node as equally fair game, cost included.</p>
 
-<p>The pattern that held up in production was narrower override files, not smarter ones. An override file was allowed to set replica counts, resource requests tuned to that environment's real traffic, and the ingress host &mdash; the things that are supposed to differ by definition. Anything else belonged in the base file, and a CI check that diffed each override against an allowlist of permitted keys caught the rest before merge, not after a rollout.</p>
+<h2 id="what-actually-fixed-it">What Actually Fixed It</h2>
 
-<p>That allowlist is boring in the way good infrastructure discipline usually is. It doesn't prevent drift by being clever; it prevents drift by making the sprawled copies structurally unable to diverge on anything that wasn't supposed to vary in the first place.</p>
+<p>The fix had two parts, and skipping either one leaves a real gap. First, taint the pricier pool with a <code>NoSchedule</code> effect, so nothing lands there by default. Second, give the pods that actually needed that pool both a matching toleration <em>and</em> a node affinity naming that pool directly &mdash; the toleration alone would have let those pods land there if the scheduler happened to pick that node, but it wouldn't have made the scheduler prefer it over an untainted node with room to spare.</p>
 
-<p>So what: the lesson wasn't "write better values files," it was "make the sprawl impossible to grow past a fixed, reviewable surface" &mdash; a decision made once in CI, not enforced by memory across a dozen environments.</p>
+<p>That second half is easy to skip, because a toleration-only pod usually does end up on the intended pool anyway, especially early on when the pricier pool has the most free capacity. It's a bet that quietly stops paying off as the cluster grows and the general fleet's autoscaler starts filling in gaps faster than the tainted pool's does &mdash; and by the time it stops paying off, nobody remembers that the affinity was ever the part actually doing the pinning.</p>
+
+<p>So what: the fix that held up wasn't "add a taint," it was "add a taint and treat the toleration and the affinity as one inseparable pair" &mdash; which is exactly the pairing I reached for by default in today's chart, not as a best practice I looked up, but as a rule I don't relitigate anymore.</p>
 
 <h2 id="where-that-lesson-lands-in-todays-vllm-chart">Where That Lesson Lands in Today's vLLM Chart</h2>
 
-<p>Today's <code>vllm-deploy-kit</code> DESIGN.md sets tensor parallel size, KV cache sizing, and an HPA that scales on GPU utilization instead of CPU &mdash; which needs a metric from DCGM-exporter (NVIDIA's per-GPU stats collector) surfaced through Prometheus Adapter (the bridge that lets a custom metric feed the HPA's decision), since the stock Kubernetes metrics-server has no idea a GPU exists. None of that is Route Service's problem restated with new nouns; it's a different service with the exact same override-surface question sitting underneath it.</p>
+<p><code>vllm-deploy-kit</code>'s deployment template reads <code>values.nodeSelector</code>, <code>values.tolerations</code>, and <code>values.affinity</code> straight through with <code>toYaml</code>, all three defaulting to empty so the chart is a no-op on a cluster with no tainted GPU pool at all. The moment a cluster does taint one &mdash; the standard shape is <code>nvidia.com/gpu=true:NoSchedule</code> &mdash; <code>values.example.yaml</code> shows the pairing that pool needs: a toleration matching the taint, and a <code>nodeSelector</code> pulling the pod toward it on purpose. Leaving either one out reproduces the exact gap Route Service's platform lived with, just against a GPU node instead of a memory-heavy one &mdash; and a GPU node sitting idle while it bills is a more expensive version of the same mistake, not a different one.</p>
 
-<p>A GPU value like <code>max_num_seqs</code> is even less forgiving of drift than a CPU resource limit was on Route Service, because a wrong value there doesn't just misbehave, it wastes an expensive GPU or OOMs a serving pod outright. The chart is meant to serve whichever model <code>model-registry</code> currently has marked <code>stage == "production"</code>, resolved by that entry's <code>artifact_prefix</code> &mdash; one more reason the values contract needs the same allowlisted-override discipline Route Service needed, because the model behind the chart can change without anyone touching the Helm values at all.</p>
-
-<p>So what: the bridge here isn't a metaphor, it's the same values-file-sprawl problem showing up on a chart that happens to point at a GPU instead of a rider-tracking pod &mdash; and the fix I'd reach for first is the one that already worked on Route Service: a base file, a narrow override allowlist, and a CI check that enforces the boundary instead of trusting a dozen people to remember it.</p>
+<p>So what: the bridge here isn't a metaphor stretched to fit, it's the same taint-toleration-affinity triple showing up on a pod that happens to want a GPU instead of extra memory &mdash; and the fix is the one I already trust, because I watched what shipping only two-thirds of it actually costs.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't know whether today's DESIGN.md actually specifies an override-key allowlist, or leaves that decision for whoever implements the chart after the design doc is approved. I also don't know Route Service's exact environment count or its full override-key list beyond what I've described here &mdash; the architecture doc I have documents the service's data flow, not its Helm directory structure, so I'm reasoning from the general shape of the problem, not from a file I've personally read.</p>
+<p>I don't have the exact instance type or node count the OSRM pool ran on anymore, or a dollar figure for what the missing affinity cost before it was fixed &mdash; I'm not going to invent either one to make this post read cleaner. I also don't know whether today's <code>vllm-deploy-kit</code> chart will ever run against a cluster with a real tainted GPU pool before this arc ends; the values exist and are tested against synthetic taints in <code>scripts/test-chart.sh</code>, but nothing in this repo has deployed to a live GPU node yet.</p>
 
-<p>So what: the pattern &mdash; one base file, a narrow allowlist, CI enforcement &mdash; is the part I'd stake this post on; the exact environment count either chart runs in is a detail I'm being honest about not having verified.</p>
+<p>So what: the taint-toleration-affinity mechanism and the reason all three matter together are the part I'd stake this post on; the precise cost of getting it wrong is a number I know was real and don't have anymore, and I'd rather say that plainly than back-fill a figure that sounds more convincing than it is.</p>
 
 <div class="stat-callout">
   <div class="stat-cell"><span class="stat-num">1M+</span><span class="stat-label">Daily orders on the EKS platform I scaled</span></div>
@@ -303,16 +303,16 @@ flowchart LR
 </div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 141 of 150</p>
-  <p><em>Next up:</em> <a href="day-142-gpu-node-pools-taints-tolerations.html">Day 142 — GPU Node Pools — Taints and Tolerations</a></p>
+  <p>Experience &middot; Day 142 of 150</p>
+  <p><em>Next up:</em> Day 143 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-140-baseline-registration-drift-needs-a-reference.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-141-helm-values-sprawl-route-service-eks.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 140 — Baseline Registration — Drift Needs a Reference (yesterday's post)</span>
+      <span>Day 141 — Helm for Route Service on EKS — Values File Sprawl (yesterday's post)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/experience/ten-thousand-concurrent-requests-eks-patterns-delivery-hero.html">
       <span class="footnote-arrow">&rarr;</span>
@@ -327,10 +327,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-blueprint-photocopied-onto-every-job-site">The Blueprint Analogy</a></li>
-      <li><a href="#what-route-services-eks-deployment-actually-looked-like">Route Service's EKS Deployment</a></li>
-      <li><a href="#the-values-file-sprawl-pattern">The Sprawl Pattern</a></li>
-      <li><a href="#what-actually-fixes-it">What Actually Fixes It</a></li>
+      <li><a href="#a-loading-dock-with-a-keycard-lock">The Loading Dock Analogy</a></li>
+      <li><a href="#what-the-eks-cluster-i-ran-actually-looked-like">The EKS Cluster I Ran</a></li>
+      <li><a href="#the-pool-that-kept-filling-with-the-wrong-pods">The Pool That Filled Wrong</a></li>
+      <li><a href="#what-actually-fixed-it">What Actually Fixed It</a></li>
       <li><a href="#where-that-lesson-lands-in-todays-vllm-chart">Where It Lands in the vLLM Chart</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
@@ -339,11 +339,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-141-helm-values-sprawl-route-service-eks.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-142-gpu-node-pools-taints-tolerations.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Helm+for+Route+Service+on+EKS+%E2%80%94+Values+File+Sprawl+%C2%B7+Day+141&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-141-helm-values-sprawl-route-service-eks.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=GPU+Node+Pools+%E2%80%94+Taints+and+Tolerations+%C2%B7+Day+142&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-142-gpu-node-pools-taints-tolerations.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -356,17 +356,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D139</span> Experience</div>
-          <a href="day-139-semantic-versioning-what-counts-as-breaking.html" class="series-post-title">Semantic Versioning — What Counts as Breaking</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D140</span> Experience</div>
           <a href="day-140-baseline-registration-drift-needs-a-reference.html" class="series-post-title">Baseline Registration — Drift Needs a Reference</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D141</span> Experience</div>
+          <a href="day-141-helm-values-sprawl-route-service-eks.html" class="series-post-title">Helm for Route Service on EKS — Values File Sprawl</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D141</span> Experience &middot; now</div>
-          <div class="series-post-title">Helm for Route Service on EKS — Values File Sprawl</div>
-          <div class="series-post-desc">A blueprint photocopied for twelve job sites drifts the moment each foreman pencils in local changes — why Route Service's Helm values sprawled on Delivery Hero's EKS, and what fixed it.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D142</span> Experience &middot; now</div>
+          <div class="series-post-title">GPU Node Pools — Taints and Tolerations</div>
+          <div class="series-post-desc">A loading dock's keycard lock keeps cars out, but only dispatch actually sends trucks there — why a tainted GPU node pool needs a toleration and an affinity together, and what it cost Delivery Hero's EKS cluster to have only one.</div>
         </div>
       </div>
     </div>

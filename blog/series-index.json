@@ -1584,6 +1584,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html",
+          "kicker": "Experience · Day 142 of 150",
+          "title": "Day 142 — GPU Node Pools — Taints and Tolerations",
+          "subtitle": "Delivery Hero · OSRM node pool · taint + toleration + affinity",
+          "date": "2026-08-26",
+          "slug": "day-142-gpu-node-pools-taints-tolerations",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html",
+          "coverImage": "blog/assets/covers/day-142-gpu-node-pools-taints-tolerations.png",
+          "desc": "A loading dock's keycard lock keeps cars out, but only dispatch actually sends trucks there. Why a tainted GPU node pool needs a toleration and a node affinity together, and what it cost Delivery Hero's EKS cluster to have only one."
+        },
+        {
           "href": "blog/series/experience/day-141-helm-values-sprawl-route-service-eks.html",
           "kicker": "Experience · Day 141 of 150",
           "title": "Day 141 — Helm for Route Service on EKS — Values File Sprawl",
