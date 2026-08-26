@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 141 &mdash; vLLM Architecture &mdash; PagedAttention Refresher | AI Learning Series</title>
-<meta name="description" content="A Helm value, max_num_seqs, is today's hook. It sits in a YAML file, but what it actually bounds is how many sequences vLLM's scheduler will fit into the KV cache's paged memory at once -- a refresher on PagedAttention and where three Helm values actually touch it.">
-<meta property="og:title" content="Day 141 &mdash; vLLM Architecture &mdash; PagedAttention Refresher">
-<meta property="og:description" content="A parking garage assigns every car numbered stalls scattered anywhere open, tracked by a directory at the entrance. Why PagedAttention pages a sequence's KV cache the same way, and what a Helm value like max_num_seqs actually bounds on that mechanism.">
+<title>Day 142 &mdash; Tensor Parallel &mdash; Multi-GPU Serving | AI Learning Series</title>
+<meta name="description" content="tensor_parallel_size in chart values is today's hook. It doesn't run more copies of the model -- it splits every weight matrix in a single copy across GPUs, and every layer has to resync before the next one can start.">
+<meta property="og:title" content="Day 142 &mdash; Tensor Parallel &mdash; Multi-GPU Serving">
+<meta property="og:description" content="Four painters share one wall mural, each covering a vertical strip, but all four have to lift their brushes at the same checkpoints so it stays one image. Why tensor parallelism splits a single model's weight matrices across GPUs instead of copying the whole model, and what a Helm value like tensorParallelSize actually bounds on that mechanism.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-141-vllm-architecture-pagedattention-refresher.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-141-vllm-architecture-pagedattention-refresher.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-142-tensor-parallel-multi-gpu-serving.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-142-tensor-parallel-multi-gpu-serving.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-141-vllm-architecture-pagedattention-refresher.png">
-<meta property="article:published_time" content="2026-08-25">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-142-tensor-parallel-multi-gpu-serving.png">
+<meta property="article:published_time" content="2026-08-26">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 141 of 150</span>
-    <span class="tag">PagedAttention</span>
-    <span class="tag">KV Cache</span>
+    <span class="tag accent">AI Learning &middot; Day 142 of 150</span>
+    <span class="tag">Tensor Parallel</span>
+    <span class="tag">Multi-GPU</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 141 &mdash; vLLM Architecture &mdash; PagedAttention Refresher</h1>
-  <p class="post-subtitle">Helm values set max_num_seqs is today's hook, and it's worth pausing on what that single value actually bounds. It isn't a request-rate throttle &mdash; it's a ceiling on how many sequences vLLM's scheduler will ever try to fit into the KV cache's paged memory at once, the same paging idea Day 2 first drew a straight line to OS virtual memory.</p>
+  <h1 class="post-title">Day 142 &mdash; Tensor Parallel &mdash; Multi-GPU Serving</h1>
+  <p class="post-subtitle"><code>tensor_parallel_size</code> in chart values is today's hook, and it names something easy to mis-read as "run more copies of the model." It doesn't. It splits a single copy's weight matrices across GPUs, and every layer has to resync those GPUs before the next layer can even start.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 141 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 142 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 25, 2026</span>
+    <span class="meta-item">August 26, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">7 min read</span>
   </div>
@@ -208,31 +208,29 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-141-vllm-architecture-pagedattention-refresher.png" alt="Day 141 — vLLM Architecture — PagedAttention Refresher" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-142-tensor-parallel-multi-gpu-serving.png" alt="Day 142 — Tensor Parallel — Multi-GPU Serving" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Helm values set max_num_seqs is today's hook, and I want to slow down on it instead of reading past it. It looks like an infrastructure knob &mdash; one line in a values.yaml a same-day teammate is writing for <code>vllm-deploy-kit</code> &mdash; but it's actually a ceiling on a specific piece of vLLM's memory system: how many sequences the scheduler will admit into the KV cache's paged memory at once. Understanding what it bounds means going back to PagedAttention itself.</p>
+<p><code>tensor_parallel_size</code> in chart values is today's hook, and my own PR is the one that wires it &mdash; <code>vllm-deploy-kit/chart/values.yaml</code> passes it straight through to vLLM's <code>--tensor-parallel-size</code> flag. The name invites a wrong first guess: that a higher number means more replicas of the model answering more requests. It means the opposite kind of split, and the mechanism underneath it is worth slowing down on before the value ever gets tuned.</p>
 
-<h2 id="a-parking-garage-with-numbered-stalls-not-a-reserved-curb">A Parking Garage With Numbered Stalls, Not a Reserved Curb</h2>
+<h2 id="one-mural-four-painters-not-four-murals">One Mural, Four Painters, Not Four Murals</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the parking garage with numbered stalls</div>
-  Reserve a car a stretch of curb sized for the longest trip it might ever take, and that curb sits mostly empty for every shorter trip &mdash; the space is contiguous, but almost all of it goes unused. A parking garage solves the same problem differently: every car gets assigned individual numbered stalls as it needs them, scattered anywhere open in the garage, tracked by a directory at the entrance that maps each car to its stalls. The car never notices its stalls aren't next to each other; only the directory has to know.
+  <div class="attr-label">DS analogy &mdash; one mural, four painters</div>
+  Four painters covering four separate walls each finish their own complete picture independently &mdash; that's four murals, and it's the shape of data parallelism: whole, independent copies working on different input. Four painters sharing one wall, each covering only a vertical strip of the same continuous image, is a different shape entirely: none of them has a complete picture on their own, and all four have to lift their brushes at the same checkpoints so the strips still line up into one mural instead of four disconnected fragments.
 </div>
 
-<p>PagedAttention is the parking-garage answer applied to a sequence's key-value cache. Reserving one contiguous VRAM block per sequence, sized for the worst case, is the reserved curb; allocating small blocks on demand from anywhere free in memory, tracked by a lookup table, is the numbered stalls.</p>
+<p>Tensor parallelism is the second shape. It doesn't give any one GPU a full copy of the model's weights; it splits individual weight matrices &mdash; the ones inside attention and the feed-forward layers &mdash; into column-wise or row-wise slices, one slice per GPU. Every GPU holds only its slice, computes only its slice's share of each matrix multiply, and none of them has the complete answer until the slices are combined back together.</p>
 
-<p>So what: the memory-management idea underneath vLLM isn't specific to transformers at all, it's the decades-old observation that contiguous reservations waste space and indirection through a directory recovers most of it &mdash; which is exactly why Day 2's table lined up virtual memory paging against PagedAttention in the first place.</p>
+<p>So what: the reason tensor parallelism needs constant coordination isn't a design flaw, it's the direct consequence of no single GPU ever holding a complete weight matrix on its own &mdash; the mural analogy isn't decoration, it's the actual shape of the computation.</p>
 
-<h2 id="what-pagedattention-actually-pages">What PagedAttention Actually Pages</h2>
+<h2 id="where-the-brushes-have-to-lift-at-once">Where the Brushes Have to Lift at Once</h2>
 
-<p>Every token a transformer generates leaves behind a key vector and a value vector, per attention layer, per head &mdash; together, its KV cache entry. Before PagedAttention, an inference engine had to reserve one contiguous block of VRAM per sequence, sized for the longest sequence that request was allowed to reach (<code>max_model_len</code>), the moment the sequence started. That's the reserved-curb approach, sized for a trip that might never happen.</p>
-
-<p>PagedAttention instead splits each sequence's KV cache into fixed-size blocks &mdash; 16 tokens per block in vLLM's default configuration &mdash; and allocates blocks on demand as a sequence actually grows, from anywhere free in GPU memory. A block table, one per sequence, maps each logical position in the sequence to whichever physical block currently holds it; the attention kernel reads that table and gathers scattered blocks as if they were contiguous, the same trick a CPU's memory-management unit performs for virtual memory.</p>
+<p>That combining step is an all-reduce: every GPU's partial result for a layer gets summed across all GPUs in the tensor-parallel group, and every GPU needs the summed result before it can start the next layer's computation. This is why tensor parallelism is usually confined to GPUs on the same physical node &mdash; an all-reduce running once per layer, for every layer, needs the kind of bandwidth NVLink provides between GPUs on one node, not the kind a normal network link between separate nodes provides.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -252,55 +250,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Naive: reserve max_model_len"] --> B["Contiguous VRAM per sequence"]
-  B --> C["Idle capacity wasted"]
-  D["PagedAttention: fixed-size blocks"] --> E["Allocated only as tokens grow"]
-  E --> F["Block table tracks mapping"]</pre>
+  A["Weight matrix split into slices"] --> B["Each GPU computes its slice"]
+  B --> C["All-reduce sums partial results"]
+  C --> D["Every GPU needs the sum"]
+  D --> E["Next layer starts"]</pre>
 
-<p>So what: nothing about attention's math changes here &mdash; what changes is that a sequence's memory footprint grows in small, reusable increments instead of one large reservation sized for a worst case that usually doesn't happen.</p>
+<p>So what: pipeline parallelism (splitting whole layers across GPUs, each GPU owning a complete layer) tolerates the higher latency of a normal network link because it only hands off a full activation between stages, not a partial sum every single layer &mdash; tensor parallelism can't make that trade, which is exactly why it stays node-local.</p>
 
-<h2 id="where-a-helm-value-actually-touches-this">Where a Helm Value Actually Touches This</h2>
+<h2 id="where-tensorparallelsize-actually-touches-the-chart">Where <code>tensorParallelSize</code> Actually Touches the Chart</h2>
 
-<p>Three of today's chart values map directly onto that mechanism. <code>gpu_memory_utilization</code> sets the fraction of each GPU's memory vLLM is allowed to claim in total &mdash; model weights plus every block in the paged KV cache pool &mdash; so it's the ceiling on how many blocks can ever exist at once. <code>max_model_len</code> bounds how many blocks a single sequence could theoretically need if it ran to its longest allowed length.</p>
+<p><code>tensorParallelSize</code> has one hard constraint: it must evenly divide the model's attention head count, since each GPU ends up responsible for a whole number of heads' worth of the split. My own <code>deployment.yaml</code> derives the pod's <code>nvidia.com/gpu</code> resource request directly from this same value, through one shared <code>gpuCount</code> helper, rather than accepting a second, independently-set GPU count that could silently disagree with it &mdash; a mismatch there wouldn't fail loudly, it would either strand a GPU unused or crash at model-load time on a shard-count the launch command can't satisfy.</p>
 
-<p><code>max_num_seqs</code> is the value the hook names directly, and it bounds the scheduler's admission decision, not the memory allocation itself: it's a hard cap on how many sequences vLLM will run concurrently, regardless of how much paged memory those sequences would actually use. Set it too high against a fixed <code>gpu_memory_utilization</code> budget and the scheduler admits more sequences than the block pool can back, forcing it to preempt or swap sequences mid-decode; set it too low and paged memory sits unused while requests queue. <code>tensor_parallel_size</code> is a different axis &mdash; it splits the model's weights across GPUs, changing how much of each GPU's memory is left over for the KV cache pool to begin with, but it doesn't touch paging directly.</p>
+<p>So what: <code>tensorParallelSize</code> isn't a scaling knob in the replica sense at all, it's a single number that has to simultaneously satisfy the model's own architecture, the launch command's shard count, and the pod's resource request &mdash; three things that all have to agree because they're really one fact expressed three times.</p>
 
-<p>So what: <code>max_num_seqs</code> isn't a rate limit dressed up as a Helm value, it's a direct dial on how aggressively the scheduler is allowed to lean on PagedAttention's ability to pack many partial sequences into memory that was never reserved for any one of them specifically.</p>
+<h2 id="why-the-node-affinity-lesson-from-today-matters-here-too">Why the Node-Affinity Lesson From Today Matters Here Too</h2>
 
-<h2 id="why-the-hpa-has-to-watch-the-gpu-not-the-cpu">Why the HPA Has to Watch the GPU, Not the CPU</h2>
+<p>Today's Experience post is about a tainted node pool needing both a toleration and a node affinity, not just one. That pairing matters even more for a tensor-parallel deployment than it does for an ordinary single-GPU pod: if a tensor-parallel group's GPUs ever landed on separate nodes instead of the same one &mdash; because a pod tolerated the GPU taint but had no affinity actually pulling it toward the right pool &mdash; every layer's all-reduce would suddenly be crossing a normal network link instead of NVLink, and the pod would still start, still pass its readiness probe, and simply serve far slower than the same chart on a correctly-scheduled node.</p>
 
-<p>A decode-heavy vLLM pod can sit at low CPU utilization while its GPU runs at full occupancy, because the CPU is mostly waiting on the GPU, not computing. A Kubernetes HPA (Horizontal Pod Autoscaler, the controller that adds or removes pods based on a watched metric) reading only the stock metrics-server would see a quiet pod and never scale, no matter how full the paged KV cache actually is. Today's chart wires the HPA to GPU utilization instead, sourced from DCGM-exporter (NVIDIA's per-GPU stats collector) and surfaced through Prometheus Adapter (the bridge that lets a custom metric feed the HPA's decision), because that's the number that actually reflects whether the paging system has room left.</p>
-
-<p>So what: pairing <code>max_num_seqs</code> with a GPU-aware HPA is the same idea as pairing a resource limit with the metric that actually predicts pressure &mdash; the wrong signal doesn't just under-scale, it hides the exact bottleneck PagedAttention exists to relieve.</p>
+<p>So what: a scheduling mistake here isn't cosmetic the way an ordinary CPU pod landing on the wrong node is &mdash; it silently turns tensor parallelism's cheap, fast synchronization into an expensive, slow one, without ever producing an error the readiness probe would catch.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't know which model the chart resolves at install time versus at reload &mdash; whether it reads <code>model-registry</code>'s <code>stage == "production"</code> entry and its <code>artifact_prefix</code> once, at deploy, or watches for that entry to change and reloads a running pod. Days 138&ndash;140 built the registry side of that contract; today's DESIGN.md, per the plan line, documents the Helm values, not the resolution timing between the two systems.</p>
+<p>I don't know whether vLLM's launch command validates that <code>tensorParallelSize</code> evenly divides the attention head count itself, or whether it fails later and less clearly if the two disagree &mdash; nothing in today's chart checks this ahead of time, it only derives the GPU resource request from the same value. I also don't know whether a real GPU interconnect topology check will ever live in this chart; today's Helm values pass the number through, they don't inspect the cluster's actual NVLink topology to confirm the assumption this whole post rests on.</p>
 
-<p>So what: the paging mechanism and the values that bound it are the part I've verified against Day 2's own material; the exact handoff between <code>model-registry</code>'s production stage and the vLLM chart is a real open question the code, once it exists, will have to answer.</p>
+<p>So what: the mechanism &mdash; why tensor parallelism needs node-local, per-layer synchronization, and why that makes it a different kind of split than replicating the model &mdash; is the part I've verified against how vLLM and Megatron-style tensor parallelism actually work; whether this specific chart will ever check its own topology assumption is an open question the code doesn't answer yet.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">16</span><span class="stat-label">Tokens per KV cache block, vLLM's default</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Helm values mapped to paging in this post</span></div>
-  <div class="stat-cell"><span class="stat-num">Day 2</span><span class="stat-label">GOLD reference post this refresher builds on</span></div>
-  <div class="stat-cell"><span class="stat-num">141</span><span class="stat-label">of 150 days in this series</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Weight matrix per layer, split not copied</span></div>
+  <div class="stat-cell"><span class="stat-num">1&times;</span><span class="stat-label">All-reduce per layer, every layer</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Facts tensorParallelSize has to satisfy at once</span></div>
+  <div class="stat-cell"><span class="stat-num">142</span><span class="stat-label">of 150 days in this series</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Day 141 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-142-tensor-parallel-multi-gpu-serving.html">Day 142 — Tensor Parallel — Multi-GPU Serving</a></p>
+  <p>Day 142 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 143 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-140-baselines-for-drift-register-at-deploy.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-141-vllm-architecture-pagedattention-refresher.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 140 — Baselines for Drift — Register at Deploy (yesterday's post)</span>
+      <span>Day 141 — vLLM Architecture — PagedAttention Refresher (yesterday's post)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching in vLLM — the GOLD reference post this refresher is built on</span>
+      <span>Day 2 — Continuous Batching in vLLM — the GOLD reference post this series builds on</span>
     </a>
   </div>
 </div>
@@ -311,10 +307,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-parking-garage-with-numbered-stalls-not-a-reserved-curb">The Parking Garage Analogy</a></li>
-      <li><a href="#what-pagedattention-actually-pages">What PagedAttention Pages</a></li>
-      <li><a href="#where-a-helm-value-actually-touches-this">Where a Helm Value Touches This</a></li>
-      <li><a href="#why-the-hpa-has-to-watch-the-gpu-not-the-cpu">HPA on GPU, Not CPU</a></li>
+      <li><a href="#one-mural-four-painters-not-four-murals">One Mural, Four Painters</a></li>
+      <li><a href="#where-the-brushes-have-to-lift-at-once">Where the Brushes Lift at Once</a></li>
+      <li><a href="#where-tensorparallelsize-actually-touches-the-chart">Where tensorParallelSize Touches the Chart</a></li>
+      <li><a href="#why-the-node-affinity-lesson-from-today-matters-here-too">Why Node Affinity Matters Here Too</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -322,11 +318,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-141-vllm-architecture-pagedattention-refresher.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-142-tensor-parallel-multi-gpu-serving.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=vLLM+Architecture+%E2%80%94+PagedAttention+Refresher+%C2%B7+Day+141&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-141-vllm-architecture-pagedattention-refresher.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Tensor+Parallel+%E2%80%94+Multi-GPU+Serving+%C2%B7+Day+142&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-142-tensor-parallel-multi-gpu-serving.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -339,17 +335,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D139</span> AI Learning</div>
-          <a href="day-139-promotion-gates-staging-to-production.html" class="series-post-title">Promotion Gates — Staging to Production</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D140</span> AI Learning</div>
           <a href="day-140-baselines-for-drift-register-at-deploy.html" class="series-post-title">Baselines for Drift — Register at Deploy</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D141</span> AI Learning</div>
+          <a href="day-141-vllm-architecture-pagedattention-refresher.html" class="series-post-title">vLLM Architecture — PagedAttention Refresher</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D141</span> AI Learning &middot; now</div>
-          <div class="series-post-title">vLLM Architecture — PagedAttention Refresher</div>
-          <div class="series-post-desc">A Helm value, max_num_seqs, is a ceiling on how many sequences fit into the KV cache's paged memory at once — a refresher on what PagedAttention actually pages.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D142</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Tensor Parallel — Multi-GPU Serving</div>
+          <div class="series-post-desc">Four painters share one mural, each covering a strip, but all four lift their brushes at the same checkpoints — why tensor parallelism splits a model's weight matrices across GPUs instead of copying the whole model.</div>
         </div>
       </div>
     </div>

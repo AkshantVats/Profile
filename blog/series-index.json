@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-142-tensor-parallel-multi-gpu-serving.html",
+          "kicker": "AI Learning · Day 142 of 150",
+          "title": "Day 142 — Tensor Parallel — Multi-GPU Serving",
+          "subtitle": "Split layers across GPUs",
+          "date": "2026-08-26",
+          "slug": "day-142-tensor-parallel-multi-gpu-serving",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-142-tensor-parallel-multi-gpu-serving.html",
+          "coverImage": "blog/assets/covers/day-142-tensor-parallel-multi-gpu-serving.png",
+          "desc": "Four painters share one wall mural, each covering a vertical strip, but all four lift their brushes at the same checkpoints. Why tensor parallelism splits a single model's weight matrices across GPUs instead of copying the whole model, and what tensor_parallel_size actually bounds."
+        },
+        {
           "href": "blog/series/ai-learning/day-141-vllm-architecture-pagedattention-refresher.html",
           "kicker": "AI Learning · Day 141 of 150",
           "title": "Day 141 — vLLM Architecture — PagedAttention Refresher",
