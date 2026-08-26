@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-143-routing-fine-tuned-models-registry-integration.html",
+          "kicker": "AI Learning · Day 143 of 150",
+          "title": "Day 143 — Routing Fine-Tuned Models — Registry Integration",
+          "subtitle": "RouteIQ reads registry for endpoints",
+          "date": "2026-08-26",
+          "slug": "day-143-routing-fine-tuned-models-registry-integration",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-143-routing-fine-tuned-models-registry-integration.html",
+          "coverImage": "blog/assets/covers/day-143-routing-fine-tuned-models-registry-integration.png",
+          "desc": "A diner's chalkboard doesn't list a new special until the health inspector signs off, and even then the host only seats one table in ten there at first. Why RouteIQ only learns about a promoted model on a promotion event, and trials it at 10% traffic instead of cutting over all at once."
+        },
+        {
           "href": "blog/series/ai-learning/day-142-tensor-parallel-multi-gpu-serving.html",
           "kicker": "AI Learning · Day 142 of 150",
           "title": "Day 142 — Tensor Parallel — Multi-GPU Serving",
@@ -1595,6 +1607,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-143-canary-routing-staged-trust-different-dial.html",
+          "kicker": "Experience · Day 143 of 150",
+          "title": "Day 143 — Canary Routing — Staged Trust, Different Dial",
+          "subtitle": "Agoda · WhiteFalcon compaction · percent vs elapsed-time staging",
+          "date": "2026-08-26",
+          "slug": "day-143-canary-routing-staged-trust-different-dial",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-143-canary-routing-staged-trust-different-dial.html",
+          "coverImage": "blog/assets/covers/day-143-canary-routing-staged-trust-different-dial.png",
+          "desc": "A cellar master doesn't rack a young wine next to a proven vintage on day one. Why WhiteFalcon staged trust in data by elapsed time instead of traffic percentage, and why today's model rollout needed the opposite dial."
+        },
         {
           "href": "blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html",
           "kicker": "Experience · Day 142 of 150",
