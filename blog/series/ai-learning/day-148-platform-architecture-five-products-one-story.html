@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push | Experience Series</title>
-<meta name="description" content="Today's PR adds a PodDisruptionBudget, a maxSurge:0 rolling update, and a preStop drain hook to a GPU deployment. Why that's the same shape as the deploy pipeline that pushed price changes at Wayfair without a customer ever seeing a failed request, and why 'graceful' means something different for a stateless config flip than for a stateful GPU pod.">
-<meta property="og:title" content="Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push">
-<meta property="og:description" content="A restaurant that's closing for the night doesn't yank plates off tables mid-meal -- it flips the sign to stop seating new customers and lets the tables already eating finish first. Why a preStop hook is that sign, not a faster way to say goodbye.">
+<title>Day 148 &mdash; Platform Architecture &mdash; Five Products One Story | AI Learning Series</title>
+<meta name="description" content="Today's platform-launch page draws one diagram linking LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge. That diagram is also, almost unchanged, the answer to a systems-design interview question: design an AI inference observability platform end to end.">
+<meta property="og:title" content="Day 148 &mdash; Platform Architecture &mdash; Five Products One Story">
+<meta property="og:description" content="An assembly line's five stations only work as a line because each one hands the next a finished part, never a half-built one. Why LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge had to ship in that order, and what the whiteboard version of that order looks like.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-graceful-rollout-zero-downtime-price-push.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-148-platform-architecture-five-products-one-story.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-148-platform-architecture-five-products-one-story.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-graceful-rollout-zero-downtime-price-push.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-148-platform-architecture-five-products-one-story.png">
 <meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,63 +185,50 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 147 of 150</span>
-    <span class="tag">Wayfair</span>
-    <span class="tag">Kubernetes</span>
+    <span class="tag accent">AI Learning &middot; Day 148 of 150</span>
+    <span class="tag">Platform Architecture</span>
     <span class="tag">LensAI</span>
+    <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push</h1>
-  <p class="post-subtitle">Today's PR adds a PodDisruptionBudget, a rolling update with no surge headroom, and a drain sleep before shutdown to a GPU deployment. Wayfair's own price-adjustment deploy pipeline shipped the same five-step shape &mdash; migrate, start new, wait for ready, shift traffic, drain the old &mdash; for a service with no GPU anywhere in it, because the shape isn't about GPUs. It's about never asking a pod to stop serving before something else is ready to take over.</p>
+  <h1 class="post-title">Day 148 &mdash; Platform Architecture &mdash; Five Products One Story</h1>
+  <p class="post-subtitle">Today's <code>platform-launch</code> page draws one diagram linking LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge. The landing-page copy that ties the five to a single north star turns out to be nearly the same sentence a systems-design interview answer needs: design an AI inference observability platform, end to end.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 147 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 148 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">7 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-147-graceful-rollout-zero-downtime-price-push.png" alt="Day 147 — Graceful Rollout — Wayfair Zero-Downtime Price Push" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-148-platform-architecture-five-products-one-story.png" alt="Day 148 — Platform Architecture — Five Products One Story" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's chart change in <code>vllm-deploy-kit</code> is three small pieces: a PodDisruptionBudget that caps how many replicas a voluntary disruption can take at once, a rolling-update strategy that refuses to ask for a spare GPU pod it doesn't have room for, and a <code>preStop</code> hook that makes a pod keep serving for a few seconds after it's told to leave. None of the three is exotic. What's worth writing down is that I'd already watched the same five-step shape work at Wayfair, on a service with zero GPUs and zero tensor-parallel anything, because the shape has nothing to do with what the pod is running.</p>
+<p>The hardest line to write in today's <code>platform-launch</code> page isn't a line of code. It's the one paragraph of landing-page copy that ties LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge to a single north star. That paragraph turns out to be, almost word for word, the answer to a systems-design interview question I'd have been asked cold a year ago: design an AI inference observability platform, end to end, and defend why each piece exists.</p>
 
-<h2 id="last-call-not-lights-out">Last Call, Not Lights Out</h2>
+<h2 id="an-assembly-line-with-five-stations">An Assembly Line With Five Stations</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; last call, not lights out</div>
-  A restaurant closing for the night doesn't yank plates off the tables still eating. The host flips the sign to stop seating new walk-ins, the kitchen finishes the orders already in, and the tables mid-meal get to finish before the doors actually lock. Nobody who was already seated gets told to leave with food still on the plate &mdash; the restaurant just stops taking new business while it winds down the business it already has.
+  <div class="attr-label">DS analogy &mdash; an assembly line with five stations</div>
+  A car factory's chassis station, engine station, wiring-harness station, paint booth, and final-inspection bay only function as one line because each station hands the next a finished part, never a half-built one. You cannot paint a car with no chassis under it, and you cannot wire a car with no engine bay to route the harness through. The order isn't a scheduling preference someone picked; it's the only order in which each station's input actually exists yet.
 </div>
 
-<p>A Kubernetes Service's Endpoints list is the "stop seating" sign, and a pod's <code>preStop</code> hook is the minutes between flipping it and actually locking the door. Removing a pod from Endpoints happens at the exact same instant SIGTERM is sent &mdash; but that removal has to propagate to every node's dataplane before new requests genuinely stop arriving, and a request that already picked this pod a moment earlier is still mid-meal. Today's chart sleeps for five seconds in <code>preStop</code> before the process is actually asked to stop, buying that propagation window instead of pretending it doesn't exist.</p>
+<p>LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge shipped in exactly that kind of forced order, roughly thirty days apart: ingestion and metrics first, then distributed tracing, then model routing, then drift detection, then a fine-tuning loop. Tracing a request across services needs metrics-shaped events to already exist. Routing a request to the right model needs a registry of models worth tracing between.</p>
 
-<p>So what: a graceful shutdown isn't a faster way to say goodbye to a pod, it's a longer one &mdash; the whole point is refusing to hang up on whoever's still mid-sentence.</p>
+<p>Detecting drift needs a routed, traced pipeline stable enough to have a baseline. Fine-tuning on drift signal needs a working drift detector to tell it when to fire.</p>
 
-<div class="attr-box team">
-  <div class="attr-label">Team scope, stated plainly</div>
-  At Wayfair I led the PAS team and the Pricing, Promotions &amp; Discounts team at the same time, owning delivery across both product areas. gst-acc-promotions, ucms-partner-home, and ucms-background-service all deployed on the same rolling-update chart default &mdash; none of that was a decision I personally made per-service, it was the platform team's chart default inherited by every service on it, mine included.
-</div>
-
-<h2 id="the-one-strategy-that-opts-out">The One Strategy That Opts Out</h2>
-
-<p>Not every service at Wayfair took the rolling-update default, and the one exception is the more interesting data point than the rule. <code>diy-pricing-kafka</code>'s consumers run <code>strategy: Recreate</code> &mdash; every old pod killed before any new one starts &mdash; specifically because Kafka consumers sharing a consumer group would otherwise thrash through a rebalance storm mid-rollout, with old and new pods both claiming partitions at once. A brief full outage was judged less disruptive than a longer partial one.</p>
-
-<p>Today's <code>maxSurge: 0</code> is that same kind of deliberate non-default, for a different constraint. Kubernetes' own rolling-update default asks for one extra pod above the running count before removing an old one &mdash; fine on stateless CPU pods where the scheduler can usually find room, but a GPU node pool is sized to exactly what the replica count needs, no spare capacity idling on the off chance a deploy needs it.</p>
-
-<p>A surge pod requesting a GPU that isn't there doesn't fail loudly; it sits <code>Pending</code> and the rollout stalls silently. <code>maxSurge: 0</code> accepts a real, bounded capacity dip instead of a surge that may never schedule.</p>
-
-<p>So what: "rolling update" isn't one strategy, it's a family of dials, and the two exceptions here &mdash; Recreate for a stateful consumer group, zero surge for a scarce resource &mdash; both trade a known cost for avoiding an unknown, silent one.</p>
+<p>So what: the five-repo order wasn't a content calendar's arbitrary choice, it was the assembly-line constraint restated as a publishing schedule &mdash; each station downstream of the one before it, the same way a paint booth is downstream of a chassis line.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -261,48 +248,86 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["New pod starts"] --> B["Readiness probe passes"]
-  B --> C["Traffic shifts to it"]
-  C --> D["Old pod leaves Endpoints"]
-  D --> E["preStop drain sleep"]
-  E --> F["Old pod actually stops"]</pre>
+  A["LensAI: ingest, metrics"] --> B["TraceForge: distributed tracing"]
+  B --> C["RouteIQ: model routing"]
+  C --> D["DriftWatch: drift detection"]
+  D --> E["FineForge: fine-tuning loop"]</pre>
 
-<p>That's today's chart, but it's also, near enough, the sequence Wayfair's own price-adjustment deploy pipeline ran for a stateless Java service pushing a schema-compatible change: migrate the database first, start new pods, wait for readiness, shift traffic, and only then drain the old pods. The Wayfair version adds one step neither GPU pods nor this chart's benchmark needed &mdash; a faulty-deploy monitor watching error rates for 70 minutes after the rollout finished, because a database migration can look fine at rollout time and still surface a slow-burning problem an hour later.</p>
+<h2 id="the-same-diagram-runs-two-directions">The Same Diagram Runs Two Directions</h2>
 
-<p>So what: the sequence transfers across a GPU pod and a stateless Java service because neither one is really the subject of it &mdash; the subject is the request in flight when someone flips the switch, and that request doesn't care what's serving it.</p>
+<p>The build-order diagram above answers "why this sequence." It doesn't answer the question an interviewer actually asks, which is closer to "walk me through what happens to one request." Those are two different diagrams of the same five products, and today's landing page needed both, because a build-order chart reads like a changelog and a request-flow chart reads like an architecture.</p>
 
-<h2 id="a-different-kind-of-rollout">A Different Kind of Rollout</h2>
+<pre class="mermaid">
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1e3a5f',
+    'primaryTextColor': '#f0f4f8',
+    'primaryBorderColor': '#4a90d9',
+    'lineColor': '#4a90d9',
+    'secondaryColor': '#0d2137',
+    'tertiaryColor': '#0a1a2e',
+    'background': 'transparent',
+    'nodeBorder': '#4a90d9',
+    'clusterBkg': '#0d2137',
+    'titleColor': '#f0f4f8',
+    'edgeLabelBackground': '#0d2137'
+  }
+}}%%
+flowchart LR
+  Q["Inference request arrives"] --> L["LensAI records metrics"]
+  L --> T["TraceForge records spans"]
+  T --> R["RouteIQ picks endpoint"]
+  R --> W["DriftWatch scores quality"]
+  W --> F["FineForge queues retrain"]</pre>
 
-<p>The plan for this post started as "blue/green for config, not big bang," and the honest version of that claim is narrower than it sounds. Wayfair never ran two full parallel environments and cut traffic between them for a price change &mdash; that's not what "blue/green for config" means here. What actually shipped price and promotion logic changes gradually, without a pod ever restarting, was a feature flag: SPCS API version changes rolled out gated behind a flag, exposed to a slice of traffic first and only widened once it held.</p>
+<p>Every node in the request-flow diagram is a real code path a request touches today, not a hypothetical. That's the detail a whiteboard interview answer usually skips &mdash; most candidates can draw boxes and arrows for a design they've never built, but every arrow here corresponds to an actual integration test in the repo it points from.</p>
 
-<p>That's a genuinely different lever from anything in today's PR. A pod-level rolling update changes what code is running, one replica at a time, and a PDB or a drain hook only ever protects the transition. A feature flag changes what code path a request takes, all replicas already running the same binary, and it can be dialed back in seconds without touching a single pod.</p>
+<p>So what: a platform diagram earns the word "architecture" instead of "wishlist" exactly when someone can point at each arrow and name the test that exercises it, which is the whole reason today's PR pairs the diagram with a runnable <code>platform-quickstart</code> instead of shipping the picture alone.</p>
 
-<p>Today's GPU chart has no config-flag layer of its own yet &mdash; every rollout it does is pod-level, because there's no code path inside one running pod's process to gate.</p>
+<h2 id="what-each-layer-is-actually-answering">What Each Layer Is Actually Answering</h2>
 
-<p>So what: "zero-downtime" describes two different mechanisms depending on which layer is actually changing, and conflating them is how a team ends up building a slow, heavyweight pod rollout for a change a feature flag would have shipped in a tenth of the time &mdash; or the other way around, flag-gating something that genuinely needed a new binary.</p>
+<p>Naming five products in a row invites treating them as five interchangeable microservices. They're not &mdash; each one exists to answer a different question a systems-design interview would ask separately, and conflating them is the fastest way to lose that interview's follow-up question.</p>
+
+<table>
+<tr><th>Layer</th><th>Product</th><th>Question it answers</th></tr>
+<tr><td>1</td><td>LensAI</td><td>What actually happened during this request?</td></tr>
+<tr><td>2</td><td>TraceForge</td><td>Where did the time go, across services?</td></tr>
+<tr><td>3</td><td>RouteIQ</td><td>Which model should have served this request?</td></tr>
+<tr><td>4</td><td>DriftWatch</td><td>Has quality quietly degraded since deploy?</td></tr>
+<tr><td>5</td><td>FineForge</td><td>How does the system close the loop and retrain?</td></tr>
+</table>
+
+<p>So what: an interviewer who asks "why five separate systems and not one monolith" gets a sharper answer from this table than from the diagram alone &mdash; each layer owns one question a single service answering all five would have to compromise on, the same reason a factory doesn't paint and weld at the same station.</p>
+
+<h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
+
+<p>I don't know whether five repos genuinely need to stay five repos once all of them exist, or whether a real production version would collapse LensAI and TraceForge into one ingestion service now that both are stable &mdash; the staged-shipping order that made sense as a thirty-day-per-layer build constraint isn't automatically the right long-term deployment topology. I also don't know how well the request-flow diagram survives contact with a real interviewer's follow-up questions about failure modes at each hop, since today's PR only had to prove the happy path runs end to end.</p>
+
+<p>So what: today's diagram is an honest map of what exists and how it's wired, not a claim that the wiring is the final architecture &mdash; the same distinction between "the code as it runs today" and "the code as it will always run" that separates an interview answer from a promise about a real system's future.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Steps: migrate, start, ready, shift, drain</span></div>
-  <div class="stat-cell"><span class="stat-num">70</span><span class="stat-label">Minute faulty-deploy monitor window</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Service opted out (Kafka, Recreate)</span></div>
-  <div class="stat-cell"><span class="stat-num">16</span><span class="stat-label">Months leading PAS &amp; Pricing/Promotions</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Products chained in one diagram</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Diagrams: build order and request flow</span></div>
+  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Days per layer, by design</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Quickstart compose file for all five</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 147 of 150</p>
-  <p><em>Next up:</em> <a href="day-148-portfolio-launch-cohesive-narrative.html">Day 148 — Portfolio Launch — Cohesive Narrative</a></p>
+  <p>Day 148 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 149 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-147-gpu-rollouts-surge-during-deploy.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 146 — Cost/Latency/Quality Triangle — Executive Frame (yesterday's post)</span>
+      <span>Day 147 — GPU Rollouts — Surge During Deploy (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-143-routing-fine-tuned-models-registry-integration.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 142 — GPU Node Pools — Taints and Tolerations (the scheduling half of this same chart)</span>
+      <span>Day 143 — Routing Fine-Tuned Models — Registry Integration (the RouteIQ layer, in depth)</span>
     </a>
   </div>
 </div>
@@ -313,20 +338,21 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#last-call-not-lights-out">Last Call, Not Lights Out</a></li>
-      <li><a href="#the-one-strategy-that-opts-out">The One Strategy That Opts Out</a></li>
-      <li><a href="#a-different-kind-of-rollout">A Different Kind of Rollout</a></li>
+      <li><a href="#an-assembly-line-with-five-stations">An Assembly Line, Five Stations</a></li>
+      <li><a href="#the-same-diagram-runs-two-directions">Same Diagram, Two Directions</a></li>
+      <li><a href="#what-each-layer-is-actually-answering">What Each Layer Answers</a></li>
+      <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-147-graceful-rollout-zero-downtime-price-push.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-148-platform-architecture-five-products-one-story.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Graceful+Rollout+%E2%80%94+Wayfair+Zero-Downtime+Price+Push+%C2%B7+Day+147&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-147-graceful-rollout-zero-downtime-price-push.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Platform+Architecture+%E2%80%94+Five+Products+One+Story+%C2%B7+Day+148&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-148-platform-architecture-five-products-one-story.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,21 +361,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">Experience Series</div>
+      <div class="series-label">AI Learning Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D145</span> Experience</div>
-          <a href="day-145-closed-loop-demo-north-star-slide.html" class="series-post-title">Closed Loop Demo — The North Star Slide</a>
+          <div class="series-post-kicker"><span class="series-post-num">D146</span> AI Learning</div>
+          <a href="day-146-pareto-frontier-cost-latency-quality.html" class="series-post-title">Pareto Frontier — Cost, Latency, Quality</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D146</span> Experience</div>
-          <a href="day-146-cost-latency-quality-triangle-executive-frame.html" class="series-post-title">Cost/Latency/Quality Triangle — Executive Frame</a>
+          <div class="series-post-kicker"><span class="series-post-num">D147</span> AI Learning</div>
+          <a href="day-147-gpu-rollouts-surge-during-deploy.html" class="series-post-title">GPU Rollouts — Surge During Deploy</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D147</span> Experience &middot; now</div>
-          <div class="series-post-title">Graceful Rollout — Wayfair Zero-Downtime Price Push</div>
-          <div class="series-post-desc">A restaurant closing for the night doesn't yank plates off tables mid-meal — why a preStop hook is that closing sign, not a faster goodbye, and what a GPU pod rollout and a Wayfair price-service deploy actually share.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D148</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Platform Architecture — Five Products One Story</div>
+          <div class="series-post-desc">An assembly line's five stations only work as a line because each hands the next a finished part — why LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge shipped in that order, and what the whiteboard version looks like.</div>
         </div>
       </div>
     </div>
