@@ -1644,6 +1644,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html",
+          "kicker": "Experience · Day 147 of 150",
+          "title": "Day 147 — Graceful Rollout — Wayfair Zero-Downtime Price Push",
+          "subtitle": "Blue/green for config, not big bang",
+          "date": "2026-08-27",
+          "slug": "day-147-graceful-rollout-zero-downtime-price-push",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html",
+          "coverImage": "blog/assets/covers/day-147-graceful-rollout-zero-downtime-price-push.png",
+          "desc": "A restaurant closing for the night doesn't yank plates off tables mid-meal -- it flips the sign to stop seating new customers and lets the tables already eating finish first. Why a preStop hook is that sign, not a faster way to say goodbye, and what a GPU pod rollout actually shares with a Wayfair price-service deploy."
+        },
+        {
           "href": "blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html",
           "kicker": "Experience · Day 146 of 150",
           "title": "Day 146 — Cost/Latency/Quality Triangle — Executive Frame",

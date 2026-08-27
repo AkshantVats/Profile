@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame | Experience Series</title>
-<meta name="description" content="Today's PR replays one prompt batch against a fine-tuned vLLM endpoint and a GPT-4o baseline and writes a CSV of cost, latency, and a quality proxy score for both. Why that three-column table is the same 'pick two' conversation I've had with stakeholders for years, and how to make the tradeoff explicit instead of promising all three.">
-<meta property="og:title" content="Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame">
-<meta property="og:description" content="A contractor asked to renovate a kitchen fast, cheap, and to a high standard doesn't argue -- they hand back three different priced estimates. Why an options table beats a verbal promise, and what it takes to make a cost/latency/quality tradeoff visible instead of silent.">
+<title>Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push | Experience Series</title>
+<meta name="description" content="Today's PR adds a PodDisruptionBudget, a maxSurge:0 rolling update, and a preStop drain hook to a GPU deployment. Why that's the same shape as the deploy pipeline that pushed price changes at Wayfair without a customer ever seeing a failed request, and why 'graceful' means something different for a stateless config flip than for a stateful GPU pod.">
+<meta property="og:title" content="Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push">
+<meta property="og:description" content="A restaurant that's closing for the night doesn't yank plates off tables mid-meal -- it flips the sign to stop seating new customers and lets the tables already eating finish first. Why a preStop hook is that sign, not a faster way to say goodbye.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-cost-latency-quality-triangle-executive-frame.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-graceful-rollout-zero-downtime-price-push.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-cost-latency-quality-triangle-executive-frame.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-graceful-rollout-zero-downtime-price-push.png">
 <meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 146 of 150</span>
-    <span class="tag">FineForge</span>
-    <span class="tag">GPT-4o</span>
+    <span class="tag accent">Experience &middot; Day 147 of 150</span>
+    <span class="tag">Wayfair</span>
+    <span class="tag">Kubernetes</span>
     <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame</h1>
-  <p class="post-subtitle">Today's PR runs the same batch of prompts against a fine-tuned endpoint and a GPT-4o baseline and writes one CSV row per endpoint &mdash; cost, latency, and a quality proxy score. Every stakeholder conversation I've had about that table starts the same way regardless of employer: they ask for cheaper, faster, and better all at once, and the job is making the tradeoff visible instead of quietly picking two for them.</p>
+  <h1 class="post-title">Day 147 &mdash; Graceful Rollout &mdash; Wayfair Zero-Downtime Price Push</h1>
+  <p class="post-subtitle">Today's PR adds a PodDisruptionBudget, a rolling update with no surge headroom, and a drain sleep before shutdown to a GPU deployment. Wayfair's own price-adjustment deploy pipeline shipped the same five-step shape &mdash; migrate, start new, wait for ready, shift traffic, drain the old &mdash; for a service with no GPU anywhere in it, because the shape isn't about GPUs. It's about never asking a pod to stop serving before something else is ready to take over.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 146 of 150</span>
+    <span class="meta-item">Experience &middot; Day 147 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
@@ -208,43 +208,40 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-146-cost-latency-quality-triangle-executive-frame.png" alt="Day 146 — Cost/Latency/Quality Triangle — Executive Frame" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-147-graceful-rollout-zero-downtime-price-push.png" alt="Day 147 — Graceful Rollout — Wayfair Zero-Downtime Price Push" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's harness in <code>vllm-deploy-kit</code> replays one batch of prompts against a fine-tuned endpoint and a GPT-4o baseline and writes a CSV: one row per endpoint, with a p50/p99 latency figure, a token-based cost estimate, and a quality proxy score. Nobody asked for exactly those three columns by accident. Cost, latency, and quality are the three things a business stakeholder asks about a model rollout, always in the same breath, usually followed by some version of "can we have all three."</p>
+<p>Today's chart change in <code>vllm-deploy-kit</code> is three small pieces: a PodDisruptionBudget that caps how many replicas a voluntary disruption can take at once, a rolling-update strategy that refuses to ask for a spare GPU pod it doesn't have room for, and a <code>preStop</code> hook that makes a pod keep serving for a few seconds after it's told to leave. None of the three is exotic. What's worth writing down is that I'd already watched the same five-step shape work at Wayfair, on a service with zero GPUs and zero tensor-parallel anything, because the shape has nothing to do with what the pod is running.</p>
 
-<h2 id="the-contractors-three-estimates">The Contractor's Three Estimates</h2>
+<h2 id="last-call-not-lights-out">Last Call, Not Lights Out</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the contractor's three estimates</div>
-  Ask a contractor to renovate a kitchen fast, cheap, and to a high standard, and a good one doesn't argue with the request &mdash; they hand back three different priced estimates instead. The rush estimate costs more because it means overtime crews and expedited material orders. The budget estimate takes longer because it waits for the contractor's normal-priced supplier delivery window, and the premium-materials estimate costs more than either regardless of timeline. The estimate itself is the tradeoff made visible; nobody has to take the contractor's word for which two they're actually getting.
+  <div class="attr-label">DS analogy &mdash; last call, not lights out</div>
+  A restaurant closing for the night doesn't yank plates off the tables still eating. The host flips the sign to stop seating new walk-ins, the kitchen finishes the orders already in, and the tables mid-meal get to finish before the doors actually lock. Nobody who was already seated gets told to leave with food still on the plate &mdash; the restaurant just stops taking new business while it winds down the business it already has.
 </div>
 
-<p>So what: an executive rarely rejects a tradeoff once it's priced out on paper as separate options &mdash; what gets rejected is the version where an engineer just says "trust me" and picks silently on the stakeholder's behalf.</p>
+<p>A Kubernetes Service's Endpoints list is the "stop seating" sign, and a pod's <code>preStop</code> hook is the minutes between flipping it and actually locking the door. Removing a pod from Endpoints happens at the exact same instant SIGTERM is sent &mdash; but that removal has to propagate to every node's dataplane before new requests genuinely stop arriving, and a request that already picked this pod a moment earlier is still mid-meal. Today's chart sleeps for five seconds in <code>preStop</code> before the process is actually asked to stop, buying that propagation window instead of pretending it doesn't exist.</p>
+
+<p>So what: a graceful shutdown isn't a faster way to say goodbye to a pod, it's a longer one &mdash; the whole point is refusing to hang up on whoever's still mid-sentence.</p>
 
 <div class="attr-box team">
   <div class="attr-label">Team scope, stated plainly</div>
-  At Wayfair I led the PAS team and the Pricing, Promotions &amp; Discounts team at the same time, owning delivery across both product areas. Nothing about that role turned on one dramatic incident tied to a single cost/latency/quality call. It turned on the same three-way conversation recurring across two teams' worth of roadmap reviews, quarter after quarter, with a different number in each column every time.
+  At Wayfair I led the PAS team and the Pricing, Promotions &amp; Discounts team at the same time, owning delivery across both product areas. gst-acc-promotions, ucms-partner-home, and ucms-background-service all deployed on the same rolling-update chart default &mdash; none of that was a decision I personally made per-service, it was the platform team's chart default inherited by every service on it, mine included.
 </div>
 
-<h2 id="why-the-table-beats-the-verbal-promise">Why the Table Beats the Verbal Promise</h2>
+<h2 id="the-one-strategy-that-opts-out">The One Strategy That Opts Out</h2>
 
-<p>The design decision today's harness exists to inform is ordinary: keep sending production traffic to GPT-4o, or route a narrow task to a cheaper, self-hosted fine-tuned endpoint instead. A quality proxy score is an automated grade &mdash; often another model acting as a judge &mdash; standing in for a human reviewer's judgment, because a human can't read every request. That proxy is what makes the comparison affordable to run at all, and it's also the column most likely to be wrong in a way the other two aren't.</p>
+<p>Not every service at Wayfair took the rolling-update default, and the one exception is the more interesting data point than the rule. <code>diy-pricing-kafka</code>'s consumers run <code>strategy: Recreate</code> &mdash; every old pod killed before any new one starts &mdash; specifically because Kafka consumers sharing a consumer group would otherwise thrash through a rebalance storm mid-rollout, with old and new pods both claiming partitions at once. A brief full outage was judged less disruptive than a longer partial one.</p>
 
-<table>
-<tr><th>Axis</th><th>GPT-4o baseline</th><th>Fine-tuned endpoint</th></tr>
-<tr><td>Cost per request</td><td>External API pricing, no infra to run</td><td>Amortized GPU cost, no per-call vendor fee</td></tr>
-<tr><td>Latency (p50/p99)</td><td>Network hop to a third-party API</td><td>In-cluster, no external hop</td></tr>
-<tr><td>Quality proxy score</td><td>Reference ceiling for the task</td><td>Must justify itself against that ceiling</td></tr>
-</table>
+<p>Today's <code>maxSurge: 0</code> is that same kind of deliberate non-default, for a different constraint. Kubernetes' own rolling-update default asks for one extra pod above the running count before removing an old one &mdash; fine on stateless CPU pods where the scheduler can usually find room, but a GPU node pool is sized to exactly what the replica count needs, no spare capacity idling on the off chance a deploy needs it.</p>
 
-<p>The decision only makes sense once a threshold is named out loud: switch to the fine-tuned endpoint if its quality proxy score sits within an agreed margin of the baseline, given that cost and latency both already favor it. Two alternatives get rejected in the same breath &mdash; keep every request on GPT-4o regardless of cost, or chase full quality parity before shipping anything, which turns a load test into an open-ended research project.</p>
+<p>A surge pod requesting a GPU that isn't there doesn't fail loudly; it sits <code>Pending</code> and the rollout stalls silently. <code>maxSurge: 0</code> accepts a real, bounded capacity dip instead of a surge that may never schedule.</p>
 
-<p>So what: naming the threshold before looking at the numbers is what keeps the decision from becoming "whichever answer the loudest advocate in the room prefers" once the CSV is actually in front of people.</p>
+<p>So what: "rolling update" isn't one strategy, it's a family of dials, and the two exceptions here &mdash; Recreate for a stateful consumer group, zero surge for a scarce resource &mdash; both trade a known cost for avoiding an unknown, silent one.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -264,53 +261,48 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Same prompt batch"] --> B["Fine-tuned vLLM endpoint"]
-  A --> C["GPT-4o baseline"]
-  B --> D["Latency, cost, quality captured"]
-  C --> D
-  D --> E["One CSV row per endpoint"]
-  E --> F["Options table for stakeholders"]</pre>
+  A["New pod starts"] --> B["Readiness probe passes"]
+  B --> C["Traffic shifts to it"]
+  C --> D["Old pod leaves Endpoints"]
+  D --> E["preStop drain sleep"]
+  E --> F["Old pod actually stops"]</pre>
 
-<p>The consequence of picking the cheaper endpoint doesn't end at the decision meeting. Choosing it commits me to watching that quality proxy score over time, not just once, since a model that clears the bar today can drift below it as traffic shifts &mdash; the same reason this repo keeps a drift watcher on any endpoint it hands real traffic to.</p>
+<p>That's today's chart, but it's also, near enough, the sequence Wayfair's own price-adjustment deploy pipeline ran for a stateless Java service pushing a schema-compatible change: migrate the database first, start new pods, wait for readiness, shift traffic, and only then drain the old pods. The Wayfair version adds one step neither GPU pods nor this chart's benchmark needed &mdash; a faulty-deploy monitor watching error rates for 70 minutes after the rollout finished, because a database migration can look fine at rollout time and still surface a slow-burning problem an hour later.</p>
 
-<p>So what: a cost/latency/quality decision made once from a single CSV isn't the end of the tradeoff, it's the start of an ongoing one that needs the same three columns checked again later.</p>
+<p>So what: the sequence transfers across a GPU pod and a stateless Java service because neither one is really the subject of it &mdash; the subject is the request in flight when someone flips the switch, and that request doesn't care what's serving it.</p>
 
-<h2 id="the-number-executives-actually-read">The Number Executives Actually Read</h2>
+<h2 id="a-different-kind-of-rollout">A Different Kind of Rollout</h2>
 
-<p>In practice, cost is the column that gets read first, because a dollar figure needs no translation and latency and quality both do. That's a real risk: a stakeholder who anchors on the cheapest row before checking whether the quality proxy score actually held up is making the same mistake as a homeowner who books the rush estimate without confirming the contractor used the materials they quoted.</p>
+<p>The plan for this post started as "blue/green for config, not big bang," and the honest version of that claim is narrower than it sounds. Wayfair never ran two full parallel environments and cut traffic between them for a price change &mdash; that's not what "blue/green for config" means here. What actually shipped price and promotion logic changes gradually, without a pod ever restarting, was a feature flag: SPCS API version changes rolled out gated behind a flag, exposed to a slice of traffic first and only widened once it held.</p>
 
-<p>My job in that meeting isn't to hide the cost column &mdash; it's to make sure the quality row gets read with the same weight, in the same sitting, before a decision gets made off one number alone.</p>
+<p>That's a genuinely different lever from anything in today's PR. A pod-level rolling update changes what code is running, one replica at a time, and a PDB or a drain hook only ever protects the transition. A feature flag changes what code path a request takes, all replicas already running the same binary, and it can be dialed back in seconds without touching a single pod.</p>
 
-<p>So what: a table with three honest columns can still produce a bad decision if only one of them gets read out loud, which means presenting the tradeoff well is as much a part of the job as measuring it correctly.</p>
+<p>Today's GPU chart has no config-flag layer of its own yet &mdash; every rollout it does is pod-level, because there's no code path inside one running pod's process to gate.</p>
 
-<h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
-
-<p>I don't know whether the quality proxy score today's harness produces is trustworthy enough to be the number that ends up on an executive's slide unqualified, since a proxy judge model has its own blind spots that a human reviewer wouldn't share. I also don't know whether collapsing three axes into a single "winner" recommendation loses information a stakeholder actually needed, versus keeping all three columns visible and letting them make the call themselves.</p>
-
-<p>So what: the honest position is that today's CSV is good raw material for a conversation, not a verdict by itself &mdash; and conflating the two is exactly the failure mode this whole framing exists to avoid.</p>
+<p>So what: "zero-downtime" describes two different mechanisms depending on which layer is actually changing, and conflating them is how a team ends up building a slow, heavyweight pod rollout for a change a feature flag would have shipped in a tenth of the time &mdash; or the other way around, flag-gating something that genuinely needed a new binary.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Axes measured: cost, latency, quality</span></div>
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Endpoints compared head to head</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">CSV row exported per endpoint</span></div>
-  <div class="stat-cell"><span class="stat-num">7.5</span><span class="stat-label">Years this exact conversation has recurred</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Steps: migrate, start, ready, shift, drain</span></div>
+  <div class="stat-cell"><span class="stat-num">70</span><span class="stat-label">Minute faulty-deploy monitor window</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Service opted out (Kafka, Recreate)</span></div>
+  <div class="stat-cell"><span class="stat-num">16</span><span class="stat-label">Months leading PAS &amp; Pricing/Promotions</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 146 of 150</p>
-  <p><em>Next up:</em> <a href="day-147-graceful-rollout-zero-downtime-price-push.html">Day 147 — Graceful Rollout — Wayfair Zero-Downtime Price Push</a></p>
+  <p>Experience &middot; Day 147 of 150</p>
+  <p><em>Next up:</em> Day 148 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-145-closed-loop-demo-north-star-slide.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 145 — Closed Loop Demo — The North Star Slide (yesterday's post)</span>
+      <span>Day 146 — Cost/Latency/Quality Triangle — Executive Frame (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-142-gpu-node-pools-taints-tolerations.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 136 — Win Rate vs Accuracy — Stakeholder Language (the same translation problem, from the metrics side)</span>
+      <span>Day 142 — GPU Node Pools — Taints and Tolerations (the scheduling half of this same chart)</span>
     </a>
   </div>
 </div>
@@ -321,21 +313,20 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-contractors-three-estimates">The Contractor's Three Estimates</a></li>
-      <li><a href="#why-the-table-beats-the-verbal-promise">Why the Table Beats a Promise</a></li>
-      <li><a href="#the-number-executives-actually-read">The Number Executives Read</a></li>
-      <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
+      <li><a href="#last-call-not-lights-out">Last Call, Not Lights Out</a></li>
+      <li><a href="#the-one-strategy-that-opts-out">The One Strategy That Opts Out</a></li>
+      <li><a href="#a-different-kind-of-rollout">A Different Kind of Rollout</a></li>
     </ul>
   </div>
 
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-146-cost-latency-quality-triangle-executive-frame.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-147-graceful-rollout-zero-downtime-price-push.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Cost%2FLatency%2FQuality+Triangle+%E2%80%94+Executive+Frame+%C2%B7+Day+146&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-146-cost-latency-quality-triangle-executive-frame.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Graceful+Rollout+%E2%80%94+Wayfair+Zero-Downtime+Price+Push+%C2%B7+Day+147&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-147-graceful-rollout-zero-downtime-price-push.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -348,17 +339,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D144</span> Experience</div>
-          <a href="day-144-day-1-monitoring-new-service-checklist.html" class="series-post-title">Day-1 Monitoring — New Service Checklist</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D145</span> Experience</div>
           <a href="day-145-closed-loop-demo-north-star-slide.html" class="series-post-title">Closed Loop Demo — The North Star Slide</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D146</span> Experience</div>
+          <a href="day-146-cost-latency-quality-triangle-executive-frame.html" class="series-post-title">Cost/Latency/Quality Triangle — Executive Frame</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D146</span> Experience &middot; now</div>
-          <div class="series-post-title">Cost/Latency/Quality Triangle — Executive Frame</div>
-          <div class="series-post-desc">A contractor asked to renovate fast, cheap, and well hands back three priced estimates instead of arguing — why an options table beats a verbal promise, and how today's load test turns that triangle into an actual CSV.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D147</span> Experience &middot; now</div>
+          <div class="series-post-title">Graceful Rollout — Wayfair Zero-Downtime Price Push</div>
+          <div class="series-post-desc">A restaurant closing for the night doesn't yank plates off tables mid-meal — why a preStop hook is that closing sign, not a faster goodbye, and what a GPU pod rollout and a Wayfair price-service deploy actually share.</div>
         </div>
       </div>
     </div>
