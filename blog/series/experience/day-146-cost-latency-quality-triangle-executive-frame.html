@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain | AI Learning Series</title>
-<meta name="description" content="LOOP.md's sequence diagram is today's hook: a DriftWatch alert walks through escalation, a retrain webhook, a retrain stub, a RouteIQ registration, and a LensAI dashboard clone, chained in one process for the first time. Why only one hop of that chain gets to cross a real network boundary, and what that says about what a saga actually promises.">
-<meta property="og:title" content="Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain">
-<meta property="og:description" content="A relay team practices every handoff on the same track except one leg that happens across town, so that leg gets a stopwatch and a phone call while the rest share one clock. Why the closed retrain loop treats its one real HTTP hop differently from the four in-process calls around it, and what a saga's compensating action would even look like here.">
+<title>Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame | Experience Series</title>
+<meta name="description" content="Today's PR replays one prompt batch against a fine-tuned vLLM endpoint and a GPT-4o baseline and writes a CSV of cost, latency, and a quality proxy score for both. Why that three-column table is the same 'pick two' conversation I've had with stakeholders for years, and how to make the tradeoff explicit instead of promising all three.">
+<meta property="og:title" content="Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame">
+<meta property="og:description" content="A contractor asked to renovate a kitchen fast, cheap, and to a high standard doesn't argue -- they hand back three different priced estimates. Why an options table beats a verbal promise, and what it takes to make a cost/latency/quality tradeoff visible instead of silent.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-145-closed-loop-mlops-event-driven-retrain.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-cost-latency-quality-triangle-executive-frame.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-145-closed-loop-mlops-event-driven-retrain.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-cost-latency-quality-triangle-executive-frame.png">
 <meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,61 +185,66 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 145 of 150</span>
-    <span class="tag">LensAI</span>
-    <span class="tag">MLOps</span>
+    <span class="tag accent">Experience &middot; Day 146 of 150</span>
     <span class="tag">FineForge</span>
+    <span class="tag">GPT-4o</span>
+    <span class="tag">LensAI</span>
   </div>
-  <h1 class="post-title">Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain</h1>
-  <p class="post-subtitle">LOOP.md's sequence diagram is today's hook, and it names something specific: a DriftWatch alert walking through escalation, a retrain webhook, a retrain stub, a RouteIQ registration, and a LensAI dashboard clone, chained end to end in one process for the first time. Only one of those five hops crosses a real wire &mdash; the rest are honest in-process stand-ins, and today's post is about why that split is deliberate.</p>
+  <h1 class="post-title">Day 146 &mdash; Cost/Latency/Quality Triangle &mdash; Executive Frame</h1>
+  <p class="post-subtitle">Today's PR runs the same batch of prompts against a fine-tuned endpoint and a GPT-4o baseline and writes one CSV row per endpoint &mdash; cost, latency, and a quality proxy score. Every stakeholder conversation I've had about that table starts the same way regardless of employer: they ask for cheaper, faster, and better all at once, and the job is making the tradeoff visible instead of quietly picking two for them.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 145 of 150</span>
+    <span class="meta-item">Experience &middot; Day 146 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">7 min read</span>
+    <span class="meta-item">6 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-145-closed-loop-mlops-event-driven-retrain.png" alt="Day 145 — Closed-Loop MLOps — Event-Driven Retrain" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-146-cost-latency-quality-triangle-executive-frame.png" alt="Day 146 — Cost/Latency/Quality Triangle — Executive Frame" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>LOOP.md's sequence diagram is the whole hook for today: <code>python -m closed_loop.cli</code> walks a DriftWatch alert through escalation, a retrain webhook, a retrain stub, a RouteIQ canary registration, and a LensAI dashboard clone, printing a JSON trace of all five steps. Days 141 through 144 built each of those pieces on its own; nothing had run them in sequence until this module's own <code>closed_loop/</code> package did it today. The interesting part isn't that five steps now run back to back &mdash; it's that only one of them is allowed to touch a real network.</p>
+<p>Today's harness in <code>vllm-deploy-kit</code> replays one batch of prompts against a fine-tuned endpoint and a GPT-4o baseline and writes a CSV: one row per endpoint, with a p50/p99 latency figure, a token-based cost estimate, and a quality proxy score. Nobody asked for exactly those three columns by accident. Cost, latency, and quality are the three things a business stakeholder asks about a model rollout, always in the same breath, usually followed by some version of "can we have all three."</p>
 
-<h2 id="a-relay-team-with-one-leg-across-town">A Relay Team With One Leg Across Town</h2>
+<h2 id="the-contractors-three-estimates">The Contractor's Three Estimates</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the relay leg that leaves the building</div>
-  A relay team practices every handoff on the same track, baton passed hand to hand in full view of the coach, except for one leg of the course that runs across town and back. That leg gets a stopwatch, a phone call at each end, and a runner who has to actually leave the building &mdash; because it's the one exchange the coach can't just watch happen. Every other handoff stays trusted because it's never left anyone's sight.
+  <div class="attr-label">DS analogy &mdash; the contractor's three estimates</div>
+  Ask a contractor to renovate a kitchen fast, cheap, and to a high standard, and a good one doesn't argue with the request &mdash; they hand back three different priced estimates instead. The rush estimate costs more because it means overtime crews and expedited material orders. The budget estimate takes longer because it waits for the contractor's normal-priced supplier delivery window, and the premium-materials estimate costs more than either regardless of timeline. The estimate itself is the tradeoff made visible; nobody has to take the contractor's word for which two they're actually getting.
 </div>
+
+<p>So what: an executive rarely rejects a tradeoff once it's priced out on paper as separate options &mdash; what gets rejected is the version where an engineer just says "trust me" and picks silently on the stakeholder's behalf.</p>
 
 <div class="attr-box team">
-  <div class="attr-label">What LOOP.md's own hop table says, verified against the code</div>
-  Of the five hops in <code>closed_loop</code>'s trace, four are in-process Python calls: the alert, the retrain stub, the RouteIQ registration, and (unusually) the LensAI dashboard clone, which genuinely calls Day 144's real cloning code rather than mocking it. Exactly one hop crosses a real socket &mdash; <code>RetrainWebhookStub</code>, an actual <code>http.server</code> receiving a real HTTP POST shaped field-for-field to match <code>alert-rule-engine/pkg/fineforge.HTTPRetrainClient</code>'s own wire format, checked against <code>http_client.go</code> directly rather than from memory.
+  <div class="attr-label">Team scope, stated plainly</div>
+  At Wayfair I led the PAS team and the Pricing, Promotions &amp; Discounts team at the same time, owning delivery across both product areas. Nothing about that role turned on one dramatic incident tied to a single cost/latency/quality call. It turned on the same three-way conversation recurring across two teams' worth of roadmap reviews, quarter after quarter, with a different number in each column every time.
 </div>
 
-<p>So what: the loop looks like five equal steps in the diagram, but only one of them has ever actually left the process &mdash; the rest are trusted the way an in-view handoff is trusted, and conflating the two would overstate how much of this loop is genuinely tested today.</p>
+<h2 id="why-the-table-beats-the-verbal-promise">Why the Table Beats the Verbal Promise</h2>
 
-<h2 id="the-loop-is-a-saga-without-a-coordinator">The Loop Is a Saga Without a Coordinator</h2>
+<p>The design decision today's harness exists to inform is ordinary: keep sending production traffic to GPT-4o, or route a narrow task to a cheaper, self-hosted fine-tuned endpoint instead. A quality proxy score is an automated grade &mdash; often another model acting as a judge &mdash; standing in for a human reviewer's judgment, because a human can't read every request. That proxy is what makes the comparison affordable to run at all, and it's also the column most likely to be wrong in a way the other two aren't.</p>
 
-<p>The distributed systems shape this maps to is a saga: a chain of local steps where each one's success is what triggers the next, with no distributed transaction coordinator holding a lock across all five at once. Kafka consumer pipelines and Sagas in event-driven order systems both work this way &mdash; there's no single commit that makes every step happen atomically, only a sequence of individually-committed steps that add up to one outcome if nothing goes wrong.</p>
+<table>
+<tr><th>Axis</th><th>GPT-4o baseline</th><th>Fine-tuned endpoint</th></tr>
+<tr><td>Cost per request</td><td>External API pricing, no infra to run</td><td>Amortized GPU cost, no per-call vendor fee</td></tr>
+<tr><td>Latency (p50/p99)</td><td>Network hop to a third-party API</td><td>In-cluster, no external hop</td></tr>
+<tr><td>Quality proxy score</td><td>Reference ceiling for the task</td><td>Must justify itself against that ceiling</td></tr>
+</table>
 
-<p>A real saga usually pairs that risk with compensating actions: if step four fails, step three gets undone by a matching reverse action, not just abandoned. <code>closed_loop</code> doesn't have any of those. <code>send_retrain_webhook()</code> is a single-attempt POST with no retry and no rollback, deliberately, so it doesn't reimplement the real Go client's own exponential-backoff logic and risk the two drifting apart.</p>
+<p>The decision only makes sense once a threshold is named out loud: switch to the fine-tuned endpoint if its quality proxy score sits within an agreed margin of the baseline, given that cost and latency both already favor it. Two alternatives get rejected in the same breath &mdash; keep every request on GPT-4o regardless of cost, or chase full quality parity before shipping anything, which turns a load test into an open-ended research project.</p>
 
-<p>So what: calling this a "closed loop" is accurate for the happy path LOOP.md documents, but it's a narrower promise than the word "saga" usually carries &mdash; there's a sequence, not yet a safety net underneath it.</p>
-
-<h2 id="where-the-diagram-actually-runs">Where the Diagram Actually Runs</h2>
+<p>So what: naming the threshold before looking at the numbers is what keeps the decision from becoming "whichever answer the loudest advocate in the room prefers" once the CSV is actually in front of people.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -259,46 +264,53 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["DriftWatch alert, caller-supplied"] --> B["Escalation, in-process call"]
-  B --> C["Webhook: one real HTTP hop"]
-  C --> D["Retrain stub, deterministic"]
-  D --> E["RouteIQ mirror, no import"]
-  E --> F["Dashboard clone, real call"]</pre>
+  A["Same prompt batch"] --> B["Fine-tuned vLLM endpoint"]
+  A --> C["GPT-4o baseline"]
+  B --> D["Latency, cost, quality captured"]
+  C --> D
+  D --> E["One CSV row per endpoint"]
+  E --> F["Options table for stakeholders"]</pre>
 
-<p>Each arrow after the webhook hop is a plain Python function call inside one process, not a message on a queue and not a second service booted up to receive it. That's why <code>retrain.py</code> and <code>routeiq.py</code> don't import <code>model_registry</code> at all &mdash; they reimplement its payload shapes instead, the same "shape convention, not a package dependency" split this repo draws at every boundary between modules that could import each other but choose not to.</p>
+<p>The consequence of picking the cheaper endpoint doesn't end at the decision meeting. Choosing it commits me to watching that quality proxy score over time, not just once, since a model that clears the bar today can drift below it as traffic shifts &mdash; the same reason this repo keeps a drift watcher on any endpoint it hands real traffic to.</p>
 
-<p>So what: the diagram runs today, end to end, inside a single Python process on a single machine &mdash; which proves the handoffs are shaped correctly, and proves nothing yet about what happens when those same five steps have to survive a process crash between two of them.</p>
+<p>So what: a cost/latency/quality decision made once from a single CSV isn't the end of the tradeoff, it's the start of an ongoing one that needs the same three columns checked again later.</p>
+
+<h2 id="the-number-executives-actually-read">The Number Executives Actually Read</h2>
+
+<p>In practice, cost is the column that gets read first, because a dollar figure needs no translation and latency and quality both do. That's a real risk: a stakeholder who anchors on the cheapest row before checking whether the quality proxy score actually held up is making the same mistake as a homeowner who books the rush estimate without confirming the contractor used the materials they quoted.</p>
+
+<p>My job in that meeting isn't to hide the cost column &mdash; it's to make sure the quality row gets read with the same weight, in the same sitting, before a decision gets made off one number alone.</p>
+
+<p>So what: a table with three honest columns can still produce a bad decision if only one of them gets read out loud, which means presenting the tradeoff well is as much a part of the job as measuring it correctly.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't know whether adding retry and a compensating action to the webhook hop would actually make this a saga in the fuller sense, or whether a single real network hop inside four in-process calls is a different enough shape that the label doesn't quite apply either way. LOOP.md names that gap explicitly and leaves it there; I'm doing the same rather than picking an answer to sound more finished.</p>
+<p>I don't know whether the quality proxy score today's harness produces is trustworthy enough to be the number that ends up on an executive's slide unqualified, since a proxy judge model has its own blind spots that a human reviewer wouldn't share. I also don't know whether collapsing three axes into a single "winner" recommendation loses information a stakeholder actually needed, versus keeping all three columns visible and letting them make the call themselves.</p>
 
-<p>I also don't know how much of today's boundary discipline &mdash; simulate everything except the one real socket &mdash; survives once a live CUSUM detector replaces the caller-supplied alert at the front of the chain, since that's the one hop LOOP.md's own out-of-scope list still leaves unbuilt.</p>
-
-<p>So what: the mechanism I'm confident in is the shape &mdash; a five-step saga-like sequence with exactly one real network crossing and zero compensating actions; whether "saga" is even the right word for something with no rollback path is a genuinely open question, not a detail I'm smoothing over.</p>
+<p>So what: the honest position is that today's CSV is good raw material for a conversation, not a verdict by itself &mdash; and conflating the two is exactly the failure mode this whole framing exists to avoid.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Hops in the closed_loop trace</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Hop crossing a real HTTP socket</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Retries or compensating actions today</span></div>
-  <div class="stat-cell"><span class="stat-num">53</span><span class="stat-label">Tests passing after the loop shipped</span></div>
+  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Axes measured: cost, latency, quality</span></div>
+  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Endpoints compared head to head</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">CSV row exported per endpoint</span></div>
+  <div class="stat-cell"><span class="stat-num">7.5</span><span class="stat-label">Years this exact conversation has recurred</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Day 145 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-146-pareto-frontier-cost-latency-quality.html">Day 146 — Pareto Frontier — Cost, Latency, Quality</a></p>
+  <p>Experience &middot; Day 146 of 150</p>
+  <p><em>Next up:</em> Day 147 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-145-closed-loop-demo-north-star-slide.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 144 — Observing Custom Models — LensAI Labels (yesterday's post)</span>
+      <span>Day 145 — Closed Loop Demo — The North Star Slide (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-136-win-rate-vs-accuracy-stakeholder-language.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 2 — Continuous Batching in vLLM — the GOLD reference post this series builds on</span>
+      <span>Day 136 — Win Rate vs Accuracy — Stakeholder Language (the same translation problem, from the metrics side)</span>
     </a>
   </div>
 </div>
@@ -309,9 +321,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#a-relay-team-with-one-leg-across-town">The Relay Leg Across Town</a></li>
-      <li><a href="#the-loop-is-a-saga-without-a-coordinator">A Saga Without a Coordinator</a></li>
-      <li><a href="#where-the-diagram-actually-runs">Where the Diagram Runs</a></li>
+      <li><a href="#the-contractors-three-estimates">The Contractor's Three Estimates</a></li>
+      <li><a href="#why-the-table-beats-the-verbal-promise">Why the Table Beats a Promise</a></li>
+      <li><a href="#the-number-executives-actually-read">The Number Executives Read</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -319,11 +331,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-145-closed-loop-mlops-event-driven-retrain.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-146-cost-latency-quality-triangle-executive-frame.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Closed-Loop+MLOps+%E2%80%94+Event-Driven+Retrain+%C2%B7+Day+145&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-145-closed-loop-mlops-event-driven-retrain.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Cost%2FLatency%2FQuality+Triangle+%E2%80%94+Executive+Frame+%C2%B7+Day+146&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-146-cost-latency-quality-triangle-executive-frame.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -332,21 +344,21 @@ flowchart LR
 
   <div class="sidebar-section">
     <div class="series-nav">
-      <div class="series-label">AI Learning Series</div>
+      <div class="series-label">Experience Series</div>
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D143</span> AI Learning</div>
-          <a href="day-143-routing-fine-tuned-models-registry-integration.html" class="series-post-title">Routing Fine-Tuned Models — Registry Integration</a>
+          <div class="series-post-kicker"><span class="series-post-num">D144</span> Experience</div>
+          <a href="day-144-day-1-monitoring-new-service-checklist.html" class="series-post-title">Day-1 Monitoring — New Service Checklist</a>
         </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D144</span> AI Learning</div>
-          <a href="day-144-observing-custom-models-lensai-labels.html" class="series-post-title">Observing Custom Models — LensAI Labels</a>
+          <div class="series-post-kicker"><span class="series-post-num">D145</span> Experience</div>
+          <a href="day-145-closed-loop-demo-north-star-slide.html" class="series-post-title">Closed Loop Demo — The North Star Slide</a>
         </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D145</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Closed-Loop MLOps — Event-Driven Retrain</div>
-          <div class="series-post-desc">A relay team practices every handoff in full view except one leg that runs across town — why only one hop of today's closed retrain loop crosses a real network, and what a saga without a coordinator actually promises.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D146</span> Experience &middot; now</div>
+          <div class="series-post-title">Cost/Latency/Quality Triangle — Executive Frame</div>
+          <div class="series-post-desc">A contractor asked to renovate fast, cheap, and well hands back three priced estimates instead of arguing — why an options table beats a verbal promise, and how today's load test turns that triangle into an actual CSV.</div>
         </div>
       </div>
     </div>

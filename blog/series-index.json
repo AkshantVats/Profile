@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-146-pareto-frontier-cost-latency-quality.html",
+          "kicker": "AI Learning · Day 146 of 150",
+          "title": "Day 146 — Pareto Frontier — Cost, Latency, Quality",
+          "subtitle": "Plot empirical frontier from load test",
+          "date": "2026-08-27",
+          "slug": "day-146-pareto-frontier-cost-latency-quality",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-146-pareto-frontier-cost-latency-quality.html",
+          "coverImage": "blog/assets/covers/day-146-pareto-frontier-cost-latency-quality.png",
+          "desc": "A food-delivery app filtered by price, distance, and rating drops most restaurants instantly, because some other restaurant beats them on all three at once. Why two endpoints compared head to head are an honest seed for a Pareto frontier, not yet the curve itself."
+        },
+        {
           "href": "blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html",
           "kicker": "AI Learning · Day 145 of 150",
           "title": "Day 145 — Closed-Loop MLOps — Event-Driven Retrain",
@@ -1631,6 +1643,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html",
+          "kicker": "Experience · Day 146 of 150",
+          "title": "Day 146 — Cost/Latency/Quality Triangle — Executive Frame",
+          "subtitle": "Pick two—engineering makes the third explicit",
+          "date": "2026-08-27",
+          "slug": "day-146-cost-latency-quality-triangle-executive-frame",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-146-cost-latency-quality-triangle-executive-frame.html",
+          "coverImage": "blog/assets/covers/day-146-cost-latency-quality-triangle-executive-frame.png",
+          "desc": "A contractor asked to renovate a kitchen fast, cheap, and well hands back three priced estimates instead of arguing. Why an options table beats a verbal promise, and how today's load test turns the cost/latency/quality triangle into an actual CSV for stakeholders."
+        },
         {
           "href": "blog/series/experience/day-145-closed-loop-demo-north-star-slide.html",
           "kicker": "Experience · Day 145 of 150",
