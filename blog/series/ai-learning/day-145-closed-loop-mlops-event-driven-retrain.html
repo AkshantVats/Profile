@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 144 &mdash; Observing Custom Models &mdash; LensAI Labels | AI Learning Series</title>
-<meta name="description" content="model_id label on all metrics is today's hook: LensAI doesn't build a new dashboard for a fine-tuned model, it adds one label value to the panels the base model already uses. Why the label lives on the metric instead of the dashboard, and how a dashboard variable resolves adapter version without a single new query.">
-<meta property="og:title" content="Day 144 &mdash; Observing Custom Models &mdash; LensAI Labels">
-<meta property="og:description" content="A trophy shop casts one mold for the whole season and rivets on a different engraved nameplate per winner -- nobody recasts the mold. Why LensAI attaches model_id and adapter_version as bounded labels on every metric instead of cloning a dashboard file, and what keeps that label from becoming a cardinality leak.">
+<title>Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain | AI Learning Series</title>
+<meta name="description" content="LOOP.md's sequence diagram is today's hook: a DriftWatch alert walks through escalation, a retrain webhook, a retrain stub, a RouteIQ registration, and a LensAI dashboard clone, chained in one process for the first time. Why only one hop of that chain gets to cross a real network boundary, and what that says about what a saga actually promises.">
+<meta property="og:title" content="Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain">
+<meta property="og:description" content="A relay team practices every handoff on the same track except one leg that happens across town, so that leg gets a stopwatch and a phone call while the rest share one clock. Why the closed retrain loop treats its one real HTTP hop differently from the four in-process calls around it, and what a saga's compensating action would even look like here.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-144-observing-custom-models-lensai-labels.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-145-closed-loop-mlops-event-driven-retrain.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-144-observing-custom-models-lensai-labels.png">
-<meta property="article:published_time" content="2026-08-26">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-145-closed-loop-mlops-event-driven-retrain.png">
+<meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,22 +185,22 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 144 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 145 of 150</span>
     <span class="tag">LensAI</span>
-    <span class="tag">Observability</span>
+    <span class="tag">MLOps</span>
     <span class="tag">FineForge</span>
   </div>
-  <h1 class="post-title">Day 144 &mdash; Observing Custom Models &mdash; LensAI Labels</h1>
-  <p class="post-subtitle"><code>model_id</code> label on all metrics is today's hook, and it means something specific: LensAI doesn't build a new dashboard for a fine-tuned model, it adds one label value to the same panels the base model already uses. Adapter version becomes a dashboard variable instead of a new set of queries &mdash; the same reuse instinct RouteIQ leaned on yesterday to avoid inventing a fourth flag format.</p>
+  <h1 class="post-title">Day 145 &mdash; Closed-Loop MLOps &mdash; Event-Driven Retrain</h1>
+  <p class="post-subtitle">LOOP.md's sequence diagram is today's hook, and it names something specific: a DriftWatch alert walking through escalation, a retrain webhook, a retrain stub, a RouteIQ registration, and a LensAI dashboard clone, chained end to end in one process for the first time. Only one of those five hops crosses a real wire &mdash; the rest are honest in-process stand-ins, and today's post is about why that split is deliberate.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 144 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 145 of 150</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">August 26, 2026</span>
+    <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
     <span class="meta-item">7 min read</span>
   </div>
@@ -208,38 +208,38 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-144-observing-custom-models-lensai-labels.png" alt="Day 144 — Observing Custom Models — LensAI Labels" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-145-closed-loop-mlops-event-driven-retrain.png" alt="Day 145 — Closed-Loop MLOps — Event-Driven Retrain" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Yesterday's PR registered a fine-tuned model's endpoint with RouteIQ at 10% of traffic. Today's is the metrics side of that same launch: the instant that endpoint takes a request, LensAI needs to know whether the number it just recorded belongs to the base model or the new one, without standing up a parallel set of dashboards to find out.</p>
+<p>LOOP.md's sequence diagram is the whole hook for today: <code>python -m closed_loop.cli</code> walks a DriftWatch alert through escalation, a retrain webhook, a retrain stub, a RouteIQ canary registration, and a LensAI dashboard clone, printing a JSON trace of all five steps. Days 141 through 144 built each of those pieces on its own; nothing had run them in sequence until this module's own <code>closed_loop/</code> package did it today. The interesting part isn't that five steps now run back to back &mdash; it's that only one of them is allowed to touch a real network.</p>
 
-<h2 id="one-trophy-mold-many-nameplates">One Trophy Mold, Many Nameplates</h2>
+<h2 id="a-relay-team-with-one-leg-across-town">A Relay Team With One Leg Across Town</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the trophy mold and the nameplate</div>
-  A trophy shop casts one mold for the whole season's league and pours it a hundred times over. What changes per winner isn't the shape of the trophy, it's a small engraved nameplate riveted onto the identical base. Nobody recasts the mold because a different kid won this week's match &mdash; the base was never the part that needed to change.
+  <div class="attr-label">DS analogy &mdash; the relay leg that leaves the building</div>
+  A relay team practices every handoff on the same track, baton passed hand to hand in full view of the coach, except for one leg of the course that runs across town and back. That leg gets a stopwatch, a phone call at each end, and a runner who has to actually leave the building &mdash; because it's the one exchange the coach can't just watch happen. Every other handoff stays trusted because it's never left anyone's sight.
 </div>
 
 <div class="attr-box team">
-  <div class="attr-label">How LensAI's own pipeline does the equivalent</div>
-  LensAI's ingestion layer attaches <code>model_id</code> and <code>adapter_version</code> to every event before it reaches Kafka, and the Grafana dashboard reads those two fields as template variables instead of treating a new model as a reason to generate a new dashboard JSON. One mold: one set of panels, one set of ClickHouse queries. Many nameplates: whichever <code>model_id</code> a viewer picks from the dropdown.
+  <div class="attr-label">What LOOP.md's own hop table says, verified against the code</div>
+  Of the five hops in <code>closed_loop</code>'s trace, four are in-process Python calls: the alert, the retrain stub, the RouteIQ registration, and (unusually) the LensAI dashboard clone, which genuinely calls Day 144's real cloning code rather than mocking it. Exactly one hop crosses a real socket &mdash; <code>RetrainWebhookStub</code>, an actual <code>http.server</code> receiving a real HTTP POST shaped field-for-field to match <code>alert-rule-engine/pkg/fineforge.HTTPRetrainClient</code>'s own wire format, checked against <code>http_client.go</code> directly rather than from memory.
 </div>
 
-<p>So what: the panels a model's traffic shows up on were built once, for the base model, and every fine-tuned variant since has been a nameplate change against that same casting, not a new trophy poured from scratch.</p>
+<p>So what: the loop looks like five equal steps in the diagram, but only one of them has ever actually left the process &mdash; the rest are trusted the way an in-view handoff is trusted, and conflating the two would overstate how much of this loop is genuinely tested today.</p>
 
-<h2 id="why-the-label-lives-on-the-metric-not-the-dashboard">Why the Label Lives on the Metric, Not the Dashboard</h2>
+<h2 id="the-loop-is-a-saga-without-a-coordinator">The Loop Is a Saga Without a Coordinator</h2>
 
-<p>The distinction that matters is what a label is attached to. A <code>request_id</code> is legitimately unique per call, which is exactly why it belongs on a trace or a log line and never on a metric label &mdash; a metrics backend keeps one time series per distinct label combination, so a per-request label would mean a series that never stops growing.</p>
+<p>The distributed systems shape this maps to is a saga: a chain of local steps where each one's success is what triggers the next, with no distributed transaction coordinator holding a lock across all five at once. Kafka consumer pipelines and Sagas in event-driven order systems both work this way &mdash; there's no single commit that makes every step happen atomically, only a sequence of individually-committed steps that add up to one outcome if nothing goes wrong.</p>
 
-<p><code>model_id</code> and <code>adapter_version</code> are a different shape of value. They're bounded by how many models and adapter versions are actually deployed at once, a number in the tens even at real scale, not the millions a request identifier would produce. That's the same cardinality discipline behind keeping a Kubernetes-dimension index from exploding at Agoda's WhiteFalcon &mdash; bounded cardinality is what makes a value safe as a label instead of a leak.</p>
+<p>A real saga usually pairs that risk with compensating actions: if step four fails, step three gets undone by a matching reverse action, not just abandoned. <code>closed_loop</code> doesn't have any of those. <code>send_retrain_webhook()</code> is a single-attempt POST with no retry and no rollback, deliberately, so it doesn't reimplement the real Go client's own exponential-backoff logic and risk the two drifting apart.</p>
 
-<p>So what: <code>model_id</code> earns a spot on every metric specifically because the set of values it can take is small and known in advance, which is the one property a label has to have before it's allowed anywhere near a hot ingestion path.</p>
+<p>So what: calling this a "closed loop" is accurate for the happy path LOOP.md documents, but it's a narrower promise than the word "saga" usually carries &mdash; there's a sequence, not yet a safety net underneath it.</p>
 
-<h2 id="where-the-dashboard-variable-actually-resolves">Where the Dashboard Variable Actually Resolves</h2>
+<h2 id="where-the-diagram-actually-runs">Where the Diagram Actually Runs</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -259,42 +259,42 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Request hits new endpoint"] --> B["Event tagged model_id, adapter"]
-  B --> C["Kafka topic, same schema"]
-  C --> D["ClickHouse columns, not new table"]
-  D --> E["Grafana variable fills dropdown"]
-  E --> F["Same panel, new label filter"]</pre>
+  A["DriftWatch alert, caller-supplied"] --> B["Escalation, in-process call"]
+  B --> C["Webhook: one real HTTP hop"]
+  C --> D["Retrain stub, deterministic"]
+  D --> E["RouteIQ mirror, no import"]
+  E --> F["Dashboard clone, real call"]</pre>
 
-<p>A Grafana template variable runs a query against ClickHouse for the distinct <code>model_id</code> values it's seen, and populates a dropdown from the answer. Every panel's own query interpolates <code>$model_id</code> into its <code>WHERE</code> clause, so switching the dropdown re-runs the identical panel against a different filter instead of loading a different dashboard. <code>adapter_version</code> is a second variable scoped underneath whichever <code>model_id</code> is selected, so moving between two fine-tunes of the same base model doesn't touch the dashboard definition at all.</p>
+<p>Each arrow after the webhook hop is a plain Python function call inside one process, not a message on a queue and not a second service booted up to receive it. That's why <code>retrain.py</code> and <code>routeiq.py</code> don't import <code>model_registry</code> at all &mdash; they reimplement its payload shapes instead, the same "shape convention, not a package dependency" split this repo draws at every boundary between modules that could import each other but choose not to.</p>
 
-<p>So what: the "cloning" the plan describes isn't copying a dashboard file &mdash; it's a label value showing up in a dropdown the moment the first event carrying it lands in ClickHouse, because the dashboard was already built to expect a value it simply hadn't seen yet.</p>
+<p>So what: the diagram runs today, end to end, inside a single Python process on a single machine &mdash; which proves the handoffs are shaped correctly, and proves nothing yet about what happens when those same five steps have to survive a process crash between two of them.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't have a hard number for how many distinct <code>model_id</code>/<code>adapter_version</code> combinations LensAI is designed to carry before the dropdown itself gets unwieldy. What I do have is the ingestion path's own target &mdash; 1M events/min at under 100ms P99 &mdash; which is a throughput number, not a label-cardinality ceiling, and I won't stretch one into standing for the other.</p>
+<p>I don't know whether adding retry and a compensating action to the webhook hop would actually make this a saga in the fuller sense, or whether a single real network hop inside four in-process calls is a different enough shape that the label doesn't quite apply either way. LOOP.md names that gap explicitly and leaves it there; I'm doing the same rather than picking an answer to sound more finished.</p>
 
-<p>I also haven't confirmed whether <code>adapter_version</code> resolves from the same registry entry's <code>artifact_prefix</code> that RouteIQ reads, or from a separate field on the same record; yesterday's DESIGN.md boundary was about what crosses into serving, not what crosses into telemetry.</p>
+<p>I also don't know how much of today's boundary discipline &mdash; simulate everything except the one real socket &mdash; survives once a live CUSUM detector replaces the caller-supplied alert at the front of the chain, since that's the one hop LOOP.md's own out-of-scope list still leaves unbuilt.</p>
 
-<p>So what: the mechanism I'm confident in is that one label value change is what "cloning" means here, not a new set of queries; the exact cardinality ceiling and whether telemetry reads the identical registry field are gaps I'd rather flag than assume shut.</p>
+<p>So what: the mechanism I'm confident in is the shape &mdash; a five-step saga-like sequence with exactly one real network crossing and zero compensating actions; whether "saga" is even the right word for something with no rollback path is a genuinely open question, not a detail I'm smoothing over.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Labels added per metric: model_id, adapter_version</span></div>
-  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">New dashboards created per fine-tuned model</span></div>
-  <div class="stat-cell"><span class="stat-num">1M/min</span><span class="stat-label">LensAI's target ingestion throughput</span></div>
-  <div class="stat-cell"><span class="stat-num">&lt;100ms</span><span class="stat-label">P99 latency target on that ingestion path</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Hops in the closed_loop trace</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Hop crossing a real HTTP socket</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Retries or compensating actions today</span></div>
+  <div class="stat-cell"><span class="stat-num">53</span><span class="stat-label">Tests passing after the loop shipped</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Day 144 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-145-closed-loop-mlops-event-driven-retrain.html">Day 145 — Closed-Loop MLOps — Event-Driven Retrain</a></p>
+  <p>Day 145 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 146 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-143-routing-fine-tuned-models-registry-integration.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 143 — Routing Fine-Tuned Models — Registry Integration (yesterday's post)</span>
+      <span>Day 144 — Observing Custom Models — LensAI Labels (yesterday's post)</span>
     </a>
     <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-2-continuous-batching-vllm.html">
       <span class="footnote-arrow">&rarr;</span>
@@ -309,9 +309,9 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#one-trophy-mold-many-nameplates">The Trophy Mold Analogy</a></li>
-      <li><a href="#why-the-label-lives-on-the-metric-not-the-dashboard">Why the Label Lives Here</a></li>
-      <li><a href="#where-the-dashboard-variable-actually-resolves">Where the Variable Resolves</a></li>
+      <li><a href="#a-relay-team-with-one-leg-across-town">The Relay Leg Across Town</a></li>
+      <li><a href="#the-loop-is-a-saga-without-a-coordinator">A Saga Without a Coordinator</a></li>
+      <li><a href="#where-the-diagram-actually-runs">Where the Diagram Runs</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -319,11 +319,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-144-observing-custom-models-lensai-labels.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-145-closed-loop-mlops-event-driven-retrain.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Observing+Custom+Models+%E2%80%94+LensAI+Labels+%C2%B7+Day+144&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-144-observing-custom-models-lensai-labels.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=Closed-Loop+MLOps+%E2%80%94+Event-Driven+Retrain+%C2%B7+Day+145&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-145-closed-loop-mlops-event-driven-retrain.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -336,17 +336,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D142</span> AI Learning</div>
-          <a href="day-142-tensor-parallel-multi-gpu-serving.html" class="series-post-title">Tensor Parallel — Multi-GPU Serving</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D143</span> AI Learning</div>
           <a href="day-143-routing-fine-tuned-models-registry-integration.html" class="series-post-title">Routing Fine-Tuned Models — Registry Integration</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D144</span> AI Learning</div>
+          <a href="day-144-observing-custom-models-lensai-labels.html" class="series-post-title">Observing Custom Models — LensAI Labels</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D144</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Observing Custom Models — LensAI Labels</div>
-          <div class="series-post-desc">A trophy shop casts one mold for the whole season and rivets on a different engraved nameplate per winner — why LensAI attaches model_id and adapter_version as bounded labels on every metric instead of cloning a dashboard file.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D145</span> AI Learning &middot; now</div>
+          <div class="series-post-title">Closed-Loop MLOps — Event-Driven Retrain</div>
+          <div class="series-post-desc">A relay team practices every handoff in full view except one leg that runs across town — why only one hop of today's closed retrain loop crosses a real network, and what a saga without a coordinator actually promises.</div>
         </div>
       </div>
     </div>

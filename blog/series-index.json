@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html",
+          "kicker": "AI Learning · Day 145 of 150",
+          "title": "Day 145 — Closed-Loop MLOps — Event-Driven Retrain",
+          "subtitle": "Alert->train->deploy sequence",
+          "date": "2026-08-27",
+          "slug": "day-145-closed-loop-mlops-event-driven-retrain",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html",
+          "coverImage": "blog/assets/covers/day-145-closed-loop-mlops-event-driven-retrain.png",
+          "desc": "A relay team practices every handoff in full view except one leg that runs across town. Why only one hop of today's closed retrain loop crosses a real network, and what a saga without a compensating action actually promises."
+        },
+        {
           "href": "blog/series/ai-learning/day-144-observing-custom-models-lensai-labels.html",
           "kicker": "AI Learning · Day 144 of 150",
           "title": "Day 144 — Observing Custom Models — LensAI Labels",
