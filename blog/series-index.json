@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-148-platform-architecture-five-products-one-story.html",
+          "kicker": "AI Learning · Day 148 of 150",
+          "title": "Day 148 — Platform Architecture — Five Products One Story",
+          "subtitle": "Interview whiteboard in HTML",
+          "date": "2026-08-27",
+          "slug": "day-148-platform-architecture-five-products-one-story",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-148-platform-architecture-five-products-one-story.html",
+          "coverImage": "blog/assets/covers/day-148-platform-architecture-five-products-one-story.png",
+          "desc": "An assembly line's five stations only work as a line because each hands the next a finished part, never a half-built one. Why LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge had to ship in that order, and what the whiteboard version of that order looks like."
+        },
+        {
           "href": "blog/series/ai-learning/day-147-gpu-rollouts-surge-during-deploy.html",
           "kicker": "AI Learning · Day 147 of 150",
           "title": "Day 147 — GPU Rollouts — Surge During Deploy",
@@ -1655,6 +1667,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-148-portfolio-launch-cohesive-narrative.html",
+          "kicker": "Experience · Day 148 of 150",
+          "title": "Day 148 — Portfolio Launch — Cohesive Narrative",
+          "subtitle": "Five repos without story = confusion",
+          "date": "2026-08-27",
+          "slug": "day-148-portfolio-launch-cohesive-narrative",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-148-portfolio-launch-cohesive-narrative.html",
+          "coverImage": "blog/assets/covers/day-148-portfolio-launch-cohesive-narrative.png",
+          "desc": "A carpenter's five best finished pieces sitting in five different homes are each impressive alone — why five shipped repos needed one landing page before any of them meant what they were supposed to, and what the resume taught me about the same gap first."
+        },
         {
           "href": "blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html",
           "kicker": "Experience · Day 147 of 150",
