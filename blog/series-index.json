@@ -1620,6 +1620,18 @@
       "navSubtitle": "production war stories",
       "posts": [
         {
+          "href": "blog/series/experience/day-145-closed-loop-demo-north-star-slide.html",
+          "kicker": "Experience · Day 145 of 150",
+          "title": "Day 145 — Closed Loop Demo — The North Star Slide",
+          "subtitle": "System-design whiteboards are a claim; a running loop is proof",
+          "date": "2026-08-27",
+          "slug": "day-145-closed-loop-demo-north-star-slide",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-145-closed-loop-demo-north-star-slide.html",
+          "coverImage": "blog/assets/covers/day-145-closed-loop-demo-north-star-slide.png",
+          "desc": "An architect's rendering shows the whole building before a single beam is poured. Why a system-design whiteboard is a claim about how the pieces fit, and what it took to chain four days of separately-built pieces into one runnable retrain-loop simulation for the first time."
+        },
+        {
           "href": "blog/series/experience/day-144-day-1-monitoring-new-service-checklist.html",
           "kicker": "Experience · Day 144 of 150",
           "title": "Day 144 — Day-1 Monitoring — New Service Checklist",
