@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 146 &mdash; Pareto Frontier &mdash; Cost, Latency, Quality | AI Learning Series</title>
-<meta name="description" content="Today's load_test module runs a fine-tuned vLLM endpoint against a GPT-4o baseline and writes a CSV a stakeholder chart reads directly: cost, latency, and a quality proxy score per endpoint. Why two data points are honestly a starting frontier, not a curve, and what a token-count cost proxy does and doesn't tell you.">
-<meta property="og:title" content="Day 146 &mdash; Pareto Frontier &mdash; Cost, Latency, Quality">
-<meta property="og:description" content="A food-delivery app filtered by price, distance, and rating drops most restaurants immediately, because some other restaurant beats them on all three at once. Why the surviving, non-dominated set is the everyday version of a Pareto frontier, and why two points barely qualify as one yet.">
+<title>Day 147 &mdash; GPU Rollouts &mdash; Surge During Deploy | AI Learning Series</title>
+<meta name="description" content="Today's Helm chart sets maxUnavailable=1 on the GPU deployment. The more interesting number is maxSurge: 0 -- why Kubernetes' own 25% surge default quietly assumes elastic capacity a GPU node pool doesn't have, and what a local rollout_sim benchmark shows about the drain hook that goes with it.">
+<meta property="og:title" content="Day 147 &mdash; GPU Rollouts &mdash; Surge During Deploy">
+<meta property="og:description" content="Musical chairs with no spare chair: a new player only sits once someone else stands up, never before. Why maxSurge: 0 is that same rule applied to GPU pods, and what happens to a rollout when the rule is ignored.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-146-pareto-frontier-cost-latency-quality.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-pareto-frontier-cost-latency-quality.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-147-gpu-rollouts-surge-during-deploy.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-gpu-rollouts-surge-during-deploy.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-146-pareto-frontier-cost-latency-quality.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-147-gpu-rollouts-surge-during-deploy.png">
 <meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,20 +185,20 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">AI Learning &middot; Day 146 of 150</span>
+    <span class="tag accent">AI Learning &middot; Day 147 of 150</span>
     <span class="tag">LensAI</span>
-    <span class="tag">FineForge</span>
-    <span class="tag">GPT-4o</span>
+    <span class="tag">Kubernetes</span>
+    <span class="tag">GPU</span>
   </div>
-  <h1 class="post-title">Day 146 &mdash; Pareto Frontier &mdash; Cost, Latency, Quality</h1>
-  <p class="post-subtitle">LOOP.md closed a retrain chain yesterday; today's <code>load_test</code> module runs the same idea one level up, replaying one prompt batch against a fine-tuned vLLM endpoint and a GPT-4o baseline, then writing a CSV a stakeholder chart reads directly. Cost, latency, and a quality proxy score per row is the raw material for the Experience post's "pick two" triangle &mdash; but the underlying shape has its own distributed-systems name: the Pareto frontier.</p>
+  <h1 class="post-title">Day 147 &mdash; GPU Rollouts &mdash; Surge During Deploy</h1>
+  <p class="post-subtitle">Today's Helm chart sets <code>maxUnavailable=1</code> on the GPU deployment &mdash; the ordinary half of a rolling-update strategy. The number worth stopping on is the other one: <code>maxSurge: 0</code>, deliberately overriding Kubernetes' own 25% default. That default assumes a cluster has spare capacity sitting idle for a deploy. A GPU node pool usually doesn't.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">AI Learning &middot; Day 146 of 150</span>
+    <span class="meta-item">AI Learning &middot; Day 147 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
@@ -208,34 +208,33 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-146-pareto-frontier-cost-latency-quality.png" alt="Day 146 — Pareto Frontier — Cost, Latency, Quality" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-147-gpu-rollouts-surge-during-deploy.png" alt="Day 147 — GPU Rollouts — Surge During Deploy" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's <code>load_test</code> module replays one batch of prompts against a fine-tuned vLLM endpoint and a GPT-4o baseline, then writes a CSV a stakeholder chart can read directly: cost, latency, and a quality proxy score, one row per endpoint. The interesting part isn't the harness itself &mdash; it's the shape the resulting data takes once you plot cost, latency, and quality against each other. That shape has a name in distributed systems and optimization theory: a Pareto frontier.</p>
+<p>Today's chart change in <code>vllm-deploy-kit</code> sets <code>maxUnavailable=1</code> on the GPU deployment, which is the unremarkable half of a rolling-update strategy &mdash; replace one replica at a time, never more. The number that actually needed a decision is the other one, <code>maxSurge</code>, and today's chart sets it to zero instead of leaving Kubernetes' own default in place. That single override is the whole subject of this post.</p>
 
-<h2 id="the-restaurant-you-would-actually-pick">The Restaurant You'd Actually Pick</h2>
+<h2 id="musical-chairs-with-no-spare-chair">Musical Chairs With No Spare Chair</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the restaurant that gets filtered out</div>
-  Open a food-delivery app filtered by price, distance, and rating, and most restaurants disappear immediately &mdash; not because they're bad, but because some other restaurant beats them on all three axes at once, and nobody picks a strictly worse option on purpose. The restaurants left after that filtering are the interesting set: each one wins on at least one axis against every other survivor, so choosing between them is a real tradeoff, not a mistake waiting to be corrected. That surviving set, where no option is beaten on every axis at once, is the everyday version of a Pareto frontier.
+  <div class="attr-label">DS analogy &mdash; musical chairs with no spare chair</div>
+  Musical chairs only works because the chair count never goes up mid-game &mdash; a player can only sit once someone else has already stood, never before, because there is nowhere else to sit. Now imagine a variant where the game briefly adds one extra chair during every round, so nobody has to stand first: it needs a spare chair sitting around unused between rounds for that trick to work at all. A room with exactly enough chairs for the players in it can't run that variant, no matter how briefly the extra chair is needed.
 </div>
 
-<p>A point is <strong>Pareto-dominated</strong> when another point matches or beats it on every axis and beats it on at least one &mdash; a restaurant that's pricier, farther, and worse-rated than another gets dropped instantly, the same way a model config that's slower, costlier, and lower-quality than another would be. So what: "frontier" describes the set an executive should actually be choosing between, not every option that technically exists.</p>
+<p>A Kubernetes <code>Deployment</code>'s default rolling-update strategy runs the "extra chair" variant: <code>maxSurge: 25%</code> asks the scheduler for roughly one more pod above the running replica count before it removes an old one, so capacity never dips even for a moment. That's a fine trick on stateless CPU workloads, where the scheduler can almost always conjure a temporary extra pod from general-purpose node headroom.</p>
 
-<h2 id="two-points-are-not-a-frontier-yet">Two Points Aren't a Frontier Yet</h2>
+<p>So what: a GPU node pool is usually sized to exactly what the replica count needs and nothing more, because idle GPU capacity is expensive capacity &mdash; which means the surge trick needs a spare chair a GPU cluster typically doesn't keep lying around.</p>
 
-<p>Today's harness produces exactly two data points &mdash; the fine-tuned endpoint and the GPT-4o baseline &mdash; not the many-point curve a real frontier implies. A proper frontier needs enough configurations plotted (different quantization levels, batch sizes, model sizes) that the non-dominated survivors actually trace a curve, the same way one restaurant doesn't tell you much about a whole city's price/distance/rating landscape.</p>
+<h2 id="what-a-request-for-a-chair-that-does-not-exist-looks-like">What a Request for a Chair That Doesn't Exist Looks Like</h2>
 
-<div class="attr-box team">
-  <div class="attr-label">What the cost column actually measures, checked against the code</div>
-  <code>load_test.tokens.approx_token_count</code> is a whitespace-split word count, not a real BPE tokenizer call &mdash; the module's own docstring states it lands within roughly 25-35% of a real token count for English prose, close enough for a synthetic harness whose completions are already fabricated text, not close enough to bill a real account against. The cost column in today's CSV inherits that same margin, since cost here is token count times a configured dollar-per-token rate.
-</div>
+<p>A surge pod that asks for a GPU the node pool has no spare of doesn't get rejected outright &mdash; it gets admitted to the cluster and left <code>Pending</code>, waiting for a resource that was never coming. Kubernetes doesn't treat that as a rollout failure on its own; it just... waits, and so does the rollout, silently, until someone notices the deploy has been "in progress" for far longer than it should have been.</p>
 
-<p>So what: two points with an honestly-labeled proxy on one axis is a real starting seed for a frontier, but calling today's chart "the frontier" would overstate both the point count and the cost column's precision at once.</p>
+<p>That failure shape is the reason <code>maxSurge: 0</code> is worth naming explicitly in a values file rather than leaving it to whatever the chart's default happens to inherit. <code>maxSurge: 0</code> means the rolling update can never ask for more replicas than are already running &mdash; it has to free a chair (remove an old pod) before it can seat a new player (start a replacement), the same constraint musical chairs runs under by design, not as a workaround.</p>
+
+<p>So what: the honest tradeoff isn't "zero risk" versus "some risk" &mdash; it's a small, bounded, visible capacity dip of exactly <code>maxUnavailable</code> replicas, traded against a silent, unbounded stall waiting on GPU capacity that was never going to appear.</p>
 
 <pre class="mermaid">
 %%{init: {
@@ -255,49 +254,45 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["Prompt batch replayed"] --> B["Fine-tuned endpoint run"]
-  A --> C["GPT-4o baseline run"]
-  B --> D["Cost via token proxy"]
-  C --> D
-  D --> E["CSV: cost, latency, quality"]
-  E --> F["Two-point frontier seed"]</pre>
+  A["maxSurge: 25% default"] --> B["Extra pod requested"]
+  B --> C["No spare GPU"]
+  C --> D["Pod stuck Pending"]
+  A2["maxSurge: 0 override"] --> E["Old pod freed first"]
+  E --> F["New pod fits, always"]</pre>
 
-<h2 id="why-quality-cant-just-be-a-tiebreaker">Why Quality Can't Just Be a Tiebreaker</h2>
-
-<p>Cost and latency are both cheap to measure precisely &mdash; a clock and a token count get you most of the way there. Quality is the axis most likely to lean on a proxy: an automated judge, often another model, standing in for a human reviewer's opinion because no human reads every request in a load test. That proxy inherits whatever blind spots the judge model itself has, the same concern this series raised when picking a judge model back on Day 98.</p>
-
-<p>Treating quality as a simple tiebreaker &mdash; "use it only if cost and latency tie" &mdash; understates how much weight it actually carries, since a cheap, fast endpoint that quietly produces worse answers isn't a win, it's a different kind of cost pushed downstream to whoever reads the output.</p>
-
-<p>So what: a Pareto frontier only tells the truth if every axis on it is measured with comparable honesty, and today's harness is explicit that one of its three axes is a rougher proxy than the other two.</p>
+<div class="attr-box team">
+  <div class="attr-label">What the numbers actually say, checked against a local benchmark</div>
+  <code>rollout_sim</code>, this repo's own local rolling-update simulation, doesn't have a real cluster to measure a stuck-<code>Pending</code> surge pod against, so it benchmarks the other half of today's chart instead: the <code>preStop</code> drain hook that pairs with <code>maxUnavailable=1</code>. Three runs with no drain hook dropped 1-2 requests each out of roughly 600-1,300 sent during the rollout; three runs with the chart's own 5-second drain default dropped zero out of roughly 2,200-2,300 each time. The no-drain drop count wasn't the same every run &mdash; small and timing-dependent, not a fixed percentage &mdash; but it was never zero, and the with-drain runs never dropped a single request.
+</div>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't know how many more configurations it would take before two points become a real frontier curve worth trusting, versus staying a comparison between exactly one alternative and one baseline. I also don't know whether the 25-35% token-count margin matters at the scale a single comparison needs, or whether it only becomes a problem once someone tries to rank many close configurations against each other.</p>
+<p>I don't know how a real GPU cluster's scheduler actually surfaces a stuck surge pod in practice &mdash; whether it's a clear, fast signal an operator would catch quickly, or the kind of quiet stall that only gets noticed once someone asks why a routine deploy has been running for twenty minutes. I also don't know at what replica count <code>maxUnavailable: 1</code> stops being a meaningful capacity dip and starts being a real one, since losing one of two replicas is a very different event than losing one of twenty.</p>
 
-<p>So what: the mechanism I'm confident in is the shape &mdash; non-dominated points across cost, latency, and quality are the ones worth a stakeholder's attention &mdash; while how precisely today's two points sit on that shape is a narrower, still-open question.</p>
+<p>So what: the mechanism I'm confident in is the tradeoff shape &mdash; a visible, bounded cost now beats an invisible, unbounded one later &mdash; while exactly how loud "later" turns out to be on a real cluster is still an open question this repo's own CI has no GPU node to answer.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">2</span><span class="stat-label">Endpoints compared head to head</span></div>
-  <div class="stat-cell"><span class="stat-num">3</span><span class="stat-label">Axes on the frontier: cost, latency, quality</span></div>
-  <div class="stat-cell"><span class="stat-num">25-35%</span><span class="stat-label">Documented margin of the token-count cost proxy</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">CSV exported for the platform chart</span></div>
+  <div class="stat-cell"><span class="stat-num">0%</span><span class="stat-label">maxSurge — this chart's override</span></div>
+  <div class="stat-cell"><span class="stat-num">25%</span><span class="stat-label">Kubernetes' own rolling-update default</span></div>
+  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Replica maxUnavailable allows at once</span></div>
+  <div class="stat-cell"><span class="stat-num">0</span><span class="stat-label">Dropped requests across 3 drained runs</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Day 146 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
-  <p><em>Next up:</em> <a href="day-147-gpu-rollouts-surge-during-deploy.html">Day 147 — GPU Rollouts — Surge During Deploy</a></p>
+  <p>Day 147 of 150 &mdash; Learning AI Inference as a Distributed Systems Engineer</p>
+  <p><em>Next up:</em> Day 148 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-145-closed-loop-mlops-event-driven-retrain.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-146-pareto-frontier-cost-latency-quality.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 145 — Closed-Loop MLOps — Event-Driven Retrain (yesterday's post)</span>
+      <span>Day 146 — Pareto Frontier — Cost, Latency, Quality (yesterday's post)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-98-judge-model-selection-cost-vs-capability.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/ai-learning/day-142-tensor-parallel-multi-gpu-serving.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 98 — Judge Model Selection — Cost vs Capability (the same proxy-judge tradeoff, from the eval side)</span>
+      <span>Day 142 — Tensor-Parallel Multi-GPU Serving (why a GPU pod's resource request looks the way it does)</span>
     </a>
   </div>
 </div>
@@ -308,9 +303,8 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-restaurant-you-would-actually-pick">The Restaurant You'd Pick</a></li>
-      <li><a href="#two-points-are-not-a-frontier-yet">Two Points Aren't a Frontier</a></li>
-      <li><a href="#why-quality-cant-just-be-a-tiebreaker">Why Quality Isn't a Tiebreaker</a></li>
+      <li><a href="#musical-chairs-with-no-spare-chair">Musical Chairs, No Spare Chair</a></li>
+      <li><a href="#what-a-request-for-a-chair-that-does-not-exist-looks-like">A Chair That Doesn't Exist</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -318,11 +312,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-146-pareto-frontier-cost-latency-quality.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-147-gpu-rollouts-surge-during-deploy.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Pareto+Frontier+%E2%80%94+Cost%2C+Latency%2C+Quality+%C2%B7+Day+146&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-146-pareto-frontier-cost-latency-quality.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=GPU+Rollouts+%E2%80%94+Surge+During+Deploy+%C2%B7+Day+147&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fai-learning%2Fday-147-gpu-rollouts-surge-during-deploy.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -335,17 +329,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D144</span> AI Learning</div>
-          <a href="day-144-observing-custom-models-lensai-labels.html" class="series-post-title">Observing Custom Models — LensAI Labels</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D145</span> AI Learning</div>
           <a href="day-145-closed-loop-mlops-event-driven-retrain.html" class="series-post-title">Closed-Loop MLOps — Event-Driven Retrain</a>
         </div>
+        <div class="series-post">
+          <div class="series-post-kicker"><span class="series-post-num">D146</span> AI Learning</div>
+          <a href="day-146-pareto-frontier-cost-latency-quality.html" class="series-post-title">Pareto Frontier — Cost, Latency, Quality</a>
+        </div>
         <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D146</span> AI Learning &middot; now</div>
-          <div class="series-post-title">Pareto Frontier — Cost, Latency, Quality</div>
-          <div class="series-post-desc">A food-delivery app filtered by price, distance, and rating drops most restaurants instantly — why the surviving, non-dominated set is the everyday version of a Pareto frontier, and why two endpoints barely qualify as one yet.</div>
+          <div class="series-post-kicker"><span class="series-post-num">D147</span> AI Learning &middot; now</div>
+          <div class="series-post-title">GPU Rollouts — Surge During Deploy</div>
+          <div class="series-post-desc">Musical chairs with no spare chair — why maxSurge: 0 overrides Kubernetes' own 25% default on a GPU deployment, and what a local benchmark shows about the drain hook that goes with it.</div>
         </div>
       </div>
     </div>

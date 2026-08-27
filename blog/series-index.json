@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-147-gpu-rollouts-surge-during-deploy.html",
+          "kicker": "AI Learning · Day 147 of 150",
+          "title": "Day 147 — GPU Rollouts — Surge During Deploy",
+          "subtitle": "Rolling update avoids all GPUs busy",
+          "date": "2026-08-27",
+          "slug": "day-147-gpu-rollouts-surge-during-deploy",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-147-gpu-rollouts-surge-during-deploy.html",
+          "coverImage": "blog/assets/covers/day-147-gpu-rollouts-surge-during-deploy.png",
+          "desc": "Musical chairs with no spare chair -- why maxSurge: 0 overrides Kubernetes' own 25% default on a GPU deployment, and what a local rollout_sim benchmark shows about the drain hook that goes with it."
+        },
+        {
           "href": "blog/series/ai-learning/day-146-pareto-frontier-cost-latency-quality.html",
           "kicker": "AI Learning · Day 146 of 150",
           "title": "Day 146 — Pareto Frontier — Cost, Latency, Quality",
