@@ -7,6 +7,18 @@
       "navSubtitle": "from the lens of a distributed systems engineer",
       "posts": [
         {
+          "href": "blog/series/ai-learning/day-149-150-days-of-llm-inference-curriculum-recap.html",
+          "kicker": "AI Learning · Day 149 of 150",
+          "title": "Day 149 — 150 Days of LLM Inference — Curriculum Recap",
+          "subtitle": "Spine: observe→trace→route→drift→retrain",
+          "date": "2026-08-27",
+          "slug": "day-149-150-days-of-llm-inference-curriculum-recap",
+          "series": "ai-learning",
+          "url": "https://akshantvats.github.io/Profile/blog/series/ai-learning/day-149-150-days-of-llm-inference-curriculum-recap.html",
+          "coverImage": "blog/assets/covers/day-149-150-days-of-llm-inference-curriculum-recap.png",
+          "desc": "A hospital's vitals monitor, chart, triage desk, and follow-up nurse only work as one care pathway because each station reads the one before it. Why observe, trace, route, drift, and retrain are the same five stops in LLM inference, and what each day's post actually taught along the way."
+        },
+        {
           "href": "blog/series/ai-learning/day-148-platform-architecture-five-products-one-story.html",
           "kicker": "AI Learning · Day 148 of 150",
           "title": "Day 148 — Platform Architecture — Five Products One Story",
@@ -1667,6 +1679,18 @@
       "slugLine": "Experience Series",
       "navSubtitle": "production war stories",
       "posts": [
+        {
+          "href": "blog/series/experience/day-149-150-days-what-id-tell-day-0-me.html",
+          "kicker": "Experience · Day 149 of 150",
+          "title": "Day 149 — 150 Days — What I'd Tell Day-0 Me",
+          "subtitle": "Consistency beat intensity; public build attracted inbound",
+          "date": "2026-08-27",
+          "slug": "day-149-150-days-what-id-tell-day-0-me",
+          "series": "experience",
+          "url": "https://akshantvats.github.io/Profile/blog/series/experience/day-149-150-days-what-id-tell-day-0-me.html",
+          "coverImage": "blog/assets/covers/day-149-150-days-what-id-tell-day-0-me.png",
+          "desc": "A savings account that gets a small deposit every day outgrows one that gets a single enormous deposit twice a year, once the window is long enough. Why the habit beat the hero sprint across 150 days of real CI outages and a standing DALL-E billing limit, and what today's platform essay is actually betting on."
+        },
         {
           "href": "blog/series/experience/day-148-portfolio-launch-cohesive-narrative.html",
           "kicker": "Experience · Day 148 of 150",

@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day 148 &mdash; Portfolio Launch &mdash; Cohesive Narrative | Experience Series</title>
-<meta name="description" content="Today's PR in platform-launch builds one landing page linking LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge. Why five strong repos without a connecting page read as five accidents, not one deliberate arc, and what a resume with the same problem taught me first.">
-<meta property="og:title" content="Day 148 &mdash; Portfolio Launch &mdash; Cohesive Narrative">
-<meta property="og:description" content="A carpenter's five best finished pieces sitting in five different homes are each impressive alone -- a showroom is what lets a visitor see they're the same hand at work. Why five shipped repos needed one landing page before any of them meant what they were supposed to.">
+<title>Day 149 &mdash; 150 Days &mdash; What I'd Tell Day-0 Me | Experience Series</title>
+<meta name="description" content="The retrospective post, one day before the finale. Consistency beat intensity across 150 days of real CI outages, a standing DALL-E billing limit, and zero GPU anywhere in this arc — and today's platform essay in infra-ai-streaming is the same throughline claim, aimed outward at an apply list instead of inward at a blog.">
+<meta property="og:title" content="Day 149 &mdash; 150 Days &mdash; What I'd Tell Day-0 Me">
+<meta property="og:description" content="A savings account that gets a small deposit every day outgrows one that gets a single enormous deposit twice a year, once the window is long enough. Why the habit beat the hero sprint across 150 days, and what today's platform essay is actually betting on.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-148-portfolio-launch-cohesive-narrative.html">
-<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-148-portfolio-launch-cohesive-narrative.png">
+<meta property="og:url" content="https://akshantvats.github.io/Profile/blog/series/experience/day-149-150-days-what-id-tell-day-0-me.html">
+<meta property="og:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-149-150-days-what-id-tell-day-0-me.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-148-portfolio-launch-cohesive-narrative.png">
+<meta name="twitter:image" content="https://akshantvats.github.io/Profile/blog/assets/og/day-149-150-days-what-id-tell-day-0-me.png">
 <meta property="article:published_time" content="2026-08-27">
 <meta name="theme-color" content="#fafafa">
 <script>(function(){if(localStorage.getItem("theme")==="dark")document.documentElement.setAttribute("data-theme","dark");})();</script>
@@ -185,63 +185,72 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
 
 <header class="post-hero">
   <div class="post-tags">
-    <span class="tag accent">Experience &middot; Day 148 of 150</span>
-    <span class="tag">Portfolio</span>
+    <span class="tag accent">Experience &middot; Day 149 of 150</span>
+    <span class="tag">Retrospective</span>
     <span class="tag">FineForge</span>
-    <span class="tag">LensAI</span>
+    <span class="tag">Career</span>
   </div>
-  <h1 class="post-title">Day 148 &mdash; Portfolio Launch &mdash; Cohesive Narrative</h1>
-  <p class="post-subtitle">Today's PR in <code>platform-launch</code> builds one landing page linking five repos &mdash; LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge &mdash; that shipped thirty days apart with no page connecting them until now. Five strong repos sitting in five separate tabs don't read as one deliberate arc; they read as five accidents that happened to the same GitHub account.</p>
+  <h1 class="post-title">Day 149 &mdash; 150 Days &mdash; What I'd Tell Day-0 Me</h1>
+  <p class="post-subtitle">Today's other PR &mdash; the platform essay landing in <code>infra-ai-streaming</code> under <code>platform-launch/</code> &mdash; makes the technical case that LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge are one loop. This post is the version of that same claim I'd actually say out loud to the me who hadn't started yet, the morning before Day 0.</p>
   <div class="post-meta">
     <div class="meta-author">
       <div class="author-avatar">AS</div>
       <div><div class="author-name">Akshant Sharma</div></div>
     </div>
     <div class="meta-divider"></div>
-    <span class="meta-item">Experience &middot; Day 148 of 150</span>
+    <span class="meta-item">Experience &middot; Day 149 of 150</span>
     <div class="meta-divider"></div>
     <span class="meta-item">August 27, 2026</span>
     <div class="meta-divider"></div>
-    <span class="meta-item">6 min read</span>
+    <span class="meta-item">8 min read</span>
   </div>
 </header>
 
 <div class="post-cover-wrap">
   <figure class="post-cover">
-    <img src="../../assets/covers/day-148-portfolio-launch-cohesive-narrative.png" alt="Day 148 — Portfolio Launch — Cohesive Narrative" width="1200" height="630" loading="lazy">
+    <img src="../../assets/covers/day-149-150-days-what-id-tell-day-0-me.png" alt="Day 149 — 150 Days — What I'd Tell Day-0 Me" width="1200" height="630" loading="lazy">
   </figure>
 </div>
 
 <div class="post-layout">
 <article class="prose">
 
-<p>Today's PR doesn't touch LensAI, TraceForge, RouteIQ, DriftWatch, or FineForge directly. It adds a single new page in <code>platform-launch</code> &mdash; a static landing page linking all five, plus a short architecture-video script and a <code>platform-quickstart</code> compose file that boots a minimal slice of each.</p>
+<p>Two sentences carry most of what's below, and I want to say them before the rest talks me out of it: consistency beat intensity, and building in public is a bet I'm still in the middle of placing, not a result I've already collected. Today's platform essay in <code>platform-launch</code> makes the loop &mdash; observe, trace, route, detect drift, retrain &mdash; explicit in code and prose for a reader who's never seen this arc before.</p>
 
-<p>Nothing about any individual product changes today. What changes is whether the five of them read as one thing or five things.</p>
+<p>This post makes the same claim from inside the arc, aimed at the one person who actually needs to hear it: the me from 150 days ago, who had no idea whether any of this would still be running by Day 149.</p>
 
-<h2 id="the-showroom-problem">The Showroom Problem</h2>
+<h2 id="the-habit-beat-the-hero-sprint">The Habit Beat the Hero Sprint</h2>
 
 <div class="attr-box mine">
-  <div class="attr-label">DS analogy &mdash; the showroom problem</div>
-  A carpenter's five best finished pieces &mdash; a table, a cabinet, a chair, a bookshelf, a bed frame &mdash; sit in five different customers' homes, and each one is genuinely impressive on its own. But a visitor who tours all five homes in one afternoon has no way to notice they share the same dovetail joint, the same wood-grain matching technique, unless someone points it out. A showroom is what puts all five pieces under one roof, next to a card explaining what they have in common.
+  <div class="attr-label">DS analogy &mdash; a savings account, not a bonus check</div>
+  A savings account that gets a small deposit every single day outgrows one that gets a single enormous deposit twice a year, once the compounding window is long enough &mdash; not because the daily deposit is bigger, it's much smaller, but because the balance never sits at zero for a month waiting on the next big check to clear. Day 149 only exists because Day 1 through Day 148 each put something small in, on plenty of days I didn't feel like it.
 </div>
 
-<p>LensAI, TraceForge, RouteIQ, DriftWatch, and FineForge each shipped as its own repo, roughly thirty days apart, each with its own README explaining what it does and why. Every one of those READMEs is honest and complete for the product it describes. None of them, on their own, explains that the five were built in that order on purpose &mdash; ingestion and metrics first, then distributed tracing, then routing, then drift detection, then fine-tuning &mdash; because each layer needed the one before it to already exist.</p>
+<p>The honest version of "150 days straight" has visible seams, and Day-0 me needs to hear about the seams more than the streak. An account-wide GitHub Actions outage has been failing this arc's CI checks in one to four seconds with no runner assigned since roughly Day 108 &mdash; documented, not fixed, because it isn't this repo's bug to fix. The OpenAI billing hard limit on DALL&#8209;E cover generation has been standing since around Day 41; every cover since has come from a Pillow fallback script instead, a real 1200&times;630 PNG, just not the one the pipeline originally wanted to make.</p>
 
-<p>So what: five separate repos with five separate READMEs are five separate showings in five separate houses, and nobody tours all five houses back to back unless something tells them the tour is worth taking.</p>
+<p>Neither blocker ever stopped a day from shipping. Both got written down, worked around, and left for the next slot to re-check &mdash; the same shape of small daily deposit as the writing itself.</p>
 
-<h2 id="the-resume-had-the-same-problem-first">The Resume Had the Same Problem First</h2>
+<p>So what: the habit that mattered wasn't "never miss a day," it was "never let today's blocker become an excuse to skip the deposit" &mdash; a CI outage delays a code review, it doesn't delay a blog post, and conflating the two is how a 150-day plan quietly becomes a 40-day plan with a graceful excuse.</p>
 
 <div class="attr-box team">
   <div class="attr-label">Scope, stated plainly</div>
-  Contributed to Agoda's WhiteFalcon TSDB (1.5 trillion events/day, Rust + Kafka + Ceph). Led the PAS team and the Pricing, Promotions &amp; Discounts team at Wayfair at the same time, shipping a real-time pricing engine across 250k+ SKUs per supplier. Built rider tracking at Delivery Hero processing 5k+ route updates a second across 1M+ daily orders. Architected ingestion for 7M+ sensors on Azure IoT Hub at Walmart Labs. Four employers, four resume bullets, each one true and each one scoped exactly as it happened.
+  Led the PAS team and the Pricing, Promotions &amp; Discounts team at Wayfair simultaneously for sixteen months, shipping a real-time global pricing engine across 250k+ SKUs per supplier at 99.99% availability. Contributed to Agoda's WhiteFalcon TSDB at 1.5 trillion events/day. Built rider tracking at Delivery Hero processing 5k+ route updates a second across 1M+ daily orders on AWS EKS. Architected ingestion for 7M+ sensors on Azure IoT Hub at Walmart Labs. None of that consistency was daily and public &mdash; it was quarterly and internal, which is a different muscle than the one this arc trained.
 </div>
 
-<p>I noticed the showroom problem on my own resume before I noticed it in these five repos. Read top to bottom, those four bullets look like four different engineers' careers stapled together &mdash; a time-series database, a pricing engine, a logistics platform, an IoT ingestion layer. Nothing on the page says the throughline is the same one underneath all four: high-cardinality events, arriving faster than a naive schema can absorb, at a scale where the obvious design breaks first.</p>
+<h2 id="public-build-attracted-a-bet-not-a-result">Public Build Was a Bet, Not a Result Yet</h2>
 
-<p>That's the same gap <code>platform-launch</code> exists to close for the five repos, one level up. A recruiter scanning a resume line by line has to build the throughline themselves, from four unconnected facts, in the ten seconds they typically spend per resume. Most won't.</p>
+<div class="attr-box mine">
+  <div class="attr-label">DS analogy &mdash; a storefront window, not a locked workshop</div>
+  A workshop with the shutters down produces the exact same furniture as one with a window facing the street, and on any single day the shutters make no difference at all. But only the window one gets a stranger stopping mid-walk to ask whether you take commissions &mdash; and that only happens on the days someone happens to be walking past while a piece is visible in the glass, which is most days, if the window stays open long enough.
+</div>
 
-<p>So what: a portfolio and a resume fail the same way when they leave the connecting sentence unwritten, and the fix in both cases is the same &mdash; say the throughline once, explicitly, instead of trusting a stranger to infer it from a pile of facts.</p>
+<p>I don't have a verified inbound reply to point to yet, and I'm not going to invent one to make this section land better. What I have is 150 days of shutters up: every post live the same day it was written, every code PR public even mid-review, every honest gap &mdash; no GPU anywhere in this arc, no Docker daemon for the one day that needed to validate a compose file end to end &mdash; written down in the post itself instead of edited out.</p>
+
+<p>Today's apply list, the one riding alongside the platform essay in <code>platform-launch</code>, is the deliberate next move of the same logic: Anthropic, OpenAI, Modal, Together, and Cohere are the five companies whose own product surface is closest to what LensAI through FineForge actually do, and the platform essay is the one-paragraph throughline a recruiter at any of them would otherwise have to reconstruct from five separate repos.</p>
+
+<p>So what: "public build attracted inbound" is the headline I want to write in six months, not the one I've earned yet &mdash; today's honest move is opening the shutters wider on purpose, on the theory that a window nobody's ever walked past can't attract anything, proven or not.</p>
+
+<h2 id="the-loop-the-platform-essay-closes">The Loop the Platform Essay Closes</h2>
 
 <pre class="mermaid">
 %%{init: {
@@ -261,49 +270,52 @@ html[data-theme="dark"] .prose em{color:var(--sub)}
   }
 }}%%
 flowchart LR
-  A["LensAI: ingestion, metrics"] --> F["platform-launch landing page"]
-  B["TraceForge: distributed tracing"] --> F
-  C["RouteIQ: model routing"] --> F
-  D["DriftWatch: drift detection"] --> F
-  E["FineForge: fine-tuning loop"] --> F
-  F --> G["One stated north star"]</pre>
+  A["LensAI: observe"] --> B["TraceForge: trace"]
+  B --> C["RouteIQ: route"]
+  C --> D["DriftWatch: detect drift"]
+  D --> E["FineForge: retrain"]
+  E --> A</pre>
 
-<h2 id="what-the-landing-page-actually-has-to-say">What the Landing Page Actually Has to Say</h2>
+<p>Day 148 already covered why the five had to ship in that build order &mdash; each one needing the one before it to exist first. What Day 148 didn't have was the arrow back from FineForge to LensAI, because it hadn't been drawn yet: the platform essay is where the chain stops being a pipeline with a start and an end and becomes an actual loop, a system that watches its own output well enough to feed itself the next correction.</p>
 
-<p>The hard part of today's PR isn't the HTML &mdash; it's the one paragraph of copy that names the north star: one engineer building the full AI-inference observability stack end to end, one layer shipped roughly every thirty days, each layer depending on the one before it. That sentence is the card next to the showroom door. Without it, a visitor still sees five well-built pieces of furniture; with it, they see one carpenter's signature running through all five.</p>
+<p>That closing arrow is also the honest reason this had to be Day 149's essay and not Day 15's. A loop only means something once every station on it has actually run at least once &mdash; observe existed by Day 8, trace by Day 56, route by Day 143, drift by Day 140, retrain by Day 132, and the platform essay could only be truthful about the full circle once the slowest station, FineForge, had a real training run behind it.</p>
 
-<p>The <code>platform-quickstart</code> compose file backs that sentence with something a reader can actually run &mdash; a minimal slice of all five products wired together, not five separate README instructions to follow in five separate terminals. A claimed throughline that nobody can verify in under a minute is just a better-written version of the same unconnected pile.</p>
+<p>So what: a diagram with an arrow pointing back to the start is a claim about a running system, not an aspiration, and it's only honest to draw the day the slowest link in it is actually load-bearing.</p>
 
-<p>So what: the landing page's job isn't to describe five products again, each README already does that &mdash; its job is to say the one sentence none of the five READMEs were ever positioned to say on their own, and then let someone run it and check.</p>
+<h2 id="what-id-tell-day-0-me">What I'd Tell Day-0 Me</h2>
+
+<p>Ship the ugly version today instead of the polished version next week &mdash; the Pillow-fallback covers on 100-plus posts prove a real PNG beats a perfect PNG that never got generated. Write the gaps down instead of hiding them; a CI outage documented in the PR description is more credible to a reviewer than a green checkmark nobody can explain. And don't wait for the fifth product to exist before saying, out loud, that you're building toward a fifth product &mdash; Day 0's roadmap post already named the destination; it just took 149 days to actually arrive.</p>
+
+<p>The four resume bullets and the five repos have the same fix, and I'd tell Day-0 me that fix earlier if I could: write the connecting sentence before someone else has to guess it, on Day 0, not Day 148.</p>
 
 <h2 id="what-i-still-dont-know">What I Still Don't Know</h2>
 
-<p>I don't know whether a hiring panel that already skims resumes in ten seconds will spend the extra ninety it takes to read a landing page and follow a quickstart, however well the throughline is written. I also don't know if the honest version of "cohesive narrative" is actually a story of steady progress, given that day 30's TraceForge and day 148's FineForge were built at very different levels of my own fluency with the domain, and a portfolio page that papers over that gap would be its own kind of dishonesty.</p>
+<p>I don't know whether the apply list converts to a single conversation, let alone an interview &mdash; today's essay and quickstart are the argument, not the verdict, and the verdict belongs to five inboxes I don't control. I also don't know whether the daily-cadence habit survives the moment this plan's window closes at Day 150, since a habit built around a scheduled trigger and a habit built around nothing but my own follow-through are not proven to be the same habit yet.</p>
 
-<p>So what: today's page is a bet that a stated throughline gets read further than an implied one, not a guarantee that it will &mdash; and the honest limitation is the same one every portfolio has, that the reader still has to be someone who was going to look closely in the first place.</p>
+<p>So what: today's honest position is a strong build and an unproven pitch, and the difference between those two things is exactly what the next 30 days outside this plan's window will actually test.</p>
 
 <div class="stat-callout">
-  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Products linked from one page</span></div>
-  <div class="stat-cell"><span class="stat-num">30</span><span class="stat-label">Days between each product's ship date</span></div>
-  <div class="stat-cell"><span class="stat-num">1</span><span class="stat-label">Quickstart compose file, not five</span></div>
-  <div class="stat-cell"><span class="stat-num">7.5</span><span class="stat-label">Years the same throughline predates day 0</span></div>
+  <div class="stat-cell"><span class="stat-num">150</span><span class="stat-label">Days, two posts each, this arc's window</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Products the loop now actually closes</span></div>
+  <div class="stat-cell"><span class="stat-num">~108</span><span class="stat-label">Day the CI outage began, still open</span></div>
+  <div class="stat-cell"><span class="stat-num">5</span><span class="stat-label">Companies on today's apply list</span></div>
 </div>
 
 <div class="series-footer">
-  <p>Experience &middot; Day 148 of 150</p>
-  <p><em>Next up:</em> <a href="day-149-150-days-what-id-tell-day-0-me.html">Day 149 — 150 Days — What I'd Tell Day-0 Me</a></p>
+  <p>Experience &middot; Day 149 of 150</p>
+  <p><em>Next up:</em> Day 150 &mdash; coming soon</p>
 </div>
 
 <div class="footnote-row">
   <div class="footnote-title">References</div>
   <div class="footnote-links">
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-147-graceful-rollout-zero-downtime-price-push.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/day-148-portfolio-launch-cohesive-narrative.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Day 147 — Graceful Rollout — Wayfair Zero-Downtime Price Push (yesterday's post)</span>
+      <span>Day 148 — Portfolio Launch — Cohesive Narrative (yesterday's post, the same throughline one layer down)</span>
     </a>
-    <a href="https://akshantvats.github.io/Profile/blog/series/experience/two-weeks-one-readme-hiring-committees-scroll.html">
+    <a href="https://akshantvats.github.io/Profile/blog/series/experience/building-tsdb-at-agoda.html">
       <span class="footnote-arrow">&rarr;</span>
-      <span>Two Weeks, One README — Hiring Committees Scroll (the same audience problem, one level down)</span>
+      <span>1.5T events/day — what I worked on at Agoda (this series' own Day 1, for comparison)</span>
     </a>
   </div>
 </div>
@@ -314,9 +326,10 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">On this page</div>
     <ul class="toc-list">
-      <li><a href="#the-showroom-problem">The Showroom Problem</a></li>
-      <li><a href="#the-resume-had-the-same-problem-first">The Resume Had This First</a></li>
-      <li><a href="#what-the-landing-page-actually-has-to-say">What the Page Has to Say</a></li>
+      <li><a href="#the-habit-beat-the-hero-sprint">The Habit Beat the Sprint</a></li>
+      <li><a href="#public-build-attracted-a-bet-not-a-result">A Bet, Not a Result Yet</a></li>
+      <li><a href="#the-loop-the-platform-essay-closes">The Loop That Closes Today</a></li>
+      <li><a href="#what-id-tell-day-0-me">What I'd Tell Day-0 Me</a></li>
       <li><a href="#what-i-still-dont-know">What I Still Don't Know</a></li>
     </ul>
   </div>
@@ -324,11 +337,11 @@ flowchart LR
   <div class="sidebar-section">
     <div class="sidebar-label">Share</div>
     <div class="share-links">
-      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-148-portfolio-launch-cohesive-narrative.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-149-150-days-what-id-tell-day-0-me.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
         LinkedIn
       </a>
-      <a href="https://twitter.com/intent/tweet?text=Portfolio+Launch+%E2%80%94+Cohesive+Narrative+%C2%B7+Day+148&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-148-portfolio-launch-cohesive-narrative.html" class="share-link" target="_blank" rel="noopener">
+      <a href="https://twitter.com/intent/tweet?text=150+Days+%E2%80%94+What+I%27d+Tell+Day-0+Me+%C2%B7+Day+149&url=https%3A%2F%2Fakshantvats.github.io%2FProfile%2Fblog%2Fseries%2Fexperience%2Fday-149-150-days-what-id-tell-day-0-me.html" class="share-link" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         X / Twitter
       </a>
@@ -341,21 +354,17 @@ flowchart LR
       <div class="series-title">150 days of building in public</div>
       <div class="series-posts" id="series-nav-posts">
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D146</span> Experience</div>
-          <a href="day-146-cost-latency-quality-triangle-executive-frame.html" class="series-post-title">Cost/Latency/Quality Triangle — Executive Frame</a>
-        </div>
-        <div class="series-post">
           <div class="series-post-kicker"><span class="series-post-num">D147</span> Experience</div>
           <a href="day-147-graceful-rollout-zero-downtime-price-push.html" class="series-post-title">Graceful Rollout — Wayfair Zero-Downtime Price Push</a>
         </div>
-        <div class="series-post current">
-          <div class="series-post-kicker"><span class="series-post-num">D148</span> Experience &middot; now</div>
-          <div class="series-post-title">Portfolio Launch — Cohesive Narrative</div>
-          <div class="series-post-desc">A carpenter's five best pieces sitting in five different homes are each impressive alone — why five shipped repos needed one landing page before any of them meant what they were supposed to.</div>
-        </div>
         <div class="series-post">
-          <div class="series-post-kicker"><span class="series-post-num">D149</span> Experience</div>
-          <a href="day-149-150-days-what-id-tell-day-0-me.html" class="series-post-title">150 Days — What I'd Tell Day-0 Me</a>
+          <div class="series-post-kicker"><span class="series-post-num">D148</span> Experience</div>
+          <a href="day-148-portfolio-launch-cohesive-narrative.html" class="series-post-title">Portfolio Launch — Cohesive Narrative</a>
+        </div>
+        <div class="series-post current">
+          <div class="series-post-kicker"><span class="series-post-num">D149</span> Experience &middot; now</div>
+          <div class="series-post-title">150 Days — What I'd Tell Day-0 Me</div>
+          <div class="series-post-desc">A savings account that gets a small deposit every day outgrows a single big check twice a year — why the habit beat the hero sprint, and what today's platform essay is actually betting on.</div>
         </div>
       </div>
     </div>
